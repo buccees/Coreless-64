@@ -178,6 +178,7 @@ class CorelessCPU:
             raise CorelessTrap("malformed_translation", self.pc, addr)
         if vpn in self.tlb:
             pte = self.tlb[vpn]
+            ppn = (pte >> 12) & ((1 << 36) - 1)
         else:
             if pte_addr + 8 > len(self.memory):
                 raise CorelessTrap("data_page_fault", self.pc, addr)
@@ -307,6 +308,7 @@ class CorelessCPU:
             elif op == 0x0E: s=b & (bits-1); z=a if s==0 else (a>>s)|(a<<(bits-s))
             elif op == 0x15: z = -sextv(a)
             elif op == 0x16: z = abs(sextv(a))
+            elif op == 0x26: z = 0
             elif op == 0x1E:
                 z = a
             elif op == 0x1F:
@@ -509,13 +511,17 @@ class CorelessCPU:
             # implementation-defined in the reference machine.
             pass
         elif name=="TLBFLUSH":
+            if self.privilege < MACHINE:
+                raise CorelessTrap("privilege_violation", self.pc, 0)
             self.tlb.clear()
         elif name=="TLBFLUSHVA":
+            if self.privilege < MACHINE:
+                raise CorelessTrap("privilege_violation", self.pc, self.read_reg(ins[1]))
             self.tlb.pop(self.read_reg(ins[1]) >> 12, None)
         elif name=="READCSR":
             self.write_reg(ins[1], self.read_csr(ins[3] & 0xFFFF))
         elif name=="WRITECSR":
-            self.write_csr(ins[3] & 0xFFFF, self.read_reg(ins[1]))
+            self.write_csr(ins[3] & 0xFFFF, self.read_reg(ins[2]))
         else:
             raise CorelessTrap("illegal_instruction", self.pc)
         return next_pc
