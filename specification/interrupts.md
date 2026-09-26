@@ -109,3 +109,16 @@ Exception codes and interrupt codes occupy separate namespaces because bit 63 id
 ### Priority
 
 Synchronous faults caused by the current instruction are reported before later asynchronous interrupts. Among pending interrupts, the highest enabled architectural priority is selected. Equal-priority interrupts use implementation-defined deterministic arbitration.
+
+
+## Trap Entry and Return State
+
+On synchronous exception or interrupt entry, the machine saves the faulting or interrupted PC in EPC, writes the event cause to CAUSE, and writes the relevant fault address or value to TVAL. The current interrupt-enable and privilege state are preserved in architectural status state before control transfers to TVEC.
+
+The handler begins at the vector selected by TVEC and the event cause. Implementations may use direct or vectored dispatch according to the configured interrupt mode.
+
+RETX restores the saved privilege and interrupt state and resumes at EPC. The handler may modify EPC when intentionally skipping or redirecting execution.
+
+For faults on restartable instructions, EPC identifies the instruction that must be retried unless the architectural instruction explicitly defines a different restart point. Vector restart uses VSTART where applicable.
+
+Interrupt entry is precise with respect to retired state. No later instruction may become architecturally retired before the interrupted instruction boundary.
