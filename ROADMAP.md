@@ -7,13 +7,13 @@
 - [x] Define the independent-computer objective
 - [x] Define the host as an external interface
 - [x] Define the execution-model split between architecture and implementation
-- [ ] Freeze CPU architectural state
-- [ ] Freeze instruction encoding and semantics
-- [ ] Freeze memory and address model
-- [ ] Freeze privilege and interrupt architecture
+- [x] Freeze CPU architectural state
+- [x] Freeze instruction encoding and semantics
+- [x] Freeze memory and address model
+- [x] Freeze privilege and interrupt architecture
 - [ ] Freeze multiprocessing model
-- [ ] Freeze vector architecture
-- [ ] Freeze matrix/AI architecture
+- [x] Freeze vector architecture
+- [x] Freeze matrix/AI architecture
 - [ ] Freeze device and interconnect architecture
 - [ ] Freeze GPU/display architecture
 - [ ] Freeze virtualization architecture
