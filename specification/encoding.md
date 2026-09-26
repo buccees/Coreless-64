@@ -696,3 +696,159 @@ Used by `MZERO`, `MBROADCAST`, and `MREDUCE`.
 4. Unsupported element types, rounding modes, shapes, addressing modes, or control combinations are illegal encodings, not implementation-defined behavior.
 5. The same family encoding has the same architectural meaning on reference, FPGA, ASIC, and heterogeneous implementations.
 6. Payload fields are architectural state inputs; microarchitectural tiling, lane grouping, buffering, and scheduling remain implementation-defined.
+
+## Architectural type, vector, tile, mask, and descriptor encodings
+
+### Element-type encoding
+
+| Value | Type | Width |
+|---:|---|---:|
+| 0 | INT8 | 8 |
+| 1 | INT16 | 16 |
+| 2 | INT32 | 32 |
+| 3 | INT64 | 64 |
+| 4 | FP16 | 16 |
+| 5 | BF16 | 16 |
+| 6 | FP32 | 32 |
+| 7 | FP64 | 64 |
+
+For matrix quantized operations, signedness is supplied separately where required. UINT8, UINT16, and related unsigned forms therefore do not consume additional global type codes.
+
+### Accumulator-type encoding
+
+| Value | Accumulator |
+|---:|---|
+| 0 | INT32 |
+| 1 | INT64 |
+| 2 | FP16 |
+| 3 | BF16 |
+| 4 | FP32 |
+| 5 | FP64 |
+| 6 | capability-gated extended accumulator |
+| 7 | reserved |
+
+### Floating-point rounding modes
+
+| Value | Mode |
+|---:|---|
+| 0 | RNE — nearest, ties to even |
+| 1 | RTZ — toward zero |
+| 2 | RDN — toward minus infinity |
+| 3 | RUP — toward plus infinity |
+| 4 | RMM — nearest, ties to maximum magnitude |
+| 5 | DYN — current FP control state |
+| 6 | reserved |
+| 7 | reserved |
+
+### Vector length model
+
+Coreless uses a scalable architectural vector length. Architectural vector control contains VL (active element count), VSTART (restart element), and VTYPE (current vector configuration). Physical lane count is implementation-defined and discoverable through capabilities.
+
+### Vector mask model
+
+The architectural mask namespace contains M0–M31. Each mask register supplies one predicate bit per active vector element. Mask enable selects the mask; mask zeroing selects merge or zero behavior. Masked-off memory elements perform no architectural memory access.
+
+### Vector operation modes
+
+| Value | Mode |
+|---:|---|
+| 0 | normal |
+| 1 | saturating |
+| 2 | widening |
+| 3 | narrowing |
+
+### Vector addressing modes
+
+| Value | Mode |
+|---:|---|
+| 0 | contiguous |
+| 1 | strided |
+| 2 | indexed |
+| 3 | descriptor |
+
+### Fault modes
+
+| Value | Mode |
+|---:|---|
+| 0 | precise fault |
+| 1 | first-fault |
+| 2 | no-fault/suppress-fault |
+| 3 | reserved |
+
+First-fault and no-fault modes are capability-gated. Unsupported modes are illegal.
+
+### Tile-shape encoding
+
+| Value | Shape class |
+|---:|---|
+| 0 | 2x2x2 |
+| 1 | 4x4x4 |
+| 2 | 8x8x8 |
+| 3 | 8x16x16 |
+| 4 | 16x8x16 |
+| 5 | 16x16x16 |
+| 6 | 32x8x16 |
+| 7 | descriptor-defined |
+
+Shape 7 obtains dimensions from a matrix descriptor and must be capability-validated.
+
+### Matrix execution modes
+
+| Value | Mode |
+|---:|---|
+| 0 | multiply |
+| 1 | multiply-accumulate |
+| 2 | integer dot product |
+| 3 | quantized MAC |
+| 4 | fused multiply-add |
+| 5 | element-wise |
+| 6 | reduction |
+| 7 | reserved |
+
+### Matrix layout encoding
+
+| Value | Layout |
+|---:|---|
+| 0 | row-major |
+| 1 | column-major |
+| 2 | row-major transposed |
+| 3 | column-major transposed |
+| 4 | packed contiguous |
+| 5 | interleaved |
+| 6 | descriptor-defined |
+| 7 | reserved |
+
+### Quantization modes
+
+| Value | Mode |
+|---:|---|
+| 0 | integer accumulation only |
+| 1 | asymmetric zero-point |
+| 2 | symmetric zero-point |
+| 3 | per-tensor scale |
+| 4 | per-channel scale |
+| 5 | requantize to destination type |
+| 6 | clamp and requantize |
+| 7 | reserved |
+
+### Matrix descriptor format
+
+A matrix descriptor is a 128-bit architectural descriptor:
+
+| Word | Bits | Field |
+|---|---|---|
+| 0 | 31:0 | base address low |
+| 1 | 31:0 | base address high |
+| 2 | 31:16 | row stride bytes |
+| 2 | 15:0 | column stride bytes |
+| 3 | 31:24 | M |
+| 3 | 23:16 | N |
+| 3 | 15:8 | K |
+| 3 | 7:4 | element type |
+| 3 | 3:0 | layout |
+
+Descriptor-based matrix operations additionally obtain quantization/scaling references through architectural descriptor registers or operation-specific payload fields. Base address is a full 64-bit virtual address and undergoes normal translation and protection checks.
+
+### Descriptor validation
+
+Before retirement, descriptor-based operations validate type, dimensions, layout, strides, addressability, implementation capabilities, and operation/type compatibility. Invalid descriptors raise the defined architectural exception.
