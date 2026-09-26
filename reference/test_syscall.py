@@ -59,7 +59,7 @@ def test_file_network_display_syscalls():
     cpu.memory[4:8] = encode_syscall(1).to_bytes(4, "little")
     os.machine.step()
     assert cpu.read_reg(1) == 8
-    assert bytes(cpu.memory[100:108]) == b"coreless-"
+    assert bytes(cpu.memory[100:108]) == b"coreless"
 
     cpu.write_reg(2, 100)
     cpu.write_reg(3, 5)
