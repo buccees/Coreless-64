@@ -157,9 +157,23 @@ class CorelessOS:
                 return self._ret(cpu, -1)
             try:
                 program = self.machine.filesystem.read(program_path)
-                p = self.processes.create(program_path, program)
-                self.current_pid = p.pid
+                p = self.processes.spawn(program_path, program, parent=self.current_pid)
                 return self._ret(cpu, p.pid)
+            except Exception:
+                return self._ret(cpu, -1)
+
+        if name == "wait":
+            p = self.processes.wait(self.current_pid)
+            return self._ret(cpu, p.pid if p else 0)
+
+        if name == "exec":
+            program_path = self._arg(cpu, 2)
+            if not isinstance(program_path, str):
+                return self._ret(cpu, -1)
+            try:
+                program = self.machine.filesystem.read(program_path)
+                self.machine.loader.load(program, 0)
+                return self._ret(cpu, 0)
             except Exception:
                 return self._ret(cpu, -1)
 
