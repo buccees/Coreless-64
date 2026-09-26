@@ -274,7 +274,7 @@ class CorelessOS:
 
     def run(self):
         self.boot()
-        return self.shell
+        return self
 
     def status(self):
         return {
