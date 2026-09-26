@@ -36,6 +36,7 @@ CAUSE = {
     "device_fault": 0x015,
     "machine_check_fault": 0x016,
     "instruction_encoding_fault": 0x017,
+    "syscall": 0x019,
 }
 
 CSR_ACCESS = {
@@ -488,6 +489,9 @@ class CorelessCPU:
                 return "wait"
         elif name=="TRAP":
             self._enter_trap(CorelessTrap("breakpoint", self.pc, ins[3]))
+            return "trap"
+        elif name=="SYSCALL":
+            self._enter_trap(CorelessTrap("syscall", self.pc, ins[3]))
             return "trap"
         elif name=="RETX":
             if self.privilege < SUPERVISOR:
