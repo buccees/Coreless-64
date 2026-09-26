@@ -5,7 +5,7 @@ from machine_runtime import CorelessMachine
 from os_runtime import CorelessOS
 
 def test_native_shell_commands_end_to_end():
-    os = CorelessOS(CorelessMachine(4096, 2)).run()
+    os = CorelessOS(CorelessMachine(256 * 1024, 2)).run()
     assert os.command("status").startswith("Coreless-64")
     assert os.command("cpu").startswith("Coreless-64 CPUs=2")
     assert os.command("memory") == "memory=4096 bytes"
