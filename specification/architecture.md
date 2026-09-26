@@ -71,3 +71,10 @@ On architectural reset:
 Machine firmware is responsible for establishing memory, interrupt, translation, device, and execution-context configuration before transferring control to Supervisor or another lower privilege domain.
 
 A reset vector and machine configuration pointer are implementation-defined machine inputs, but their existence and handoff semantics are architectural.
+
+
+## Capability Discovery
+
+Architectural capabilities are discovered rather than inferred from implementation identity. CAP_BASE points to a read-only capability table containing a versioned header followed by fixed-size device/resource records. The table describes execution contexts, vector width, supported element types, matrix tile shapes, physical address width, virtualization support, graphics/network/storage capabilities, and optional extensions.
+
+Software must query capabilities before using optional architectural resources. Unsupported operations or resource requests produce a capability/resource fault rather than silently changing semantics. The capability table is part of the machine boot contract and remains available after Supervisor handoff.
