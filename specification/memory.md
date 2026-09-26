@@ -118,3 +118,32 @@ CPU virtual-memory translation is distinct from device/DMA translation. An optio
 A faulting memory instruction does not retire its destination or store side effect. Exception state permits the handler to resolve the fault and restart the instruction. Vector and matrix memory operations follow their defined precise-fault and restart rules.
 
 The architecture provides canonical-address checking so implementations with less than 64 physical address bits can reject invalid virtual addresses deterministically. Supported canonical modes are capability-discoverable.
+
+## Baseline Page-Table Entry Format
+
+Coreless-64 uses a 64-bit page-table entry for the baseline 4 KiB mapping format.
+
+| Bits | Field |
+|---|---|
+| 0 | valid |
+| 1 | read |
+| 2 | write |
+| 3 | execute |
+| 4 | user |
+| 5 | global |
+| 6 | accessed |
+| 7 | dirty |
+| 9:8 | memory type |
+| 10 | software/COW |
+| 11 | reserved |
+| 47:12 | physical page number |
+| 59:48 | architecture-defined attributes |
+| 63:60 | extension/capability attributes |
+
+Memory type values are 0 normal cacheable, 1 normal non-cacheable, 2 device, and 3 reserved.
+
+A leaf entry is valid only when its permission and attribute combinations are legal. A writable mapping without read permission is allowed only when the implementation advertises write-only memory support; otherwise it is a malformed mapping.
+
+Physical-address bits above the implemented physical width must be zero. Reserved fields must be zero. A malformed entry raises the malformed-translation fault.
+
+Higher-level entries may be non-leaf pointers or leaf mappings for larger pages. The page-table walker validates alignment and reserved bits before using a mapping.
