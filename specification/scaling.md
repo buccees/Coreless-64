@@ -102,3 +102,20 @@ Software synchronization primitives are built from atomic operations and memory 
 ### Progress and fairness
 
 The architecture does not require a particular scheduling or fairness policy. Implementations must preserve forward progress guarantees documented for their atomic and interrupt mechanisms.
+
+
+## Dynamic Computational Resource Model
+
+Coreless resources are discovered rather than assumed. CPU contexts, vector capacity, matrix/AI capacity, graphics resources, memory capacity, storage capacity, and device capabilities are exposed through machine configuration.
+
+An implementation may expose different resource counts while running the same Coreless software image.
+
+Software should query capability state and select an execution strategy rather than assuming a fixed physical topology.
+
+### Storage versus execution capacity
+
+Persistent storage capacity determines how much machine state, software, model data, checkpoints, datasets, and guest state can be carried. It does not by itself determine computational throughput.
+
+Execution throughput is determined by the available computational fabric. A native implementation may co-locate execution resources with storage or attach them through a dedicated interconnect.
+
+This separation preserves the Coreless principle that persistent machine state and computational execution are distinct architectural resources.
