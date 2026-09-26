@@ -343,6 +343,84 @@ PC → fetch word 0 → length detect → fetch payload → header decode → cl
 
 Length detection occurs before payload interpretation. An implementation may prefetch into an instruction buffer, but payload words must not be treated as independent instructions once the first word establishes an extended boundary.
 
+### Vector payload encoding
+
+The VECTOR class uses the common extended header with `format=F2` for descriptor-based operations. The 96-bit payload of a 128-bit instruction is divided into three 32-bit words:
+
+| Word | Bits | Field | Purpose |
+|---|---|---|---|
+| 1 | 31:27 | vd2 | Additional vector destination/register selector |
+| 1 | 26:22 | vs3 | Third vector source |
+| 1 | 21:17 | vm | Mask register |
+| 1 | 16:14 | element type | Element width/data type |
+| 1 | 13:11 | operation mode | Lane/width behavior |
+| 1 | 10:8 | rounding | Floating-point rounding mode |
+| 1 | 7:0 | vector flags | Saturation, masking, reduction, and reserved controls |
+| 2 | 31:0 | immediate/descriptor low | Stride, index, offset, or operation-specific operand |
+| 3 | 31:0 | immediate/descriptor high | Upper operand or operation-specific descriptor |
+
+The exact interpretation of words 2 and 3 is operation-defined, but their presence and order are architectural.
+
+Vector register numbers are five bits and therefore address 32 architectural vector registers. The vector engine itself is scalable; vector length is an implementation capability discovered through the architectural configuration interface rather than encoded as a fixed physical register width.
+
+Element type encodings initially reserve:
+
+| Value | Type |
+|---:|---|
+| 0 | INT8 |
+| 1 | INT16 |
+| 2 | INT32 |
+| 3 | INT64 |
+| 4 | FP16 |
+| 5 | BF16 |
+| 6 | FP32 |
+| 7 | FP64 |
+
+Values outside this table are reserved.
+
+Vector operations must define whether masking, saturation, reduction, widening, narrowing, and floating-point rounding are applicable. An operation that does not support a selected control must raise an illegal-instruction exception rather than silently ignoring architectural control fields.
+
+### Matrix/AI payload encoding
+
+The MATRIX class uses `format=F2` for matrix/tile descriptor operations. Matrix operations use the same 128-bit extended envelope so hardware can decode the common header identically to vector instructions.
+
+The matrix payload is defined as:
+
+| Word | Bits | Field | Purpose |
+|---|---|---|---|
+| 1 | 31:27 | tile destination | Destination tile/accumulator selector |
+| 1 | 26:22 | tile source A | First source tile selector |
+| 1 | 21:17 | tile source B | Second source tile selector |
+| 1 | 16:14 | input type | A/B element type |
+| 1 | 13:11 | accumulator type | Accumulation/output type |
+| 1 | 10:8 | tile shape | Matrix dimensions/shape class |
+| 1 | 7:5 | mode | Multiply, MAC, dot, quantized, conversion, etc. |
+| 1 | 4:0 | flags | Saturation, rounding, masking, and control |
+| 2 | 31:16 | M/N descriptor | Matrix dimension or shape parameters |
+| 2 | 15:0 | K descriptor | Reduction dimension or inner product length |
+| 3 | 31:0 | auxiliary descriptor | Stride, tile memory descriptor, quantization parameters, or operation-specific data |
+
+Initial matrix data types are:
+
+| Input/accumulator class | Values |
+|---|---|
+| Integer | INT8, INT16, INT32, INT64 |
+| Floating point | FP16, BF16, FP32, FP64 |
+| Quantized | UINT8, INT8, UINT16, INT16 |
+
+Matrix operations include matrix multiply, matrix multiply-accumulate, integer dot products, quantized multiply-accumulate, type conversion, tile load/store descriptors, and reduction operations.
+
+The matrix engine must not assume a single physical tile size. `tile shape` identifies an architectural shape class, while the implementation capability determines the maximum native tile dimensions and throughput.
+
+### Vector and matrix execution semantics
+
+Vector and matrix payloads describe architectural operations rather than a mandatory microarchitectural implementation. A conforming implementation may execute them through SIMD lanes, vector pipelines, systolic arrays, tensor units, fused heterogeneous fabrics, or other hardware that preserves architectural results and exception behavior.
+
+Masking is architectural: inactive vector elements do not modify their destination unless an instruction explicitly specifies a different merge/zeroing behavior.
+
+Matrix accumulation is architectural: the accumulator type and overflow/rounding behavior are determined by the instruction encoding and the defined operation semantics, not by the implementation's internal accumulator width.
+
+Vector and matrix instructions may be issued independently, pipelined, fused, or distributed across execution units, provided architectural ordering, memory ordering, exceptions, and retirement semantics are preserved.
 ### Reserved encodings
 
 Undefined class values, operations, format/class combinations, explicitly reserved fields, and malformed or truncated extended instructions are illegal.
