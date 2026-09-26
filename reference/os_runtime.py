@@ -39,6 +39,22 @@ class CorelessOS:
     def _arg(self, cpu, n):
         return cpu.read_reg(n)
 
+    def _read_user_bytes(self, cpu, addr, length):
+        if length < 0 or length > (1 << 20):
+            raise ValueError("invalid user buffer length")
+        return bytes(cpu.load_u(addr + i, 1) for i in range(length))
+
+    def _write_user_bytes(self, cpu, addr, data, limit=None):
+        data = bytes(data)
+        if limit is not None:
+            data = data[:limit]
+        for i, b in enumerate(data):
+            cpu.store_u(addr + i, 1, b)
+        return len(data)
+
+    def _read_user_text(self, cpu, addr, length):
+        return self._read_user_bytes(cpu, addr, length).decode("utf-8")
+
     def _syscall(self, cpu, number):
         name = self.SYSCALLS.get(number)
         if name is None:
@@ -76,15 +92,20 @@ class CorelessOS:
                 return self._ret(cpu, -1)
 
         if name == "checkpoint":
-            self.machine.checkpoint("syscall-%d" % self._arg(cpu, 2))
-            return self._ret(cpu, 0)
+            try:
+                name_text = self._read_user_text(cpu, self._arg(cpu, 2), self._arg(cpu, 3))
+                self.machine.checkpoint(name_text or "syscall")
+                return self._ret(cpu, 0)
+            except Exception:
+                return self._ret(cpu, -1)
 
         if name == "capability":
             return self._ret(cpu, 1)
 
         if name == "open":
-            path = self._arg(cpu, 2)
-            if not isinstance(path, str):
+            try:
+                path = self._read_user_text(cpu, self._arg(cpu, 2), self._arg(cpu, 3))
+            except Exception:
                 return self._ret(cpu, -1)
             if not self.machine.filesystem.exists(path):
                 return self._ret(cpu, -1)
@@ -153,10 +174,8 @@ class CorelessOS:
                 return self._ret(cpu, -1)
 
         if name == "spawn":
-            program_path = self._arg(cpu, 2)
-            if not isinstance(program_path, str):
-                return self._ret(cpu, -1)
             try:
+                program_path = self._read_user_text(cpu, self._arg(cpu, 2), self._arg(cpu, 3))
                 program = self.machine.filesystem.read(program_path)
                 p = self.processes.spawn(program_path, program, parent=self.current_pid)
                 return self._ret(cpu, p.pid)
@@ -168,11 +187,16 @@ class CorelessOS:
             return self._ret(cpu, p.pid if p else 0)
 
         if name == "exec":
-            program_path = self._arg(cpu, 2)
-            if not isinstance(program_path, str):
-                return self._ret(cpu, -1)
             try:
+                program_path = self._read_user_text(cpu, self._arg(cpu, 2), self._arg(cpu, 3))
                 program = self.machine.filesystem.read(program_path)
+                if self.current_pid in self.processes.processes:
+                    p = self.processes.processes[self.current_pid]
+                    p.program = bytes(program)
+                    p.pc = p.address_space.code_base
+                    p.registers = [0] * 32
+                    p.sp = p.address_space.stack_base + p.address_space.stack_size
+                    return self._ret(cpu, 0)
                 self.machine.loader.load(program, 0)
                 return self._ret(cpu, 0)
             except Exception:
@@ -180,11 +204,11 @@ class CorelessOS:
 
         if name == "net_send":
             try:
-                addr = self._arg(cpu, 2)
-                length = self._arg(cpu, 3)
-                target = self._arg(cpu, 4)
-                data = bytes(cpu.load_u(addr + i, 1) for i in range(length))
-                packet = self.network.device.transmit(data, target if isinstance(target, str) else "")
+                addr, length = self._arg(cpu, 2), self._arg(cpu, 3)
+                target_ptr, target_len = self._arg(cpu, 4), self._arg(cpu, 5)
+                data = self._read_user_bytes(cpu, addr, length)
+                target = self._read_user_text(cpu, target_ptr, target_len)
+                packet = self.network.device.transmit(data, target)
                 return self._ret(cpu, len(packet.data))
             except Exception:
                 return self._ret(cpu, -1)
@@ -221,7 +245,11 @@ class CorelessOS:
             event = self.machine.graphics.poll_input()
             if event is None:
                 return self._ret(cpu, 0)
-            return self._ret(cpu, 1)
+            try:
+                payload = repr(event).encode("utf-8")
+                return self._ret(cpu, self._write_user_bytes(cpu, self._arg(cpu, 2), payload, self._arg(cpu, 3)))
+            except Exception:
+                return self._ret(cpu, -1)
 
         return self._ret(cpu, -1)
 
