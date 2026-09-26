@@ -140,7 +140,7 @@ The coherent memory system provides:
 - CAS
 - XADD
 - XAND
-- XOR atomic operation
+- XXOR
 
 Ordering modes:
 - relaxed
@@ -709,3 +709,7 @@ An implementation may use lazy save/restore for optional state, but first use mu
 Machine-level state controls boot configuration, security policy, memory-access attributes, and access to implementation resources. Lower privilege levels cannot directly modify machine security state.
 
 Secure boot and attestation mechanisms may be implementation-specific, but any architectural security state exposed to software must have defined access and transition rules.
+
+## Consistency audit status
+
+The ISA document is subordinate to the exact encoding and architectural-state definitions. Any statement marked as a target or requiring v1.0 definition remains provisional until the corresponding encoding, CSR, exception, and reset definitions are frozen.
