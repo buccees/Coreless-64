@@ -970,3 +970,7 @@ Interrupt enable, pending, priority, vector-base, and target operations are priv
 3. CSR writes affecting translation, privilege, interrupt routing, or execution configuration take effect at the defined architectural boundary.
 4. Undefined system operations and reserved control combinations are illegal.
 5. Trap and interrupt entry preserve sufficient state for precise restart or diagnosis.
+
+## Consistency audit corrections
+
+The architectural ordering namespace reserves five states: relaxed, acquire, release, acquire-release, and sequentially consistent. Any encoding or implementation that uses the older four-value namespace is non-conforming.
