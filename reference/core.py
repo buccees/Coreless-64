@@ -106,6 +106,14 @@ class CorelessCPU:
         self.csrs[0x01F] = 0x434C3634  # "CL64"
         self.tlb = {}
         self.pending_interrupts = 0
+        self.reservation = None
+        self.vector = [[0] * 64 for _ in range(32)]
+        self.matrix = [[[0] * 16 for _ in range(16)] for _ in range(32)]
+        self.vector_vl = 0
+        self.vector_vstart = 0
+        self.vector_vtype = 0
+        self.vector_mask = [0] * 32
+        self.matrix_shape = (1, 1, 1)
         self._trap_saved_privilege = MACHINE
         self._trap_saved_ie = 0
 
@@ -257,6 +265,49 @@ class CorelessCPU:
         self.pc = self.csrs[0x003] & MASK64
         return True
 
+
+    def _atomic(self, ins):
+        """Execute the compact architectural ATOMIC R-format subset."""
+        _, rd, addr_reg, src = ins
+        raw = self._last_word
+        funct = raw & 0x1F
+        desired_reg = (raw >> 7) & 0x1F
+        ordering = (raw >> 12) & 0x3
+        addr = self.read_reg(addr_reg)
+        old = self.load_u(addr, 8)
+        if funct == 0: new = self.read_reg(src)
+        elif funct == 1:
+            if old == self.read_reg(src):
+                new = self.read_reg(desired_reg)
+            else:
+                new = old
+        elif funct == 2: new = (old + self.read_reg(src)) & MASK64
+        elif funct == 3: new = (old - self.read_reg(src)) & MASK64
+        elif funct == 4: new = old & self.read_reg(src)
+        elif funct == 5: new = old | self.read_reg(src)
+        elif funct == 6: new = old ^ self.read_reg(src)
+        elif funct == 7:
+            a = old - (1<<64) if old & (1<<63) else old
+            b0 = self.read_reg(src); b = b0 - (1<<64) if b0 & (1<<63) else b0
+            new = old if a < b else b0
+        elif funct == 8:
+            a = old - (1<<64) if old & (1<<63) else old
+            b0 = self.read_reg(src); b = b0 - (1<<64) if b0 & (1<<63) else b0
+            new = old if a > b else b0
+        elif funct == 9:
+            new = old
+            self.write_reg(rd, old)
+            return
+        elif funct == 10:
+            self.store_u(addr, 8, self.read_reg(src))
+            return
+        else:
+            raise CorelessTrap("illegal_instruction", self.pc, funct)
+        if funct != 1 or old == self.read_reg(src):
+            self.store_u(addr, 8, new)
+        self.write_reg(rd, old)
+        self.reservation = (addr >> 3, old, ordering)
+
     def _execute(self, ins):
         from encoding import instruction_length
         name = ins[0]
@@ -332,6 +383,7 @@ class CorelessCPU:
             if name in ("CALL","CALLR"): self.write_reg(ins[1],self.pc+4)
             next_pc=target
         elif name=="NOP": pass
+        elif name=="ATOMIC": self._atomic(ins)
         elif name=="HALT":
             self.halted=True
         elif name=="WAIT":
@@ -372,6 +424,7 @@ class CorelessCPU:
         try:
             first = from_bytes(self.memory[self._phys(self.pc, "read", execute=True):
                                            self._phys(self.pc, "read", execute=True)+4])
+            self._last_word = first
             length = instruction_length(first)
             if length != 4:
                 raise CorelessTrap("instruction_encoding_fault", self.pc)
