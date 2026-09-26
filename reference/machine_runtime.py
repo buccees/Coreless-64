@@ -2,7 +2,7 @@
 from core import CorelessCPU
 from machine import InterruptController,DeviceFabric
 from storage import PersistentMachineImage
-from io import NetworkDevice,GraphicsDevice
+from device_io import NetworkDevice,GraphicsDevice
 from filesystem import FileSystem
 from loader import ProgramLoader
 
