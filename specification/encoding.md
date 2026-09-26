@@ -903,7 +903,8 @@ Atomic ordering values:
 | 0 | relaxed |
 | 1 | acquire |
 | 2 | release |
-| 3 | sequentially consistent |
+| 3 | acquire-release |
+| 4 | sequentially consistent |
 
 ### Memory ordering masks
 
