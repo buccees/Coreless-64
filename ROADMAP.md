@@ -8,15 +8,15 @@
 - [x] Define the host as an external interface
 - [x] Define the execution-model split between architecture and implementation
 - [x] Freeze CPU architectural state
-- [x] Freeze instruction encoding and semantics
-- [x] Freeze memory and address model
-- [x] Freeze privilege and interrupt architecture
+- [ ] Freeze instruction encoding and semantics
+- [ ] Freeze memory and address model
+- [ ] Freeze privilege and interrupt architecture
 - [x] Freeze multiprocessing model
 - [x] Freeze vector architecture
 - [x] Freeze matrix/AI architecture
-- [x] Freeze device and interconnect architecture
-- [x] Freeze GPU/display architecture
-- [x] Freeze virtualization architecture
+- [ ] Freeze device and interconnect architecture
+- [ ] Freeze GPU/display architecture
+- [ ] Freeze virtualization architecture
 
 ## Phase 2 — Reference execution
 
@@ -114,3 +114,8 @@ Before Coreless-64 is declared architecturally frozen, the project must pass a s
 11. Network and graphics subsystems
 12. Virtualization
 13. Coreless operating environment
+
+
+## Architecture audit findings
+
+Phase 1 is substantially specified but is not yet formally frozen. The audit found remaining normative gaps in exact CSR numbering/layout, page-table entry bit layout, exception priority/cause numbering, reset state, capability-discovery encoding, exact device discovery format, interrupt entry/return state, and complete extended instruction field assignments. These items remain roadmap work rather than being treated as frozen prematurely.
