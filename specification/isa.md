@@ -713,3 +713,8 @@ Secure boot and attestation mechanisms may be implementation-specific, but any a
 ## Consistency audit status
 
 The ISA document is subordinate to the exact encoding and architectural-state definitions. Any statement marked as a target or requiring v1.0 definition remains provisional until the corresponding encoding, CSR, exception, and reset definitions are frozen.
+
+
+## Floating-Point Baseline
+
+Coreless-64 floating-point operations support FP16, BF16, FP32, and FP64 where the corresponding capability is present. Arithmetic includes add, subtract, multiply, divide, fused multiply-add/subtract, minimum/maximum, comparisons, negation, absolute value, and conversion. FMA is fused and produces one final rounding. Rounding modes are RNE, RTZ, RDN, RUP, RMM, and dynamic. Exceptional conditions are reported through floating-point status and precise traps when enabled by the architectural control state. NaN propagation, signed zero, infinities, subnormals, and invalid operations follow the selected Coreless floating-point profile; implementations must advertise any profile extensions through capability discovery.
