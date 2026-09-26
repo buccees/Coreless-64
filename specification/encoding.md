@@ -981,3 +981,10 @@ The architectural ordering namespace reserves five states: relaxed, acquire, rel
 For extended SYSTEM instructions with CSR operations, the 16-bit CSR number occupies the low 16 bits of the immediate/control payload. The operation subtype identifies read, write, set, clear, or implementation-defined future CSR operations.
 
 CSR access checks occur before the instruction produces its architectural result. A failed privilege or access check raises the corresponding exception and does not modify the CSR or destination register.
+
+
+## Extended Encoding Audit Invariant
+
+Every extended instruction has exactly one length class, one common header, and a class-specific payload. Class and operation numbers are allocated from the common header without overlap with the length mechanism. Reserved class, operation, format, and reserved-field values are illegal. An implementation may decode an extended instruction into multiple internal micro-operations, but architectural retirement occurs as one instruction.
+
+The decoder must validate the complete instruction length before interpreting payload fields. A truncated instruction produces an instruction access fault; an architecturally invalid encoding produces an instruction encoding or illegal-instruction fault according to the faulting condition. No partial architectural state may retire from a malformed extended instruction.
