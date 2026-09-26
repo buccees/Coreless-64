@@ -1,0 +1,1 @@
+# Can we create an execution architecture where the computational machine itself is represented on persistent storage, rather than treating the storage merely as a disk attached to a conventional computer?
