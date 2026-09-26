@@ -42,6 +42,50 @@ The initial toolchain target will use an ELF-compatible object/executable format
 
 The ABI will define a stable system-call boundary independent of the underlying device implementation.
 
+## System calls
+
+The native system-call instruction is `SYSCALL`, encoded as a SYSTEM instruction with function `10`. Its 11-bit immediate selects the system-call number.
+
+A system call traps to the operating-system trap vector with exception cause `0x019` (`syscall`). EPC records the address of the SYSCALL instruction and TVAL records the system-call number.
+
+The initial native system-call namespace is:
+
+| Number | Name | Purpose |
+|---:|---|---|
+| 0 | exit | terminate the current process |
+| 1 | read | read from a file/device handle |
+| 2 | write | write to a file/device handle |
+| 3 | open | open a filesystem object |
+| 4 | close | close a handle |
+| 5 | seek | change file position |
+| 6 | stat | query filesystem metadata |
+| 7 | sleep | suspend the current process |
+| 8 | yield | yield execution |
+| 9 | spawn | create a process |
+| 10 | exec | replace the current process image |
+| 11 | wait | wait for a child process |
+| 12 | kill | terminate a process |
+| 13 | getpid | return current process ID |
+| 14 | time | read system time |
+| 15 | memory | query memory |
+| 16 | cpu_info | query execution contexts |
+| 17 | device_info | query devices |
+| 18 | net_send | transmit network data |
+| 19 | net_recv | receive network data |
+| 20 | socket | create a network endpoint |
+| 21 | connect | connect an endpoint |
+| 22 | listen | listen for connections |
+| 23 | accept | accept a connection |
+| 24 | display_open | open a display surface/window |
+| 25 | display_present | present a display surface |
+| 26 | input_read | read input events |
+| 27 | checkpoint | request persistent machine-state checkpoint |
+| 28 | capability | query architectural/resource capabilities |
+
+Numbers 29–255 are reserved. Numbers 256–2047 are extension-defined.
+
+System calls are an OS boundary, not a hardware-device boundary. An implementation may satisfy the same call using any suitable part of the Coreless computational fabric while preserving the ABI contract.
+
 ## Compatibility
 
 Existing application ecosystems will be supported through translation and guest environments rather than by changing the Coreless ABI.
