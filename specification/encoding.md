@@ -18,18 +18,67 @@ The encoding supports multiple instruction lengths. The base encoding is compact
 - A 32-bit encoding is **not** the definition of the machine width; it is one instruction representation within the 64-bit architecture.
 - Implementations may internally decode an architectural instruction into one or more implementation operations.
 
-The first implementation will use a simple length-detection mechanism suitable for direct mapping to RTL.
+The first implementation uses a simple prefix-based length mechanism suitable for direct mapping to RTL. The decoder needs only the first 32-bit instruction word to determine whether the instruction is 32, 64, or 128 bits.
 
-## Instruction-length classes
+## Instruction-length mechanism
 
-| Length | Intended use |
-|---:|---|
-| 32 bits | Base scalar, control-flow, memory, and system instructions |
-| 64 bits | Extended scalar/system/memory operations and larger immediates |
-| 128 bits | Vector, matrix/AI, compound, and other operand-rich operations |
-| Future | Reserved for architectural expansion |
+Coreless-64 uses a **prefix-class length mechanism**. Every instruction begins on a 4-byte boundary, and the first 32-bit instruction word contains a 5-bit length class in bits 31:27.
 
-The exact prefix/length encoding is part of the v0.1 binary-format work and must be frozen before ISA v1.0.
+The length class is decoded before the remaining instruction fields are interpreted:
+
+| Bits 31:27 | Meaning | Total instruction length |
+|---|---|---:|
+| 0x00–0x1C | Base instruction | 32 bits / 4 bytes |
+| 0x1D | Extended-64 prefix | 64 bits / 8 bytes |
+| 0x1E | Extended-128 prefix | 128 bits / 16 bytes |
+| 0x1F | Escape / future length encoding | Reserved |
+
+This deliberately preserves the existing base instruction formats: base primary opcodes 0x00–0x1C retain their current bit positions.
+
+### Fetch and length detection
+
+The architectural fetch sequence is:
+
+1. Fetch the 32-bit word at PC.
+2. Inspect bits 31:27.
+3. If the value is 0x00–0x1C, the instruction length is 4 bytes.
+4. If the value is 0x1D, fetch one additional 32-bit word; the instruction length is 8 bytes.
+5. If the value is 0x1E, fetch three additional 32-bit words; the instruction length is 16 bytes.
+6. If the value is 0x1F, enter the reserved/future extension path and do not retire the instruction unless a later ISA revision defines the encoding.
+
+The length decision is therefore independent of the semantic opcode decode. A conforming implementation does not need to inspect an extended instruction's operands or function fields to discover its total length.
+
+### Alignment
+
+- All instruction starts are 4-byte aligned.
+- 32-bit instructions occupy one 32-bit word.
+- 64-bit instructions occupy two consecutive 32-bit words.
+- 128-bit instructions occupy four consecutive 32-bit words.
+- Extended instructions do **not** require 8-byte or 16-byte start alignment.
+- Branch and jump targets must be 4-byte aligned and must point to an instruction boundary.
+
+This keeps instruction-boundary hardware simple while allowing longer encodings.
+
+### Extended prefix word
+
+For 64-bit and 128-bit instructions, bits 31:27 of the first word are the length class. Bits 26:0 are an extended encoding header whose exact field assignments are defined by the extended instruction format.
+
+The remaining 32-bit words are payload words belonging to the same architectural instruction:
+
+- 64-bit form: prefix word + payload word at PC+4.
+- 128-bit form: prefix word + payload words at PC+4, PC+8, and PC+12.
+
+All words use the architectural little-endian byte order.
+
+The extended header may identify the instruction family, sub-operation, operand format, data type, register operands, or other architectural fields. Its exact layout is intentionally separate from the length mechanism so that the length mechanism remains stable as vector, matrix/AI, virtualization, and future instruction families are added.
+
+### Architectural length contract
+
+The decoder must produce the instruction length as part of the canonical decoded instruction record.
+
+The length mechanism is architectural, not an implementation hint. Software-visible instruction addresses, PC advancement, branch/jump targets, exception PCs, debugging information, disassembly, and binary tooling must all observe the same instruction boundaries.
+
+A malformed or truncated extended instruction is illegal and must not retire.
 
 ## Primary opcode
 
@@ -50,14 +99,16 @@ The base 32-bit encoding reserves the following primary opcode space:
 | 0x0A | MATRIX |
 | 0x0B | CRYPTO |
 | 0x0C | VM |
-| 0x0D–0x1E | RESERVED |
-| 0x1F | EXTENSION / LENGTH ESCAPE |
+| 0x0D–0x1C | RESERVED |
+| 0x1D | EXTENDED-64 LENGTH PREFIX |
+| 0x1E | EXTENDED-128 LENGTH PREFIX |
+| 0x1F | ESCAPE / FUTURE LENGTH ENCODING |
 
 The use of an extension/length escape does not imply that all extended instructions must share one fixed length. The escape mechanism identifies that additional encoding information must be fetched and interpreted.
 
 ## Base 32-bit formats
 
-The following formats define the initial compact instruction representation. They remain subject to the final length-prefix design.
+The following formats define the initial compact 32-bit instruction representation. Their field positions are now stable with respect to the length mechanism: base instructions use primary opcodes 0x00–0x1C, while 0x1D–0x1F are reserved for length/escape handling.
 
 ### R-format
 
@@ -260,7 +311,7 @@ The reference implementation intentionally follows this structure so that its be
 
 This document is **not frozen for ISA v1.0** until:
 
-1. instruction-length prefixes are exactly defined;
+1. instruction-length classes and prefix behavior are exactly defined;
 2. every base bit field is defined;
 3. every extended encoding has an exact reconstruction rule;
 4. immediate and displacement widths are fixed;
