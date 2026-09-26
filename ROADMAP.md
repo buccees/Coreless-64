@@ -30,12 +30,12 @@ The reference implementation exists to validate the architecture. It is not the 
 - [x] Interrupt controller and timer foundation
 - [x] Atomic execution
 - [x] Persistent machine-state reference model
-- [ ] Network controller
-- [ ] Virtual GPU/display
+- [x] Network controller reference model
+- [x] Virtual GPU/display reference model
 - [ ] Vector execution
 - [ ] Matrix/AI execution
 - [x] Multiprocessing reference fabric
-- [ ] Virtualization
+- [x] Virtualization reference model
 
 ## Phase 3 — Coreless operating environment
 
