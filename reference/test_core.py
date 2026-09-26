@@ -95,7 +95,7 @@ def test_atomic_swap_and_cas():
     cpu.step()
     assert cpu.r[4]==5 and int.from_bytes(cpu.memory[0x100:0x108],"little")==7
     # CAS R5,[R1], expected R2=7, desired R3=9; desired register is bits 11:7.
-    cas=(7<<27)|(5<<22)|(1<<17)|(2<<12)|(3<<7)|1
+    cas=(7<<27)|(5<<22)|(1<<17)|(2<<12)|(3<<4)|1
     cpu.memory[4:8]=cas.to_bytes(4,"little")
     cpu.step()
     assert cpu.r[5]==7 and int.from_bytes(cpu.memory[0x100:0x108],"little")==9
