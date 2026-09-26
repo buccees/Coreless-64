@@ -49,3 +49,10 @@ CPUs can signal one another for scheduling, TLB coordination, synchronization, a
 A trap records enough architectural state to restart, terminate, or emulate the faulting operation.
 
 The exact register layout is frozen in the final privileged specification.
+
+
+## Multiprocessor Interrupt Coordination
+
+Interrupt targeting includes a destination CPU ID or implementation-defined broadcast class. IPIs are ordered according to the interrupt architecture and become pending independently on each destination context.
+
+TLB shootdowns use IPIs or an equivalent architectural mechanism so that stale translations are invalidated on affected contexts before software relies on the new mapping.
