@@ -367,9 +367,9 @@ class CorelessCPU:
         """Execute the compact architectural ATOMIC R-format subset."""
         _, rd, addr_reg, src = ins
         raw = self._last_word
-        funct = raw & 0x1F
-        desired_reg = (raw >> 7) & 0x1F
-        ordering = (raw >> 12) & 0x3
+        funct = raw & 0xF
+        desired_reg = (raw >> 4) & 0x1F
+        ordering = (raw >> 9) & 0x7
         addr = self.read_reg(addr_reg)
         old = self.load_u(addr, 8)
         if funct == 0: new = self.read_reg(src)
