@@ -41,3 +41,16 @@ Nested virtualization is a planned capability.
 ## Isolation
 
 A guest must not be able to escape its assigned CPU, memory, device, storage, or network boundaries.
+
+
+## Guest Virtual Memory and Nested Translation
+
+Virtualization extends the MMU with guest translation domains.
+
+A guest access may undergo guest-virtual to guest-physical translation followed by hypervisor-controlled guest-physical to host-physical translation.
+
+The hypervisor controls second-stage permissions independently of guest page-table permissions. Guest translation faults and second-stage translation faults are architecturally distinguishable.
+
+TLB invalidation may target the current host address space, a guest domain, or a virtualization-wide domain according to privilege and virtualization control state.
+
+Nested translation is optional and capability-discoverable. Unsupported configurations are rejected through the defined capability/error mechanism.
