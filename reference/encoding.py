@@ -45,9 +45,17 @@ def instruction_length(w):
     raise IllegalEncoding('reserved/future length escape')
 
 def encode_r(f,rd,rs1,rs2):
+    if isinstance(f, str):
+        if f not in ALUR.values():
+            raise IllegalEncoding("unknown ALUR operation")
+        f = next(k for k, v in ALUR.items() if v == f)
     return ((OP_ALUR<<27)|(rd<<22)|(rs1<<17)|(rs2<<12)|f)&MASK32
 
 def encode_i(f,rd,rs1,imm):
+    if isinstance(f, str):
+        if f not in ALUI.values():
+            raise IllegalEncoding("unknown ALUI operation")
+        f = next(k for k, v in ALUI.items() if v == f)
     if not -(1<<11)<=imm<(1<<11):
         raise IllegalEncoding('imm12 out of range')
     return ((OP_ALUI<<27)|(rd<<22)|(rs1<<17)|(f<<12)|(imm&0xfff))&MASK32
@@ -84,12 +92,12 @@ def decode(w):
         width=(w>>14)&7
         if width>3:
             raise IllegalEncoding('bad store width')
-        return (['ST8','ST16','ST32','ST64'][width],rs2,rs1,sext(w&0x3fff,14))
+        return (['ST8','ST16','ST32','ST64'][width],rd,rs1,sext(w&0x3fff,14))
     if op==OP_BRANCH:
         f=(w>>12)&31
         if f not in BRANCH:
             raise IllegalEncoding('bad branch')
-        return (BRANCH[f],rd,rs1,sext(w&0xfff,12))
+        return (BRANCH[f],rs1,rd,sext(w&0xfff,12))
     if op==OP_JUMP:
         f=(w>>12)&31
         if f not in JUMP:
