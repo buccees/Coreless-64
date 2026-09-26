@@ -389,3 +389,83 @@ Long-running implementations may execute internally in chunks, but partial inter
 The Coreless ISA specifies mathematical and architectural results, not physical execution width. A 4-lane, 32-lane, FPGA, ASIC, or heterogeneous implementation must produce equivalent architectural results for the same instruction stream and architectural state.
 
 Performance, latency, lane count, tile throughput, cache organization, and physical execution topology are implementation properties unless explicitly exposed through architectural capability state.
+
+
+## Concrete vector instruction set
+
+| Op | Mnemonic | Semantics |
+|---:|---|---|
+| 0x00 | VADD | `vd[i] = vs1[i] + vs2[i]` |
+| 0x01 | VSUB | `vd[i] = vs1[i] - vs2[i]` |
+| 0x02 | VMUL | `vd[i] = vs1[i] * vs2[i]` |
+| 0x03 | VDIV | `vd[i] = vs1[i] / vs2[i]` |
+| 0x04 | VMIN | element-wise minimum |
+| 0x05 | VMAX | element-wise maximum |
+| 0x06 | VAND | element-wise bitwise AND |
+| 0x07 | VOR | element-wise bitwise OR |
+| 0x08 | VXOR | element-wise bitwise XOR |
+| 0x09 | VNOT | element-wise bitwise NOT |
+| 0x0A | VSHL | logical left shift |
+| 0x0B | VSHR | logical right shift |
+| 0x0C | VSAR | arithmetic right shift |
+| 0x0D | VROL | rotate left |
+| 0x0E | VROR | rotate right |
+| 0x0F | VCMP_EQ | equality comparison |
+| 0x10 | VCMP_LT | signed less-than comparison |
+| 0x11 | VCMP_LTU | unsigned less-than comparison |
+| 0x12 | VSEL | select between operands using mask |
+| 0x13 | VFMA | fused `a*b+c` |
+| 0x14 | VFMS | fused `a*b-c` |
+| 0x15 | VNEG | arithmetic negation |
+| 0x16 | VABS | absolute value |
+| 0x17 | VCONV | explicit element-type conversion |
+| 0x18 | VREDUCE_ADD | reduction sum to scalar |
+| 0x19 | VREDUCE_MIN | reduction minimum |
+| 0x1A | VREDUCE_MAX | reduction maximum |
+| 0x1B | VREDUCE_AND | reduction AND |
+| 0x1C | VREDUCE_OR | reduction OR |
+| 0x1D | VREDUCE_XOR | reduction XOR |
+| 0x1E | VLOAD | contiguous/strided vector load |
+| 0x1F | VSTORE | contiguous/strided vector store |
+| 0x20 | VGATHER | indexed vector load |
+| 0x21 | VSCATTER | indexed vector store |
+| 0x22 | VSHUFFLE | indexed vector permutation |
+| 0x23 | VBROADCAST | scalar-to-vector broadcast |
+| 0x24 | VEXTRACT | selected element to scalar |
+| 0x25 | VINSERT | replace selected element |
+| 0x26 | VZERO | zero active destination elements |
+
+All vector operations apply to active elements `0..VL-1`. Masking, element type, rounding, saturation, and conversion behavior come from the instruction's descriptor and the Coreless floating-point environment.
+
+## Concrete matrix/AI instruction set
+
+| Op | Mnemonic | Semantics |
+|---:|---|---|
+| 0x00 | MMUL | `Tdst = A × B` |
+| 0x01 | MMAC | `Tdst = A × B + Tdst` |
+| 0x02 | MMDOT | integer dot-product matrix operation |
+| 0x03 | MQUANTMAC | quantized multiply-accumulate with descriptor-controlled requantization |
+| 0x04 | MADD | element-wise tile addition |
+| 0x05 | MSUB | element-wise tile subtraction |
+| 0x06 | MMULADD | fused matrix multiply plus tile add |
+| 0x07 | MTRANS | logical tile transpose |
+| 0x08 | MCONV | tile element-type conversion |
+| 0x09 | MLOAD | tile load |
+| 0x0A | MSTORE | tile store |
+| 0x0B | MZERO | clear tile |
+| 0x0C | MBROADCAST | broadcast scalar/vector data into tile |
+| 0x0D | MREDUCE | reduce tile to scalar/accumulator |
+| 0x0E | MCLAMP | clamp tile values to descriptor bounds |
+
+`MMUL` uses the encoded M/N/K shape and types. `MMAC` accumulates into the existing destination tile. Integer overflow behavior is explicitly selected by the operation descriptor; floating-point accumulation follows the encoded accumulator type and rounding environment.
+
+`MQUANTMAC` is intended for INT8/UINT8 and related quantized workloads. Zero points, scales, saturation, and requantization are architectural descriptor inputs rather than implementation-specific behavior.
+
+### Common instruction invariants
+
+1. A masked-off vector element performs no architectural memory access and does not alter the destination in merge mode.
+2. Integer arithmetic wraps unless saturation/widening is explicitly selected.
+3. Floating-point FMA operations are fused where specified; no intermediate rounding is permitted.
+4. Matrix dimensions and element types are architectural; physical lane/tile width is implementation-defined.
+5. Vector and matrix instructions retire according to the Coreless precise-exception model.
+6. Undefined operation numbers or unsupported class/format combinations trap as illegal instructions.
