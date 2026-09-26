@@ -256,6 +256,99 @@ SYSTEM funct:
 - 0x08 READCSR
 - 0x09 WRITECSR
 
+## Extended instruction formats
+
+Extended instructions use a common hardware-oriented structure. The first 32-bit word is always the length/header word; subsequent words are payload words belonging to the same architectural instruction.
+
+The length prefix occupies bits 31:27 of the first word:
+- 0x1D — 64-bit instruction
+- 0x1E — 128-bit instruction
+
+The remaining 27 bits of the first word form the extended header:
+
+| Bits | Field | Width | Purpose |
+|---|---|---:|---|
+| 26:23 | class | 4 | Major architectural instruction class |
+| 22:17 | op | 6 | Operation within the class |
+| 16:12 | rd | 5 | Primary destination register |
+| 11:7 | rs1 | 5 | Primary source register |
+| 6:2 | rs2 | 5 | Primary source register |
+| 1:0 | format | 2 | Extended operand/payload format |
+
+The header is fixed-width so RTL can decode length, class, operation, and primary scalar register operands immediately after the first fetch.
+
+### Extended classes
+
+| Class | Value | Purpose |
+|---|---:|---|
+| SCALAR | 0x0 | Extended integer/scalar operations |
+| MEMORY | 0x1 | Rich memory/addressing operations |
+| FP | 0x2 | Floating-point operations |
+| VECTOR | 0x3 | Scalable vector operations |
+| MATRIX | 0x4 | Matrix/AI operations |
+| SYSTEM | 0x5 | System, synchronization, and control |
+| VM | 0x6 | Virtualization operations |
+| CRYPTO | 0x7 | Cryptographic operations |
+| DEVICE | 0x8 | Device/accelerator operations |
+| RESERVED | 0x9–0xF | Future expansion |
+
+Class values identify architectural instruction families, not required implementation units.
+
+### Format field
+
+| Format | Value | Meaning |
+|---|---:|---|
+| F0 | 0 | Immediate/control payload |
+| F1 | 1 | Extended register/operand payload |
+| F2 | 2 | Vector/matrix descriptor payload |
+| F3 | 3 | Class-defined payload |
+
+The format field selects payload interpretation without changing total instruction length.
+
+### 64-bit format
+
+A 64-bit instruction contains word 0 at PC and word 1 at PC+4. Word 0 contains the length prefix and extended header. Word 1 is a payload word whose exact fields are determined by class and format.
+
+The sequential boundary is PC + 8 unless the instruction changes control flow.
+
+### 128-bit format
+
+A 128-bit instruction contains words at PC, PC+4, PC+8, and PC+12. Word 0 contains the length prefix and extended header. Words 1–3 form a 96-bit payload.
+
+The payload may contain additional registers, immediates, masks, element types, tile descriptors, strides, addresses, or class-specific control fields.
+
+The sequential boundary is PC + 16 unless the instruction changes control flow.
+
+### Payload reconstruction
+
+Payload words are consumed in increasing address order using the architectural little-endian instruction-stream convention.
+
+For an extended instruction, hardware conceptually performs:
+
+fetch word 0 → determine length → fetch remaining words → assemble architectural instruction → decode payload
+
+The payload is part of the architectural instruction and is not independently decoded as additional instructions.
+
+### Register-file domains
+
+The rd, rs1, and rs2 fields in the common extended header refer to the scalar GPR file unless the selected class/format explicitly defines another register domain.
+
+Vector and matrix/AI instructions may use payload fields to identify vector registers, matrix/tile registers, masks, accumulators, or additional scalar registers.
+
+### Hardware decode contract
+
+A hardware decoder should perform:
+
+PC → fetch word 0 → length detect → fetch payload → header decode → class/op decode → operand decode → execute
+
+Length detection occurs before payload interpretation. An implementation may prefetch into an instruction buffer, but payload words must not be treated as independent instructions once the first word establishes an extended boundary.
+
+### Reserved encodings
+
+Undefined class values, operations, format/class combinations, explicitly reserved fields, and malformed or truncated extended instructions are illegal.
+
+Reserved encoding space permits future expansion without changing the architectural instruction-length mechanism.
+
 ## Extended encodings
 
 Extended encodings provide architectural space for operations that cannot be expressed cleanly in the compact base form.
