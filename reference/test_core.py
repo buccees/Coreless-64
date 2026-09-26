@@ -109,6 +109,7 @@ def test_vector_vadd_and_mask():
     cpu.step()
     assert cpu.vector[3][:4]==[11,22,33,44] and cpu.pc==16
     cpu.vector_mask[0]=0b0101
+    cpu.vector[4][:4]=[1,1,1,1]
     cpu.vector[1][:4]=[1,1,1,1]
     cpu.vector[2][:4]=[2,2,2,2]
     cpu.memory[16:32]=ext128(3,0x00,4,1,2,w1=(0<<29)|(1<<22))
