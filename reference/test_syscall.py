@@ -43,7 +43,9 @@ def test_file_network_display_syscalls():
     os.machine.filesystem.write("/data", b"coreless-data")
     os.current_pid = 1
 
-    cpu.write_reg(2, "/data")
+    cpu.memory[256:261] = b"/data"
+    cpu.write_reg(2, 256)
+    cpu.write_reg(3, 5)
     cpu.memory[0:4] = encode_syscall(3).to_bytes(4, "little")
     os.machine.booted = True
     os.machine.step()
@@ -61,7 +63,9 @@ def test_file_network_display_syscalls():
 
     cpu.write_reg(2, 100)
     cpu.write_reg(3, 5)
-    cpu.write_reg(4, "peer")
+    cpu.memory[400:404] = b"peer"
+    cpu.write_reg(4, 400)
+    cpu.write_reg(5, 4)
     cpu.pc = 8
     cpu.memory[8:12] = encode_syscall(18).to_bytes(4, "little")
     os.machine.step()
