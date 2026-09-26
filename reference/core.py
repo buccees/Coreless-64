@@ -106,6 +106,8 @@ class CorelessCPU:
         self.csrs[0x01F] = 0x434C3634  # "CL64"
         self.tlb = {}
         self.pending_interrupts = 0
+        self._trap_saved_privilege = MACHINE
+        self._trap_saved_ie = 0
 
     def read_reg(self, n):
         return 0 if n == 0 else self.r[n]
@@ -223,9 +225,12 @@ class CorelessCPU:
 
     def _enter_trap(self, trap):
         cause_code = CAUSE.get(trap.cause, 0x017)
+        self._trap_saved_privilege = self.privilege
+        self._trap_saved_ie = self.csrs[0x001]
         self.csrs[0x004] = trap.pc & MASK64
         self.csrs[0x005] = ((self.privilege & 0x7F) << 56) | cause_code
         self.csrs[0x006] = trap.tval & MASK64
+        self.csrs[0x001] = 0
         self.privilege = max(self.privilege, SUPERVISOR)
         self.csrs[0x000] = self.privilege
         self.pc = self.csrs[0x003] & MASK64
@@ -242,8 +247,11 @@ class CorelessCPU:
         bit = (pending & -pending).bit_length() - 1
         self.pending_interrupts &= ~(1 << bit)
         self.csrs[0x002] = self.pending_interrupts
+        self._trap_saved_privilege = self.privilege
+        self._trap_saved_ie = self.csrs[0x001]
         self.csrs[0x004] = self.pc
         self.csrs[0x005] = (1 << 63) | ((self.privilege & 0x7F) << 56) | bit
+        self.csrs[0x001] = 0
         self.privilege = max(self.privilege, SUPERVISOR)
         self.csrs[0x000] = self.privilege
         self.pc = self.csrs[0x003] & MASK64
@@ -263,13 +271,21 @@ class CorelessCPU:
             elif name=="MUL": z=x*y
             elif name=="DIV":
                 if y == 0: raise CorelessTrap("arithmetic_fault", self.pc, 0)
-                z = -1 if x == (1<<63) and y == MASK64 else sx(x) // sx(y)
+                if x == (1<<63) and y == MASK64:
+                    z = 1 << 63
+                else:
+                    ax, ay = sx(x), sx(y)
+                    z = (abs(ax) // abs(ay)) * (-1 if (ax < 0) != (ay < 0) else 1)
             elif name=="UDIV":
                 if y == 0: raise CorelessTrap("arithmetic_fault", self.pc, 0)
                 z=x//y
             elif name=="REM":
                 if y == 0: raise CorelessTrap("arithmetic_fault", self.pc, 0)
-                z=0 if x == (1<<63) and y == MASK64 else sx(x) % sx(y)
+                if x == (1<<63) and y == MASK64:
+                    z = 0
+                else:
+                    ax, ay = sx(x), sx(y)
+                    z = ax - (abs(ax) // abs(ay)) * ay
             elif name=="UREM":
                 if y == 0: raise CorelessTrap("arithmetic_fault", self.pc, 0)
                 z=x%y
@@ -325,7 +341,11 @@ class CorelessCPU:
             self._enter_trap(CorelessTrap("breakpoint", self.pc, ins[3]))
             return "trap"
         elif name=="RETX":
-            self.privilege = self.csrs[0x000] & 0x3
+            if self.privilege < SUPERVISOR:
+                raise CorelessTrap("privilege_violation", self.pc, 0)
+            self.privilege = self._trap_saved_privilege
+            self.csrs[0x000] = self.privilege
+            self.csrs[0x001] = self._trap_saved_ie
             next_pc = self.csrs[0x004] & MASK64
         elif name=="FENCE":
             # Architectural ordering point; concrete cache machinery is
