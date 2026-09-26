@@ -497,3 +497,202 @@ Until then, new architectural features must not silently depend on undocumented 
 ### Concrete vector and matrix operation allocation
 
 The VECTOR and MATRIX extended classes use the operation namespaces defined in `specification/isa.md`. Operation numbers are architectural identifiers. Undefined values remain reserved and are illegal until assigned by a future ISA revision.
+
+## Instruction-family payload formats
+
+The extended encoding now assigns each major vector/matrix operation to a defined payload family. The common extended header remains unchanged; family-specific words below define the remaining payload bits.
+
+### V-A: vector arithmetic
+
+Used by `VADD`, `VSUB`, `VMUL`, `VDIV`, `VMIN`, `VMAX`, `VAND`, `VOR`, `VXOR`, `VNOT`, `VSHL`, `VSHR`, `VSAR`, `VROL`, `VROR`, `VNEG`, and `VABS`.
+
+| Payload word | Bits | Field |
+|---|---|---|
+| W1 | 31:29 | element type |
+| W1 | 28:27 | arithmetic mode |
+| W1 | 26:24 | rounding mode |
+| W1 | 23 | saturate |
+| W1 | 22 | mask enable |
+| W1 | 21 | mask zeroing |
+| W1 | 20:16 | vector source 3 / auxiliary register |
+| W1 | 15:0 | immediate / shift control |
+| W2 | 31:0 | reserved / operation-specific |
+| W3 | 31:0 | reserved / operation-specific |
+
+### V-F: vector floating point
+
+Used by `VFMA`, `VFMS`, and floating-point forms of the arithmetic operations.
+
+| Payload word | Bits | Field |
+|---|---|---|
+| W1 | 31:29 | element type |
+| W1 | 28:26 | rounding mode |
+| W1 | 25:24 | FP exception mode |
+| W1 | 23 | mask enable |
+| W1 | 22 | mask zeroing |
+| W1 | 21:17 | vector source 3 |
+| W1 | 16:0 | operation control / reserved |
+| W2 | 31:0 | optional immediate / descriptor |
+| W3 | 31:0 | optional descriptor |
+
+### V-C: vector compare/select
+
+Used by `VCMP_EQ`, `VCMP_LT`, `VCMP_LTU`, and `VSEL`.
+
+| Payload word | Bits | Field |
+|---|---|---|
+| W1 | 31:29 | element type |
+| W1 | 28:27 | comparison mode |
+| W1 | 26 | mask enable |
+| W1 | 25 | mask zeroing |
+| W1 | 24:20 | predicate register |
+| W1 | 19:0 | auxiliary/immediate |
+| W2 | 31:0 | optional predicate/descriptor |
+| W3 | 31:0 | optional descriptor |
+
+### V-R: vector reduction
+
+Used by the `VREDUCE_*` operations.
+
+| Payload word | Bits | Field |
+|---|---|---|
+| W1 | 31:29 | element type |
+| W1 | 28:27 | reduction mode |
+| W1 | 26 | mask enable |
+| W1 | 25 | ordered |
+| W1 | 24:20 | mask/predicate register |
+| W1 | 19:0 | auxiliary control |
+| W2 | 31:0 | reduction descriptor |
+| W3 | 31:0 | reserved |
+
+`ordered=1` requires the architectural reduction order specified by the instruction. For floating-point reductions, this prevents physical lane count from changing the result.
+
+### V-M: vector memory
+
+Used by `VLOAD`, `VSTORE`, `VGATHER`, and `VSCATTER`.
+
+| Payload word | Bits | Field |
+|---|---|---|
+| W1 | 31:29 | element type |
+| W1 | 28:27 | addressing mode |
+| W1 | 26 | mask enable |
+| W1 | 25 | fault mode |
+| W1 | 24:20 | index/stride register |
+| W1 | 19:0 | signed immediate |
+| W2 | 31:0 | stride/index/descriptor |
+| W3 | 31:0 | upper descriptor / reserved |
+
+Addressing modes initially are `0=contiguous`, `1=strided`, `2=indexed`, `3=descriptor`.
+
+`fault mode` is architecturally defined by the memory specification and may select normal precise faulting versus a later explicitly defined fault-suppression mode. Undefined fault modes are illegal.
+
+### V-D: vector data movement
+
+Used by `VSHUFFLE`, `VBROADCAST`, `VEXTRACT`, `VINSERT`, and `VZERO`.
+
+| Payload word | Bits | Field |
+|---|---|---|
+| W1 | 31:29 | element type |
+| W1 | 28:26 | movement mode |
+| W1 | 25 | mask enable |
+| W1 | 24 | mask zeroing |
+| W1 | 23:19 | auxiliary vector register |
+| W1 | 18:0 | index/immediate |
+| W2 | 31:0 | permutation/descriptor |
+| W3 | 31:0 | reserved / extended descriptor |
+
+### M-G: matrix general
+
+Used by `MMUL`, `MMAC`, `MMDOT`, `MADD`, `MSUB`, and `MMULADD`.
+
+| Payload word | Bits | Field |
+|---|---|---|
+| W1 | 31:29 | input type |
+| W1 | 28:26 | accumulator type |
+| W1 | 25:23 | tile shape |
+| W1 | 22:20 | execution mode |
+| W1 | 19 | saturate |
+| W1 | 18 | mask enable |
+| W1 | 17:13 | tile source/destination extension |
+| W1 | 12:0 | operation control |
+| W2 | 31:16 | M/N |
+| W2 | 15:0 | K |
+| W3 | 31:0 | tile layout / stride / quantization descriptor |
+
+`execution mode` selects multiply, accumulate, dot-product, or fused behavior as permitted by the operation.
+
+### M-Q: matrix quantized
+
+Used by `MQUANTMAC`.
+
+| Payload word | Bits | Field |
+|---|---|---|
+| W1 | 31:29 | input type |
+| W1 | 28:26 | accumulator type |
+| W1 | 25:23 | quantization mode |
+| W1 | 22 | signed A |
+| W1 | 21 | signed B |
+| W1 | 20 | saturate |
+| W1 | 19 | requantize |
+| W1 | 18:14 | auxiliary register |
+| W1 | 13:0 | control |
+| W2 | 31:16 | zero-point A |
+| W2 | 15:0 | zero-point B |
+| W3 | 31:16 | scale descriptor |
+| W3 | 15:0 | clamp/requantization descriptor |
+
+### M-T: matrix transform/conversion
+
+Used by `MTRANS`, `MCONV`, and `MCLAMP`.
+
+| Payload word | Bits | Field |
+|---|---|---|
+| W1 | 31:29 | source type |
+| W1 | 28:26 | destination type |
+| W1 | 25:23 | transform mode |
+| W1 | 22 | saturate |
+| W1 | 21 | rounding enable |
+| W1 | 20:16 | auxiliary register |
+| W1 | 15:0 | immediate/control |
+| W2 | 31:0 | bounds/conversion descriptor |
+| W3 | 31:0 | tile layout descriptor |
+
+### M-L: matrix memory
+
+Used by `MLOAD` and `MSTORE`.
+
+| Payload word | Bits | Field |
+|---|---|---|
+| W1 | 31:29 | element type |
+| W1 | 28:26 | layout mode |
+| W1 | 25:23 | tile shape |
+| W1 | 22 | mask enable |
+| W1 | 21 | fault mode |
+| W1 | 20:16 | stride register |
+| W1 | 15:0 | signed offset |
+| W2 | 31:0 | base/stride descriptor |
+| W3 | 31:0 | layout/shape descriptor |
+
+### M-D: matrix data movement
+
+Used by `MZERO`, `MBROADCAST`, and `MREDUCE`.
+
+| Payload word | Bits | Field |
+|---|---|---|
+| W1 | 31:29 | element type |
+| W1 | 28:26 | movement/reduction mode |
+| W1 | 25 | mask enable |
+| W1 | 24 | saturate |
+| W1 | 23:19 | auxiliary register |
+| W1 | 18:0 | immediate/control |
+| W2 | 31:0 | descriptor |
+| W3 | 31:0 | reserved / extended descriptor |
+
+### Family rules
+
+1. The common extended header identifies class and operation before the family payload is interpreted.
+2. A family may require only a subset of the 96 payload bits; unused bits are reserved and must be zero unless the operation explicitly assigns them.
+3. Register fields in the payload extend the common scalar operand namespace without changing the common header.
+4. Unsupported element types, rounding modes, shapes, addressing modes, or control combinations are illegal encodings, not implementation-defined behavior.
+5. The same family encoding has the same architectural meaning on reference, FPGA, ASIC, and heterogeneous implementations.
+6. Payload fields are architectural state inputs; microarchitectural tiling, lane grouping, buffering, and scheduling remain implementation-defined.
