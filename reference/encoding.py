@@ -106,6 +106,11 @@ def decode(w):
         return (SYSTEM[f],rd,rs1,(w>>5)&0x7ff)
     raise IllegalEncoding('unknown primary opcode')
 
+def encode_syscall(number):
+    if not 0 <= number < (1 << 11):
+        raise ValueError('syscall number out of range')
+    return ((OP_SYSTEM << 27) | (10) | (number << 5)) & MASK32
+
 def to_bytes(w):
     return int(w&MASK32).to_bytes(4,'little')
 
