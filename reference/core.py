@@ -266,6 +266,103 @@ class CorelessCPU:
         return True
 
 
+
+    def _vector_op(self, cls, op, rd, rs1, rs2, w1):
+        et = (w1 >> 29) & 7
+        if et > 7: raise CorelessTrap("vector_fault", self.pc, et)
+        bits = (8,16,32,64,16,16,32,64)[et]
+        vl = self.vector_vl or 1
+        if vl > len(self.vector[rd]): raise CorelessTrap("capability_resource_fault", self.pc, vl)
+        start = min(self.vector_vstart, vl)
+        mode = (w1 >> 27) & 3
+        mask_en = bool((w1 >> 22) & 1)
+        mask_zero = bool((w1 >> 21) & 1)
+        vs3 = (w1 >> 16) & 0x1F
+        mask = self.vector_mask[vs3]
+        mod = 1 << bits
+        def sextv(x):
+            x &= mod-1
+            return x-(1<<bits) if x & (1<<(bits-1)) else x
+        for i in range(start, vl):
+            active = (not mask_en) or bool((mask >> i) & 1)
+            if not active:
+                if mask_zero: self.vector[rd][i] = 0
+                continue
+            a, b = self.vector[rs1][i] & (mod-1), self.vector[rs2][i] & (mod-1)
+            if op == 0x00: z = a + b
+            elif op == 0x01: z = a - b
+            elif op == 0x02: z = a * b
+            elif op == 0x04: z = min(sextv(a), sextv(b))
+            elif op == 0x05: z = max(sextv(a), sextv(b))
+            elif op == 0x06: z = a & b
+            elif op == 0x07: z = a | b
+            elif op == 0x08: z = a ^ b
+            elif op == 0x09: z = ~a
+            elif op == 0x0A: z = a << (b & (bits-1))
+            elif op == 0x0B: z = a >> (b & (bits-1))
+            elif op == 0x0C: z = sextv(a) >> (b & (bits-1))
+            elif op == 0x0D: s=b & (bits-1); z=a if s==0 else (a<<s)|(a>>(bits-s))
+            elif op == 0x0E: s=b & (bits-1); z=a if s==0 else (a>>s)|(a<<(bits-s))
+            elif op == 0x15: z = -sextv(a)
+            elif op == 0x16: z = abs(sextv(a))
+            elif op == 0x1E:
+                z = a
+            elif op == 0x1F:
+                self.vector[rd][i] = a
+                continue
+            else:
+                raise CorelessTrap("vector_fault", self.pc, op)
+            self.vector[rd][i] = z & (mod-1)
+        self.vector_vstart = 0
+        return
+
+    def _matrix_op(self, op, rd, rs1, rs2, w1, w2, w3):
+        it = (w1 >> 29) & 7
+        at = (w1 >> 26) & 7
+        shape = (w1 >> 23) & 7
+        shapes = ((2,2,2),(4,4,4),(8,8,8),(8,16,16),(16,8,16),(16,16,16),(32,8,16))
+        if shape >= len(shapes): raise CorelessTrap("matrix_ai_fault", self.pc, shape)
+        m,n,k = shapes[shape]
+        if m > 16 or n > 16 or k > 16: raise CorelessTrap("capability_resource_fault", self.pc, shape)
+        mask = 1 << 63
+        if op in (0x00,0x01,0x02,0x03,0x06):
+            for i in range(m):
+                for j in range(n):
+                    acc = self.matrix[rd][i][j] if op in (0x01,0x06) else 0
+                    for q in range(k):
+                        acc += self.matrix[rs1][i][q] * self.matrix[rs2][q][j]
+                    self.matrix[rd][i][j] = acc
+        elif op == 0x04:
+            for i in range(m):
+                for j in range(n): self.matrix[rd][i][j] = self.matrix[rs1][i][j] + self.matrix[rs2][i][j]
+        elif op == 0x05:
+            for i in range(m):
+                for j in range(n): self.matrix[rd][i][j] = self.matrix[rs1][i][j] - self.matrix[rs2][i][j]
+        elif op == 0x07:
+            for i in range(m):
+                for j in range(n): self.matrix[rd][i][j] = self.matrix[rs1][j][i]
+        elif op == 0x08:
+            self.matrix[rd] = [[self.matrix[rs1][i][j] for j in range(n)] for i in range(m)]
+        elif op == 0x0B:
+            for i in range(m):
+                for j in range(n): self.matrix[rd][i][j] = 0
+        elif op == 0x0C:
+            value = self.read_reg(rs1)
+            for i in range(m):
+                for j in range(n): self.matrix[rd][i][j] = value
+        elif op == 0x0D:
+            total = 0
+            for i in range(m):
+                for j in range(n): total += self.matrix[rs1][i][j]
+            self.write_reg(rd, total)
+        elif op == 0x0E:
+            lo, hi = -(1<<31), (1<<31)-1
+            for i in range(m):
+                for j in range(n): self.matrix[rd][i][j] = max(lo, min(hi, self.matrix[rs1][i][j]))
+        else:
+            raise CorelessTrap("matrix_ai_fault", self.pc, op)
+        return
+
     def _atomic(self, ins):
         """Execute the compact architectural ATOMIC R-format subset."""
         _, rd, addr_reg, src = ins
@@ -429,7 +526,22 @@ class CorelessCPU:
             if length != 4:
                 raise CorelessTrap("instruction_encoding_fault", self.pc)
             ins = decode(first)
-            next_pc = self._execute(ins)
+            if length == 16:
+                from encoding import decode_extended_header
+                h = decode_extended_header(first)
+                words = [int.from_bytes(self.memory[self._phys(self.pc+i, "read", execute=True):self._phys(self.pc+i, "read", execute=True)+4], "little") for i in (4,8,12)]
+                cls, op, rd, rs1, rs2, fmt = h
+                if fmt != 2: raise CorelessTrap("instruction_encoding_fault", self.pc, fmt)
+                if cls == 3:
+                    self._vector_op(cls, op, rd, rs1, rs2, words[0])
+                elif cls == 4:
+                    self._matrix_op(op, rd, rs1, rs2, words[0], words[1], words[2])
+                else:
+                    raise CorelessTrap("illegal_instruction", self.pc, cls)
+                next_pc = (self.pc + 16) & MASK64
+            else:
+                ins = decode(first)
+                next_pc = self._execute(ins)
             if next_pc == "wait" or next_pc == "trap":
                 self.r[0] = 0
                 return True
