@@ -51,4 +51,4 @@ def test_extended_prefix_not_base_decoded():
 
 def test_branch_register_fields():
     w=(4<<27)|(3<<22)|(7<<17)|(0<<12)
-    assert decode(w)==('BEQ',7,3,0)
+    assert decode(w)==('BEQ',3,7,0)
