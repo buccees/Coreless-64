@@ -74,3 +74,23 @@ Device resources belong to explicit protection domains. Access from lower privil
 ### Command completion
 
 Asynchronous device commands complete through interrupts or event mechanisms. Completion visibility follows the device-memory and DMA ordering rules.
+
+
+## Device Discovery Record
+
+Coreless devices are discovered through a capability table rooted at CAP_BASE. Each device record is 64 bytes and begins on a 64-byte boundary.
+
+| Offset | Size | Field |
+|---:|---:|---|
+| 0x00 | 4 | device type |
+| 0x04 | 4 | device version |
+| 0x08 | 8 | capability bits |
+| 0x10 | 8 | resource base |
+| 0x18 | 8 | resource length |
+| 0x20 | 4 | interrupt base/identifier |
+| 0x24 | 4 | interrupt count |
+| 0x28 | 8 | DMA domain |
+| 0x30 | 8 | command/completion interface |
+| 0x38 | 8 | implementation/extension pointer |
+
+A zero device type terminates the table. Unknown nonzero device types are skipped using the fixed record size. Resource ranges must be aligned and non-overlapping within their declared address domain. Device capability bits are self-describing; unsupported optional features must not be assumed.
