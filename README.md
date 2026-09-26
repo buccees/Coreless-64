@@ -16,43 +16,34 @@ The goal is to design a computer that carries its own computational architecture
 - Coreless virtualization
 - Coreless applications and persistent machine state
 
-The host machine is intended to provide the external interface required to interact with Coreless — such as power, physical connection, display, keyboard/mouse, and network connectivity — rather than supplying the CPU, GPU, system RAM, operating system execution, virtualization, or AI computation that makes Coreless itself run.
+The host is intended to provide the external interface required to interact with Coreless — such as power, physical connection, display, keyboard/mouse, and network connectivity — rather than supplying the CPU, GPU, system RAM, operating-system execution, virtualization, or AI computation that makes Coreless itself run.
 
 ## Coreless-64
 
-The first architecture is **Coreless-64**, a serious 64-bit general-purpose computer architecture designed from the beginning for:
+The first architecture is **Coreless-64**, a serious 64-bit general-purpose architecture designed from the beginning for general software, multiprocessing, virtual memory, virtualization, scalable vector computation, matrix/AI computation, graphics, networking, persistent state, and broad software compatibility.
 
-- general-purpose software
-- multiprocessing and scalable CPU counts
-- virtual memory
-- virtualization
-- vector computation
-- matrix and AI computation
-- graphics and GUI operation
-- networking
-- persistent machine state
-- broad software compatibility
-
-The architecture is intended to scale without creating a different ISA for every machine size.
+The architecture scales without creating a different ISA for every machine size.
 
 ## The central idea
 
-Coreless separates the **computer architecture** from the particular technology used to execute it.
+**The Coreless computational fabric is the computer. Persistent storage carries the persistent machine state. The host is the interface.**
 
-The persistent Coreless machine can live on a drive while a dedicated execution substrate provides the actual instruction execution.
+Coreless separates the architectural contract from the particular technology used to implement it.
 
-The development path therefore has two parallel tracks:
+The project has two execution tracks:
 
-1. **Software execution engine** — used to develop, test, and verify Coreless-64.
-2. **Native execution substrate** — the actual target for an independent Coreless computer, including investigation of FPGA, dedicated hardware, accelerators, ASICs, and storage-integrated execution.
+1. **Reference software execution engine** — used to develop, test, and verify Coreless-64.
+2. **Native execution substrate** — the actual target for an independent Coreless computer.
 
-The software implementation is not the definition of Coreless. It is the development and verification implementation of the architecture.
+The native path explicitly investigates FPGA, dedicated hardware, accelerators, ASICs, heterogeneous fabrics, and storage-integrated execution.
+
+The reference software implementation is not the final computational dependency of Coreless.
 
 ## Scalable machine model
 
-Coreless is designed so that machine capacity can scale with available drive capacity and the execution substrate.
+Coreless uses one architecture for many machine sizes. Available drive capacity can support larger persistent machine images, operating environments, AI models, datasets, checkpoints, guest machines, and other state. Native execution capacity determines computational throughput.
 
-A small Coreless machine and a very large Coreless machine use the same Coreless-64 architecture while exposing different amounts of:
+The same Coreless-64 architecture can expose different quantities of:
 
 - CPU resources
 - memory
@@ -60,32 +51,43 @@ A small Coreless machine and a very large Coreless machine use the same Coreless
 - AI/matrix resources
 - GPU resources
 - persistent storage
+- network resources
 - guest-machine capacity
 
-The architecture remains the same as the machine grows.
-
-## GUI and remote operation
+## GUI
 
 Coreless is **not headless by design**.
 
-The architecture includes a virtual display/GPU subsystem and remote interaction capabilities. SSH can be used for administration, but the graphical system is a first-class part of the computer.
+The GPU/display subsystem is a first-class Coreless resource. A host may transport the resulting display and input, but the host GPU is not required to render the Coreless computer.
 
 ## Compatibility
 
-Coreless-native software will target Coreless-64.
+Coreless-native software targets Coreless-64.
 
-To make the system useful with existing software ecosystems, compatibility layers may support other architectures such as x86-64 and ARM64 through binary translation, emulation, guest operating systems, and virtualization.
+Existing software may be supported through binary translation, dynamic translation, emulation, guest operating systems, and virtualization. Initial compatibility targets include x86-64 and ARM64.
 
 ## Current status
 
 The project is in the **architecture-design phase**.
 
-We are deliberately defining the execution model and Coreless-64 architecture before building the emulator or native implementation. This is intended to prevent early implementation decisions from forcing a redesign of the CPU later.
+The computational fabric, CPU direction, memory model, ISA direction, privilege model, interrupts, ABI, device model, graphics, networking, virtualization, and scaling model are now being specified before implementation.
 
 ## Specification
 
 - [Execution Model](specification/execution-model.md)
+- [Computational Fabric](specification/computational-fabric.md)
 - [Coreless-64 Architecture](specification/architecture.md)
+- [Registers](specification/registers.md)
+- [ISA](specification/isa.md)
+- [Memory](specification/memory.md)
+- [Privilege](specification/privilege.md)
+- [Interrupts](specification/interrupts.md)
+- [ABI](specification/abi.md)
+- [Devices](specification/devices.md)
+- [Graphics](specification/graphics.md)
+- [Networking](specification/networking.md)
+- [Virtualization](specification/virtualization.md)
+- [Scaling](specification/scaling.md)
 - [Roadmap](ROADMAP.md)
 
 ## Project principle
