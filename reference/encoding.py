@@ -61,8 +61,8 @@ def decode(w):
     if op in (OP_EXT64,OP_EXT128,OP_ESCAPE):
         raise IllegalEncoding('extended/future instruction requires length-aware decode')
     if op==OP_ATOMIC:
-        f=w&31
-        if f > 10 or ((w>>14)&3) > 3:
+        f=w&0xF
+        if f > 10 or ((w>>9)&7) > 4:
             raise IllegalEncoding('bad atomic')
         return ('ATOMIC',rd,rs1,rs2)
     if op==OP_ALUR:
