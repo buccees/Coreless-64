@@ -921,3 +921,52 @@ FENCE predecessor/successor masks identify ordered domains. Initial domains are:
 | 7 | reserved |
 
 Reserved mask bits must be zero.
+
+## System and privileged payload families
+
+### SYS: system control
+
+| W1 bits | Field |
+|---|---|
+| 31:27 | system operation |
+| 26:24 | required privilege |
+| 23 | serializing |
+| 22 | interrupt-affecting |
+| 21:19 | target/control class |
+| 18:0 | operand/CSR/immediate |
+
+System operation values extend the base SYSTEM namespace without changing the common extended header.
+
+### CSR encoding
+
+CSR operations identify a 16-bit architectural CSR number within the payload. The remaining control fields select read/write behavior and operand source.
+
+Undefined CSR numbers are illegal unless the CSR is explicitly optional and its capability is present.
+
+### Trap encoding
+
+Software traps carry a 16-bit trap/service immediate plus optional control bits. The trap cause presented to the handler identifies a software-generated trap rather than a hardware fault.
+
+### Interrupt control encoding
+
+Interrupt enable, pending, priority, vector-base, and target operations are privileged. User mode may only access interrupt state explicitly delegated by the operating system.
+
+### TLB invalidation encoding
+
+`TLBFLUSH` invalidates translations selected by the current privilege/MMU context. `TLBFLUSHVA` additionally supplies a virtual address operand. Hypervisor and machine modes may select guest or global translation domains where virtualization is enabled.
+
+### RETX encoding
+
+`RETX` has no architectural destination register. It restores the saved exception context and resumes execution at the saved exception PC. If the saved context is invalid or the return would violate privilege rules, a return fault is raised.
+
+### WAIT/HALT encoding
+
+`WAIT` enters an interruptible low-activity execution state. `HALT` stops the selected execution context and requires the privilege level defined by the instruction's control field.
+
+### System instruction invariants
+
+1. Privilege violations trap before architectural side effects.
+2. Serializing system instructions establish the ordering guarantees specified by the relevant architectural state.
+3. CSR writes affecting translation, privilege, interrupt routing, or execution configuration take effect at the defined architectural boundary.
+4. Undefined system operations and reserved control combinations are illegal.
+5. Trap and interrupt entry preserve sufficient state for precise restart or diagnosis.
