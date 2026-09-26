@@ -86,3 +86,10 @@ The host provides external interfaces rather than being the computer that execut
 - [ ] Guest operating systems
 - [ ] Binary translation
 - [ ] Virtualized legacy environments
+
+
+## Phase 1 status
+
+The architectural definition is substantially complete. Coreless-64 now defines CPU state, variable-length encoding, scalar/memory/atomic operations, virtual memory/MMU, privilege, interrupts, vector execution, matrix/AI execution, multiprocessing, device/interconnect principles, graphics/display, networking, virtualization, scaling, and security direction.
+
+The remaining work before declaring a normative ISA v1.0 freeze is consistency review, reserved-field audit, encoding cross-checks, capability/CSR numbering, and executable conformance tests.
