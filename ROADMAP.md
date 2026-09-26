@@ -14,9 +14,9 @@
 - [x] Freeze multiprocessing model
 - [x] Freeze vector architecture
 - [x] Freeze matrix/AI architecture
-- [ ] Freeze device and interconnect architecture
-- [ ] Freeze GPU/display architecture
-- [ ] Freeze virtualization architecture
+- [x] Freeze device and interconnect architecture
+- [x] Freeze GPU/display architecture
+- [x] Freeze virtualization architecture
 
 ## Phase 2 — Reference execution
 
