@@ -24,6 +24,7 @@ Build a software reference implementation of Coreless-64.
 
 The reference implementation exists to validate the architecture. It is not the final computational dependency of Coreless.
 
+- [x] ISA decoder and instruction-length reference engine
 - [ ] CPU execution core
 - [ ] Memory system
 - [ ] Interrupts and timers
@@ -98,6 +99,10 @@ The remaining work before declaring a normative ISA v1.0 freeze is consistency r
 ## Phase 1 exit criteria
 
 Before Coreless-64 is declared architecturally frozen, the project must pass a specification consistency audit covering instruction lengths, operand encodings, CSR numbering, exception causes, privilege transitions, page-table formats, memory ordering, vector/matrix restart semantics, device discovery, virtualization state, and capability discovery. The reference implementation must then execute conformance tests derived from the normative specification.
+
+## Conformance layer
+
+The reference layer now includes canonical instruction-boundary walking, extended-header decoding, malformed/truncated-instruction rejection, and base scalar encoding round-trip tests. This layer is the executable bridge between the normative encoding specification and the future architectural execution core.
 
 ## Phase 2 implementation order
 
