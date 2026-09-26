@@ -55,3 +55,22 @@ Firmware exposes device identity, capability, resource ranges, interrupt routes,
 ### DMA
 
 Devices may perform DMA only within permitted translation and protection domains. DMA visibility follows the architectural device-memory and fence rules.
+
+
+## Device Architecture Baseline
+
+The architectural device model consists of discoverable resources, memory-mapped or capability-defined control interfaces, event/interrupt delivery, DMA domains, and synchronization rules.
+
+A device implementation is conforming when it provides the specified architectural behavior regardless of whether its physical realization is a bus controller, accelerator, FPGA region, chiplet, ASIC block, or storage-adjacent engine.
+
+### Resource discovery
+
+The discovery interface reports device type, version, capabilities, resource regions, interrupt capabilities, DMA domain, and optional acceleration features.
+
+### Device isolation
+
+Device resources belong to explicit protection domains. Access from lower privilege requires an architectural permission path.
+
+### Command completion
+
+Asynchronous device commands complete through interrupts or event mechanisms. Completion visibility follows the device-memory and DMA ordering rules.
