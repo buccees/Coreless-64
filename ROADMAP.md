@@ -93,3 +93,24 @@ The host provides external interfaces rather than being the computer that execut
 The architectural definition is substantially complete. Coreless-64 now defines CPU state, variable-length encoding, scalar/memory/atomic operations, virtual memory/MMU, privilege, interrupts, vector execution, matrix/AI execution, multiprocessing, device/interconnect principles, graphics/display, networking, virtualization, scaling, and security direction.
 
 The remaining work before declaring a normative ISA v1.0 freeze is consistency review, reserved-field audit, encoding cross-checks, capability/CSR numbering, and executable conformance tests.
+
+
+## Phase 1 exit criteria
+
+Before Coreless-64 is declared architecturally frozen, the project must pass a specification consistency audit covering instruction lengths, operand encodings, CSR numbering, exception causes, privilege transitions, page-table formats, memory ordering, vector/matrix restart semantics, device discovery, virtualization state, and capability discovery. The reference implementation must then execute conformance tests derived from the normative specification.
+
+## Phase 2 implementation order
+
+1. ISA decoder and instruction-length engine
+2. Architectural register and privilege state
+3. MMU and page-table walker
+4. Scalar/memory/atomic execution
+5. Interrupt and timer controller
+6. Vector execution
+7. Matrix/AI execution
+8. Multiprocessor scheduler and shared-memory model
+9. Device and DMA model
+10. Storage and persistent machine state
+11. Network and graphics subsystems
+12. Virtualization
+13. Coreless operating environment
