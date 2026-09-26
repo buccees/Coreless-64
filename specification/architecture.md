@@ -51,3 +51,23 @@ The CRYPTO instruction family provides an architectural extension point for cryp
 ### Fault containment
 
 Machine faults must not silently create architectural access to another protection domain. Fatal faults enter machine-level handling or defined recovery behavior.
+
+
+## Reset State
+
+On architectural reset:
+
+- execution begins in Machine privilege;
+- interrupts are disabled;
+- the translation root is inactive unless machine firmware explicitly establishes one;
+- PC is loaded from the implementation-defined reset vector;
+- SP is undefined until machine firmware initializes it;
+- general-purpose registers are architecturally undefined unless explicitly specified by the boot environment;
+- vector and matrix state are disabled/initially inactive;
+- virtualization is disabled;
+- device DMA is disabled until its protection domain is configured;
+- security/boot status reports the machine's reset and verification state.
+
+Machine firmware is responsible for establishing memory, interrupt, translation, device, and execution-context configuration before transferring control to Supervisor or another lower privilege domain.
+
+A reset vector and machine configuration pointer are implementation-defined machine inputs, but their existence and handoff semantics are architectural.
