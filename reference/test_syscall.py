@@ -27,3 +27,12 @@ def test_native_syscalls():
     cpu.memory[12:16] = encode_syscall(17).to_bytes(4, "little")
     os.machine.step()
     assert cpu.read_reg(1) >= 1
+
+def test_syscall_exit_stops_execution():
+    os = CorelessOS(CorelessMachine(4096, 1)).run()
+    cpu = os.machine.cpu
+    cpu.memory[0:4] = encode_syscall(0).to_bytes(4, "little")
+    os.machine.booted = True
+    os.machine.step()
+    assert cpu.halted
+    assert cpu.read_reg(1) == 0
