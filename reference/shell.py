@@ -265,3 +265,7 @@ class Shell:
 
     def clear(self, args):
         return "\x1b[2J\x1b[H"
+
+
+    def command(self, line):
+        return self.execute(line)
