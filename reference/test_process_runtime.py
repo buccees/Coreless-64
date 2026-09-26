@@ -4,9 +4,11 @@ from app import hello_program
 from machine_runtime import CorelessMachine
 from process import ProcessManager
 from loader import ProgramLoader
+from core import CorelessTrap, USER
+
 
 def test_scheduler_and_process_metadata():
-    machine = CorelessMachine(4096, 1)
+    machine = CorelessMachine(256 * 1024, 1)
     pm = ProcessManager(machine)
     p = pm.create("hello", hello_program(), parent=7)
     assert p.pid == 1
@@ -15,10 +17,50 @@ def test_scheduler_and_process_metadata():
     assert result.ticks > 0
     assert pm.wait(7).pid == 1
 
+
 def test_corex64_executable_round_trip():
-    machine = CorelessMachine(4096, 1)
+    machine = CorelessMachine(256 * 1024, 1)
     loader = ProgramLoader(machine)
     image = loader.make_executable(hello_program())
     result = loader.load_executable(image)
     assert result["entry"] == 0
     assert result["size"] == len(hello_program())
+
+
+def test_processes_have_distinct_page_table_roots_and_physical_code():
+    machine = CorelessMachine(512 * 1024, 1)
+    pm = ProcessManager(machine)
+    a = pm.create("a", hello_program())
+    b = pm.create("b", hello_program())
+
+    assert a.address_space.page_table_root != b.address_space.page_table_root
+    assert a.address_space.code_phys_base != b.address_space.code_phys_base
+
+    root_a = int.from_bytes(
+        machine.cpu.memory[a.address_space.page_table_root + (a.address_space.code_base >> 12) * 8:
+                           a.address_space.page_table_root + (a.address_space.code_base >> 12) * 8 + 8],
+        "little")
+    root_b = int.from_bytes(
+        machine.cpu.memory[b.address_space.page_table_root + (b.address_space.code_base >> 12) * 8:
+                           b.address_space.page_table_root + (b.address_space.code_base >> 12) * 8 + 8],
+        "little")
+    assert ((root_a >> 12) << 12) == a.address_space.code_phys_base
+    assert ((root_b >> 12) << 12) == b.address_space.code_phys_base
+    assert root_a != root_b
+
+
+def test_user_code_is_execute_read_only():
+    machine = CorelessMachine(256 * 1024, 1)
+    pm = ProcessManager(machine)
+    p = pm.create("hello", hello_program())
+    pm._enter_user(p)
+
+    assert machine.cpu.privilege == USER
+    assert machine.cpu.csrs[0x007] == p.address_space.page_table_root
+
+    try:
+        machine.cpu.store_u(p.address_space.code_base, 1, 0xFF)
+    except CorelessTrap as trap:
+        assert trap.cause == "write_permission_fault"
+    else:
+        raise AssertionError("user code page was writable")
