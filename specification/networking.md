@@ -26,3 +26,11 @@ SSH, remote GUI protocols, file transfer, and other network applications execute
 ## Performance
 
 The architecture permits packet-processing offload, checksum acceleration, encryption acceleration, and direct data movement without requiring the host CPU to process every packet.
+
+## Hardware-Independent Networking
+
+Coreless networking is an architectural subsystem independent of a particular host network controller or bus.
+
+The architecture defines packet buffers, queues, DMA visibility, interrupt/event delivery, and capability discovery. Physical Ethernet, Wi-Fi, virtual links, dedicated network hardware, or future transport mechanisms are implementation choices.
+
+A native Coreless implementation may contain its own network execution resources. Host networking may be exposed as an external interface or compatibility service without making the host CPU the Coreless network-processing engine.
