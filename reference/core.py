@@ -117,6 +117,7 @@ class CorelessCPU:
         self.matrix_shape = (1, 1, 1)
         self._trap_saved_privilege = MACHINE
         self._trap_saved_ie = 0
+        self.syscall_handler = None
 
     def read_reg(self, n):
         return 0 if n == 0 else self.r[n]
@@ -491,6 +492,9 @@ class CorelessCPU:
             self._enter_trap(CorelessTrap("breakpoint", self.pc, ins[3]))
             return "trap"
         elif name=="SYSCALL":
+            if self.syscall_handler is not None:
+                self.syscall_handler(self, ins[3])
+                return next_pc
             self._enter_trap(CorelessTrap("syscall", self.pc, ins[3]))
             return "trap"
         elif name=="RETX":
