@@ -89,3 +89,20 @@ System calls are an OS boundary, not a hardware-device boundary. An implementati
 ## Compatibility
 
 Existing application ecosystems will be supported through translation and guest environments rather than by changing the Coreless ABI.
+
+
+## Native syscall register convention
+
+For the baseline ABI, a syscall uses the immediate encoded in the `SYSCALL` instruction as its syscall number.
+
+- R1: return value
+- R2: argument 0
+- R3: argument 1
+- R4: argument 2
+- R5: argument 3
+- R6: argument 4
+- R7: argument 5
+
+R0 remains hard-wired to zero. A negative R1 denotes an error in the reference ABI implementation. File and device handles are OS-managed opaque values. Memory arguments are virtual addresses in the caller's address space and are subject to normal architectural protection and translation.
+
+The syscall instruction advances past itself on successful OS dispatch; it is not re-executed when the syscall returns.
