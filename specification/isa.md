@@ -477,3 +477,114 @@ The vector control state is architectural and includes VL, VSTART, VTYPE, and VC
 The matrix/AI architectural context includes tile state plus capability information required to validate tile shapes, data types, and accumulator modes.
 
 Capability discovery must expose maximum supported vector length, supported tile shapes, supported data types, quantization modes, and optional accumulator formats.
+
+## Scalar and memory instruction families
+
+### Scalar arithmetic family
+
+The base scalar ISA provides integer arithmetic, logical operations, shifts, rotates, comparisons, and immediate forms. Extended scalar operations use the SCALAR extended class.
+
+| Mnemonic | Semantics |
+|---|---|
+| ADD | `rd = rs1 + rs2` |
+| SUB | `rd = rs1 - rs2` |
+| MUL | `rd = rs1 * rs2` |
+| DIV | signed division |
+| UDIV | unsigned division |
+| REM | signed remainder |
+| UREM | unsigned remainder |
+| AND/OR/XOR | bitwise operation |
+| NOT | bitwise complement |
+| SHL/SHR/SAR | logical/logical/arithmetic shift |
+| ROL/ROR | rotate |
+| SLT/SLTU | signed/unsigned comparison |
+| SEQ/SNE | equality/inequality comparison |
+| NEG | two's-complement negation |
+
+Integer arithmetic wraps modulo 2^64 unless an instruction explicitly specifies a wider, trapping, or saturating result.
+
+### Scalar extended operations
+
+Extended scalar operations reserve the SCALAR class for operations requiring more encoding space, including:
+
+- wide multiply and divide;
+- population count and bit counting;
+- bit-field extraction/insertion;
+- carry/borrow arithmetic;
+- sign/zero extension and packing;
+- atomic helpers not represented by the base ATOMIC class;
+- cryptographic-adjacent bit operations that do not require the CRYPTO class.
+
+Undefined SCALAR operations remain reserved.
+
+### Memory operation family
+
+Coreless memory instructions operate on virtual addresses. Effective addresses are computed in 64-bit address space and then passed through the MMU and protection checks.
+
+Base memory widths are 8, 16, 32, and 64 bits. Extended memory operations may support larger transfers, paired values, vector descriptors, and atomic-width accesses.
+
+| Operation | Meaning |
+|---|---|
+| LOAD | read memory into scalar register |
+| STORE | write scalar register to memory |
+| VLOAD/VSTORE | vector memory operation |
+| MLOAD/MSTORE | matrix/tile memory operation |
+
+Memory accesses must obey alignment rules defined by the memory specification. Misaligned accesses are either supported by the implementation or generate the defined alignment exception; software-visible behavior must be architectural and consistent.
+
+### Memory ordering
+
+Coreless defines explicit ordering primitives. Ordinary loads and stores follow the Coreless memory model. `FENCE` orders memory operations as specified by its predecessor/successor masks. Atomics provide acquire/release/ordered semantics through their operation encoding.
+
+An implementation may reorder, speculate, cache, prefetch, combine, or split memory operations internally provided the architectural memory model is preserved.
+
+### Atomic family
+
+The ATOMIC class provides:
+
+- atomic swap;
+- compare-and-swap;
+- fetch-add/sub;
+- fetch-and/or/xor;
+- signed/unsigned min/max;
+- load-linked/store-conditional where supported;
+- acquire, release, and sequentially consistent ordering modes.
+
+Atomic operations are indivisible with respect to other Coreless observers for the addressed atomic granule.
+
+### Address calculation
+
+Scalar load/store effective address:
+
+`EA = rs1 + sign_extend(immediate)`
+
+Extended addressing may add a scaled index:
+
+`EA = base + (index × scale) + displacement`
+
+Address arithmetic is performed in the 64-bit virtual address domain. Overflow wraps in the address calculation unless the selected addressing mode explicitly requests checked arithmetic.
+
+### Memory exceptions
+
+Memory operations may raise:
+
+- instruction/data access fault;
+- page fault;
+- protection fault;
+- alignment fault;
+- translation fault;
+- device/access-order exception where defined.
+
+Exceptions are precise at retirement. A faulting scalar instruction does not commit its destination register. Vector and matrix operations follow their family-specific precise-fault rules while preserving the same architectural exception model.
+
+### Cache and persistence abstraction
+
+Cache hierarchy, write buffers, coherence mechanisms, prefetchers, memory controllers, and physical RAM organization are implementation properties.
+
+The architectural memory model does not require a particular cache design. Persistent machine state is separately defined by the Coreless storage architecture.
+
+### Memory ordering and device I/O
+
+Device memory is strongly ordered according to its architectural memory attributes. Fences are required where the device protocol requires explicit visibility ordering.
+
+DMA-capable devices participate in the defined coherence and memory-visibility rules. The exact transport mechanism is implementation-defined.
