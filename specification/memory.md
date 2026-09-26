@@ -91,3 +91,30 @@ Firmware reports:
 ## Scaling
 
 The same memory architecture must work from small machines to very large machines. Large implementations may contain multiple memory domains while preserving a unified architectural model.
+
+
+## Virtual Memory and MMU Architecture
+
+Coreless-64 uses 64-bit virtual addresses. Physical-address width and supported virtual-address modes are capability-discoverable.
+
+The baseline page size is 4 KiB. Larger pages may be supported through higher-level leaf mappings. The architecture supports multi-level page tables, distinct address spaces, read/write/execute permissions, user/supervisor access control, accessed and dirty state, global/shared mappings, memory attributes, and device mappings.
+
+Each execution context has a privileged translation root identifying the active address space. Changing the root is ordered with subsequent translation according to MMU synchronization rules.
+
+A mapping may specify read, write, execute, user accessibility, global status, accessed/dirty state, cacheability, device ordering, and implementation-defined attributes. Instruction fetch requires execute permission. User execution cannot access supervisor-only mappings.
+
+Translation faults include page-not-present, permission, execute-never, privilege, malformed-page-table, invalid-attribute, and physical-address-range faults. Faults are precise and identify the failing virtual address.
+
+TLBs are microarchitectural. Their size, organization, replacement policy, and hierarchy are implementation-defined. Software observes architectural translation behavior and explicit invalidation operations. TLBFLUSH invalidates applicable translations; TLBFLUSHVA invalidates translations associated with a supplied virtual address.
+
+Operating systems may assign distinct translation roots to processes and execution environments. User mappings must not expose supervisor mappings unless explicitly permitted. The MMU distinguishes normal cacheable, normal non-cacheable, and device memory.
+
+Software must make page-table writes visible before activating or invalidating affected translations. The required sequence uses FENCE and TLB invalidation operations.
+
+Translation state may be local to each execution context. Mapping changes visible to multiple contexts require invalidation on each affected context, normally using IPIs plus local invalidation. Implementations may provide coherent shared TLBs.
+
+CPU virtual-memory translation is distinct from device/DMA translation. An optional I/O MMU may provide capability-discoverable device translation domains and isolation.
+
+A faulting memory instruction does not retire its destination or store side effect. Exception state permits the handler to resolve the fault and restart the instruction. Vector and matrix memory operations follow their defined precise-fault and restart rules.
+
+The architecture provides canonical-address checking so implementations with less than 64 physical address bits can reject invalid virtual addresses deterministically. Supported canonical modes are capability-discoverable.
