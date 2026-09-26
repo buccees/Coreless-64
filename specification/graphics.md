@@ -48,3 +48,18 @@ A conforming implementation may realize graphics using a conventional GPU, integ
 The software interface depends on architectural capabilities rather than vendor-specific hardware. Physical rendering pipelines, shader organization, cache structure, display controller design, and memory layout are implementation-defined.
 
 Remote display and input are architectural services at the Coreless environment level and do not require the host to execute Coreless graphics workloads.
+
+
+## Display and Graphics Execution Model
+
+Coreless graphics has three architectural layers:
+
+1. display resources and scanout;
+2. graphics/compute command execution;
+3. window/input services exposed to the Coreless operating environment.
+
+The architecture does not require a specific shader ISA. Graphics acceleration is capability-discoverable, allowing implementations to use native GPUs, vector/matrix resources, dedicated render hardware, or heterogeneous combinations.
+
+Display surfaces are memory objects with defined ownership and synchronization. Scanout cannot observe a surface before required producer synchronization has completed.
+
+Input events are delivered through the Coreless device/event model. Remote display/input may transport these architectural events without changing the Coreless graphics model.
