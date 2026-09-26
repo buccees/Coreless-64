@@ -974,3 +974,10 @@ Interrupt enable, pending, priority, vector-base, and target operations are priv
 ## Consistency audit corrections
 
 The architectural ordering namespace reserves five states: relaxed, acquire, release, acquire-release, and sequentially consistent. Any encoding or implementation that uses the older four-value namespace is non-conforming.
+
+
+## CSR Operand Encoding
+
+For extended SYSTEM instructions with CSR operations, the 16-bit CSR number occupies the low 16 bits of the immediate/control payload. The operation subtype identifies read, write, set, clear, or implementation-defined future CSR operations.
+
+CSR access checks occur before the instruction produces its architectural result. A failed privilege or access check raises the corresponding exception and does not modify the CSR or destination register.
