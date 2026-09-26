@@ -80,3 +80,65 @@ def test_mmu_translation_and_permissions():
     cpu.memory[0x2000:0x2004]=imm(1,1,0,0,5).to_bytes(4,"little")
     cpu.step()
     assert cpu.r[1]==5 and cpu.instret==1
+
+
+def ext128(cls, op, rd=0, rs1=0, rs2=0, w1=0, w2=0, w3=0):
+    header = (0x1E << 27) | (cls << 23) | (op << 17) | (rd << 12) | (rs1 << 7) | (rs2 << 2) | 2
+    return b"".join(x.to_bytes(4, "little") for x in (header, w1, w2, w3))
+
+def test_atomic_swap_and_cas():
+    cpu=CorelessCPU()
+    cpu.r[1]=0x100; cpu.r[2]=7; cpu.r[3]=9
+    cpu.memory[0x100:0x108]=(5).to_bytes(8,"little")
+    # SWAP R4,[R1],R2
+    cpu.memory[0:4]=word(7,4,1,2,0).to_bytes(4,"little")
+    cpu.step()
+    assert cpu.r[4]==5 and int.from_bytes(cpu.memory[0x100:0x108],"little")==7
+    # CAS R5,[R1], expected R2=7, desired R3=9; desired register is bits 11:7.
+    cas=(7<<27)|(5<<22)|(1<<17)|(2<<12)|(3<<7)|1
+    cpu.memory[4:8]=cas.to_bytes(4,"little")
+    cpu.step()
+    assert cpu.r[5]==7 and int.from_bytes(cpu.memory[0x100:0x108],"little")==9
+
+def test_vector_vadd_and_mask():
+    cpu=CorelessCPU()
+    cpu.vector_vl=4
+    cpu.vector[1][:4]=[1,2,3,4]
+    cpu.vector[2][:4]=[10,20,30,40]
+    cpu.memory[0:16]=ext128(3,0x00,3,1,2,w1=(0<<29))
+    cpu.step()
+    assert cpu.vector[3][:4]==[11,22,33,44] and cpu.pc==16
+    cpu.vector_mask[0]=0b0101
+    cpu.vector[1][:4]=[1,1,1,1]
+    cpu.vector[2][:4]=[2,2,2,2]
+    cpu.memory[16:32]=ext128(3,0x00,4,1,2,w1=(0<<29)|(1<<22))
+    cpu.step()
+    assert cpu.vector[4][:4]==[3,1,3,1]
+
+def test_vector_vzero():
+    cpu=CorelessCPU()
+    cpu.vector_vl=4
+    cpu.vector[5][:4]=[9,9,9,9]
+    cpu.memory[0:16]=ext128(3,0x26,5,0,0,w1=0)
+    cpu.step()
+    assert cpu.vector[5][:4]==[0,0,0,0]
+
+def test_matrix_mmul():
+    cpu=CorelessCPU()
+    cpu.matrix_shape=(2,2,2)
+    cpu.matrix[1][0][:2]=[1,2]; cpu.matrix[1][1][:2]=[3,4]
+    cpu.matrix[2][0][:2]=[5,6]; cpu.matrix[2][1][:2]=[7,8]
+    cpu.memory[0:16]=ext128(4,0x00,3,1,2,w1=(0<<23))
+    cpu.step()
+    assert cpu.matrix[3][0][:2]==[19,22]
+    assert cpu.matrix[3][1][:2]==[43,50]
+
+def test_matrix_mmac():
+    cpu=CorelessCPU()
+    cpu.matrix[3][0][:2]=[1,1]; cpu.matrix[3][1][:2]=[1,1]
+    cpu.matrix[1][0][:2]=[1,0]; cpu.matrix[1][1][:2]=[0,1]
+    cpu.matrix[2][0][:2]=[2,3]; cpu.matrix[2][1][:2]=[4,5]
+    cpu.memory[0:16]=ext128(4,0x01,3,1,2,w1=(0<<23))
+    cpu.step()
+    assert cpu.matrix[3][0][:2]==[3,4]
+    assert cpu.matrix[3][1][:2]==[5,6]
