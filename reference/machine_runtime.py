@@ -3,6 +3,8 @@ from core import CorelessCPU
 from machine import InterruptController,DeviceFabric
 from storage import PersistentMachineImage
 from io import NetworkDevice,GraphicsDevice
+from filesystem import FileSystem
+from loader import ProgramLoader
 
 class CorelessMachine:
     def __init__(self,memory_size=1<<20,cpu_count=1):
@@ -14,6 +16,8 @@ class CorelessMachine:
         self.devices=DeviceFabric(); self.devices.attach_interrupt_controller(self.interrupts)
         self.storage=PersistentMachineImage()
         self.network=NetworkDevice(); self.graphics=GraphicsDevice()
+        self.filesystem=FileSystem(self.storage)
+        self.loader=ProgramLoader(self)
         self.booted=False
     @property
     def cpu(self): return self.cpus[0]
@@ -34,6 +38,12 @@ class CorelessMachine:
         while steps<max_steps and not self.cpus[cpu_id].halted:
             self.cpus[cpu_id].step(); steps+=1
         return steps
+    def run_program(self,path):
+        program=self.filesystem.read(path)
+        self.loader.load(program,0)
+        self.booted=True
+        return str(self.run())
+
     def checkpoint(self,name="machine"):
         state={"booted":self.booted,"cpus":[]}
         for c in self.cpus:
