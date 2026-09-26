@@ -492,3 +492,8 @@ This document is **not frozen for ISA v1.0** until:
 8. conformance tests cover every architectural encoding family.
 
 Until then, new architectural features must not silently depend on undocumented encoding behavior.
+
+
+### Concrete vector and matrix operation allocation
+
+The VECTOR and MATRIX extended classes use the operation namespaces defined in `specification/isa.md`. Operation numbers are architectural identifiers. Undefined values remain reserved and are illegal until assigned by a future ISA revision.
