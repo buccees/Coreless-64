@@ -4,5 +4,5 @@ def hello_program():
     return b"".join([
         encode_i("ADDI",1,0,42).to_bytes(4,"little"),
         encode_r("ADD",2,1,1).to_bytes(4,"little"),
-        bytes.fromhex("00000020"),
+        (0x30000001).to_bytes(4,"little"),
     ])
