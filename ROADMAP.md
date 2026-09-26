@@ -27,14 +27,14 @@ The reference implementation exists to validate the architecture. It is not the 
 - [x] ISA decoder and instruction-length reference engine
 - [x] CPU execution core
 - [x] Memory system
-- [ ] Interrupts and timers — interrupt entry/pending semantics implemented; timer/controller work remains
-- [ ] Atomic execution
-- [ ] Storage controller
+- [x] Interrupt controller and timer foundation
+- [x] Atomic execution
+- [x] Persistent machine-state reference model
 - [ ] Network controller
 - [ ] Virtual GPU/display
 - [ ] Vector execution
 - [ ] Matrix/AI execution
-- [ ] Multiprocessing
+- [x] Multiprocessing reference fabric
 - [ ] Virtualization
 
 ## Phase 3 — Coreless operating environment
