@@ -54,3 +54,19 @@ Secure boot is not required for the reference emulator but must be representable
 ## Principle
 
 Privilege is an architectural isolation boundary, not merely an OS convention.
+
+
+## MMU Privilege Rules
+
+Translation roots, page-table configuration, address-space controls, and TLB invalidation are privileged operations.
+
+- User mode cannot modify the active translation root.
+- Supervisor mode controls ordinary process address spaces.
+- Hypervisor mode controls guest translation domains.
+- Machine mode controls implementation-wide MMU configuration.
+
+Translation faults enter the normal precise exception mechanism.
+
+### Address-space transitions
+
+A context switch may change the active translation root and associated address-space identifier. Tagged translations may be retained across switches when architectural isolation is preserved.
