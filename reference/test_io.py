@@ -1,5 +1,5 @@
 import sys;sys.path.insert(0,".")
-from io import NetworkDevice,GraphicsDevice
+from device_io import NetworkDevice,GraphicsDevice
 def test_network_device():
     n=NetworkDevice(); n.configure(True,("checksum","dma")); n.transmit(b"abc","host"); p=n.receive(b"xyz","peer")
     assert n.tx[0].data==b"abc" and n.poll_rx()==p
