@@ -49,7 +49,7 @@ def encode_r(f,rd,rs1,rs2):
 
 def encode_i(f,rd,rs1,imm):
     if not -(1<<11)<=imm<(1<<11):
-        raise ValueError('imm12 out of range')
+        raise IllegalEncoding('imm12 out of range')
     return ((OP_ALUI<<27)|(rd<<22)|(rs1<<17)|(f<<12)|(imm&0xfff))&MASK32
 
 def decode(w):
@@ -89,7 +89,7 @@ def decode(w):
         f=(w>>12)&31
         if f not in BRANCH:
             raise IllegalEncoding('bad branch')
-        return (BRANCH[f],rs1,rs2,sext(w&0xfff,12))
+        return (BRANCH[f],rd,rs1,sext(w&0xfff,12))
     if op==OP_JUMP:
         f=(w>>12)&31
         if f not in JUMP:
@@ -160,5 +160,14 @@ def decode_stream(data):
 
 
 # Compatibility aliases used by the early reference tests/tooling.
-encode_base_r = encode_r
-encode_base_i = encode_i
+def encode_base_r(name, rd, rs1, rs2):
+    if name not in ALUR.values():
+        raise IllegalEncoding("unknown ALUR operation")
+    funct = next(k for k, v in ALUR.items() if v == name)
+    return encode_r(funct, rd, rs1, rs2)
+
+def encode_base_i(name, rd, rs1, imm):
+    if name not in ALUI.values():
+        raise IllegalEncoding("unknown ALUI operation")
+    funct = next(k for k, v in ALUI.items() if v == name)
+    return encode_i(funct, rd, rs1, imm)
