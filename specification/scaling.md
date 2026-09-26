@@ -53,3 +53,52 @@ Storage capacity does not automatically imply more CPU throughput; native execut
 ## Distributed scaling
 
 Future Coreless systems may combine multiple Coreless devices into a single logical machine or cluster.
+
+
+## Multiprocessing Architecture
+
+### Execution contexts
+
+Coreless-64 defines an execution context as an independently schedulable architectural CPU state. Implementations may provide 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024 or more execution contexts. The ISA and software-visible machine model do not change when the implementation scales the count.
+
+Every context has a unique architectural CPU ID. CPU IDs are used for interrupt targeting, scheduling, synchronization, topology discovery, and per-context state.
+
+### Shared address space
+
+All contexts may access the same architectural virtual address space when permitted by the active translation domains. Memory ordering, atomicity, and page permissions are architectural; cache hierarchy and physical memory organization are implementation-defined.
+
+### Atomicity and coherence
+
+Atomic instructions provide indivisible operations on their supported atomic granules. A conforming shared-memory implementation maintains coherent architectural memory values across contexts. The mechanism may be snooping, directory-based, networked, or another implementation; software depends only on the architectural coherence and ordering contract.
+
+### Memory ordering
+
+The Coreless memory model defines ordering through ordinary accesses, atomics, and FENCE operations. Relaxed, acquire, release, and sequentially consistent atomic orderings are architectural. Implementations may reorder internally provided the architectural model is preserved.
+
+### Inter-processor interrupts
+
+Contexts can send IPIs through the interrupt subsystem. IPIs support scheduler wakeups, TLB shootdowns, cross-context coordination, and machine-control events. Delivery routing and physical interrupt topology are implementation-defined.
+
+### Startup and discovery
+
+Machine firmware exposes the available execution contexts and their capabilities. A system may boot with a subset enabled and subsequently activate additional contexts when supported.
+
+### Hotplug and dynamic scaling
+
+Optional CPU hotplug permits contexts to enter and leave the scheduler under OS control. Dynamic scaling does not alter the architectural ISA. A context being offline must not receive ordinary scheduled work; machine-level control may still address it for startup or recovery.
+
+### Topology
+
+The architecture exposes logical CPU identity and capability discovery. Physical topology such as cores, clusters, sockets, chiplets, fabrics, or storage-adjacent execution units is implementation-defined.
+
+### Forward scalability
+
+The architecture does not encode a fixed maximum CPU count into instruction semantics. Resource counts are discovered through machine configuration and capability state, allowing future implementations to exceed the initial supported configurations without changing instruction meaning.
+
+### Synchronization
+
+Software synchronization primitives are built from atomic operations and memory ordering. Spinlocks, mutexes, barriers, semaphores, read/write locks, and scheduler primitives are software constructs unless an implementation exposes optional acceleration.
+
+### Progress and fairness
+
+The architecture does not require a particular scheduling or fairness policy. Implementations must preserve forward progress guarantees documented for their atomic and interrupt mechanisms.
