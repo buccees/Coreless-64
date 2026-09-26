@@ -237,7 +237,7 @@ class CorelessOS:
     def boot(self):
 
         self.firmware.initialize()
-        self.firmware.boot()
+        self.firmware.boot(None)
         self.network.device.configure(link_up=True)
         return self
 
