@@ -11,7 +11,7 @@
 - [x] Freeze instruction encoding and semantics
 - [x] Freeze memory and address model
 - [x] Freeze privilege and interrupt architecture
-- [ ] Freeze multiprocessing model
+- [x] Freeze multiprocessing model
 - [x] Freeze vector architecture
 - [x] Freeze matrix/AI architecture
 - [ ] Freeze device and interconnect architecture
