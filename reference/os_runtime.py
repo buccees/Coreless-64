@@ -26,6 +26,7 @@ class CorelessOS:
         self.desktop = Desktop(machine.graphics)
         self.shell = Shell(machine, os=self)
         self.current_pid = 0
+        self.init_pid = 0
         self.handles = {}
         self.next_handle = 3
         for cpu in self.machine.cpus:
@@ -224,7 +225,17 @@ class CorelessOS:
 
         return self._ret(cpu, -1)
 
+    def start_init(self, program_path="/init"):
+        if not self.machine.filesystem.exists(program_path):
+            raise FileNotFoundError(program_path)
+        program = self.machine.filesystem.read(program_path)
+        p = self.processes.create("init", program, parent=0)
+        self.init_pid = p.pid
+        self.current_pid = p.pid
+        return p
+
     def boot(self):
+
         self.firmware.initialize()
         self.firmware.boot()
         self.network.device.configure(link_up=True)
