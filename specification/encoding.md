@@ -852,3 +852,72 @@ Descriptor-based matrix operations additionally obtain quantization/scaling refe
 ### Descriptor validation
 
 Before retirement, descriptor-based operations validate type, dimensions, layout, strides, addressability, implementation capabilities, and operation/type compatibility. Invalid descriptors raise the defined architectural exception.
+## Scalar and memory payload families
+
+### S-A: scalar extended arithmetic
+
+Used by extended SCALAR operations.
+
+| W1 bits | Field |
+|---|---|
+| 31:29 | operation subtype |
+| 28:27 | width/mode |
+| 26 | signed |
+| 25:24 | rounding/saturation mode |
+| 23:19 | auxiliary register |
+| 18:0 | immediate/control |
+
+### S-M: extended scalar memory
+
+Used for extended scalar addressing and transfer operations.
+
+| W1 bits | Field |
+|---|---|
+| 31:29 | transfer width |
+| 28:26 | addressing mode |
+| 25 | sign/zero extension |
+| 24 | alignment override |
+| 23:19 | index register |
+| 18:0 | displacement |
+| W2 | extended stride/index/descriptor |
+| W3 | optional descriptor |
+
+### A: atomic payload
+
+Atomic operations use the ATOMIC class.
+
+| W1 bits | Field |
+|---|---|
+| 31:27 | atomic operation |
+| 26:25 | ordering |
+| 24 | acquire |
+| 23 | release |
+| 22 | signed |
+| 21:19 | operand mode |
+| 18:0 | immediate/control |
+
+Atomic ordering values:
+
+| Value | Ordering |
+|---:|---|
+| 0 | relaxed |
+| 1 | acquire |
+| 2 | release |
+| 3 | sequentially consistent |
+
+### Memory ordering masks
+
+FENCE predecessor/successor masks identify ordered domains. Initial domains are:
+
+| Bit | Domain |
+|---:|---|
+| 0 | reads |
+| 1 | writes |
+| 2 | device reads |
+| 3 | device writes |
+| 4 | atomics |
+| 5 | vector/matrix memory |
+| 6 | DMA/device visibility |
+| 7 | reserved |
+
+Reserved mask bits must be zero.
