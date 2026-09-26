@@ -588,3 +588,124 @@ The architectural memory model does not require a particular cache design. Persi
 Device memory is strongly ordered according to its architectural memory attributes. Fences are required where the device protocol requires explicit visibility ordering.
 
 DMA-capable devices participate in the defined coherence and memory-visibility rules. The exact transport mechanism is implementation-defined.
+
+
+## System, privilege, interrupt, and trap instruction families
+
+### Privilege domains
+
+Coreless-64 defines four architectural privilege domains:
+
+| Level | Name | Primary responsibility |
+|---:|---|---|
+| 0 | User | Applications and unprivileged runtime |
+| 1 | Supervisor | Operating system kernel |
+| 2 | Hypervisor | Virtual-machine management |
+| 3 | Machine | Firmware and highest-privilege machine control |
+
+Instructions and CSRs declare the minimum privilege required. Execution below that privilege raises a privilege exception.
+
+### SYSTEM instruction family
+
+The SYSTEM class provides:
+
+| Instruction | Function |
+|---|---|
+| NOP | architectural no operation |
+| HALT | stop the current execution context |
+| WAIT | enter interrupt-wait state |
+| TRAP | synchronous software trap |
+| RETX | return from exception/trap |
+| FENCE | memory ordering barrier |
+| TLBFLUSH | invalidate applicable translations |
+| TLBFLUSHVA | invalidate translation for an address |
+| READCSR | read control/status register |
+| WRITECSR | write control/status register |
+
+`TRAP` transfers control to the vector selected by the current privilege/trap configuration. `RETX` restores the saved privilege and interrupt state and resumes at the architectural exception PC.
+
+`HALT` is a privileged machine-control operation unless a supervisor policy explicitly delegates it.
+
+`WAIT` does not terminate the context. It suspends execution until an enabled interrupt, reset, or implementation-defined wake event permitted by the architecture occurs.
+
+### Control and status registers
+
+Coreless defines architectural CSR groups for:
+
+- machine configuration and capabilities;
+- privilege and status;
+- interrupt enable/pending/threshold state;
+- exception vectors;
+- page-table roots and MMU control;
+- timer/counter state;
+- CPU identity and topology;
+- virtualization state;
+- vector state;
+- floating-point state;
+- security and boot state.
+
+CSR addresses and exact field assignments are architectural and must be reserved before ISA v1.0 freeze. Unimplemented optional CSRs read as defined zero or raise the defined illegal-CSR exception; software must use capability discovery before relying on optional state.
+
+### Exception classes
+
+Architectural synchronous exceptions include:
+
+- illegal instruction;
+- illegal or unavailable CSR;
+- privilege violation;
+- instruction access fault;
+- instruction page fault;
+- data access fault;
+- data page fault;
+- alignment fault;
+- breakpoint/debug trap;
+- arithmetic fault where enabled;
+- floating-point exception;
+- virtualization fault;
+- capability/resource fault;
+- machine-check/fatal hardware fault.
+
+Exception state records at minimum the faulting PC, exception cause, fault address/value when applicable, prior privilege state, interrupt state, and translation context required for restart or diagnosis.
+
+### Interrupt classes
+
+Coreless supports:
+
+- software interrupts/IPIs;
+- timer interrupts;
+- external device interrupts;
+- inter-processor interrupts;
+- performance/monitor interrupts;
+- machine-level fault interrupts.
+
+Interrupts are prioritized by architectural interrupt priority state. A higher-priority pending interrupt may preempt a lower-priority interrupt when enabled by the current privilege domain.
+
+### Precise traps and retirement
+
+Instructions retire in architectural order. A synchronous exception is reported at the instruction that caused it, and no later instruction may have architecturally visible retired state before that faulting instruction.
+
+Long-running vector and matrix operations may execute internally in chunks, but their partial internal progress is not architectural state. `VSTART` provides vector restart information where required.
+
+### Inter-processor interrupts
+
+Every Coreless execution context has an architectural CPU identifier. Software may send an IPI to another execution context through the interrupt-controller interface.
+
+IPI delivery, acknowledgement, masking, and priority are architectural behaviors; physical routing and interrupt fabric topology are implementation properties.
+
+### Timers and counters
+
+Each implementation provides architectural time/counter facilities sufficient for an operating system to schedule execution contexts and measure intervals. Exact frequency is implementation-specific and exposed through capability/timebase state.
+
+Performance counters are optional but capability-discoverable. Their overflow behavior and interrupt delivery are architectural when implemented.
+
+### Context switching
+
+A complete architectural context includes scalar registers, PC/SP, privilege state, MMU state, interrupt state, floating-point state, vector state, mask state, and matrix/AI state when enabled for the context.
+
+An implementation may use lazy save/restore for optional state, but first use must produce architecturally correct state and exceptions.
+
+### Security and machine state
+
+Machine-level state controls boot configuration, security policy, memory-access attributes, and access to implementation resources. Lower privilege levels cannot directly modify machine security state.
+
+Secure boot and attestation mechanisms may be implementation-specific, but any architectural security state exposed to software must have defined access and transition rules.
