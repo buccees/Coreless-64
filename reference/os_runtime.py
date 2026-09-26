@@ -42,34 +42,172 @@ class CorelessOS:
         name = self.SYSCALLS.get(number)
         if name is None:
             return self._ret(cpu, -1)
+
         if name == "exit":
             cpu.halted = True
             if self.current_pid in self.processes.processes:
                 self.processes.processes[self.current_pid].state = "exited"
             return self._ret(cpu, 0)
+
         if name == "getpid":
             return self._ret(cpu, self.current_pid)
+
         if name == "memory":
             return self._ret(cpu, len(cpu.memory))
+
         if name == "cpu_info":
             return self._ret(cpu, len(self.machine.cpus))
+
         if name == "device_info":
             return self._ret(cpu, len(self.machine.devices.discover()))
+
         if name == "time":
             return self._ret(cpu, cpu.cycle)
+
         if name in ("yield", "sleep"):
             return self._ret(cpu, 0)
+
         if name == "kill":
             try:
                 self.processes.kill(self._arg(cpu, 2))
                 return self._ret(cpu, 0)
             except KeyError:
                 return self._ret(cpu, -1)
+
         if name == "checkpoint":
             self.machine.checkpoint("syscall-%d" % self._arg(cpu, 2))
             return self._ret(cpu, 0)
+
         if name == "capability":
             return self._ret(cpu, 1)
+
+        if name == "open":
+            path = self._arg(cpu, 2)
+            if not isinstance(path, str):
+                return self._ret(cpu, -1)
+            if not self.machine.filesystem.exists(path):
+                return self._ret(cpu, -1)
+            handle = self.next_handle
+            self.next_handle += 1
+            self.handles[handle] = {"kind": "file", "path": path, "offset": 0}
+            return self._ret(cpu, handle)
+
+        if name == "close":
+            self.handles.pop(self._arg(cpu, 2), None)
+            return self._ret(cpu, 0)
+
+        if name == "read":
+            handle = self.handles.get(self._arg(cpu, 2))
+            if not handle or handle["kind"] != "file":
+                return self._ret(cpu, -1)
+            try:
+                data = self.machine.filesystem.read(handle["path"])
+                offset = handle["offset"]
+                length = self._arg(cpu, 4)
+                data = data[offset:offset + length]
+                addr = self._arg(cpu, 3)
+                for i, b in enumerate(data):
+                    cpu.store_u(addr + i, 1, b)
+                handle["offset"] += len(data)
+                return self._ret(cpu, len(data))
+            except Exception:
+                return self._ret(cpu, -1)
+
+        if name == "write":
+            handle = self.handles.get(self._arg(cpu, 2))
+            if not handle or handle["kind"] != "file":
+                return self._ret(cpu, -1)
+            try:
+                addr = self._arg(cpu, 3)
+                length = self._arg(cpu, 4)
+                data = bytes(cpu.load_u(addr + i, 1) for i in range(length))
+                old = self.machine.filesystem.read(handle["path"])
+                offset = handle["offset"]
+                new = old[:offset] + data + old[offset + len(data):]
+                self.machine.filesystem.write(handle["path"], new)
+                handle["offset"] += len(data)
+                return self._ret(cpu, len(data))
+            except Exception:
+                return self._ret(cpu, -1)
+
+        if name == "seek":
+            handle = self.handles.get(self._arg(cpu, 2))
+            if not handle or handle["kind"] != "file":
+                return self._ret(cpu, -1)
+            offset = self._arg(cpu, 3)
+            try:
+                size = len(self.machine.filesystem.read(handle["path"]))
+                handle["offset"] = min(offset, size)
+                return self._ret(cpu, handle["offset"])
+            except Exception:
+                return self._ret(cpu, -1)
+
+        if name == "stat":
+            handle = self.handles.get(self._arg(cpu, 2))
+            if not handle:
+                return self._ret(cpu, -1)
+            try:
+                return self._ret(cpu, len(self.machine.filesystem.read(handle["path"])))
+            except Exception:
+                return self._ret(cpu, -1)
+
+        if name == "spawn":
+            program_path = self._arg(cpu, 2)
+            if not isinstance(program_path, str):
+                return self._ret(cpu, -1)
+            try:
+                program = self.machine.filesystem.read(program_path)
+                p = self.processes.create(program_path, program)
+                self.current_pid = p.pid
+                return self._ret(cpu, p.pid)
+            except Exception:
+                return self._ret(cpu, -1)
+
+        if name == "net_send":
+            try:
+                addr = self._arg(cpu, 2)
+                length = self._arg(cpu, 3)
+                target = self._arg(cpu, 4)
+                data = bytes(cpu.load_u(addr + i, 1) for i in range(length))
+                packet = self.network.device.transmit(data, target if isinstance(target, str) else "")
+                return self._ret(cpu, len(packet.data))
+            except Exception:
+                return self._ret(cpu, -1)
+
+        if name == "net_recv":
+            packet = self.network.device.poll_rx()
+            if packet is None:
+                return self._ret(cpu, 0)
+            addr = self._arg(cpu, 2)
+            for i, b in enumerate(packet.data):
+                cpu.store_u(addr + i, 1, b)
+            return self._ret(cpu, len(packet.data))
+
+        if name == "display_open":
+            width = self._arg(cpu, 2)
+            height = self._arg(cpu, 3)
+            try:
+                surface = self.machine.graphics.create_surface(width, height)
+                return self._ret(cpu, self.machine.graphics.surfaces.index(surface))
+            except Exception:
+                return self._ret(cpu, -1)
+
+        if name == "display_present":
+            index = self._arg(cpu, 2)
+            try:
+                surface = self.machine.graphics.surfaces[index]
+                surface.ready = True
+                self.machine.graphics.present(surface)
+                return self._ret(cpu, 0)
+            except Exception:
+                return self._ret(cpu, -1)
+
+        if name == "input_read":
+            event = self.machine.graphics.poll_input()
+            if event is None:
+                return self._ret(cpu, 0)
+            return self._ret(cpu, 1)
+
         return self._ret(cpu, -1)
 
     def boot(self):
