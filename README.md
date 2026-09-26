@@ -95,3 +95,10 @@ The computational fabric, CPU direction, memory model, ISA direction, privilege 
 > **The machine is defined independently from the mechanism that executes the machine.**
 
 Coreless is intended to become a portable computer architecture whose computational system is carried with the device.
+
+
+## Architecture completion status
+
+The Coreless-64 architecture now has the major machine subsystems defined independently of physical hardware: scalar execution, memory and MMU, privilege and interrupts, vector and matrix/AI execution, multiprocessing, devices, graphics, networking, virtualization, scaling, and security direction.
+
+The project is now moving from architectural definition toward a conformance-ready reference implementation. Physical hardware is an implementation choice; the Coreless-64 contract remains stable across software reference execution, FPGA, dedicated hardware, ASIC, heterogeneous fabrics, and future storage-integrated computational implementations.
