@@ -39,3 +39,19 @@ This applies especially to storage, network, GPU, and AI devices.
 ## Isolation
 
 Device access is privilege-controlled and can be virtualized for guests.
+
+## Device and Interconnect Independence
+
+Coreless devices are architectural resources presented through a capability-discoverable device model. Device implementation, bus topology, link technology, physical controller placement, and transport are implementation-defined.
+
+The computational fabric may connect scalar execution, vector engines, matrix/AI engines, memory, storage, graphics, networking, and accelerators through any implementation interconnect that preserves the architectural ordering, interrupt, DMA, and visibility rules.
+
+Software addresses architectural device resources rather than assuming PCIe, USB, SATA, NVMe, or another host-specific transport. Compatibility layers may expose such external protocols where required.
+
+### Device discovery
+
+Firmware exposes device identity, capability, resource ranges, interrupt routes, DMA capabilities, and optional acceleration features through an architectural discovery mechanism.
+
+### DMA
+
+Devices may perform DMA only within permitted translation and protection domains. DMA visibility follows the architectural device-memory and fence rules.
