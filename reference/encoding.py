@@ -157,3 +157,8 @@ def decode_stream(data):
             out.append((pc, n, header, payload))
         pc += n
     return out
+
+
+# Compatibility aliases used by the early reference tests/tooling.
+encode_base_r = encode_r
+encode_base_i = encode_i
