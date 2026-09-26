@@ -469,3 +469,11 @@ All vector operations apply to active elements `0..VL-1`. Masking, element type,
 4. Matrix dimensions and element types are architectural; physical lane/tile width is implementation-defined.
 5. Vector and matrix instructions retire according to the Coreless precise-exception model.
 6. Undefined operation numbers or unsupported class/format combinations trap as illegal instructions.
+
+## Vector control and matrix architectural state
+
+The vector control state is architectural and includes VL, VSTART, VTYPE, and VCSR. These values participate in precise context management.
+
+The matrix/AI architectural context includes tile state plus capability information required to validate tile shapes, data types, and accumulator modes.
+
+Capability discovery must expose maximum supported vector length, supported tile shapes, supported data types, quantization modes, and optional accumulator formats.
