@@ -523,9 +523,6 @@ class CorelessCPU:
                                            self._phys(self.pc, "read", execute=True)+4])
             self._last_word = first
             length = instruction_length(first)
-            if length != 4:
-                raise CorelessTrap("instruction_encoding_fault", self.pc)
-            ins = decode(first)
             if length == 16:
                 from encoding import decode_extended_header
                 h = decode_extended_header(first)
