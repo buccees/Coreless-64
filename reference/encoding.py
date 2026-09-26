@@ -108,3 +108,42 @@ def from_bytes(data):
     if len(data)!=4:
         raise ValueError('base instruction word must be 4 bytes')
     return int.from_bytes(data,'little')
+
+
+
+def decode_extended_header(w):
+    """Decode the fixed 27-bit header of an extended instruction word."""
+    w &= MASK32
+    cls = (w >> 23) & 0xF
+    op = (w >> 17) & 0x3F
+    rd = (w >> 12) & 0x1F
+    rs1 = (w >> 7) & 0x1F
+    rs2 = (w >> 2) & 0x1F
+    fmt = w & 0x3
+    if cls > 0x8:
+        raise IllegalEncoding("reserved extended class")
+    return (cls, op, rd, rs1, rs2, fmt)
+
+
+def decode_stream(data):
+    """Decode instruction boundaries without interpreting extended payloads."""
+    if len(data) % 4:
+        raise ValueError("instruction stream must be word aligned")
+    out = []
+    pc = 0
+    while pc < len(data):
+        if len(data) - pc < 4:
+            raise IllegalEncoding("truncated instruction")
+        w = from_bytes(data[pc:pc+4])
+        n = instruction_length(w)
+        if len(data) - pc < n:
+            raise IllegalEncoding("truncated extended instruction")
+        if n == 4:
+            decoded = decode(w)
+            out.append((pc, n, decoded))
+        else:
+            header = decode_extended_header(w)
+            payload = data[pc+4:pc+n]
+            out.append((pc, n, header, payload))
+        pc += n
+    return out
