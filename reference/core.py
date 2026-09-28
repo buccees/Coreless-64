@@ -512,8 +512,9 @@ class CorelessCPU:
                     total += decode_int(self.matrix[rs1][i][j], ibits, signed_mode)
             self.write_reg(rd, total)
         elif op == 0x0E:
-            lo = decode_int(w3 & 0xFFFFFFFF, 32, True)
-            hi = decode_int((w3 >> 32) & 0xFFFFFFFF, 32, True)
+            # w3 is a 32-bit descriptor word: signed 16-bit lower/upper bounds.
+            lo = decode_int(w3 & 0xFFFF, 16, True)
+            hi = decode_int((w3 >> 16) & 0xFFFF, 16, True)
             if lo > hi:
                 raise CorelessTrap("matrix_ai_fault", self.pc, w3)
             for i in range(m):
