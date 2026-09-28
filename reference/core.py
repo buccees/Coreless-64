@@ -326,8 +326,10 @@ class CorelessCPU:
         if op in (0x12, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25):
             index = self.read_reg(rs2) & 0x3F
             if op == 0x12:
+                # VSEL uses the selected architectural mask as the lane
+                # selector: 1 selects vs1, 0 selects vs2.
                 for i in range(start, vl):
-                    if self.vector_mask[0] & (1 << i):
+                    if (mask >> i) & 1:
                         self.vector[rd][i] = self.vector[rs1][i] & (mod - 1)
                     else:
                         self.vector[rd][i] = self.vector[rs2][i] & (mod - 1)
@@ -380,6 +382,7 @@ class CorelessCPU:
             return
 
         for i in range(start, vl):
+            self.vector_vstart = i
             if not active(i):
                 if mask_zero:
                     self.vector[rd][i] = 0
