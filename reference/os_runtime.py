@@ -32,7 +32,7 @@ class CorelessOS:
         self.display_handles = {}
         self.next_display_handle = 0
         for cpu in self.machine.cpus:
-            cpu.syscall_handler = self._syscall
+            cpu.supervisor_trap_handler = self._supervisor_trap
 
     def _ret(self, cpu, value=0):
         cpu.write_reg(1, value)
@@ -56,6 +56,20 @@ class CorelessOS:
 
     def _read_user_text(self, cpu, addr, length):
         return self._read_user_bytes(cpu, addr, length).decode("utf-8")
+
+    def _supervisor_trap(self, cpu, trap):
+        """Reference supervisor trap handler."""
+        if trap.cause != "syscall":
+            return False
+        self._syscall(cpu, trap.tval)
+        if cpu.halted:
+            return True
+        cpu.csrs[0x004] = (trap.pc + 4) & ((1 << 64) - 1)
+        cpu.privilege = cpu._trap_saved_privilege
+        cpu.csrs[0x000] = cpu.privilege
+        cpu.csrs[0x001] = cpu._trap_saved_ie
+        cpu.pc = cpu.csrs[0x004]
+        return True
 
     def _syscall(self, cpu, number):
         name = self.SYSCALLS.get(number)
