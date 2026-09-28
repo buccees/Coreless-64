@@ -28,7 +28,7 @@ def test_immediate_and_memory():
     cpu.memory[4:8]=((3<<27)|(2<<22)|(1<<17)|(3<<14)).to_bytes(4,"little")
     cpu.memory[8:12]=((2<<27)|(4<<22)|(1<<17)|(3<<14)).to_bytes(4,"little")
     cpu.step(); assert cpu.r[3]==107
-    cpu.step(); assert int.from_bytes(cpu.memory[107:115],"little")==0x1122334455667788
+    cpu.step(); assert int.from_bytes(cpu.memory[100:108],"little")==0x1122334455667788
     cpu.step(); assert cpu.r[4]==0x1122334455667788
 
 def test_branch_and_call():
@@ -38,7 +38,8 @@ def test_branch_and_call():
     cpu.memory[4:8]=imm(1,3,0,0,9).to_bytes(4,"little")
     cpu.step(); assert cpu.pc==0
     cpu.r[1]=0
-    cpu.step(); assert cpu.pc==4 and cpu.r[3]==9
+    cpu.step(); assert cpu.pc==4 and cpu.r[3]==0
+    cpu.step(); assert cpu.pc==8 and cpu.r[3]==9
 
 def test_divide_by_zero_is_precise_trap():
     cpu=CorelessCPU()
