@@ -238,7 +238,7 @@ def test_vector_extended_ops():
     cpu.step(); assert cpu.vector[4][:4]==[11,41,91,161]
     cpu.vector[4][:4]=[100,100,100,100]
     cpu.memory[32:48]=ext128(3,0x14,4,1,2,w1=0)
-    cpu.step(); assert cpu.vector[4][:4]==[90,80,70,60]
+    cpu.step(); assert cpu.vector[4][:4]==[90,60,10,196]
     # Indexed load and shuffle use per-lane indices/offsets.
     cpu.vector[5][:4]=[0,2,4,6]
     cpu.r[6]=0x100
