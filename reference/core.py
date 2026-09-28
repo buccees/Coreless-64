@@ -567,13 +567,25 @@ class CorelessCPU:
             if displacement & (1 << 31):
                 displacement -= 1 << 32
             base = (self.read_reg(rs1) + displacement) & MASK64
-            for i in range(m):
-                for j in range(n):
-                    addr = (base + i * row_stride + j * col_stride) & MASK64
-                    if op == 0x09:
-                        self.matrix[rd][i][j] = self.load_u(addr, elem_bytes)
-                    else:
-                        self.store_u(addr, elem_bytes, self.matrix[rd][i][j])
+            addresses = [
+                (base + i * row_stride + j * col_stride) & MASK64
+                for i in range(m) for j in range(n)
+            ]
+            if op == 0x09:
+                # Preflight every element before changing the destination
+                # tile so a later fault cannot expose a partially loaded tile.
+                values = [self.load_u(addr, elem_bytes) for addr in addresses]
+                for index, value in enumerate(values):
+                    i, j = divmod(index, n)
+                    self.matrix[rd][i][j] = value
+            else:
+                # Validate every destination access before performing any
+                # store, preserving atomic architectural retirement.
+                for addr in addresses:
+                    self._phys(addr, "write")
+                for index, addr in enumerate(addresses):
+                    i, j = divmod(index, n)
+                    self.store_u(addr, elem_bytes, self.matrix[rd][i][j])
         elif op == 0x0B:
             for i in range(m):
                 for j in range(n):
