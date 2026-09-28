@@ -90,12 +90,14 @@ class CorelessCPU:
     remain defined by the specification.
     """
 
-    def __init__(self, memory_size=65536, storage=None, memory_name="ram0"):
+    def __init__(self, memory_size=65536, storage=None, memory_name="ram0", memory=None):
         self.r = [0] * 32
         self.pc = 0
         self.sp = 0
         from memory import VirtualRAM
-        self.memory = VirtualRAM(memory_size, storage, memory_name)
+        self.memory = memory if memory is not None else VirtualRAM(memory_size, storage, memory_name)
+        if len(self.memory) != memory_size:
+            raise ValueError("Coreless CPU memory size does not match shared RAM")
         self.privilege = MACHINE
         self.halted = False
         self.cycle = 0

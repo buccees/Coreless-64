@@ -30,9 +30,13 @@ def test_cpus_share_coreless_ram(tmp_path):
     disk = tmp_path / "coreless.img"
     machine = CorelessMachine(8192, cpu_count=2, storage_path=disk)
     machine.boot()
+    # Populate CPU1's view first; this catches the old per-CPU stale-cache bug.
+    assert bytes(machine.cpus[1].memory[0:4]) == b"\x00\x00\x00\x00"
     machine.cpus[0].memory[0:4] = b"SHRD"
-    machine.cpus[0].memory.flush()
+    assert machine.cpus[0].memory is machine.cpus[1].memory
     assert bytes(machine.cpus[1].memory[0:4]) == b"SHRD"
+    machine.cpus[1].memory[4:8] = b"BACK"
+    assert bytes(machine.cpus[0].memory[4:8]) == b"BACK"
 
 
 def test_machine_state_persists_across_restart(tmp_path):

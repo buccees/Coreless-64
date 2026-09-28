@@ -18,7 +18,12 @@ class CorelessMachine:
         if memory_size < 4096 or memory_size % 4096:
             raise ValueError("Coreless RAM size must be a positive 4 KiB multiple")
         self.storage = PersistentMachineImage(storage_path)
-        self.cpus = [CorelessCPU(memory_size, storage=self.storage, memory_name="ram")
+        # All CPUs observe one Coreless RAM instance.  The reference machine
+        # therefore has one architectural memory, not one cache per CPU.
+        from memory import VirtualRAM
+        shared_memory = VirtualRAM(memory_size, self.storage, "ram")
+        self.cpus = [CorelessCPU(memory_size, storage=self.storage, memory_name="ram",
+                                 memory=shared_memory)
                      for _ in range(cpu_count)]
         for i, cpu in enumerate(self.cpus):
             cpu.csrs[0x00A] = i
