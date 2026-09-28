@@ -58,10 +58,15 @@ class PersistentMachineImage:
             raise ValueError("unsupported Coreless checkpoint format")
         self.metadata = dict(snapshot.get("metadata", {}))
         self.metadata["format"] = self.FORMAT
+        checkpoints = {
+            key: value for key, value in self.objects.items()
+            if key.startswith("checkpoint/")
+        }
         self.objects = {
             key: base64.b64decode(value.encode("ascii"))
             for key, value in snapshot.get("objects", {}).items()
         }
+        self.objects.update(checkpoints)
         self.sync()
         return hashlib.sha256(raw).hexdigest()
 
