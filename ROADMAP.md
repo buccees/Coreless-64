@@ -57,13 +57,13 @@ The engine is part of the Coreless project. It provides the computational mechan
 
 Integrate the remaining machine subsystems into the same persistent execution model.
 
-- [ ] Persistent process and address-space state
-- [ ] Persistent operating-system state
-- [ ] Persistent device state
-- [ ] Persistent boot state
-- [ ] Persistent application state
-- [ ] Complete checkpoint/restore
-- [ ] Resume a complete Coreless machine from its machine image
+- [x] Persistent process and address-space state
+- [x] Persistent operating-system state
+- [x] Persistent device state
+- [x] Persistent boot state
+- [x] Persistent application state
+- [x] Complete checkpoint/restore
+- [x] Resume a complete Coreless machine from its machine image
 - [ ] Run a complete Coreless operating environment through the digital execution engine
 
 ## Phase 5 — Portable Coreless machine
