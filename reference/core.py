@@ -580,9 +580,14 @@ class CorelessCPU:
                     self.matrix[rd][i][j] = value
             else:
                 # Validate every destination access before performing any
-                # store, preserving atomic architectural retirement.
+                # store, preserving atomic architectural retirement. Translation,
+                # alignment, and physical bounds are all checked in the preflight.
                 for addr in addresses:
-                    self._phys(addr, "write")
+                    if addr & (elem_bytes - 1):
+                        raise CorelessTrap("alignment_fault", self.pc, addr)
+                    phys = self._phys(addr, "write")
+                    if phys + elem_bytes > len(self.memory):
+                        raise CorelessTrap("data_access_fault", self.pc, addr)
                 for index, addr in enumerate(addresses):
                     i, j = divmod(index, n)
                     self.store_u(addr, elem_bytes, self.matrix[rd][i][j])
