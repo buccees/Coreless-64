@@ -494,14 +494,42 @@ class CorelessCPU:
                 raw_src = a & src_mask
                 signed_src = bool(w1 & 0x1)
                 saturate = bool(w1 & 0x2)
-                src_value = raw_src - (1 << src_bits) if signed_src and (raw_src & (1 << (src_bits - 1))) else raw_src
-                if saturate:
-                    lo = -(1 << (dst_bits - 1)) if signed_src else 0
-                    hi = (1 << (dst_bits - 1)) - 1 if signed_src else dst_mod - 1
-                    z = min(max(src_value, lo), hi)
+                src_is_fp = src_et in (4, 5, 6, 7)
+                dst_is_fp = dst_et in (4, 5, 6, 7)
+                if src_is_fp or dst_is_fp:
+                    if src_is_fp:
+                        src_value = fp_decode(raw_src, src_et)
+                    else:
+                        src_value = raw_src - (1 << src_bits) if signed_src and (raw_src & (1 << (src_bits - 1))) else raw_src
+                    if dst_is_fp:
+                        if isinstance(src_value, float) and math.isnan(src_value):
+                            z = fp_encode(float("nan"), dst_et)
+                        elif dst_et in (4, 5, 6, 7):
+                            z = fp_encode(src_value, dst_et)
+                        else:
+                            z = int(src_value)
+                            lo = -(1 << (dst_bits - 1)) if signed_src else 0
+                            hi = (1 << (dst_bits - 1)) - 1 if signed_src else dst_mod - 1
+                            if saturate: z = min(max(z, lo), hi)
+                            z &= dst_mod - 1
+                    else:
+                        if math.isnan(src_value) or math.isinf(src_value):
+                            z = (1 << (dst_bits - 1)) - 1 if signed_src else dst_mod - 1
+                        else:
+                            z = int(src_value)
+                            lo = -(1 << (dst_bits - 1)) if signed_src else 0
+                            hi = (1 << (dst_bits - 1)) - 1 if signed_src else dst_mod - 1
+                            if saturate: z = min(max(z, lo), hi)
+                            z &= dst_mod - 1
                 else:
-                    z = src_value
-                z &= dst_mod - 1
+                    src_value = raw_src - (1 << src_bits) if signed_src and (raw_src & (1 << (src_bits - 1))) else raw_src
+                    if saturate:
+                        lo = -(1 << (dst_bits - 1)) if signed_src else 0
+                        hi = (1 << (dst_bits - 1)) - 1 if signed_src else dst_mod - 1
+                        z = min(max(src_value, lo), hi)
+                    else:
+                        z = src_value
+                    z &= dst_mod - 1
             elif op == 0x1E or op == 0x1F:
                 # Strided memory uses rs1 as the base and rs2 as the
                 # architectural byte stride. Each active lane is one
