@@ -89,7 +89,7 @@ def ext128(cls, op, rd=0, rs1=0, rs2=0, w1=0, w2=0, w3=0):
 
 def test_atomic_swap_and_cas():
     cpu=CorelessCPU()
-    cpu.r[1]=0x0ffd; cpu.r[2]=7; cpu.r[3]=9
+    cpu.r[1]=0x100; cpu.r[2]=7; cpu.r[3]=9
     cpu.memory[0x100:0x108]=(5).to_bytes(8,"little")
     # SWAP R4,[R1],R2
     cpu.memory[0:4]=word(7,4,1,2,0).to_bytes(4,"little")
