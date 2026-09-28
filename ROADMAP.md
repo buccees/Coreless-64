@@ -5,8 +5,8 @@
 - [x] Establish Coreless as the project name
 - [x] Establish Coreless-64 as the first architecture
 - [x] Define the independent-computer objective
-- [x] Define the host as an external interface
-- [x] Define the execution-model split between architecture and implementation
+- [x] Define the external environment as an interface
+- [x] Define the machine / digital execution-engine distinction
 - [x] Freeze CPU architectural state
 - [x] Freeze instruction encoding and semantics
 - [x] Freeze memory and address model
@@ -18,13 +18,13 @@
 - [x] Freeze GPU/display architecture
 - [x] Freeze virtualization architecture
 
-## Phase 2 — Reference execution
+## Phase 2 — Digital execution engine
 
-Build a software reference implementation of Coreless-64.
+Build the executable digital engine that runs the Coreless-64 machine.
 
-The reference implementation exists to validate the architecture. It is not the final computational dependency of Coreless.
+The engine is part of the Coreless project. It provides the computational mechanism that makes the digital Coreless machine execute; it is not an external host dependency.
 
-- [x] ISA decoder and instruction-length reference engine
+- [x] ISA decoder and instruction-length engine
 - [x] CPU execution core
 - [x] Memory system
 - [x] Interrupt controller and timer foundation
@@ -53,24 +53,26 @@ The reference implementation exists to validate the architecture. It is not the 
 - [ ] Remote display/input
 - [ ] Application environment
 
-## Phase 4 — Native execution
+## Phase 4 — Complete digital Coreless machine
 
-Investigate and prototype an execution substrate that does not depend on the host CPU for Coreless computation.
+Integrate the remaining machine subsystems into the same persistent execution model.
 
-Potential paths:
-
-- FPGA
-- dedicated hardware
-- accelerator
-- ASIC
-- storage-integrated execution
-- heterogeneous execution
+- [ ] Persistent process and address-space state
+- [ ] Persistent operating-system state
+- [ ] Persistent device state
+- [ ] Persistent boot state
+- [ ] Persistent application state
+- [ ] Complete checkpoint/restore
+- [ ] Resume a complete Coreless machine from its machine image
+- [ ] Run a complete Coreless operating environment through the digital execution engine
 
 ## Phase 5 — Portable Coreless machine
 
-The target system is a portable computer in which the computational architecture travels with the device.
+The target system is a portable computer whose digital machine travels with its persistent storage.
 
-The host provides external interfaces rather than being the computer that executes Coreless.
+The external environment supplies power and I/O. The Coreless digital execution mechanism supplies the computation.
+
+The Coreless architecture does not require a conventional host CPU, host OS, or host system RAM to be part of the Coreless computer.
 
 ## Phase 6 — Scaling
 
@@ -92,21 +94,29 @@ The host provides external interfaces rather than being the computer that execut
 - [ ] Binary translation
 - [ ] Virtualized legacy environments
 
-## Storage-carried machine direction
+## Machine-state direction
 
 The persistent machine image is becoming the authoritative carrier of Coreless machine state.
 
 The target architecture is:
 
-**startup → Coreless machine → monitor/input interface**
+**power/startup → Coreless digital execution engine → Coreless machine → external I/O**
 
-The machine image is intended to carry virtual RAM, CPU state, operating-system state, process state, device state, applications, filesystem state, and other state required to reconstruct the computer. Host resources are implementation/interface details rather than the architectural owner of the machine.
+The machine image is intended to carry virtual RAM, CPU state, operating-system state, process state, device state, applications, filesystem state, and other state required to reconstruct the computer.
 
 The current reference image still uses a simple object-based format. A later storage layer will replace this with a scalable sparse machine-image format suitable for very large virtual RAM and complete machine state.
 
+## Execution-engine direction
+
+The repository already contains the first digital Coreless execution engine.
+
+reference/core.py implements Coreless-64 CPU instruction execution. reference/machine_runtime.py integrates those CPUs with shared Coreless memory, persistent storage, devices, graphics, networking, and machine-state persistence.
+
+The next goal is not to replace that engine with an external runtime. The goal is to **complete its integration with the entire Coreless machine**, so the engine can execute a machine whose state is carried by its persistent machine image.
+
 ## Phase 1 status
 
-The architectural definition is substantially complete. Coreless-64 now defines CPU state, variable-length encoding, scalar/memory/atomic operations, virtual memory/MMU, privilege, interrupts, vector execution, matrix/AI execution, multiprocessing, device/interconnect principles, graphics/display, networking, virtualization, scaling, and security direction.
+The architectural definition is substantially complete. Coreless-64 defines CPU state, variable-length encoding, scalar/memory/atomic operations, virtual memory/MMU, privilege, interrupts, vector execution, matrix/AI execution, multiprocessing, device/interconnect principles, graphics/display, networking, virtualization, scaling, and security direction.
 
 The remaining work before declaring a normative ISA v1.0 freeze is executable consistency testing, reserved-field audit, vector/matrix encoding cross-checks, and completion of implementation-heavy subsystem semantics.
 

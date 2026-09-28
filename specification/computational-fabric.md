@@ -1,126 +1,170 @@
-# Coreless-64 Computational Fabric
+# Coreless-64 Digital Execution Engine
 
 **Version:** 0.1  
 **Status:** Architectural draft
 
 ## Objective
 
-The Coreless computational fabric defines the independent computational system carried by a Coreless device. A conforming independent implementation is intended to execute Coreless-64 without using the host CPU as the Coreless CPU.
+The Coreless digital execution engine is the computational mechanism that makes the Coreless-64 machine execute.
 
-The host is an external interface. It may provide power and physical transport and may carry display, input, or network traffic, but those interfaces do not define Coreless computation.
+It is part of the Coreless design.
 
-## Fabric
+It is not a physical fabric, a separate host computer, or an external CPU that Coreless depends upon.
 
-    Coreless-64
-         |
-    Coreless Fabric
-         |
-    +----+----+----+----+----+
-    |    |    |    |    |    |
-   CPU Vector AI Memory GPU Storage
-    |    |    |    |    |    |
-    +----+----+----+----+----+
-              |
-          Interconnect
-              |
-        Network / I/O
+The current implementation is software. The architecture is defined independently from the implementation technology.
 
-The fabric is an architectural organization, not a requirement that every implementation use separate physical chips.
+## Machine relationship
 
-## Scalar CPU complex
+    CORELESS
+    +---------------------------------------+
+    | Persistent Coreless Machine           |
+    |                                       |
+    | CPU state / RAM / OS / processes      |
+    | devices / graphics / network / apps   |
+    |                                       |
+    |              ^                        |
+    |              | executes               |
+    |              |                        |
+    |     Coreless Digital Execution        |
+    |              Engine                   |
+    +---------------------------------------+
+                    |
+            External interfaces
+           power / display / input /
+                 networking
 
-Each Coreless CPU contains integer execution, control flow, load/store execution, architectural registers, privilege state, interrupt state, local translation/cache state, and synchronization support.
+The machine defines the state and behavior of the computer.
 
-A machine may instantiate one or many CPUs. Software discovers the available topology.
+The execution engine performs the state transitions that make that computer run.
 
-## Vector complex
+## Current implementation
 
-Vector execution is first-class. Coreless will use a scalable vector model rather than requiring one fixed physical vector width.
+The first Coreless digital execution engine is already in this repository.
 
-The architecture will define vector registers, element widths, vector length, masking, loads/stores, integer and floating-point operations, reductions, permutations, conversions, and cryptographic primitives where appropriate.
+- reference/core.py — Coreless-64 CPU execution
+- reference/machine_runtime.py — machine-level integration
+- reference/memory.py — Coreless virtual RAM
+- reference/storage.py — persistent machine image
+- reference/device_io.py — device interfaces
+- reference/filesystem.py — persistent filesystem
+- reference/virtualization.py — virtualization model
 
-Scalable vector architectures in existing systems provide useful engineering reference points; current RISC-V specifications include ratified vector and vector-intrinsic standards. citeturn0search13turn0search16
+The engine currently executes scalar Coreless-64 instructions and integrates the architectural CPU with persistent memory, interrupts, devices, and machine state.
 
-## Matrix and AI complex
+Vector and matrix/AI execution remain implementation work in the reference engine.
 
-AI acceleration is architectural rather than an optional peripheral.
+## Execution cycle
 
-Initial target formats are INT8, INT16, INT32 accumulation, FP16, BF16, and FP32 accumulation.
+The basic digital execution cycle is:
 
-The architecture will expose matrix multiply, matrix multiply-accumulate, tiled operations, vector-matrix operations, and quantized computation.
+    Fetch
+      -> Decode
+      -> Execute
+      -> Memory / Device Access
+      -> Commit
+      -> Advance
 
-CPU, vector, and AI resources may operate concurrently.
+Architectural state is updated according to Coreless-64 semantics.
 
-## Coreless memory system
+## CPU execution
 
-The memory system is independent of host system RAM.
+The engine maintains Coreless CPU state including:
 
-It provides virtual address space, physical Coreless address space, protection, translation, coherent shared memory, atomic operations, synchronization, and memory-mapped device space.
+- 32 general-purpose registers
+- program counter
+- stack pointer
+- privilege level
+- control/status registers
+- interrupt state
+- exception/trap state
+- TLB state
+- atomic reservation state
+- vector state
+- matrix state
+- cycle and retirement counters
 
-The physical implementation may use one or more memory technologies.
+The engine does not treat the host CPU register file as Coreless architectural state.
 
-## Coreless interconnect
+## Memory execution
 
-The interconnect connects computational and device resources and supports memory transactions, device transactions, interrupts, synchronization, ordered communication, peer-to-peer movement, and many-core scaling.
+The engine accesses Coreless virtual RAM through the Coreless memory model.
 
-The logical topology is a coherent fabric. The physical implementation may be a bus, crossbar, ring, mesh, network-on-chip, chiplet fabric, or another implementation.
+The current implementation provides:
 
-## GPU and display
+- 4 KiB virtual RAM pages
+- persistent page backing
+- shared machine RAM across CPUs
+- virtual address translation
+- permissions
+- TLB state
+- page-fault behavior
 
-The GPU/display complex is a native Coreless resource. It provides framebuffer/display surfaces, display timing, cursor, input events, multiple displays, 2D acceleration, and future 3D/compute acceleration.
+Host memory may be used internally while the software engine runs, but Coreless memory remains a Coreless machine resource.
 
-A host may transport display output without rendering Coreless graphics on the host GPU.
+## Device execution
 
-## Storage complex
+The engine connects instruction execution to Coreless device state.
 
-Storage provides persistent machine state, machine-image storage, boot storage, applications, AI models, and persistent data movement.
+Devices include or are being developed for:
 
-Coreless explicitly investigates computational-storage-style execution. SNIA currently publishes computational-storage architecture and API standards, establishing that computation associated with storage is an active engineering field. citeturn0search3turn0search7
+- interrupts
+- timers
+- storage
+- networking
+- graphics/display
+- input
+- virtualization
 
-Coreless goes further: the research target is to determine whether storage-integrated execution can carry a sufficiently complete computational substrate for an independent Coreless machine.
-
-## Network complex
-
-The network complex provides network interfaces, packet processing, data movement, and interrupts. External networking is exposed through a host or dedicated interface without requiring the host CPU to execute Coreless software.
-
-## Interrupts
-
-Interrupt sources include timers, devices, network events, storage completion, display/input, inter-CPU signaling, accelerator completion, and external events.
+The goal is for device state needed to preserve the computer to become part of the persistent machine image.
 
 ## Multiprocessing
 
-Coreless supports symmetric multiprocessing and large CPU counts: 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024 and larger implementations.
+The engine can instantiate multiple Coreless CPUs.
 
-Software sees a defined Coreless topology rather than the host CPU topology.
+All CPUs address the shared Coreless machine memory model.
 
-Shared memory is architecturally coherent. Physical coherence mechanisms remain implementation-defined.
+CPU identity and CPU count are Coreless architectural state rather than host topology.
 
-## Persistent execution state
+The reference implementation will continue to improve memory coherence and scheduling semantics as the multiprocessing model is completed.
 
-Architectural execution state must have a defined representation suitable for suspend, resume, checkpoint, restore, migration, and duplication.
+## Persistent execution
 
-The system does not need to write storage after every instruction; implementations may maintain volatile working state and commit consistent checkpoints.
+A running Coreless machine has volatile working state and persistent machine state.
 
-## Dynamic scaling
+The engine can:
 
-Machine configuration may describe different quantities of CPUs, memory, vector capacity, AI capacity, GPU resources, storage, and network interfaces.
+- flush machine memory
+- persist CPU state
+- checkpoint the machine
+- restore machine state
+- resume from a machine image
 
-Changing available resources must not change the Coreless-64 ISA.
+The machine image is the durable representation of the Coreless computer.
 
-Drive capacity is primarily a scaling resource for persistent state and machine-image capacity. Computational throughput comes from the execution substrate.
+## External I/O
 
-## Host boundary
+The engine exposes Coreless resources to external interfaces.
 
-The host is explicitly not required to provide Coreless CPU execution, Coreless RAM, Coreless GPU computation, Coreless OS execution, Coreless virtualization, or Coreless AI execution.
+A monitor presents Coreless display output.
 
-A development implementation may temporarily use host resources to emulate these resources. That is a development mechanism, not the target machine model.
+Keyboard/mouse/input devices provide Coreless input.
 
-## Native implementation requirement
+A network interface provides external connectivity.
 
-A native Coreless implementation must contain an execution mechanism capable of executing Coreless-64 independently of the host CPU.
+Power starts and sustains the system.
 
-Possible implementation technologies include FPGA, ASIC, dedicated processors, heterogeneous accelerators, storage-integrated processors, or other hardware satisfying Coreless-64 semantics.
+None of these interfaces becomes the Coreless CPU, RAM, OS, or execution engine.
+
+## Future implementations
+
+The software engine is the current executable implementation of Coreless.
+
+The same architectural machine may later be implemented using other digital execution technologies.
+
+Such implementations are implementation choices, not architectural dependencies.
+
+The project does not require a particular physical fabric for Coreless to be a valid computer architecture.
 
 ## Foundational principle
 
-**The computational fabric is the computer. Persistent storage carries persistent machine state. The host is the interface to the computer.**
+> **Coreless is the computer. The Coreless digital execution engine runs the computer. Persistent storage carries its persistent machine state. External equipment provides power and I/O.**

@@ -1,22 +1,22 @@
 # Coreless
 
-**Coreless is a computer architecture in which the computational machine is carried by persistent storage.**
+**Coreless is a computer architecture in which the complete digital computer can be carried by persistent storage and executed by a digital Coreless execution engine.**
 
-Coreless is not a conventional virtual machine, container, application runtime, or operating system intended to depend on a host computer for its computation.
+Coreless is not intended to be a conventional virtual machine that depends on a host computer to provide its CPU, RAM, operating system, or graphics.
 
-The fundamental Coreless model is:
+The fundamental model is:
 
-> **The machine is Coreless. Persistent storage carries the machine. The host provides only the external interface and startup mechanism.**
+> **Coreless is the computer. Persistent storage carries the machine state. The Coreless digital execution engine runs the machine. External equipment provides power and I/O.**
 
-A Coreless machine is intended to contain its own:
+A Coreless machine includes:
 
-- CPU and execution architecture
+- Coreless CPU and instruction execution
 - virtual RAM
 - operating system
 - processes and address spaces
-- storage and filesystem
+- filesystem and persistent storage
 - device state
-- graphics and display system
+- graphics and display
 - networking
 - vector and matrix/AI computation
 - virtualization
@@ -24,7 +24,7 @@ A Coreless machine is intended to contain its own:
 - persistent machine state
 - boot state and checkpoints
 
-The storage device is the persistent carrier of this machine state.
+The machine and the mechanism that executes it are logically distinct, but both are part of the Coreless design. The execution engine is not an external computer that Coreless depends on.
 
 ## Coreless-64
 
@@ -44,31 +44,41 @@ The first Coreless architecture is **Coreless-64**, a 64-bit general-purpose com
 - scalable machine configurations
 - compatibility with existing software through translation and virtualization
 
-The architecture is independent of any particular implementation technology.
+The architecture defines the digital machine. The execution engine implements those architectural rules.
 
-## The Coreless machine model
+## The Coreless machine and execution engine
 
-Coreless separates the **machine** from the mechanism used to execute the machine.
+Coreless makes an important distinction between the **machine** and its **execution engine**.
 
-The machine consists of architectural state and persistent system state. Its execution mechanism may initially be software, then FPGA, dedicated hardware, ASIC, heterogeneous hardware, or another suitable execution substrate.
+The **machine** is the computer being defined:
 
-The important distinction is:
+- architectural registers and CPU state
+- memory and address spaces
+- instruction semantics
+- processes
+- OS state
+- devices
+- filesystem
+- graphics
+- networking
+- applications
+- persistent state
 
-**The execution mechanism is not the machine.**
+The **digital execution engine** is the mechanism that makes that defined machine execute:
 
-A software reference implementation may use host CPU time and host RAM to execute Coreless. Those resources are implementation mechanisms and caches; they are not the architectural CPU or RAM of the Coreless machine.
+**fetch → decode → execute → memory/device access → commit state → next instruction**
 
-### Storage-backed virtual RAM
+The current software execution engine is already part of this repository. reference/core.py contains the Coreless-64 CPU execution implementation, and reference/machine_runtime.py integrates those CPUs, memory, devices, and persistent machine state into a Coreless machine.
 
-Coreless virtual RAM belongs to the Coreless machine.
+This software engine is not a host dependency in the Coreless architecture. It is the current digital implementation of the Coreless execution mechanism, used to make the complete machine executable, testable, and persistent.
 
-The reference implementation therefore treats persistent storage as the authoritative backing for Coreless virtual memory. Host RAM may temporarily cache active pages, but the Coreless machine's memory state is carried by its machine image.
+Later implementations may use different digital execution technologies while preserving the same Coreless-64 machine behavior. No particular hardware technology is required by the architecture.
 
-This is an architectural requirement, not merely a persistence feature.
+## Persistent machine state
 
-### Persistent machine state
+Persistent storage is the authoritative carrier of the Coreless machine state.
 
-The machine image is intended to carry everything required to reconstruct the Coreless computer, including:
+The machine image is intended to carry everything required to reconstruct the computer, including:
 
 - CPU architectural state
 - virtual RAM
@@ -84,68 +94,65 @@ The machine image is intended to carry everything required to reconstruct the Co
 - boot state
 - checkpoints and other persistent state
 
-The current reference implementation is building this model incrementally. The storage format will evolve from the current reference object format into a scalable machine-image format suitable for very large virtual memory and complete machine state.
+The current reference storage format is an incremental implementation. It will evolve into a scalable machine-image format suitable for very large virtual memory and complete machine state.
 
-## Host relationship
+### Storage-backed virtual RAM
 
-The host is **not the Coreless computer**.
+Coreless virtual RAM belongs to the Coreless machine.
 
-The intended host relationship is limited to the external mechanisms required to start and interact with a Coreless machine, such as:
+The current engine uses persistent storage as the authoritative backing for Coreless virtual memory. Active pages may be cached by the implementation, but the architectural memory state belongs to the Coreless machine image.
 
-- startup/power
+This is an architectural requirement, not merely a persistence feature.
+
+## External boundary
+
+The external environment is an interface to Coreless, not the computer that executes it.
+
+The intended external requirements are limited to things such as:
+
+- USB or other power
 - physical connection or transport
-- monitor/display connection
+- monitor/display
 - keyboard, mouse, or other input
-- physical network interfaces where required
+- network connection
 
-The host may provide an execution environment for the software reference implementation during development. That does not make the host part of the Coreless architecture.
+The Coreless digital execution engine provides the computation. The external equipment provides the means to power and interact with the computer.
 
-The long-term goal is an independent Coreless execution substrate in which the Coreless machine does not depend on a conventional host CPU, host operating system, or host system RAM for its computation.
+During development, the software engine necessarily executes on some development platform. That does not make the development platform part of the Coreless machine.
 
-## Execution tracks
+## Digital execution
 
-The project has two primary execution tracks:
+The current repository provides a software implementation of the Coreless digital execution mechanism.
 
-1. **Reference execution** — a software implementation used to develop, test, and verify Coreless-64.
-2. **Native execution** — hardware or heterogeneous execution mechanisms capable of executing the Coreless machine independently.
+At the machine level:
 
-Potential native implementation paths include:
+    Persistent Coreless Machine Image
+                |
+                v
+        Coreless Digital Engine
+                |
+                v
+        Coreless machine state
+                |
+                +----> persistent machine image
 
-- FPGA
-- dedicated processors
-- accelerators
-- ASIC
-- heterogeneous compute fabrics
-- storage-integrated execution
+The engine executes Coreless instructions and updates the machine state. The machine state can then be persisted, restored, checkpointed, or resumed.
 
-The architecture is defined independently from any one of these implementation paths.
-
-## Scalable machine model
-
-Coreless-64 is one architecture that can describe machines of different sizes.
-
-A Coreless machine may expose different quantities of:
-
-- CPU resources
-- virtual RAM
-- vector resources
-- matrix/AI resources
-- graphics resources
-- persistent storage
-- network resources
-- guest-machine resources
-
-Storage capacity can carry larger machine images, operating environments, applications, AI models, datasets, checkpoints, and guest machines.
-
-Storage capacity alone does not determine computational throughput. Execution resources determine how much computation the machine can perform.
+The execution engine therefore belongs **inside the Coreless project and machine model**, rather than being treated as an unrelated host-side emulator.
 
 ## Graphics and display
 
-Coreless is **not headless by design**.
+Coreless is not headless by design.
 
-Graphics and display are Coreless resources. A monitor or display connection is an external interface through which the Coreless display output can be presented.
+Graphics and display are Coreless resources. A monitor is an external display interface for Coreless output.
 
-The host GPU is not intended to be the graphics processor of the Coreless machine.
+The host GPU is not the architectural graphics processor of Coreless.
+
+## Networking
+
+Networking is a Coreless machine resource. External network connectivity is an interface available to the Coreless network subsystem.
+
+The host or attached network interface transports packets; Coreless networking logic and state belong to the Coreless machine.
 
 ## Compatibility
 
@@ -161,15 +168,35 @@ Existing software may be supported through:
 
 Initial compatibility targets include x86-64 and ARM64.
 
-Compatibility mechanisms are execution services around the Coreless architecture; they do not redefine Coreless-64 itself.
+Compatibility mechanisms do not redefine Coreless-64.
+
+## Scalable machine model
+
+Coreless-64 describes machines of different sizes without changing the architecture.
+
+A machine may expose different quantities of:
+
+- CPU resources
+- virtual RAM
+- vector resources
+- matrix/AI resources
+- graphics resources
+- persistent storage
+- network resources
+- guest-machine resources
+
+Storage capacity can carry larger machine images, operating environments, applications, AI models, datasets, checkpoints, and guest machines.
+
+Storage capacity alone does not create computational throughput. The digital execution engine determines what computational resources the machine provides.
 
 ## Current implementation status
 
-The project is moving from architectural specification into executable machine construction.
+The project is moving from architectural specification into an executable, persistent digital computer.
 
-The reference implementation currently includes:
+The repository currently includes:
 
 - Coreless-64 instruction execution
+- digital CPU execution engine
 - persistent machine storage
 - storage-backed virtual RAM
 - shared Coreless RAM across CPUs
@@ -193,7 +220,7 @@ The next major implementation work is to make the remaining machine subsystems p
 ## Specification
 
 - [Execution Model](specification/execution-model.md)
-- [Computational Fabric](specification/computational-fabric.md)
+- [Digital Execution Engine](specification/computational-fabric.md)
 - [Coreless-64 Architecture](specification/architecture.md)
 - [Registers](specification/registers.md)
 - [ISA](specification/isa.md)
@@ -209,10 +236,12 @@ The next major implementation work is to make the remaining machine subsystems p
 
 ## Project principles
 
-> **The machine is defined independently from the mechanism that executes the machine.**
+> **Coreless is the computer. The Coreless digital execution engine runs the computer.**
 
-> **The computational fabric is the computer. Persistent storage carries persistent machine state. The host is the interface.**
+> **Persistent storage carries persistent machine state.**
+
+> **The external environment is the interface, not the computational owner of Coreless.**
 
 > **If Coreless needs it to remain a computer, its state belongs in the Coreless machine image.**
 
-Coreless is intended to become a portable computer architecture whose computational machine can travel with its persistent storage.
+Coreless is intended to become a portable digital computer architecture whose machine can travel with its persistent storage.
