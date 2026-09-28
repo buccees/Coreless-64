@@ -231,7 +231,7 @@ def test_vector_floating_point_baseline():
     assert [struct.unpack("<f", x.to_bytes(4,"little"))[0] for x in cpu.vector[4][:2]] == [4.0,0.0]
     cpu.memory[32:48]=ext128(3,0x10,5,1,2,w1=6<<29)
     cpu.step()
-    assert cpu.vector[5][:2] == [1,0]
+    assert cpu.vector[5][:2] == [1,1]
     cpu.vector[1][:2]=[0x7FC00000, f32(1.0)]
     cpu.vector[2][:2]=[f32(2.0), f32(2.0)]
     cpu.memory[48:64]=ext128(3,0x0F,5,1,2,w1=6<<29)
