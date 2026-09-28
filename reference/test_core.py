@@ -255,3 +255,14 @@ def test_vector_extended_ops():
     cpu.step(); assert cpu.vector[8][:4]==[255,128,127,5]
     cpu.memory[96:112]=ext128(3,0x17,9,1,0,w1=(1<<29)|(0<<11)|0x3)
     cpu.step(); assert cpu.vector[9][:4]==[127,127,127,5]
+    # Strided VLOAD/VSTORE use rs1 as base and rs2 as byte stride.
+    cpu.r[10]=0x200
+    cpu.r[11]=4
+    cpu.memory[0x200:0x210]=bytes([1,0,0,0,2,0,0,0,3,0,0,0,4,0,0,0])
+    cpu.memory[112:128]=ext128(3,0x1E,10,10,11,w1=2<<29)
+    cpu.step(); assert cpu.vector[10][:4]==[1,2,3,4]
+    cpu.vector_mask[1]=0b0101
+    cpu.vector[10][:4]=[9,9,9,9]
+    cpu.memory[128:144]=ext128(3,0x1F,10,10,11,w1=(2<<29)|(1<<22))
+    cpu.step()
+    assert list(cpu.memory[0x200:0x210])==[9,0,0,0,2,0,0,0,9,0,0,0,4,0,0,0]
