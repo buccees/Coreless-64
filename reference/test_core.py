@@ -251,18 +251,18 @@ def test_vector_floating_point_edge_cases_and_masking():
     nan=f32(float("nan")); inf=f32(float("inf")); ninf=f32(float("-inf"))
     cpu.vector[1][:2]=[nan, f32(2.0)]
     cpu.vector[2][:2]=[f32(1.0), inf]
-    cpu.memory[0:16]=ext128(3,0x00,3,1,2,0,w1=(6<<29))
+    cpu.memory[0:16]=ext128(3,0x00,3,1,2,w1=(6<<29))
     cpu.step()
     assert math.isnan(u32(cpu.vector[3][0])) and math.isinf(u32(cpu.vector[3][1]))
     cpu.vector[1][:2]=[f32(-0.0), f32(1.0)]
     cpu.vector[2][:2]=[f32(0.0), f32(2.0)]
-    cpu.memory[16:32]=ext128(3,0x04,4,1,2,0,w1=(6<<29))
+    cpu.memory[16:32]=ext128(3,0x04,4,1,2,w1=(6<<29))
     cpu.step()
     assert math.copysign(1.0,u32(cpu.vector[4][0])) < 0
     cpu.vector_mask[1]=0b01
     cpu.vector[1][:2]=[f32(3.0), f32(99.0)]
     cpu.vector[2][:2]=[f32(4.0), f32(4.0)]
-    cpu.memory[32:48]=ext128(3,0x00,5,1,2,0,w1=(6<<29)|(1<<22)|(1<<16))
+    cpu.memory[32:48]=ext128(3,0x00,5,1,2,w1=(6<<29)|(1<<22)|(1<<16))
     cpu.step()
     assert u32(cpu.vector[5][0]) == 7.0 and cpu.vector[5][1] == 0
 
