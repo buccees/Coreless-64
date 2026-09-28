@@ -1,6 +1,4 @@
 """Integrated Coreless-64 reference machine runtime."""
-import json
-
 from core import CorelessCPU
 from machine import InterruptController, DeviceFabric, Device
 from storage import PersistentMachineImage
@@ -10,6 +8,8 @@ from loader import ProgramLoader
 
 
 class CorelessMachine:
+    STATE_VERSION = 2
+
     def __init__(self, memory_size=1 << 20, cpu_count=1, storage_path=None):
         if cpu_count < 1:
             raise ValueError("cpu_count must be positive")
@@ -17,7 +17,6 @@ class CorelessMachine:
             raise ValueError("Coreless RAM size must be a positive 4 KiB multiple")
 
         self.storage = PersistentMachineImage(storage_path)
-        # All CPUs address one shared Coreless physical RAM image.
         self.cpus = [
             CorelessCPU(memory_size, storage=self.storage, memory_name="ram")
             for _ in range(cpu_count)
@@ -36,11 +35,19 @@ class CorelessMachine:
         self.filesystem = FileSystem(self.storage)
         self.loader = ProgramLoader(self)
         self.booted = False
+        self.os_runtime = None
         self._restore_machine_state()
 
     @property
     def cpu(self):
         return self.cpus[0]
+
+    def attach_os(self, os_runtime):
+        self.os_runtime = os_runtime
+        state = self.storage.objects.get("machine/os")
+        if state:
+            import json
+            os_runtime.restore_state(json.loads(state.decode("utf-8")))
 
     def load_program(self, program, address=0):
         end = address + len(program)
@@ -49,13 +56,6 @@ class CorelessMachine:
         self.cpu.memory[address:end] = program
         self.cpu.memory.flush()
         self.cpu.pc = address
-
-    def boot(self, program=None, address=0):
-        if program is not None:
-            self.load_program(program, address)
-        self.booted = True
-        self.save_state()
-        return self.cpu
 
     @staticmethod
     def _cpu_state(cpu):
@@ -105,17 +105,24 @@ class CorelessMachine:
         for cpu in self.cpus:
             cpu.memory.flush()
         state = {
-            "version": 1,
+            "version": self.STATE_VERSION,
             "booted": self.booted,
             "cpus": [self._cpu_state(cpu) for cpu in self.cpus],
         }
+        if self.os_runtime is not None:
+            import json
+            self.storage.put(
+                "machine/os",
+                json.dumps(self.os_runtime.save_state(), sort_keys=True, separators=(",", ":")).encode(),
+                sync=False,
+            )
         return self.storage.save_machine_state(state)
 
     def _restore_machine_state(self):
         state = self.storage.load_machine_state()
         if not state:
             return
-        if state.get("version") != 1:
+        if state.get("version") not in (1, self.STATE_VERSION):
             raise ValueError("unsupported Coreless machine-state version")
         saved_cpus = state.get("cpus", [])
         if len(saved_cpus) != len(self.cpus):
@@ -123,6 +130,13 @@ class CorelessMachine:
         self.booted = bool(state.get("booted", False))
         for cpu, cpu_state in zip(self.cpus, saved_cpus):
             self._restore_cpu_state(cpu, cpu_state)
+
+    def boot(self, program=None, address=0):
+        if program is not None:
+            self.load_program(program, address)
+        self.booted = True
+        self.save_state()
+        return self.cpu
 
     def step(self, cpu_id=0):
         if not self.booted:
@@ -156,6 +170,5 @@ class CorelessMachine:
         return self.storage.checkpoint(name, state)
 
     def shutdown(self):
-        self.save_state()
         self.booted = False
         return self.save_state()

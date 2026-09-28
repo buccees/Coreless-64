@@ -1,6 +1,8 @@
 import sys
 sys.path.insert(0, ".")
+
 from machine_runtime import CorelessMachine
+from os_runtime import CorelessOS
 
 
 def test_virtual_ram_persists_across_machine_restart(tmp_path):
@@ -52,3 +54,34 @@ def test_machine_state_persists_across_restart(tmp_path):
     assert second.cpu.sp == 0x1800
     assert second.cpu.cycle == 77
     assert second.cpu.instret == 55
+
+
+def test_process_and_os_state_persist_across_restart(tmp_path):
+    disk = tmp_path / "coreless.img"
+    first = CorelessMachine(256 * 1024, storage_path=disk)
+    os1 = CorelessOS(first)
+    process = os1.processes.create("init", b"\x00\x00\x00\x00")
+    os1.current_pid = process.pid
+    os1.init_pid = process.pid
+    os1.handles[7] = {"kind": "file", "path": "/state", "offset": 12}
+    first.boot()
+    first.save_state()
+
+    second = CorelessMachine(256 * 1024, storage_path=disk)
+    os2 = CorelessOS(second)
+    assert os2.current_pid == process.pid
+    assert os2.init_pid == process.pid
+    assert os2.processes.next_pid == process.pid + 1
+    assert os2.processes.processes[process.pid].name == "init"
+    assert os2.processes.processes[process.pid].program == b"\x00\x00\x00\x00"
+    assert os2.processes.processes[process.pid].address_space.page_table_root == process.address_space.page_table_root
+    assert os2.handles[7]["offset"] == 12
+
+
+def test_shutdown_marks_machine_off(tmp_path):
+    disk = tmp_path / "coreless.img"
+    machine = CorelessMachine(8192, storage_path=disk)
+    machine.boot()
+    machine.shutdown()
+    restarted = CorelessMachine(8192, storage_path=disk)
+    assert restarted.booted is False
