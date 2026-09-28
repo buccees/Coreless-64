@@ -146,6 +146,52 @@ def test_matrix_mmac():
     assert cpu.matrix[3][1][:2]==[5,6]
 
 
+def test_matrix_extended_arithmetic_and_conversion():
+    cpu=CorelessCPU()
+    cpu.matrix_shape=(2,2,2)
+    cpu.matrix[1][0][:2]=[1,2]; cpu.matrix[1][1][:2]=[3,4]
+    cpu.matrix[2][0][:2]=[5,6]; cpu.matrix[2][1][:2]=[7,8]
+    cpu.memory[0:16]=ext128(4,0x04,3,1,2,w1=0)
+    cpu.step(); assert cpu.matrix[3][0][:2]==[6,8] and cpu.matrix[3][1][:2]==[10,12]
+    cpu.memory[16:32]=ext128(4,0x05,4,2,1,w1=0)
+    cpu.step(); assert cpu.matrix[4][0][:2]==[4,4] and cpu.matrix[4][1][:2]==[4,4]
+    cpu.memory[32:48]=ext128(4,0x07,5,1,0,w1=0)
+    cpu.step(); assert cpu.matrix[5][0][:2]==[1,3] and cpu.matrix[5][1][:2]==[2,4]
+    cpu.memory[48:64]=ext128(4,0x0B,5,0,0,w1=0)
+    cpu.step(); assert cpu.matrix[5][0][:2]==[0,0] and cpu.matrix[5][1][:2]==[0,0]
+    cpu.r[6]=9
+    cpu.memory[64:80]=ext128(4,0x0C,6,6,0,w1=0)
+    cpu.step(); assert cpu.matrix[6][0][:2]==[9,9] and cpu.matrix[6][1][:2]==[9,9]
+    cpu.memory[80:96]=ext128(4,0x0D,7,6,0,w1=0)
+    cpu.step(); assert cpu.r[7]==36
+    cpu.memory[96:112]=ext128(4,0x0E,6,6,0,w1=0,w3=(2 & 0xFFFFFFFF)|((7 & 0xFFFFFFFF)<<32))
+    cpu.step(); assert cpu.matrix[6][0][:2]==[7,7] and cpu.matrix[6][1][:2]==[7,7]
+
+def test_matrix_memory_and_mmuladd():
+    cpu=CorelessCPU(memory_size=0x2000)
+    cpu.matrix_shape=(2,2,2)
+    cpu.r[1]=0x100
+    cpu.memory[0x100:0x108]=bytes([1,2,3,4,5,6,7,8])
+    cpu.memory[0:16]=ext128(4,0x09,1,1,0,w1=0,w2=2|(4<<16))
+    cpu.step(); assert cpu.matrix[1][0][:2]==[1,2] and cpu.matrix[1][1][:2]==[3,4]
+    cpu.matrix[2][0][:2]=[5,6]; cpu.matrix[2][1][:2]=[7,8]
+    cpu.matrix[3][0][:2]=[1,1]; cpu.matrix[3][1][:2]=[1,1]
+    cpu.memory[16:32]=ext128(4,0x06,3,1,2,w1=0,w2=3)
+    cpu.step(); assert cpu.matrix[3][0][:2]==[20,24] and cpu.matrix[3][1][:2]==[44,52]
+    cpu.memory[32:48]=ext128(4,0x0A,3,1,0,w1=0,w2=2|(4<<16))
+    cpu.step(); assert bytes(cpu.memory[0x100:0x108])==bytes([20,24,44,52,0,0,0,0])
+
+def test_matrix_quantized_mac():
+    cpu=CorelessCPU()
+    cpu.matrix_shape=(2,2,2)
+    cpu.matrix[1][0][:2]=[3,4]; cpu.matrix[1][1][:2]=[5,6]
+    cpu.matrix[2][0][:2]=[2,1]; cpu.matrix[2][1][:2]=[4,3]
+    w2=(1<<24)
+    w3=(0 & 0xFFFF)|((127 & 0xFFFF)<<16)
+    cpu.memory[0:16]=ext128(4,0x03,3,1,2,w1=0,w2=w2,w3=w3)
+    cpu.step(); assert cpu.matrix[3][0][:2]==[7,9] and cpu.matrix[3][1][:2]==[14,23]
+
+
 def test_vector_integer_ops_reductions_and_scalar_forms():
     cpu=CorelessCPU()
     cpu.vector_vl=4

@@ -356,7 +356,7 @@ class CorelessCPU:
             elif op == 0x03:
                 if b == 0:
                     raise CorelessTrap("arithmetic_fault", self.pc, i)
-                z = int(sa / sb) if bits <= 64 else sa // sb
+                z = (abs(sa) // abs(sb)) * (-1 if (sa < 0) != (sb < 0) else 1)
             elif op == 0x04: z = min(sa, sb)
             elif op == 0x05: z = max(sa, sb)
             elif op == 0x06: z = a & b
@@ -390,51 +390,138 @@ class CorelessCPU:
 
         self.vector_vstart = 0
     def _matrix_op(self, op, rd, rs1, rs2, w1, w2, w3):
+        """Execute the deterministic Coreless matrix/AI baseline.
+
+        Descriptor fields:
+        - w1[31:29] input type, w1[28:26] accumulator/output type
+        - w1[25:23] M/N/K shape, w1[22] signed integer mode
+        - w2[15:0] / w2[31:16] row/column byte strides
+        - w2[4:0] add-tile selector for MMULADD
+        - w3 supplies quantization/clamp bounds.
+        """
+        type_bits = (8, 16, 32, 64, 16, 16, 32, 64)
         it = (w1 >> 29) & 7
         at = (w1 >> 26) & 7
         shape = (w1 >> 23) & 7
-        shapes = ((2,2,2),(4,4,4),(8,8,8),(8,16,16),(16,8,16),(16,16,16),(32,8,16))
-        if shape >= len(shapes): raise CorelessTrap("matrix_ai_fault", self.pc, shape)
-        m,n,k = shapes[shape]
-        if m > 16 or n > 16 or k > 16: raise CorelessTrap("capability_resource_fault", self.pc, shape)
-        mask = 1 << 63
-        if op in (0x00,0x01,0x02,0x03,0x06):
+        signed_mode = bool((w1 >> 22) & 1)
+        shapes = ((2, 2, 2), (4, 4, 4), (8, 8, 8),
+                  (8, 16, 16), (16, 8, 16), (16, 16, 16), (32, 8, 16))
+        if it >= len(type_bits) or at >= len(type_bits):
+            raise CorelessTrap("matrix_ai_fault", self.pc, it)
+        if shape >= len(shapes):
+            raise CorelessTrap("matrix_ai_fault", self.pc, shape)
+        m, n, k = shapes[shape]
+        if m > 16 or n > 16 or k > 16:
+            raise CorelessTrap("capability_resource_fault", self.pc, shape)
+        ibits, abits = type_bits[it], type_bits[at]
+
+        def decode_int(value, bits, signed):
+            value &= (1 << bits) - 1
+            if signed and value & (1 << (bits - 1)):
+                return value - (1 << bits)
+            return value
+
+        def encode_int(value, bits):
+            return value & ((1 << bits) - 1)
+
+        def convert(value, src_bits, dst_bits, signed):
+            return encode_int(decode_int(value, src_bits, signed), dst_bits)
+
+        def matmul(add_tile=None):
+            out = [[0 for _ in range(n)] for _ in range(m)]
             for i in range(m):
                 for j in range(n):
-                    acc = self.matrix[rd][i][j] if op in (0x01,0x06) else 0
+                    acc = self.matrix[add_tile][i][j] if add_tile is not None else 0
+                    if add_tile is None and op == 0x01:
+                        acc = self.matrix[rd][i][j]
                     for q in range(k):
-                        acc += self.matrix[rs1][i][q] * self.matrix[rs2][q][j]
-                    self.matrix[rd][i][j] = acc
-        elif op == 0x04:
+                        a = decode_int(self.matrix[rs1][i][q], ibits, signed_mode)
+                        b = decode_int(self.matrix[rs2][q][j], ibits, signed_mode)
+                        acc += a * b
+                    out[i][j] = encode_int(acc, abits)
             for i in range(m):
-                for j in range(n): self.matrix[rd][i][j] = self.matrix[rs1][i][j] + self.matrix[rs2][i][j]
-        elif op == 0x05:
+                for j in range(n):
+                    self.matrix[rd][i][j] = out[i][j]
+
+        if op in (0x00, 0x01, 0x02):
+            matmul()
+        elif op == 0x03:
+            za = decode_int((w2 >> 0) & 0xFF, 8, signed_mode)
+            zb = decode_int((w2 >> 8) & 0xFF, 8, signed_mode)
+            zo = decode_int((w2 >> 16) & 0xFF, 8, signed_mode)
+            shift = (w2 >> 24) & 0x3F
+            lo = decode_int(w3 & 0xFFFF, 16, True)
+            hi = decode_int((w3 >> 16) & 0xFFFF, 16, True)
+            if lo > hi:
+                raise CorelessTrap("matrix_ai_fault", self.pc, w3)
             for i in range(m):
-                for j in range(n): self.matrix[rd][i][j] = self.matrix[rs1][i][j] - self.matrix[rs2][i][j]
+                for j in range(n):
+                    acc = decode_int(self.matrix[rd][i][j], abits, signed_mode)
+                    for q in range(k):
+                        a = decode_int(self.matrix[rs1][i][q], ibits, signed_mode) - za
+                        b = decode_int(self.matrix[rs2][q][j], ibits, signed_mode) - zb
+                        acc += a * b
+                    acc = (acc >> shift) if shift else acc
+                    self.matrix[rd][i][j] = encode_int(max(lo, min(hi, acc + zo)), abits)
+        elif op in (0x04, 0x05):
+            for i in range(m):
+                for j in range(n):
+                    a = decode_int(self.matrix[rs1][i][j], ibits, signed_mode)
+                    b = decode_int(self.matrix[rs2][i][j], ibits, signed_mode)
+                    z = a + b if op == 0x04 else a - b
+                    self.matrix[rd][i][j] = encode_int(z, abits)
+        elif op == 0x06:
+            matmul(add_tile=w2 & 0x1F)
         elif op == 0x07:
-            for i in range(m):
-                for j in range(n): self.matrix[rd][i][j] = self.matrix[rs1][j][i]
+            old = [row[:n] for row in self.matrix[rs1][:m]]
+            for i in range(n):
+                for j in range(m):
+                    self.matrix[rd][i][j] = old[j][i]
         elif op == 0x08:
-            self.matrix[rd] = [[self.matrix[rs1][i][j] for j in range(n)] for i in range(m)]
+            for i in range(m):
+                for j in range(n):
+                    self.matrix[rd][i][j] = convert(self.matrix[rs1][i][j], ibits, abits, signed_mode)
+        elif op in (0x09, 0x0A):
+            elem_bytes = max(1, ibits // 8)
+            row_stride = (w2 & 0xFFFF) or (n * elem_bytes)
+            col_stride = ((w2 >> 16) & 0xFFFF) or elem_bytes
+            displacement = w3 & 0xFFFFFFFF
+            if displacement & (1 << 31):
+                displacement -= 1 << 32
+            base = (self.read_reg(rs1) + displacement) & MASK64
+            for i in range(m):
+                for j in range(n):
+                    addr = (base + i * row_stride + j * col_stride) & MASK64
+                    if op == 0x09:
+                        self.matrix[rd][i][j] = self.load_u(addr, elem_bytes)
+                    else:
+                        self.store_u(addr, elem_bytes, self.matrix[rd][i][j])
         elif op == 0x0B:
             for i in range(m):
-                for j in range(n): self.matrix[rd][i][j] = 0
+                for j in range(n):
+                    self.matrix[rd][i][j] = 0
         elif op == 0x0C:
             value = self.read_reg(rs1)
             for i in range(m):
-                for j in range(n): self.matrix[rd][i][j] = value
+                for j in range(n):
+                    self.matrix[rd][i][j] = encode_int(value, abits)
         elif op == 0x0D:
             total = 0
             for i in range(m):
-                for j in range(n): total += self.matrix[rs1][i][j]
+                for j in range(n):
+                    total += decode_int(self.matrix[rs1][i][j], ibits, signed_mode)
             self.write_reg(rd, total)
         elif op == 0x0E:
-            lo, hi = -(1<<31), (1<<31)-1
+            lo = decode_int(w3 & 0xFFFFFFFF, 32, True)
+            hi = decode_int((w3 >> 32) & 0xFFFFFFFF, 32, True)
+            if lo > hi:
+                raise CorelessTrap("matrix_ai_fault", self.pc, w3)
             for i in range(m):
-                for j in range(n): self.matrix[rd][i][j] = max(lo, min(hi, self.matrix[rs1][i][j]))
+                for j in range(n):
+                    value = decode_int(self.matrix[rs1][i][j], ibits, signed_mode)
+                    self.matrix[rd][i][j] = encode_int(max(lo, min(hi, value)), abits)
         else:
             raise CorelessTrap("matrix_ai_fault", self.pc, op)
-        return
 
     def _atomic(self, ins):
         """Execute the compact architectural ATOMIC R-format subset."""

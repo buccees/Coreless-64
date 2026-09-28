@@ -36,7 +36,7 @@ The engine is part of the Coreless project. It provides the computational mechan
 - [x] Network controller reference model
 - [x] Virtual GPU/display reference model
 - [x] Vector execution
-- [ ] Matrix/AI execution
+- [x] Matrix/AI execution
 - [x] Multiprocessing reference fabric
 - [x] Virtualization reference model
 
