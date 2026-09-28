@@ -287,6 +287,44 @@ class CorelessCPU:
         mask = self.vector_mask[mask_reg]
         mod = 1 << bits
 
+        import math, struct
+        fp_type = et in (4, 5, 6, 7)
+        if fp_type and ((w1 >> 8) & 0x7):
+            raise CorelessTrap("illegal_instruction", self.pc, (w1 >> 8) & 0x7)
+
+        def fp_decode(raw, typ):
+            if typ == 4:
+                return struct.unpack("<e", (raw & 0xFFFF).to_bytes(2, "little"))[0]
+            if typ == 5:
+                return struct.unpack("<f", ((raw & 0xFFFF) << 16).to_bytes(4, "little"))[0]
+            if typ == 6:
+                return struct.unpack("<f", (raw & 0xFFFFFFFF).to_bytes(4, "little"))[0]
+            if typ == 7:
+                return struct.unpack("<d", (raw & MASK64).to_bytes(8, "little"))[0]
+            raise ValueError("not floating-point")
+
+        def fp_encode(value, typ):
+            if typ == 4:
+                return int.from_bytes(struct.pack("<e", float(value)), "little")
+            if typ == 5:
+                raw = int.from_bytes(struct.pack("<f", float(value)), "little")
+                low, high = raw & 0xFFFF, raw >> 16
+                if low > 0x8000 or (low == 0x8000 and (high & 1)):
+                    high = (high + 1) & 0xFFFF
+                return high
+            if typ == 6:
+                return int.from_bytes(struct.pack("<f", float(value)), "little")
+            if typ == 7:
+                return int.from_bytes(struct.pack("<d", float(value)), "little")
+            raise ValueError("not floating-point")
+
+        def fp_minmax(a, b, is_min):
+            if math.isnan(a): return b
+            if math.isnan(b): return a
+            if a == b == 0.0:
+                return -0.0 if is_min else 0.0
+            return min(a, b) if is_min else max(a, b)
+
         def sextv(x):
             x &= mod - 1
             return x - (1 << bits) if x & (1 << (bits - 1)) else x
@@ -389,6 +427,31 @@ class CorelessCPU:
                 continue
             a = self.vector[rs1][i] & (mod - 1)
             b = self.vector[rs2][i] & (mod - 1)
+            if fp_type:
+                fa, fb = fp_decode(a, et), fp_decode(b, et)
+                fc = fp_decode(self.vector[rd][i], et)
+                try:
+                    if op == 0x00: fv = fa + fb
+                    elif op == 0x01: fv = fa - fb
+                    elif op == 0x02: fv = fa * fb
+                    elif op == 0x03:
+                        if fb == 0.0 and fa == 0.0: fv = float("nan")
+                        elif fb == 0.0: fv = math.copysign(float("inf"), fa * fb)
+                        else: fv = fa / fb
+                    elif op == 0x04: fv = fp_minmax(fa, fb, True)
+                    elif op == 0x05: fv = fp_minmax(fa, fb, False)
+                    elif op == 0x0F: fv = int(not math.isnan(fa) and not math.isnan(fb) and fa == fb)
+                    elif op == 0x10: fv = int(not math.isnan(fa) and not math.isnan(fb) and fa < fb)
+                    elif op == 0x13: fv = fa * fb + fc
+                    elif op == 0x14: fv = fc - fa * fb
+                    elif op == 0x15: fv = -fa
+                    elif op == 0x16: fv = abs(fa)
+                    else: raise CorelessTrap("illegal_instruction", self.pc, op)
+                    z = fv if isinstance(fv, int) else fp_encode(fv, et)
+                except (OverflowError, struct.error):
+                    z = fp_encode(math.copysign(float("inf"), fa), et)
+                self.vector[rd][i] = z & (mod - 1)
+                continue
             sa, sb = sextv(a), sextv(b)
 
             if op == 0x00: z = a + b
