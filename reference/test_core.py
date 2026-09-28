@@ -291,7 +291,7 @@ def test_matrix_memory_faults_are_precise():
     # A fault in a later tile element must not expose a partial MLOAD/MSTORE.
     cpu=CorelessCPU(memory_size=0x1000)
     cpu.matrix_shape=(2,2,2)
-    cpu.r[1]=0x100
+    cpu.r[1]=0x0ffd
     cpu.matrix[1][0][:2]=[9,8]
     cpu.matrix[1][1][:2]=[7,6]
     cpu.memory[0x0ffd:0x1000]=bytes([1,2,3])
