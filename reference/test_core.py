@@ -23,12 +23,12 @@ def test_scalar_execution_and_zero_register():
 
 def test_immediate_and_memory():
     cpu=CorelessCPU()
-    cpu.r[1]=100; cpu.r[2]=0x1122334455667788
+    cpu.r[1]=104; cpu.r[2]=0x1122334455667788
     cpu.memory[0:4]=imm(1,3,1,0,7).to_bytes(4,"little")
     cpu.memory[4:8]=((3<<27)|(2<<22)|(1<<17)|(3<<14)).to_bytes(4,"little")
     cpu.memory[8:12]=((2<<27)|(4<<22)|(1<<17)|(3<<14)).to_bytes(4,"little")
     cpu.step(); assert cpu.r[3]==107
-    cpu.step(); assert int.from_bytes(cpu.memory[100:108],"little")==0x1122334455667788
+    cpu.step(); assert int.from_bytes(cpu.memory[104:112],"little")==0x1122334455667788
     cpu.step(); assert cpu.r[4]==0x1122334455667788
 
 def test_branch_and_call():
