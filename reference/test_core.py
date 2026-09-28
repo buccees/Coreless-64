@@ -198,8 +198,7 @@ def test_matrix_quantized_mac_rejects_unsupported_types():
     cpu=CorelessCPU()
     cpu.memory[0:16]=ext128(4,0x03,3,1,2,w1=(6<<29)|(2<<26))
     cpu.step()
-    assert cpu.last_trap is not None
-    assert cpu.last_trap.cause == "matrix_ai_fault"
+    assert (cpu.csrs[0x005] & 0xFFFF) == 0x011
 
 def test_matrix_quantized_mac():
     cpu=CorelessCPU()
