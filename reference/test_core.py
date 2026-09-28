@@ -144,3 +144,35 @@ def test_matrix_mmac():
     cpu.step()
     assert cpu.matrix[3][0][:2]==[3,4]
     assert cpu.matrix[3][1][:2]==[5,6]
+
+
+def test_vector_integer_ops_reductions_and_scalar_forms():
+    cpu=CorelessCPU()
+    cpu.vector_vl=4
+    cpu.vector[1][:4]=[8, 3, 12, 4]
+    cpu.vector[2][:4]=[2, 5, 3, 2]
+    cpu.memory[0:16]=ext128(3,0x03,3,1,2,w1=0)
+    cpu.step(); assert cpu.vector[3][:4]==[4,0,4,2]
+    cpu.memory[16:32]=ext128(3,0x0F,4,1,2,w1=0)
+    cpu.step(); assert cpu.vector[4][:4]==[0,0,0,0]
+    cpu.memory[32:48]=ext128(3,0x18,5,1,0,w1=0)
+    cpu.step(); assert cpu.r[5]==27
+    cpu.r[6]=9
+    cpu.memory[48:64]=ext128(3,0x23,6,6,0,w1=0)
+    cpu.step(); assert cpu.vector[6][:4]==[9,9,9,9]
+    cpu.r[7]=2
+    cpu.memory[64:80]=ext128(3,0x24,7,6,7,w1=0)
+    cpu.step(); assert cpu.r[7]==9
+
+def test_vector_memory_load_store_and_masked_access():
+    cpu=CorelessCPU(memory_size=0x2000)
+    cpu.vector_vl=4
+    cpu.r[1]=0x100
+    cpu.r[2]=4
+    cpu.memory[0x100:0x110]=b"abcdefghijklmnop"
+    cpu.memory[0:16]=ext128(3,0x1E,3,1,2,w1=(0<<29))
+    cpu.step(); assert cpu.vector[3][:4]==[ord("a"),ord("e"),ord("i"),ord("m")]
+    cpu.vector_mask[0]=0b0101
+    cpu.vector[3][:4]=[9,9,9,9]
+    cpu.memory[16:32]=ext128(3,0x1E,3,1,2,w1=(0<<29)|(1<<22))
+    cpu.step(); assert cpu.vector[3][:4]==[ord("a"),9,ord("i"),9]

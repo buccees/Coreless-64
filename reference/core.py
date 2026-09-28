@@ -276,54 +276,119 @@ class CorelessCPU:
 
     def _vector_op(self, cls, op, rd, rs1, rs2, w1):
         et = (w1 >> 29) & 7
-        if et > 7: raise CorelessTrap("vector_fault", self.pc, et)
-        bits = (8,16,32,64,16,16,32,64)[et]
+        bits = (8, 16, 32, 64, 16, 16, 32, 64)[et]
         vl = self.vector_vl or 1
-        if vl > len(self.vector[rd]): raise CorelessTrap("capability_resource_fault", self.pc, vl)
+        if vl > len(self.vector[rd]):
+            raise CorelessTrap("capability_resource_fault", self.pc, vl)
         start = min(self.vector_vstart, vl)
-        mode = (w1 >> 27) & 3
         mask_en = bool((w1 >> 22) & 1)
         mask_zero = bool((w1 >> 21) & 1)
-        vs3 = (w1 >> 16) & 0x1F
-        mask = self.vector_mask[vs3]
+        mask_reg = (w1 >> 16) & 0x1F
+        mask = self.vector_mask[mask_reg]
         mod = 1 << bits
+
         def sextv(x):
-            x &= mod-1
-            return x-(1<<bits) if x & (1<<(bits-1)) else x
+            x &= mod - 1
+            return x - (1 << bits) if x & (1 << (bits - 1)) else x
+
+        def active(i):
+            return (not mask_en) or bool((mask >> i) & 1)
+
+        if op in (0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D):
+            values = []
+            for i in range(start, vl):
+                if active(i):
+                    values.append(self.vector[rs1][i] & (mod - 1))
+            if not values:
+                return
+            if op == 0x18:
+                result = sum(values) & (mod - 1)
+            elif op == 0x19:
+                result = min(sextv(v) for v in values) & (mod - 1)
+            elif op == 0x1A:
+                result = max(sextv(v) for v in values) & (mod - 1)
+            elif op == 0x1B:
+                result = values[0]
+                for v in values[1:]:
+                    result &= v
+            elif op == 0x1C:
+                result = values[0]
+                for v in values[1:]:
+                    result |= v
+            else:
+                result = values[0]
+                for v in values[1:]:
+                    result ^= v
+            self.write_reg(rd, result)
+            self.vector_vstart = 0
+            return
+
+        if op in (0x23, 0x24, 0x25):
+            index = self.read_reg(rs2) & 0x3F
+            if op == 0x23:
+                value = self.read_reg(rs1) & (mod - 1)
+                for i in range(start, vl):
+                    if active(i):
+                        self.vector[rd][i] = value
+            elif op == 0x24:
+                if index >= vl:
+                    raise CorelessTrap("vector_fault", self.pc, index)
+                self.write_reg(rd, self.vector[rs1][index])
+            else:
+                if index >= vl:
+                    raise CorelessTrap("vector_fault", self.pc, index)
+                self.vector[rd][index] = self.read_reg(rs1) & (mod - 1)
+            self.vector_vstart = 0
+            return
+
         for i in range(start, vl):
-            active = (not mask_en) or bool((mask >> i) & 1)
-            if not active:
-                if mask_zero: self.vector[rd][i] = 0
+            if not active(i):
+                if mask_zero:
+                    self.vector[rd][i] = 0
                 continue
-            a, b = self.vector[rs1][i] & (mod-1), self.vector[rs2][i] & (mod-1)
+            a = self.vector[rs1][i] & (mod - 1)
+            b = self.vector[rs2][i] & (mod - 1)
+            sa, sb = sextv(a), sextv(b)
+
             if op == 0x00: z = a + b
             elif op == 0x01: z = a - b
             elif op == 0x02: z = a * b
-            elif op == 0x04: z = min(sextv(a), sextv(b))
-            elif op == 0x05: z = max(sextv(a), sextv(b))
+            elif op == 0x03:
+                if b == 0:
+                    raise CorelessTrap("arithmetic_fault", self.pc, i)
+                z = int(sa / sb) if bits <= 64 else sa // sb
+            elif op == 0x04: z = min(sa, sb)
+            elif op == 0x05: z = max(sa, sb)
             elif op == 0x06: z = a & b
             elif op == 0x07: z = a | b
             elif op == 0x08: z = a ^ b
             elif op == 0x09: z = ~a
-            elif op == 0x0A: z = a << (b & (bits-1))
-            elif op == 0x0B: z = a >> (b & (bits-1))
-            elif op == 0x0C: z = sextv(a) >> (b & (bits-1))
-            elif op == 0x0D: s=b & (bits-1); z=a if s==0 else (a<<s)|(a>>(bits-s))
-            elif op == 0x0E: s=b & (bits-1); z=a if s==0 else (a>>s)|(a<<(bits-s))
-            elif op == 0x15: z = -sextv(a)
-            elif op == 0x16: z = abs(sextv(a))
+            elif op == 0x0A: z = a << (b & (bits - 1))
+            elif op == 0x0B: z = a >> (b & (bits - 1))
+            elif op == 0x0C: z = sa >> (b & (bits - 1))
+            elif op == 0x0D:
+                s = b & (bits - 1); z = a if s == 0 else (a << s) | (a >> (bits - s))
+            elif op == 0x0E:
+                s = b & (bits - 1); z = a if s == 0 else (a >> s) | (a << (bits - s))
+            elif op == 0x0F: z = int(a == b)
+            elif op == 0x10: z = int(sa < sb)
+            elif op == 0x11: z = int(a < b)
+            elif op == 0x15: z = -sa
+            elif op == 0x16: z = abs(sa)
+            elif op == 0x1E or op == 0x1F:
+                # Memory forms use rs1 as base and rs2 as byte stride.
+                addr = (self.read_reg(rs1) + i * self.read_reg(rs2)) & MASK64
+                if op == 0x1E:
+                    z = self.load_u(addr, max(1, bits // 8))
+                else:
+                    self.store_u(addr, max(1, bits // 8), self.vector[rd][i])
+                    continue
             elif op == 0x26: z = 0
-            elif op == 0x1E:
-                z = a
-            elif op == 0x1F:
-                self.vector[rd][i] = a
-                continue
             else:
                 raise CorelessTrap("vector_fault", self.pc, op)
-            self.vector[rd][i] = z & (mod-1)
-        self.vector_vstart = 0
-        return
+            self.vector[rd][i] = z & (mod - 1)
 
+        self.vector_vstart = 0
     def _matrix_op(self, op, rd, rs1, rs2, w1, w2, w3):
         it = (w1 >> 29) & 7
         at = (w1 >> 26) & 7
