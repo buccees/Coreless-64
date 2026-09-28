@@ -97,7 +97,7 @@ def decode(w):
         f=(w>>12)&31
         if f not in BRANCH:
             raise IllegalEncoding('bad branch')
-        return (BRANCH[f],rs1,rd,sext(w&0xfff,12))
+        return (BRANCH[f],rd,rs1,sext(w&0xfff,12))
     if op==OP_JUMP:
         f=(w>>12)&31
         if f not in JUMP:
