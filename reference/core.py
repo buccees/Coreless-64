@@ -323,8 +323,46 @@ class CorelessCPU:
             self.vector_vstart = 0
             return
 
-        if op in (0x23, 0x24, 0x25):
+        if op in (0x12, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25):
             index = self.read_reg(rs2) & 0x3F
+            if op == 0x12:
+                for i in range(start, vl):
+                    if active(i):
+                        self.vector[rd][i] = self.vector[rs1][i] & (mod - 1)
+                    elif mask_zero:
+                        self.vector[rd][i] = self.vector[rs2][i] & (mod - 1)
+                self.vector_vstart = 0
+                return
+            if op in (0x20, 0x21):
+                # Indexed memory uses rs1 as the base and each active
+                # element of rs2 as a byte offset. The current element
+                # width determines the transfer size.
+                width = max(1, bits // 8)
+                for i in range(start, vl):
+                    if not active(i):
+                        if mask_zero and op == 0x20:
+                            self.vector[rd][i] = 0
+                        continue
+                    offset = self.vector[rs2][i] & MASK64
+                    addr = (self.read_reg(rs1) + offset) & MASK64
+                    if op == 0x20:
+                        self.vector[rd][i] = self.load_u(addr, width) & (mod - 1)
+                    else:
+                        self.store_u(addr, width, self.vector[rd][i])
+                self.vector_vstart = 0
+                return
+            if op == 0x22:
+                for i in range(start, vl):
+                    if not active(i):
+                        if mask_zero:
+                            self.vector[rd][i] = 0
+                        continue
+                    src = self.vector[rs2][i] & 0x3F
+                    if src >= vl:
+                        raise CorelessTrap("vector_fault", self.pc, src)
+                    self.vector[rd][i] = self.vector[rs1][src] & (mod - 1)
+                self.vector_vstart = 0
+                return
             if op == 0x23:
                 value = self.read_reg(rs1) & (mod - 1)
                 for i in range(start, vl):
@@ -352,6 +390,8 @@ class CorelessCPU:
 
             if op == 0x00: z = a + b
             elif op == 0x01: z = a - b
+            elif op == 0x13: z = a * self.vector[rd][i] + b
+            elif op == 0x14: z = a * self.vector[rd][i] - b
             elif op == 0x02: z = a * b
             elif op == 0x03:
                 if b == 0:
@@ -375,6 +415,15 @@ class CorelessCPU:
             elif op == 0x11: z = int(a < b)
             elif op == 0x15: z = -sa
             elif op == 0x16: z = abs(sa)
+            elif op == 0x17:
+                # Conversion descriptor: source type is w1[31:29],
+                # destination type is w1[13:11]. Integer conversions use
+                # sign-extension/truncation according to the source type.
+                dst_et = (w1 >> 11) & 7
+                dst_bits = (8, 16, 32, 64, 16, 16, 32, 64)[dst_et]
+                dst_mod = 1 << dst_bits
+                z = sextv(a) if ((w1 >> 22) & 1) else a
+                z &= dst_mod - 1
             elif op == 0x1E or op == 0x1F:
                 # Memory forms use rs1 as base and rs2 as byte stride.
                 addr = (self.read_reg(rs1) + i * self.read_reg(rs2)) & MASK64
