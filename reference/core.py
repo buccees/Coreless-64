@@ -90,11 +90,12 @@ class CorelessCPU:
     remain defined by the specification.
     """
 
-    def __init__(self, memory_size=65536):
+    def __init__(self, memory_size=65536, storage=None, memory_name="ram0"):
         self.r = [0] * 32
         self.pc = 0
         self.sp = 0
-        self.memory = bytearray(memory_size)
+        from memory import VirtualRAM
+        self.memory = VirtualRAM(memory_size, storage, memory_name)
         self.privilege = MACHINE
         self.halted = False
         self.cycle = 0
