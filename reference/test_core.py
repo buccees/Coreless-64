@@ -301,12 +301,16 @@ def test_matrix_memory_faults_are_precise():
     assert cpu.matrix[2][0][:2] == [0,0]
     assert cpu.matrix[2][1][:2] == [0,0]
 
-    cpu.matrix[1][0][:2]=[9,8]
-    cpu.matrix[1][1][:2]=[7,6]
-    cpu.memory[16:32]=ext128(4,0x0A,1,1,0,w1=0,w2=1|(2<<16))
-    cpu.step()
-    assert cpu.csrs[0x005] & 0xFFFF == 0x007
-    assert bytes(cpu.memory[0x100:0x103]) == bytes([1,2,3])
+    cpu2=CorelessCPU(memory_size=0x103)
+    cpu2.matrix_shape=(2,2,2)
+    cpu2.r[1]=0x100
+    cpu2.matrix[1][0][:2]=[9,8]
+    cpu2.matrix[1][1][:2]=[7,6]
+    cpu2.memory[0x100:0x103]=bytes([1,2,3])
+    cpu2.memory[0:16]=ext128(4,0x0A,1,1,0,w1=0,w2=1|(2<<16))
+    cpu2.step()
+    assert cpu2.csrs[0x005] & 0xFFFF == 0x007
+    assert bytes(cpu2.memory[0x100:0x103]) == bytes([1,2,3])
 
 
 def test_matrix_transform_and_data_movement():
@@ -339,7 +343,7 @@ def test_matrix_transform_and_data_movement():
     assert cpu.r[5] == 36
     cpu.matrix[4][0][:2]=[-2 & 0xFF, 5]
     cpu.matrix[4][1][:2]=[12, 20]
-    cpu.memory[64:80]=ext128(4,0x0E,6,4,0,w1=0,w3=(0xFFFE)|((10 & 0xFFFF)<<16))
+    cpu.memory[64:80]=ext128(4,0x0E,6,4,0,w1=(1<<22),w3=(0xFFFE)|((10 & 0xFFFF)<<16))
     cpu.step()
     assert cpu.matrix[6][0][:2] == [0xFE,5]
     assert cpu.matrix[6][1][:2] == [10,10]
