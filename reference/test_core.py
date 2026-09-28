@@ -194,6 +194,13 @@ def test_matrix_mmdot_and_type_conversion():
     assert cpu.matrix[4][0][:2]==[19,22] and cpu.matrix[4][1][:2]==[43,50]
 
 
+def test_matrix_quantized_mac_rejects_unsupported_types():
+    cpu=CorelessCPU()
+    cpu.memory[0:16]=ext128(4,0x03,3,1,2,w1=(6<<29)|(2<<26))
+    cpu.step()
+    assert cpu.last_trap is not None
+    assert cpu.last_trap.cause == "matrix_ai_fault"
+
 def test_matrix_quantized_mac():
     cpu=CorelessCPU()
     cpu.matrix_shape=(2,2,2)
