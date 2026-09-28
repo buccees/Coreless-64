@@ -181,6 +181,19 @@ def test_matrix_memory_and_mmuladd():
     cpu.memory[32:48]=ext128(4,0x0A,3,1,0,w1=0,w2=2|(4<<16))
     cpu.step(); assert bytes(cpu.memory[0x100:0x108])==bytes([20,2,44,4,23,6,51,8])
 
+def test_matrix_mmdot_and_type_conversion():
+    cpu=CorelessCPU()
+    cpu.matrix_shape=(2,2,2)
+    cpu.matrix[1][0][:2]=[1,2]; cpu.matrix[1][1][:2]=[3,4]
+    cpu.matrix[2][0][:2]=[5,6]; cpu.matrix[2][1][:2]=[7,8]
+    cpu.memory[0:16]=ext128(4,0x02,3,1,2,w1=0)
+    cpu.step()
+    assert cpu.matrix[3][0][:2]==[19,22] and cpu.matrix[3][1][:2]==[43,50]
+    cpu.memory[16:32]=ext128(4,0x08,4,3,0,w1=(0<<29)|(1<<26))
+    cpu.step()
+    assert cpu.matrix[4][0][:2]==[19,22] and cpu.matrix[4][1][:2]==[43,50]
+
+
 def test_matrix_quantized_mac():
     cpu=CorelessCPU()
     cpu.matrix_shape=(2,2,2)
