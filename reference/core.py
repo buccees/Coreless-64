@@ -510,7 +510,14 @@ class CorelessCPU:
                 for j in range(n):
                     self.matrix[rd][i][j] = out[i][j]
 
-        if op in (0x00, 0x01, 0x02):
+        if op in (0x00, 0x01):
+            matmul()
+        elif op == 0x02:
+            # MMDOT is the integer dot-product form. The architectural
+            # result is the same MxN dot-product matrix as MMUL, but the
+            # operation is restricted to integer element types.
+            if it >= 4 or at >= 4:
+                raise CorelessTrap("matrix_ai_fault", self.pc, op)
             matmul()
         elif op == 0x03:
             za = decode_int((w2 >> 0) & 0xFF, 8, signed_mode)
