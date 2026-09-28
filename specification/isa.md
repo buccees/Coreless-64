@@ -451,7 +451,7 @@ All vector operations apply to active elements `0..VL-1`. Masking, element type,
 |---:|---|---|
 | 0x00 | MMUL | `Tdst = A × B` |
 | 0x01 | MMAC | `Tdst = A × B + Tdst` |
-| 0x02 | MMDOT | integer dot-product matrix operation |
+| 0x02 | MMDOT | integer dot-product matrix operation; floating-point types are illegal |
 | 0x03 | MQUANTMAC | quantized multiply-accumulate with descriptor-controlled requantization |
 | 0x04 | MADD | element-wise tile addition |
 | 0x05 | MSUB | element-wise tile subtraction |
