@@ -47,6 +47,7 @@ class CorelessOS:
             "processes": self.processes.save_state(),
             "desktop": self.desktop.save_state(),
             "application_state": {str(pid): dict(state) for pid, state in sorted(self.application_state.items())},
+            "shell": {"cwd": self.shell.cwd},
         }
 
     def restore_state(self, state):
@@ -65,6 +66,7 @@ class CorelessOS:
             int(pid): dict(value)
             for pid, value in state.get("application_state", {}).items()
         }
+        self.shell.cwd = state.get("shell", {}).get("cwd", "/")
 
     def _ret(self, cpu, value=0):
         cpu.write_reg(1, value); return value
