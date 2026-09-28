@@ -211,6 +211,38 @@ def test_matrix_quantized_mac():
     cpu.step(); assert cpu.matrix[3][0][:2]==[11,7] and cpu.matrix[3][1][:2]==[17,11]
 
 
+def test_vector_floating_point_baseline():
+    import math, struct
+    cpu=CorelessCPU()
+    cpu.vector_vl=2
+    def f32(x):
+        return int.from_bytes(struct.pack("<f", x), "little")
+    def bf16(x):
+        raw=int.from_bytes(struct.pack("<f", x), "little")
+        return (raw + 0x8000) >> 16
+    cpu.vector[1][:2]=[f32(1.5), f32(-2.0)]
+    cpu.vector[2][:2]=[f32(2.0), f32(0.5)]
+    cpu.memory[0:16]=ext128(3,0x00,3,1,2,w1=6<<29)
+    cpu.step()
+    assert [struct.unpack("<f", x.to_bytes(4,"little"))[0] for x in cpu.vector[3][:2]] == [3.5,-1.5]
+    cpu.memory[16:32]=ext128(3,0x13,4,1,2,w1=6<<29)
+    cpu.vector[4][:2]=[f32(1.0), f32(1.0)]
+    cpu.step()
+    assert [struct.unpack("<f", x.to_bytes(4,"little"))[0] for x in cpu.vector[4][:2]] == [4.0,0.0]
+    cpu.memory[32:48]=ext128(3,0x10,5,1,2,w1=6<<29)
+    cpu.step()
+    assert cpu.vector[5][:2] == [1,0]
+    cpu.vector[1][:2]=[0x7FC00000, f32(1.0)]
+    cpu.vector[2][:2]=[f32(2.0), f32(2.0)]
+    cpu.memory[48:64]=ext128(3,0x0F,5,1,2,w1=6<<29)
+    cpu.step()
+    assert cpu.vector[5][:2] == [0,0]
+    cpu.vector[1][:2]=[bf16(1.5), bf16(-2.0)]
+    cpu.vector[2][:2]=[bf16(0.5), bf16(1.0)]
+    cpu.memory[64:80]=ext128(3,0x00,6,1,2,w1=5<<29)
+    cpu.step()
+    assert cpu.vector[6][:2] == [bf16(2.0), bf16(-1.0)]
+
 def test_vector_integer_ops_reductions_and_scalar_forms():
     cpu=CorelessCPU()
     cpu.vector_vl=4
