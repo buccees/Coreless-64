@@ -427,6 +427,34 @@ class CorelessCPU:
                 continue
             a = self.vector[rs1][i] & (mod - 1)
             b = self.vector[rs2][i] & (mod - 1)
+            if op == 0x17:
+                src_et = (w1 >> 29) & 7
+                dst_et = (w1 >> 11) & 7
+                type_bits = (8, 16, 32, 64, 16, 16, 32, 64)
+                src_bits, dst_bits = type_bits[src_et], type_bits[dst_et]
+                src_mask = (1 << src_bits) - 1
+                dst_mod = 1 << dst_bits
+                raw_src = a & src_mask
+                src_is_fp, dst_is_fp = src_et in (4,5,6,7), dst_et in (4,5,6,7)
+                signed_src, saturate = bool(w1 & 1), bool(w1 & 2)
+                if src_is_fp:
+                    src_value = fp_decode(raw_src, src_et)
+                else:
+                    src_value = raw_src - (1 << src_bits) if signed_src and (raw_src & (1 << (src_bits - 1))) else raw_src
+                if dst_is_fp:
+                    z = fp_encode(src_value, dst_et)
+                else:
+                    if math.isnan(src_value) or math.isinf(src_value):
+                        z = (1 << (dst_bits - 1)) - 1 if signed_src else dst_mod - 1
+                    else:
+                        z = int(src_value)
+                        lo = -(1 << (dst_bits - 1)) if signed_src else 0
+                        hi = (1 << (dst_bits - 1)) - 1 if signed_src else dst_mod - 1
+                        if saturate:
+                            z = min(max(z, lo), hi)
+                    z &= dst_mod - 1
+                self.vector[rd][i] = z
+                continue
             if fp_type:
                 fa, fb = fp_decode(a, et), fp_decode(b, et)
                 fc = fp_decode(self.vector[rd][i], et)
