@@ -425,7 +425,15 @@ class CorelessCPU:
                 dst_et = (w1 >> 11) & 7
                 dst_bits = (8, 16, 32, 64, 16, 16, 32, 64)[dst_et]
                 dst_mod = 1 << dst_bits
-                z = sextv(a) if ((w1 >> 22) & 1) else a
+                signed_src = bool(w1 & 0x1)
+                saturate = bool(w1 & 0x2)
+                src_value = sextv(a) if signed_src else a
+                if saturate and dst_bits < bits:
+                    lo = -(1 << (dst_bits - 1)) if signed_src else 0
+                    hi = (1 << (dst_bits - 1)) - 1 if signed_src else dst_mod - 1
+                    z = min(max(src_value, lo), hi)
+                else:
+                    z = src_value
                 z &= dst_mod - 1
             elif op == 0x1E or op == 0x1F:
                 # Memory forms use rs1 as base and rs2 as byte stride.
