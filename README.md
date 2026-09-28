@@ -7,7 +7,7 @@ The goal is not to build another conventional virtual machine.
 The goal is to design a computer that carries its own computational architecture with it:
 
 - Coreless CPU
-- Coreless memory
+- Coreless virtual RAM backed by persistent storage
 - Coreless GPU/display system
 - Coreless AI acceleration
 - Coreless storage
@@ -16,19 +16,25 @@ The goal is to design a computer that carries its own computational architecture
 - Coreless virtualization
 - Coreless applications and persistent machine state
 
-The host is intended to provide the external interface required to interact with Coreless — such as power, physical connection, display, keyboard/mouse, and network connectivity — rather than supplying the CPU, GPU, system RAM, operating-system execution, virtualization, or AI computation that makes Coreless itself run.
+The host is intended to provide only the external interface required to interact with Coreless — such as startup/power, physical connection, display, keyboard/mouse, and network connectivity. The host is not intended to own the CPU, GPU, system RAM, operating-system execution, virtualization, or AI computation that makes Coreless itself a computer.
 
 ## Coreless-64
 
-The first architecture is **Coreless-64**, a serious 64-bit general-purpose architecture designed from the beginning for general software, multiprocessing, virtual memory, virtualization, scalable vector computation, matrix/AI computation, graphics, networking, persistent state, and broad software compatibility.
+The first architecture is **Coreless-64**, a 64-bit general-purpose architecture designed from the beginning for general software, multiprocessing, virtual memory, virtualization, scalable vector computation, matrix/AI computation, graphics, networking, persistent state, and broad software compatibility.
 
 The architecture scales without creating a different ISA for every machine size.
 
 ## The central idea
 
-**The Coreless computational fabric is the computer. Persistent storage carries the persistent machine state. The host is the interface.**
+**The Coreless computational fabric is the computer. Persistent storage carries the machine. The host is the interface.**
 
-Coreless separates the architectural contract from the particular technology used to implement it.
+Coreless virtual RAM is part of the machine carried by storage. Host RAM may be used by a software reference implementation as a cache or execution mechanism, but it is not the architectural owner of Coreless memory.
+
+The reference machine now uses one shared Coreless RAM space across CPUs, persists touched RAM pages to the machine image, and persists architectural CPU state so a machine image can be reopened with its prior machine state.
+
+The long-term storage format will evolve beyond the current reference object format toward scalable machine images capable of carrying very large virtual memory and complete machine state efficiently.
+
+## Execution tracks
 
 The project has two execution tracks:
 
@@ -46,7 +52,7 @@ Coreless uses one architecture for many machine sizes. Available drive capacity 
 The same Coreless-64 architecture can expose different quantities of:
 
 - CPU resources
-- memory
+- virtual RAM
 - vector resources
 - AI/matrix resources
 - GPU resources
@@ -68,9 +74,9 @@ Existing software may be supported through binary translation, dynamic translati
 
 ## Current status
 
-The project is in the **architecture-design phase**.
+The project is moving from architecture specification into executable machine construction.
 
-The computational fabric, CPU direction, memory model, ISA direction, privilege model, interrupts, ABI, device model, graphics, networking, virtualization, and scaling model are now being specified before implementation.
+The reference implementation now has persistent storage-backed virtual RAM, shared RAM across CPUs, and persisted architectural CPU state. The next implementation work is to carry the remaining machine subsystems — operating environment, processes, device state, boot state, and application state — into the same persistent machine model.
 
 ## Specification
 
@@ -87,7 +93,6 @@ The computational fabric, CPU direction, memory model, ISA direction, privilege 
 - [Graphics](specification/graphics.md)
 - [Networking](specification/networking.md)
 - [Virtualization](specification/virtualization.md)
-- [Scaling](specification/scaling.md)
 - [Roadmap](ROADMAP.md)
 
 ## Project principle
@@ -95,10 +100,3 @@ The computational fabric, CPU direction, memory model, ISA direction, privilege 
 > **The machine is defined independently from the mechanism that executes the machine.**
 
 Coreless is intended to become a portable computer architecture whose computational system is carried with the device.
-
-
-## Architecture completion status
-
-The Coreless-64 architecture now has the major machine subsystems defined independently of physical hardware: scalar execution, memory and MMU, privilege and interrupts, vector and matrix/AI execution, multiprocessing, devices, graphics, networking, virtualization, scaling, and security direction.
-
-The project is now moving from architectural definition toward a conformance-ready reference implementation. Physical hardware is an implementation choice; the Coreless-64 contract remains stable across software reference execution, FPGA, dedicated hardware, ASIC, heterogeneous fabrics, and future storage-integrated computational implementations.
