@@ -29,7 +29,8 @@ class CorelessOS:
         self.init_pid = 0
         self.handles = {}
         self.next_handle = 3
-        self.display_handles = {}\n        self.next_display_handle = 0
+        self.display_handles = {}
+self.next_display_handle = 0
         for cpu in self.machine.cpus:
             cpu.syscall_handler = self._syscall
 
