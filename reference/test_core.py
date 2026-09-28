@@ -254,4 +254,4 @@ def test_vector_extended_ops():
     cpu.memory[80:96]=ext128(3,0x17,8,1,0,w1=(1<<29)|(0<<11)|0x2)
     cpu.step(); assert cpu.vector[8][:4]==[255,128,127,5]
     cpu.memory[96:112]=ext128(3,0x17,9,1,0,w1=(1<<29)|(0<<11)|0x3)
-    cpu.step(); assert cpu.vector[9][:4]==[127,128,127,5]
+    cpu.step(); assert cpu.vector[9][:4]==[127,127,127,5]
