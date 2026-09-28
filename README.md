@@ -191,7 +191,7 @@ Storage capacity alone does not create computational throughput. The digital exe
 
 ## Current implementation status
 
-The project is moving from architectural specification into an executable, persistent digital computer.
+The project is moving from architectural specification into an executable, persistent digital computer. The reference machine now persists and restores complete machine-image checkpoints, including CPU, RAM, OS, process, device, graphics, filesystem, and application/session state.
 
 The repository currently includes:
 
@@ -215,7 +215,7 @@ The next major implementation work is to make the remaining machine subsystems p
 - device state
 - boot state
 - application state
-- complete checkpoint/restore
+- complete machine-image checkpoint/restore
 
 ## Specification
 
