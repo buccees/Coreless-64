@@ -495,8 +495,12 @@ class CorelessCPU:
             self._enter_trap(CorelessTrap("breakpoint", self.pc, ins[3]))
             return "trap"
         elif name=="SYSCALL":
-            # SYSCALL is always an architectural trap.
-            self._enter_trap(CorelessTrap("syscall", self.pc, ins[3]))
+            # SYSCALL is always an architectural trap.  Enter supervisor
+            # state first, then let privileged software service the trap.
+            trap = CorelessTrap("syscall", self.pc, ins[3])
+            self._enter_trap(trap)
+            if self.supervisor_trap_handler is not None:
+                self.supervisor_trap_handler(self, trap)
             return "trap"
         elif name=="RETX":
             if self.privilege < SUPERVISOR:
