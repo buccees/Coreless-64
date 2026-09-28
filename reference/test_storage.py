@@ -156,7 +156,7 @@ def test_complete_checkpoint_restores_machine_image(tmp_path):
     assert machine.cpu.r[5] == 111
     assert bytes(machine.cpu.memory[4096:4100]) == b"SNAP"
     assert machine.filesystem.read("/app") == b"version-one"
-    assert [w["title"] for w in machine.graphics.surfaces] == []
+    assert [w["title"] for w in os_runtime.desktop.windows] == ["before"]
     assert machine.list_checkpoints() == ["before-change"]
 
 
