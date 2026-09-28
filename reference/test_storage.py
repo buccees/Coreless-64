@@ -133,3 +133,50 @@ def test_os_shutdown_then_boot_is_cold_start(tmp_path):
     os_runtime.boot()
     assert machine.booted is True
     assert machine.power_state == "on"
+
+def test_complete_checkpoint_restores_machine_image(tmp_path):
+    disk = tmp_path / "coreless.img"
+    machine = CorelessMachine(64 * 1024, storage_path=disk)
+    os_runtime = CorelessOS(machine)
+    machine.filesystem.write("/app", b"version-one")
+    os_runtime.desktop.open_window("before")
+    machine.boot()
+    machine.cpu.r[5] = 111
+    machine.cpu.memory[4096:4100] = b"SNAP"
+    machine.cpu.memory.flush()
+    machine.checkpoint("before-change")
+
+    machine.cpu.r[5] = 222
+    machine.cpu.memory[4096:4100] = b"EDIT"
+    machine.cpu.memory.flush()
+    machine.filesystem.write("/app", b"version-two")
+    os_runtime.desktop.open_window("after")
+
+    machine.restore_checkpoint("before-change")
+    assert machine.cpu.r[5] == 111
+    assert bytes(machine.cpu.memory[4096:4100]) == b"SNAP"
+    assert machine.filesystem.read("/app") == b"version-one"
+    assert [w["title"] for w in machine.graphics.surfaces] == []
+    assert machine.list_checkpoints() == ["before-change"]
+
+
+def test_application_and_shell_state_persist(tmp_path):
+    disk = tmp_path / "coreless.img"
+    machine = CorelessMachine(256 * 1024, storage_path=disk)
+    machine.filesystem.write("/init", b"\x00\x00\x00\x00")
+    machine.filesystem.write("/app", b"\x00\x00\x00\x00")
+    os1 = CorelessOS(machine)
+    os1.shell.cwd = "/"
+    os1.boot()
+    app = os1.processes.create("app", machine.filesystem.read("/app"), parent=os1.init_pid)
+    os1.application_state[app.pid] = {
+        "path": "/app", "cwd": "/", "argv": ["/app"],
+        "state": "ready", "parent": os1.init_pid,
+    }
+    os1.shell.cwd = "/"
+    machine.save_state()
+
+    second = CorelessMachine(256 * 1024, storage_path=disk)
+    os2 = CorelessOS(second)
+    assert os2.init_pid == 1
+    assert os2.application_state[app.pid]["path"] == "/app"
