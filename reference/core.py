@@ -333,6 +333,21 @@ class CorelessCPU:
             return (not mask_en) or bool((mask >> i) & 1)
 
         if op in (0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D):
+            if fp_type and op in (0x18, 0x19, 0x1A):
+                values = [fp_decode(self.vector[rs1][i], et) for i in range(start, vl) if active(i)]
+                if not values:
+                    return
+                result = values[0]
+                for value in values[1:]:
+                    if op == 0x18:
+                        result = result + value
+                    elif op == 0x19:
+                        result = fp_minmax(result, value, True)
+                    else:
+                        result = fp_minmax(result, value, False)
+                self.vector[rd][0] = fp_encode(result, et)
+                self.vector_vstart = 0
+                return
             values = []
             for i in range(start, vl):
                 if active(i):
