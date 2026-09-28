@@ -216,6 +216,9 @@ class CorelessMachine:
     def restore_checkpoint(self, name="machine"):
         """Restore the complete machine image from a persistent checkpoint."""
         self.storage.restore_checkpoint(name)
+        for cpu in self.cpus:
+            cpu.memory.cache.clear()
+            cpu.memory.dirty.clear()
         self._restore_machine_state()
         if self.os_runtime is not None:
             raw = self.storage.objects.get("machine/os")
