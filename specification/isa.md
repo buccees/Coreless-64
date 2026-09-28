@@ -346,6 +346,10 @@ Memory accesses obey Coreless memory ordering rules. Faults, access checks, and 
 
 Vector loads/stores may cross cache lines, pages, and implementation-specific internal boundaries. Architectural results and fault behavior must be preserved.
 
+### Vector strided memory baseline
+
+VLOAD and VSTORE use `rs1` as the base address and `rs2` as a byte stride. Lane `i` accesses `base + i*stride`. Each active lane is an independent architectural memory access and therefore participates independently in alignment, translation, protection, and fault handling. Inactive masked lanes generate no memory access.
+
 ### Matrix/tile architectural state
 
 Coreless-64 defines a matrix/tile register namespace separate from the scalar and vector register files. The initial architectural namespace contains 32 tile/accumulator selectors, `T0`–`T31`. Physical tile dimensions and internal accumulator width are implementation-defined but are exposed through capability discovery.
