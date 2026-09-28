@@ -243,6 +243,27 @@ def test_vector_floating_point_baseline():
     cpu.step()
     assert cpu.vector[6][:2] == [bf16(2.0), bf16(-1.0)]
 
+def test_vector_floating_point_conversions():
+    import struct
+    cpu=CorelessCPU()
+    cpu.vector_vl=2
+    def f32(x): return int.from_bytes(struct.pack("<f", x), "little")
+    cpu.vector[1][:2]=[f32(1.5), f32(-2.5)]
+    # FP32 -> INT16, signed conversion.
+    cpu.memory[0:16]=ext128(3,0x17,2,1,0,w1=(6<<29)|(1<<0)|(1<<11))
+    cpu.step()
+    assert cpu.vector[2][:2] == [1,0xFFFE]
+    # FP32 -> FP16.
+    cpu.vector[1][:2]=[f32(1.5), f32(2.25)]
+    cpu.memory[16:32]=ext128(3,0x17,3,1,0,w1=(6<<29)|(4<<11))
+    cpu.step()
+    assert cpu.vector[3][:2] == [0x3E00,0x4080]
+    # FP16 -> FP32.
+    cpu.vector[1][:2]=[0x3E00,0x4080]
+    cpu.memory[32:48]=ext128(3,0x17,4,1,0,w1=(4<<29)|(6<<11))
+    cpu.step()
+    assert [struct.unpack("<f", x.to_bytes(4,"little"))[0] for x in cpu.vector[4][:2]] == [1.5,2.25]
+
 def test_vector_integer_ops_reductions_and_scalar_forms():
     cpu=CorelessCPU()
     cpu.vector_vl=4
