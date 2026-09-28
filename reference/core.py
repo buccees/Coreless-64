@@ -440,12 +440,15 @@ class CorelessCPU:
                     z = src_value
                 z &= dst_mod - 1
             elif op == 0x1E or op == 0x1F:
-                # Memory forms use rs1 as base and rs2 as byte stride.
+                # Strided memory uses rs1 as the base and rs2 as the
+                # architectural byte stride. Each active lane is one
+                # independent architectural memory access.
+                width = max(1, bits // 8)
                 addr = (self.read_reg(rs1) + i * self.read_reg(rs2)) & MASK64
                 if op == 0x1E:
-                    z = self.load_u(addr, max(1, bits // 8))
+                    z = self.load_u(addr, width)
                 else:
-                    self.store_u(addr, max(1, bits // 8), self.vector[rd][i])
+                    self.store_u(addr, width, self.vector[rd][i])
                     continue
             elif op == 0x26: z = 0
             else:
