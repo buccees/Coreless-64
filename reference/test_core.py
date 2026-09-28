@@ -248,3 +248,10 @@ def test_vector_extended_ops():
     cpu.vector[5][:4]=[3,2,1,0]
     cpu.memory[64:80]=ext128(3,0x22,7,6,5,w1=0)
     cpu.step(); assert cpu.vector[7][:4]==[6,7,8,9]
+    # VCONV: destination type is selected by operation mode; flag bit 0
+    # selects signed source interpretation and bit 1 enables saturation.
+    cpu.vector[1][:4]=[255,128,127,5]
+    cpu.memory[80:96]=ext128(3,0x17,8,1,0,w1=(0<<11)|0x3)
+    cpu.step(); assert cpu.vector[8][:4]==[127,128,127,5]
+    cpu.memory[96:112]=ext128(3,0x17,9,1,0,w1=(0<<11)|0x1)
+    cpu.step(); assert cpu.vector[9][:4]==[255,128,127,5]
