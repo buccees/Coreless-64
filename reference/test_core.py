@@ -89,7 +89,7 @@ def ext128(cls, op, rd=0, rs1=0, rs2=0, w1=0, w2=0, w3=0):
 
 def test_atomic_swap_and_cas():
     cpu=CorelessCPU()
-    cpu.r[1]=0x100; cpu.r[2]=7; cpu.r[3]=9
+    cpu.r[1]=0x0ffd; cpu.r[2]=7; cpu.r[3]=9
     cpu.memory[0x100:0x108]=(5).to_bytes(8,"little")
     # SWAP R4,[R1],R2
     cpu.memory[0:4]=word(7,4,1,2,0).to_bytes(4,"little")
@@ -289,28 +289,28 @@ def test_vector_extended_ops():
 
 def test_matrix_memory_faults_are_precise():
     # A fault in a later tile element must not expose a partial MLOAD/MSTORE.
-    cpu=CorelessCPU(memory_size=0x103)
+    cpu=CorelessCPU(memory_size=0x1000)
     cpu.matrix_shape=(2,2,2)
     cpu.r[1]=0x100
     cpu.matrix[1][0][:2]=[9,8]
     cpu.matrix[1][1][:2]=[7,6]
-    cpu.memory[0x100:0x103]=bytes([1,2,3])
+    cpu.memory[0x0ffd:0x1000]=bytes([1,2,3])
     cpu.memory[0:16]=ext128(4,0x09,2,1,0,w1=0,w2=1|(2<<16))
     cpu.step()
     assert cpu.csrs[0x005] & 0xFFFF == 0x007
     assert cpu.matrix[2][0][:2] == [0,0]
     assert cpu.matrix[2][1][:2] == [0,0]
 
-    cpu2=CorelessCPU(memory_size=0x103)
+    cpu2=CorelessCPU(memory_size=0x1000)
     cpu2.matrix_shape=(2,2,2)
-    cpu2.r[1]=0x100
+    cpu2.r[1]=0x0ffd
     cpu2.matrix[1][0][:2]=[9,8]
     cpu2.matrix[1][1][:2]=[7,6]
-    cpu2.memory[0x100:0x103]=bytes([1,2,3])
+    cpu2.memory[0x0ffd:0x1000]=bytes([1,2,3])
     cpu2.memory[0:16]=ext128(4,0x0A,1,1,0,w1=0,w2=1|(2<<16))
     cpu2.step()
     assert cpu2.csrs[0x005] & 0xFFFF == 0x007
-    assert bytes(cpu2.memory[0x100:0x103]) == bytes([1,2,3])
+    assert bytes(cpu2.memory[0x0ffd:0x1000]) == bytes([1,2,3])
 
 
 def test_matrix_transform_and_data_movement():
