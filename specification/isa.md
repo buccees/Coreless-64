@@ -326,6 +326,10 @@ NaNs, infinities, signed zero, underflow, overflow, invalid operation, and inexa
 
 Conversion operations explicitly define source and destination element types. Narrowing conversions apply the instruction's rounding and saturation rules. Conversions without saturation use the destination format's defined overflow behavior.
 
+### Vector conversion control
+
+`VCONV` uses the operation-mode field to select the destination element type. For integer conversions, vector flag bit 0 selects signed-source interpretation and bit 1 selects saturation. Without saturation, the converted value is represented modulo the destination element width. With saturation, signed conversions clamp to the signed destination range and unsigned conversions clamp to the unsigned destination range.
+
 ### Vector FMA and reductions
 
 `VFMA`-class operations perform `a*b+c` per active element with fused rounding.
