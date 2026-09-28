@@ -85,3 +85,24 @@ def test_shutdown_marks_machine_off(tmp_path):
     machine.shutdown()
     restarted = CorelessMachine(8192, storage_path=disk)
     assert restarted.booted is False
+    assert restarted.power_state == "off"
+
+
+def test_graphics_state_persists_across_restart(tmp_path):
+    disk = tmp_path / "coreless.img"
+    first = CorelessMachine(8192, storage_path=disk)
+    surface = first.graphics.create_surface(4, 2)
+    surface.pixels[:8] = b"CORELESS"
+    surface.ready = True
+    first.graphics.present(surface)
+    first.graphics.input({"key": "A"})
+    first.graphics.submit({"op": "fill", "value": 7})
+    first.boot()
+    first.save_state()
+
+    second = CorelessMachine(8192, storage_path=disk)
+    assert len(second.graphics.surfaces) == 1
+    assert bytes(second.graphics.surfaces[0].pixels[:8]) == b"CORELESS"
+    assert second.graphics.scanout is second.graphics.surfaces[0]
+    assert second.graphics.input_events == [{"key": "A"}]
+    assert second.graphics.commands == [{"op": "fill", "value": 7}]

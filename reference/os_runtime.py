@@ -5,12 +5,10 @@ from netstack import NetworkStack
 from display import Desktop
 from shell import Shell
 
-
 class CorelessOS:
     """Boots the machine and exposes the native Coreless shell and services."""
 
     VERSION = "0.1"
-    STATE_VERSION = 1
     SYSCALLS = {
         0:"exit", 1:"read", 2:"write", 3:"open", 4:"close", 5:"seek",
         6:"stat", 7:"sleep", 8:"yield", 9:"spawn", 10:"exec", 11:"wait",
@@ -35,63 +33,6 @@ class CorelessOS:
         self.next_display_handle = 0
         for cpu in self.machine.cpus:
             cpu.supervisor_trap_handler = self._supervisor_trap
-        self.machine.attach_os(self)
-
-    def save_state(self):
-        return {
-            "version": self.STATE_VERSION,
-            "current_pid": self.current_pid,
-            "init_pid": self.init_pid,
-            "next_handle": self.next_handle,
-            "next_display_handle": self.next_display_handle,
-            "handles": {
-                str(k): dict(v) for k, v in sorted(self.handles.items())
-            },
-            "processes": self.processes.save_state(),
-            "network": {
-                "link_up": self.machine.network.link_up,
-                "features": sorted(self.machine.network.features),
-                "rx": [
-                    {"data": p.data.hex(), "source": p.source, "destination": p.destination}
-                    for p in self.machine.network.rx
-                ],
-                "tx": [
-                    {"data": p.data.hex(), "source": p.source, "destination": p.destination}
-                    for p in self.machine.network.tx
-                ],
-            },
-        }
-
-    def restore_state(self, state):
-        if not state:
-            return
-        if state.get("version") != self.STATE_VERSION:
-            raise ValueError("unsupported Coreless OS-state version")
-        self.current_pid = state.get("current_pid", 0)
-        self.init_pid = state.get("init_pid", 0)
-        self.next_handle = state.get("next_handle", 3)
-        self.next_display_handle = state.get("next_display_handle", 0)
-        self.handles = {int(k): dict(v) for k, v in state.get("handles", {}).items()}
-        self.processes.restore_state(state.get("processes"))
-        network = state.get("network", {})
-        self.machine.network.configure(
-            link_up=bool(network.get("link_up", False)),
-            features=network.get("features", ()),
-        )
-        self.machine.network.rx = []
-        self.machine.network.tx = []
-        from device_io import Packet
-        for item in network.get("rx", []):
-            self.machine.network.receive(
-                bytes.fromhex(item.get("data", "")),
-                item.get("source", ""),
-            )
-        for item in network.get("tx", []):
-            self.machine.network.tx.append(Packet(
-                bytes.fromhex(item.get("data", "")),
-                source=item.get("source", ""),
-                destination=item.get("destination", ""),
-            ))
 
     def _ret(self, cpu, value=0):
         cpu.write_reg(1, value)
@@ -117,6 +58,7 @@ class CorelessOS:
         return self._read_user_bytes(cpu, addr, length).decode("utf-8")
 
     def _supervisor_trap(self, cpu, trap):
+        """Reference supervisor trap handler."""
         if trap.cause != "syscall":
             return False
         self._syscall(cpu, trap.tval)
@@ -340,11 +282,10 @@ class CorelessOS:
         return p
 
     def boot(self):
+
         self.firmware.initialize()
         self.firmware.boot(None)
         self.network.device.configure(link_up=True)
-        self.machine.booted = True
-        self.machine.save_state()
         return self
 
     def command(self, line):

@@ -1,14 +1,16 @@
 """Integrated Coreless-64 reference machine runtime."""
+import json
+
 from core import CorelessCPU
 from machine import InterruptController, DeviceFabric, Device
 from storage import PersistentMachineImage
-from device_io import NetworkDevice, GraphicsDevice
+from device_io import NetworkDevice, GraphicsDevice, DisplaySurface
 from filesystem import FileSystem
 from loader import ProgramLoader
 
 
 class CorelessMachine:
-    STATE_VERSION = 2
+    STATE_VERSION = 3
 
     def __init__(self, memory_size=1 << 20, cpu_count=1, storage_path=None):
         if cpu_count < 1:
@@ -35,6 +37,7 @@ class CorelessMachine:
         self.filesystem = FileSystem(self.storage)
         self.loader = ProgramLoader(self)
         self.booted = False
+        self.power_state = "off"
         self.os_runtime = None
         self._restore_machine_state()
 
@@ -46,8 +49,78 @@ class CorelessMachine:
         self.os_runtime = os_runtime
         state = self.storage.objects.get("machine/os")
         if state:
-            import json
             os_runtime.restore_state(json.loads(state.decode("utf-8")))
+
+    @staticmethod
+    def _surface_state(surface):
+        return {
+            "width": surface.width,
+            "height": surface.height,
+            "pixel_format": surface.pixel_format,
+            "pixels": bytes(surface.pixels).hex(),
+            "ready": surface.ready,
+        }
+
+    def _graphics_state(self):
+        return {
+            "surfaces": [self._surface_state(s) for s in self.graphics.surfaces],
+            "scanout": self.graphics.surfaces.index(self.graphics.scanout)
+                if self.graphics.scanout in self.graphics.surfaces else None,
+            "input_events": list(self.graphics.input_events),
+            "commands": list(self.graphics.commands),
+        }
+
+    def _restore_graphics_state(self, state):
+        self.graphics.surfaces = []
+        for item in state.get("surfaces", []):
+            surface = DisplaySurface(
+                item["width"], item["height"], item.get("pixel_format", "XRGB8888"),
+                bytearray.fromhex(item.get("pixels", "")),
+                bool(item.get("ready", False)),
+            )
+            self.graphics.surfaces.append(surface)
+        index = state.get("scanout")
+        self.graphics.scanout = (
+            self.graphics.surfaces[index]
+            if isinstance(index, int) and 0 <= index < len(self.graphics.surfaces)
+            else None
+        )
+        self.graphics.input_events = list(state.get("input_events", []))
+        self.graphics.commands = list(state.get("commands", []))
+
+    def _device_state(self):
+        return {
+            "network": {
+                "link_up": self.network.link_up,
+                "features": sorted(self.network.features),
+                "rx": [
+                    {"data": p.data.hex(), "source": p.source, "destination": p.destination}
+                    for p in self.network.rx
+                ],
+                "tx": [
+                    {"data": p.data.hex(), "source": p.source, "destination": p.destination}
+                    for p in self.network.tx
+                ],
+            },
+            "graphics": self._graphics_state(),
+        }
+
+    def _restore_device_state(self, state):
+        network = state.get("network", {})
+        self.network.configure(
+            link_up=bool(network.get("link_up", False)),
+            features=network.get("features", ()),
+        )
+        from device_io import Packet
+        self.network.rx = [
+            Packet(bytes.fromhex(p.get("data", "")), p.get("source", ""), p.get("destination", ""))
+            for p in network.get("rx", [])
+        ]
+        self.network.tx = [
+            Packet(bytes.fromhex(p.get("data", "")), p.get("source", ""), p.get("destination", ""))
+            for p in network.get("tx", [])
+        ]
+        self._restore_graphics_state(state.get("graphics", {}))
 
     def load_program(self, program, address=0):
         end = address + len(program)
@@ -107,10 +180,14 @@ class CorelessMachine:
         state = {
             "version": self.STATE_VERSION,
             "booted": self.booted,
+            "power_state": self.power_state,
             "cpus": [self._cpu_state(cpu) for cpu in self.cpus],
+            "devices": self._device_state(),
         }
+        self.storage.put("machine/devices", json.dumps(
+            state["devices"], sort_keys=True, separators=(",", ":")
+        ).encode(), sync=False)
         if self.os_runtime is not None:
-            import json
             self.storage.put(
                 "machine/os",
                 json.dumps(self.os_runtime.save_state(), sort_keys=True, separators=(",", ":")).encode(),
@@ -122,19 +199,26 @@ class CorelessMachine:
         state = self.storage.load_machine_state()
         if not state:
             return
-        if state.get("version") not in (1, self.STATE_VERSION):
+        if state.get("version") not in (1, 2, self.STATE_VERSION):
             raise ValueError("unsupported Coreless machine-state version")
         saved_cpus = state.get("cpus", [])
         if len(saved_cpus) != len(self.cpus):
             raise ValueError("Coreless machine image CPU count does not match runtime")
         self.booted = bool(state.get("booted", False))
+        self.power_state = state.get("power_state", "on" if self.booted else "off")
         for cpu, cpu_state in zip(self.cpus, saved_cpus):
             self._restore_cpu_state(cpu, cpu_state)
+        device_state = state.get("devices")
+        if device_state is None:
+            raw = self.storage.objects.get("machine/devices")
+            device_state = json.loads(raw.decode("utf-8")) if raw else {}
+        self._restore_device_state(device_state)
 
     def boot(self, program=None, address=0):
         if program is not None:
             self.load_program(program, address)
         self.booted = True
+        self.power_state = "on"
         self.save_state()
         return self.cpu
 
@@ -162,6 +246,7 @@ class CorelessMachine:
         program = self.filesystem.read(path)
         self.loader.load(program, 0)
         self.booted = True
+        self.power_state = "on"
         return str(self.run())
 
     def checkpoint(self, name="machine"):
@@ -170,5 +255,6 @@ class CorelessMachine:
         return self.storage.checkpoint(name, state)
 
     def shutdown(self):
+        self.power_state = "off"
         self.booted = False
         return self.save_state()
