@@ -314,13 +314,15 @@ Vector shifts use the element width as the shift domain. Shift counts are reduce
 
 ### Vector floating-point semantics
 
-FP16, BF16, FP32, and FP64 operations follow the Coreless floating-point environment and IEEE-style exception/rounding behavior defined for the corresponding scalar formats.
+FP16, BF16, FP32, and FP64 operations follow IEEE-754-style value semantics. The reference implementation currently uses round-to-nearest-even for arithmetic and format conversion.
 
-FMA operations compute a fused multiply-add where specified: multiplication and addition are performed as one rounded operation.
+The vector rounding field is reserved until the corresponding architectural rounding modes are fully implemented; a nonzero unsupported rounding selector raises illegal-instruction rather than being silently ignored.
 
-The instruction's rounding field selects the architectural rounding mode when the operation permits explicit rounding. Otherwise the current floating-point control state applies.
+NaNs propagate as NaN for arithmetic operations; comparisons with NaN are false. Min/max use the non-NaN operand when exactly one operand is NaN. Signed zero is preserved for sign operations and uses IEEE-style ordering for min/max. Division by zero produces the corresponding infinity for nonzero finite operands and NaN for zero divided by zero.
 
-NaNs, infinities, signed zero, underflow, overflow, invalid operation, and inexact behavior are architectural and must not depend on the number of physical vector lanes.
+FMA operations compute a fused multiply-add where specified. Overflow, underflow, invalid operation, and inexact status behavior remain part of the scalar floating-point environment and must be made explicit before ISA v1.0.
+
+These rules are architectural and must not depend on physical vector width.
 
 ### Vector conversions
 
