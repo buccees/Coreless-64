@@ -368,7 +368,7 @@ For floating-point matrix operations, accumulation uses the encoded accumulator 
 
 ### Quantized matrix semantics
 
-Quantized matrix operations interpret input elements according to their encoded signedness and width. Products are accumulated in the encoded accumulator type.
+Quantized matrix operations interpret input elements according to their encoded signedness and width. The reference quantized baseline accepts 8-bit integer inputs with an integer accumulator type; unsupported floating-point or incompatible combinations trap as matrix AI faults. Products are accumulated in the encoded accumulator type.
 
 Quantization parameters such as zero points, scale descriptors, clamping bounds, and requantization mode are supplied by the operation's descriptor when required.
 
