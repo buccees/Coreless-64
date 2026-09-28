@@ -229,14 +229,17 @@ class CorelessOS:
             height = self._arg(cpu, 3)
             try:
                 surface = self.machine.graphics.create_surface(width, height)
-                return self._ret(cpu, self.machine.graphics.surfaces.index(surface))
+                handle = self.next_display_handle
+                self.next_display_handle += 1
+                self.display_handles[handle] = surface
+                return self._ret(cpu, handle)
             except Exception:
                 return self._ret(cpu, -1)
 
         if name == "display_present":
             index = self._arg(cpu, 2)
             try:
-                surface = self.machine.graphics.surfaces[index]
+                surface = self.display_handles[index]
                 surface.ready = True
                 self.machine.graphics.present(surface)
                 return self._ret(cpu, 0)
