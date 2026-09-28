@@ -179,7 +179,7 @@ def test_matrix_memory_and_mmuladd():
     cpu.memory[16:32]=ext128(4,0x06,3,1,2,w1=0,w2=3)
     cpu.step(); assert cpu.matrix[3][0][:2]==[20,23] and cpu.matrix[3][1][:2]==[44,51]
     cpu.memory[32:48]=ext128(4,0x0A,3,1,0,w1=0,w2=2|(4<<16))
-    cpu.step(); assert bytes(cpu.memory[0x100:0x108])==bytes([20,23,44,51,0,0,0,0])
+    cpu.step(); assert bytes(cpu.memory[0x100:0x108])==bytes([20,2,44,4,23,6,51,8])
 
 def test_matrix_quantized_mac():
     cpu=CorelessCPU()
