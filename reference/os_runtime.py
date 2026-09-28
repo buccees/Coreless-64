@@ -31,6 +31,7 @@ class CorelessOS:
         self.next_handle = 3
         self.display_handles = {}
         self.next_display_handle = 0
+        self.application_state = {}
         for cpu in self.machine.cpus:
             cpu.supervisor_trap_handler = self._supervisor_trap
         self.machine.attach_os(self)
@@ -45,6 +46,7 @@ class CorelessOS:
             "handles": {str(k): dict(v) for k, v in sorted(self.handles.items())},
             "processes": self.processes.save_state(),
             "desktop": self.desktop.save_state(),
+            "application_state": {str(pid): dict(state) for pid, state in sorted(self.application_state.items())},
         }
 
     def restore_state(self, state):
@@ -59,6 +61,10 @@ class CorelessOS:
         self.handles = {int(k): dict(v) for k, v in state.get("handles", {}).items()}
         self.processes.restore_state(state.get("processes"))
         self.desktop.restore_state(state.get("desktop"))
+        self.application_state = {
+            int(pid): dict(value)
+            for pid, value in state.get("application_state", {}).items()
+        }
 
     def _ret(self, cpu, value=0):
         cpu.write_reg(1, value); return value
@@ -159,6 +165,10 @@ class CorelessOS:
             try:
                 path = self._read_user_text(cpu, self._arg(cpu, 2), self._arg(cpu, 3))
                 p = self.processes.spawn(path, self.machine.filesystem.read(path), parent=self.current_pid)
+                self.application_state[p.pid] = {
+                    "path": path, "cwd": self.shell.cwd, "argv": [path],
+                    "state": "ready", "parent": self.current_pid,
+                }
                 return self._ret(cpu, p.pid)
             except Exception: return self._ret(cpu, -1)
         if name == "wait":
@@ -212,6 +222,11 @@ class CorelessOS:
             return self.processes.processes[self.init_pid]
         p = self.processes.create("init", self.machine.filesystem.read(program_path), parent=0)
         self.init_pid = p.pid; self.current_pid = p.pid
+        self.application_state[p.pid] = {
+            "path": program_path, "cwd": self.shell.cwd, "argv": [program_path],
+            "state": "ready", "parent": 0,
+        }
+        self.processes._enter_user(p)
         return p
 
     def boot(self):
@@ -226,6 +241,8 @@ class CorelessOS:
         self.network.device.configure(link_up=True, features=self.machine.network.features)
         self.machine.booted = True
         self.machine.power_state = "on"
+        if not resuming and self.init_pid == 0 and self.machine.filesystem.exists("/init"):
+            self.start_init("/init")
         self.machine.save_state()
         return self
 
