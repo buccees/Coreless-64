@@ -422,13 +422,17 @@ class CorelessCPU:
                 # Conversion descriptor: source type is w1[31:29],
                 # destination type is w1[13:11]. Integer conversions use
                 # sign-extension/truncation according to the source type.
+                src_et = (w1 >> 29) & 7
+                src_bits = (8, 16, 32, 64, 16, 16, 32, 64)[src_et]
                 dst_et = (w1 >> 11) & 7
                 dst_bits = (8, 16, 32, 64, 16, 16, 32, 64)[dst_et]
                 dst_mod = 1 << dst_bits
+                src_mask = (1 << src_bits) - 1
+                raw_src = a & src_mask
                 signed_src = bool(w1 & 0x1)
                 saturate = bool(w1 & 0x2)
-                src_value = sextv(a) if signed_src else a
-                if saturate and dst_bits < bits:
+                src_value = raw_src - (1 << src_bits) if signed_src and (raw_src & (1 << (src_bits - 1))) else raw_src
+                if saturate:
                     lo = -(1 << (dst_bits - 1)) if signed_src else 0
                     hi = (1 << (dst_bits - 1)) - 1 if signed_src else dst_mod - 1
                     z = min(max(src_value, lo), hi)
@@ -446,7 +450,7 @@ class CorelessCPU:
             elif op == 0x26: z = 0
             else:
                 raise CorelessTrap("vector_fault", self.pc, op)
-            self.vector[rd][i] = z & (mod - 1)
+            self.vector[rd][i] = z & ((1 << dst_bits) - 1) if op == 0x17 else z & (mod - 1)
 
         self.vector_vstart = 0
     def _matrix_op(self, op, rd, rs1, rs2, w1, w2, w3):
