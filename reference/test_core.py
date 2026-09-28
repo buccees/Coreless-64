@@ -285,3 +285,61 @@ def test_vector_extended_ops():
     cpu.memory[128:144]=ext128(3,0x1F,10,10,11,w1=(2<<29)|(1<<22)|(1<<16))
     cpu.step()
     assert list(cpu.memory[0x200:0x210])==[9,0,0,0,2,0,0,0,9,0,0,0,4,0,0,0]
+
+
+def test_matrix_memory_faults_are_precise():
+    # A fault in a later tile element must not expose a partial MLOAD/MSTORE.
+    cpu=CorelessCPU(memory_size=0x103)
+    cpu.matrix_shape=(2,2,2)
+    cpu.r[1]=0x100
+    cpu.matrix[1][0][:2]=[9,8]
+    cpu.matrix[1][1][:2]=[7,6]
+    cpu.memory[0x100:0x103]=bytes([1,2,3])
+    cpu.memory[0:16]=ext128(4,0x09,2,1,0,w1=0,w2=1|(2<<16))
+    cpu.step()
+    assert cpu.csrs[0x005] & 0xFFFF == 0x007
+    assert cpu.matrix[2][0][:2] == [0,0]
+    assert cpu.matrix[2][1][:2] == [0,0]
+
+    cpu.matrix[1][0][:2]=[9,8]
+    cpu.matrix[1][1][:2]=[7,6]
+    cpu.memory[16:32]=ext128(4,0x0A,1,1,0,w1=0,w2=1|(2<<16))
+    cpu.step()
+    assert cpu.csrs[0x005] & 0xFFFF == 0x007
+    assert bytes(cpu.memory[0x100:0x103]) == bytes([1,2,3])
+
+
+def test_matrix_transform_and_data_movement():
+    cpu=CorelessCPU()
+    cpu.matrix_shape=(2,2,2)
+    cpu.matrix[1][0][:2]=[1,2]
+    cpu.matrix[1][1][:2]=[3,4]
+
+    # MTRANS writes the transposed architectural tile.
+    cpu.memory[0:16]=ext128(4,0x07,2,1,0,w1=0)
+    cpu.step()
+    assert cpu.matrix[2][0][:2] == [1,3]
+    assert cpu.matrix[2][1][:2] == [2,4]
+
+    # MCONV sign-extends INT8 values into INT16.
+    cpu.matrix[1][0][:2]=[0xFF,0x7F]
+    cpu.matrix[1][1][:2]=[0x80,0x01]
+    cpu.memory[16:32]=ext128(4,0x08,3,1,0,w1=(0<<29)|(1<<26)|(1<<22))
+    cpu.step()
+    assert cpu.matrix[3][0][:2] == [0xFFFF,0x007F]
+    assert cpu.matrix[3][1][:2] == [0xFF80,0x0001]
+
+    # MBROADCAST, MREDUCE, and MCLAMP operate on the active tile shape.
+    cpu.r[4]=9
+    cpu.memory[32:48]=ext128(4,0x0C,4,4,0,w1=(0<<29)|(0<<26))
+    cpu.step()
+    assert cpu.matrix[4][0][:2] == [9,9] and cpu.matrix[4][1][:2] == [9,9]
+    cpu.memory[48:64]=ext128(4,0x0D,5,4,0,w1=0)
+    cpu.step()
+    assert cpu.r[5] == 36
+    cpu.matrix[4][0][:2]=[-2 & 0xFF, 5]
+    cpu.matrix[4][1][:2]=[12, 20]
+    cpu.memory[64:80]=ext128(4,0x0E,6,4,0,w1=0,w3=(0xFFFE)|((10 & 0xFFFF)<<16))
+    cpu.step()
+    assert cpu.matrix[6][0][:2] == [0xFE,5]
+    assert cpu.matrix[6][1][:2] == [10,10]
