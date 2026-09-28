@@ -220,6 +220,7 @@ class CorelessMachine:
             cpu.memory.cache.clear()
             cpu.memory.dirty.clear()
         self._restore_machine_state()
+        self.filesystem.reload()
         if self.os_runtime is not None:
             raw = self.storage.objects.get("machine/os")
             if raw:

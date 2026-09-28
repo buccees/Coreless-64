@@ -7,6 +7,13 @@ class FileSystem:
             raw=image.objects.get("filesystem")
             if raw:
                 self.files=json.loads(raw.decode())
+    def reload(self):
+        self.files = {}
+        if self.image:
+            raw = self.image.objects.get("filesystem")
+            if raw:
+                self.files = json.loads(raw.decode())
+
     def write(self,path,data):
         path=self._path(path); self.files[path]=bytes(data).hex(); self._sync()
     def read(self,path):

@@ -45,7 +45,9 @@ class PersistentMachineImage:
             },
         }
         blob = json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode()
-        self.put("checkpoint/" + safe, blob)
+        self.put("checkpoint/" + safe, blob, sync=False)
+        self.put("machine", blob, sync=False)
+        self.sync()
         return hashlib.sha256(blob).hexdigest()
 
     def restore_checkpoint(self, name):
