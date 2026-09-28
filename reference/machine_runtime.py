@@ -14,7 +14,8 @@ class CorelessMachine:
             cpu.csrs[0x00A]=i; cpu.csrs[0x00B]=cpu_count
         self.interrupts=InterruptController(cpu_count)
         self.devices=DeviceFabric(); self.devices.attach_interrupt_controller(self.interrupts)
-        # Register the built-in fabric devices for architectural discovery.\n        self.devices.add(Device(1,1,0))\n        self.devices.add(Device(2,1,0))
+        # Register the built-in fabric devices for architectural discovery.\n        self.devices.add(Device(1,1,0))
+        self.devices.add(Device(2,1,0))
         self.storage=PersistentMachineImage()
         self.network=NetworkDevice(); self.graphics=GraphicsDevice()
         self.filesystem=FileSystem(self.storage)
