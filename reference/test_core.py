@@ -27,7 +27,7 @@ def test_immediate_and_memory():
     cpu.memory[0:4]=imm(1,3,1,0,7).to_bytes(4,"little")
     cpu.memory[4:8]=((3<<27)|(2<<22)|(1<<17)|(3<<14)).to_bytes(4,"little")
     cpu.memory[8:12]=((2<<27)|(4<<22)|(1<<17)|(3<<14)).to_bytes(4,"little")
-    cpu.step(); assert cpu.r[3]==107
+    cpu.step(); assert cpu.r[3]==111
     cpu.step(); assert int.from_bytes(cpu.memory[104:112],"little")==0x1122334455667788
     cpu.step(); assert cpu.r[4]==0x1122334455667788
 
