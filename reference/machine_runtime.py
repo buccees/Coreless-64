@@ -209,8 +209,22 @@ class CorelessMachine:
         return str(self.run())
 
     def checkpoint(self, name="machine"):
+        """Create a complete persistent snapshot of the Coreless machine image."""
         self.save_state()
-        return self.storage.checkpoint(name, self.storage.load_machine_state())
+        return self.storage.create_checkpoint(name)
+
+    def restore_checkpoint(self, name="machine"):
+        """Restore the complete machine image from a persistent checkpoint."""
+        self.storage.restore_checkpoint(name)
+        self._restore_machine_state()
+        if self.os_runtime is not None:
+            raw = self.storage.objects.get("machine/os")
+            if raw:
+                self.os_runtime.restore_state(json.loads(raw.decode("utf-8")))
+        return self
+
+    def list_checkpoints(self):
+        return self.storage.list_checkpoints()
 
     def shutdown(self):
         self.booted = False
