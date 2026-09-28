@@ -3,6 +3,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import tempfile
 
 PAGE_SIZE = 4096
@@ -30,6 +31,46 @@ class PersistentMachineImage:
         blob = json.dumps(state, sort_keys=True, separators=(",", ":")).encode()
         self.put(name, blob)
         return hashlib.sha256(blob).hexdigest()
+
+    def create_checkpoint(self, name):
+        """Persist a complete machine-image snapshot, not only CPU metadata."""
+        safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(name)).strip("._") or "machine"
+        snapshot = {
+            "format": self.FORMAT,
+            "metadata": self.metadata.copy(),
+            "objects": {
+                key: base64.b64encode(value).decode("ascii")
+                for key, value in sorted(self.objects.items())
+                if not key.startswith("checkpoint/")
+            },
+        }
+        blob = json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode()
+        self.put("checkpoint/" + safe, blob)
+        return hashlib.sha256(blob).hexdigest()
+
+    def restore_checkpoint(self, name):
+        safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(name)).strip("._") or "machine"
+        raw = self.objects.get("checkpoint/" + safe)
+        if raw is None:
+            raise KeyError("Coreless checkpoint not found: " + safe)
+        snapshot = json.loads(raw.decode("utf-8"))
+        if snapshot.get("format") != self.FORMAT:
+            raise ValueError("unsupported Coreless checkpoint format")
+        self.metadata = dict(snapshot.get("metadata", {}))
+        self.metadata["format"] = self.FORMAT
+        self.objects = {
+            key: base64.b64decode(value.encode("ascii"))
+            for key, value in snapshot.get("objects", {}).items()
+        }
+        self.sync()
+        return hashlib.sha256(raw).hexdigest()
+
+    def list_checkpoints(self):
+        return sorted(
+            key[len("checkpoint/"):]
+            for key in self.objects
+            if key.startswith("checkpoint/")
+        )
 
     def save_machine_state(self, state):
         return self.checkpoint("machine/state", state)
