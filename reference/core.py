@@ -390,8 +390,8 @@ class CorelessCPU:
 
             if op == 0x00: z = a + b
             elif op == 0x01: z = a - b
-            elif op == 0x13: z = a * self.vector[rd][i] + b
-            elif op == 0x14: z = a * self.vector[rd][i] - b
+            elif op == 0x13: z = a * b + self.vector[rd][i]
+            elif op == 0x14: z = a * b - self.vector[rd][i]
             elif op == 0x02: z = a * b
             elif op == 0x03:
                 if b == 0:
