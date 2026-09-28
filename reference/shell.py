@@ -11,6 +11,8 @@ class Shell:
             "boot": self.boot,
             "cat": self.cat,
             "checkpoint": self.checkpoint,
+            "checkpoints": self.checkpoints,
+            "restore": self.restore,
             "clear": self.clear,
             "cpu": self.cpu,
             "desktop": self.desktop_status,
@@ -237,6 +239,20 @@ class Shell:
         name = args[0] if args else "machine"
         self.machine.checkpoint(name)
         return "checkpoint saved: " + name
+
+    def checkpoints(self, args):
+        if args:
+            return "usage: checkpoints"
+        return "\n".join(self.machine.list_checkpoints()) or "no checkpoints"
+
+    def restore(self, args):
+        if len(args) != 1:
+            return "usage: restore NAME"
+        try:
+            self.machine.restore_checkpoint(args[0])
+            return "restored: " + args[0]
+        except KeyError:
+            return "restore: checkpoint not found"
 
     def boot(self, args):
         if args:
