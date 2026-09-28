@@ -222,3 +222,29 @@ def test_vector_memory_load_store_and_masked_access():
     cpu.vector[3][:4]=[9,9,9,9]
     cpu.memory[16:32]=ext128(3,0x1E,3,1,2,w1=(0<<29)|(1<<22))
     cpu.step(); assert cpu.vector[3][:4]==[ord("a"),9,ord("i"),9]
+
+
+def test_vector_extended_ops():
+    cpu=CorelessCPU(); cpu.vector_vl=4
+    cpu.vector[1][:4]=[1,2,3,4]; cpu.vector[2][:4]=[10,20,30,40]
+    cpu.vector[3][:4]=[100,100,100,100]
+    # VSEL: active mask selects vs1; inactive lanes select vs2 in zeroing form.
+    cpu.vector_mask[0]=0b0101
+    cpu.memory[0:16]=ext128(3,0x12,4,1,2,w1=(0<<29)|(1<<22))
+    cpu.step(); assert cpu.vector[4][:4]==[1,20,3,40]
+    # VFMA/VFMS use the destination as the accumulator.
+    cpu.vector[4][:4]=[1,1,1,1]
+    cpu.memory[16:32]=ext128(3,0x13,4,1,2,w1=0)
+    cpu.step(); assert cpu.vector[4][:4]==[11,41,91,161]
+    cpu.vector[4][:4]=[100,100,100,100]
+    cpu.memory[32:48]=ext128(3,0x14,4,1,2,w1=0)
+    cpu.step(); assert cpu.vector[4][:4]==[90,80,70,60]
+    # Indexed load and shuffle use per-lane indices/offsets.
+    cpu.vector[5][:4]=[0,2,4,6]
+    cpu.r[6]=0x100
+    cpu.memory[0x100:0x108]=bytes([9,0,8,0,7,0,6,0])
+    cpu.memory[48:64]=ext128(3,0x20,6,6,5,w1=(1<<29))
+    cpu.step(); assert cpu.vector[6][:4]==[9,8,7,6]
+    cpu.vector[5][:4]=[3,2,1,0]
+    cpu.memory[64:80]=ext128(3,0x22,7,6,5,w1=0)
+    cpu.step(); assert cpu.vector[7][:4]==[6,7,8,9]
