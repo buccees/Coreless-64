@@ -1,6 +1,6 @@
 """Integrated Coreless-64 reference machine runtime."""
 from core import CorelessCPU
-from machine import InterruptController,DeviceFabric
+from machine import InterruptController,DeviceFabric,Device
 from storage import PersistentMachineImage
 from device_io import NetworkDevice,GraphicsDevice
 from filesystem import FileSystem
@@ -14,6 +14,7 @@ class CorelessMachine:
             cpu.csrs[0x00A]=i; cpu.csrs[0x00B]=cpu_count
         self.interrupts=InterruptController(cpu_count)
         self.devices=DeviceFabric(); self.devices.attach_interrupt_controller(self.interrupts)
+        # Register the built-in fabric devices for architectural discovery.\n        self.devices.add(Device(1,1,0))\n        self.devices.add(Device(2,1,0))
         self.storage=PersistentMachineImage()
         self.network=NetworkDevice(); self.graphics=GraphicsDevice()
         self.filesystem=FileSystem(self.storage)
