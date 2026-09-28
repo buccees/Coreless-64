@@ -520,6 +520,10 @@ class CorelessCPU:
                 raise CorelessTrap("matrix_ai_fault", self.pc, op)
             matmul()
         elif op == 0x03:
+            # Reference quantized path: 8-bit integer inputs with an
+            # integer accumulator. Other combinations are unsupported.
+            if it not in (0, 1) or at not in (1, 2, 3):
+                raise CorelessTrap("matrix_ai_fault", self.pc, op)
             za = decode_int((w2 >> 0) & 0xFF, 8, signed_mode)
             zb = decode_int((w2 >> 8) & 0xFF, 8, signed_mode)
             zo = decode_int((w2 >> 16) & 0xFF, 8, signed_mode)
