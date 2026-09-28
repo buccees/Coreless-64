@@ -263,6 +263,6 @@ def test_vector_extended_ops():
     cpu.step(); assert cpu.vector[10][:4]==[1,2,3,4]
     cpu.vector_mask[1]=0b0101
     cpu.vector[10][:4]=[9,9,9,9]
-    cpu.memory[128:144]=ext128(3,0x1F,10,10,11,w1=(2<<29)|(1<<22))
+    cpu.memory[128:144]=ext128(3,0x1F,10,10,11,w1=(2<<29)|(1<<22)|(1<<16))
     cpu.step()
     assert list(cpu.memory[0x200:0x210])==[9,0,0,0,2,0,0,0,9,0,0,0,4,0,0,0]
