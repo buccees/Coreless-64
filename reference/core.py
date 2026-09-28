@@ -327,9 +327,9 @@ class CorelessCPU:
             index = self.read_reg(rs2) & 0x3F
             if op == 0x12:
                 for i in range(start, vl):
-                    if active(i):
+                    if self.vector_mask[0] & (1 << i):
                         self.vector[rd][i] = self.vector[rs1][i] & (mod - 1)
-                    elif mask_zero:
+                    else:
                         self.vector[rd][i] = self.vector[rs2][i] & (mod - 1)
                 self.vector_vstart = 0
                 return
