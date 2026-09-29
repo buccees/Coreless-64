@@ -32,6 +32,9 @@ This matrix is the preflight contract for ISA work. New conformance tests should
 | Alignment/fault atomicity | Faulting operations do not partially retire | `reference/core.py` | memory/matrix fault tests | Covered |
 | ISA documentation | Behavior and implementation mechanism remain distinct | `specification/isa.md` | review/preflight | Ongoing |
 | Native OS/userspace | Full native environment | runtime layers | limited tests | In progress |
+| Local intelligence architecture | Local AI assists Coreless management; deterministic CPU/control boundary remains authoritative; no remote AI dependency | planned AI/control runtime | architectural design | Planned |
+| AI/tensor runtime | Local model loading and tensor execution using Coreless vector/matrix capabilities | planned AI runtime | not implemented | Planned |
+| Transformers compatibility | Supported local Transformer models translated/executed through Coreless tensor runtime | planned compatibility layer | not implemented | Planned |
 | Device/driver model | Architectural devices and drivers | runtime/device layers | partial | In progress |
 
 ## Preflight rules
