@@ -24,6 +24,8 @@ This matrix is the preflight contract for ISA work. New conformance tests should
 | CPU identity | CPU ID and machine CPU count are architectural state | `CorelessMachine` | `test_isa_batch2.py` | Covered |
 | Checkpoint state | CPU architectural state restored independently | `machine_runtime.py` | `test_isa_batch2.py`, machine tests | Covered |
 | Privilege boundaries | Privileged operations trap/reject at lower privilege | `reference/core.py` | TLB/syscall/core tests | Covered |
+| VM isolation | Private VM state; same storage does not grant access; explicit IPC/shared-memory authorization | `reference/virtualization.py` | `reference/test_virtualization.py` | Covered |
+| OP_VM encoding/dispatch | VM_SEND/VM_RECV/VM_GRANT/VM_REVOKE/VM_SHARE/VM_UNSHARE decode and require hypervisor control | `reference/encoding.py`, `reference/core.py` | `reference/test_virtualization.py` | Covered |
 
 | CSR access map | 32 defined CSRs, access modes, privilege boundaries | `CSR_ACCESS`, `read_csr`, `write_csr` | `test_isa_batch3.py` | Covered |
 | Interrupt entry/return | pending/enabled selection, EPC/CAUSE/TVEC, RETX restoration | `request_interrupt`, `_take_interrupt_if_enabled`, `RETX` | `test_isa_batch3.py` | Covered |
