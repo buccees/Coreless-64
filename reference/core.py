@@ -980,14 +980,15 @@ class CorelessCPU:
             return True
         from encoding import from_bytes, instruction_length, decode, IllegalEncoding
         try:
-            first = from_bytes(self.memory[self._phys(self.pc, "read", execute=True):
-                                           self._phys(self.pc, "read", execute=True)+4])
+            first = self.load_u(self.pc, 4, execute=True)
             self._last_word = first
             length = instruction_length(first)
+            if length == 8:
+                raise CorelessTrap("instruction_encoding_fault", self.pc, first)
             if length == 16:
                 from encoding import decode_extended_header
                 h = decode_extended_header(first)
-                words = [int.from_bytes(self.memory[self._phys(self.pc+i, "read", execute=True):self._phys(self.pc+i, "read", execute=True)+4], "little") for i in (4,8,12)]
+                words = [self.load_u(self.pc+i, 4, execute=True) for i in (4,8,12)]
                 cls, op, rd, rs1, rs2, fmt = h
                 if fmt != 2: raise CorelessTrap("instruction_encoding_fault", self.pc, fmt)
                 if cls == 2:
