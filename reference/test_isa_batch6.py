@@ -8,7 +8,7 @@ sys.path.insert(0, ".")
 
 import pytest
 
-from core import CorelessCPU, CorelessTrap, MASK64
+from core import CorelessCPU, CorelessTrap, MASK64\nfrom isa_expect import (\n    scalar_binary, immediate, branch_target, jump_target, effective_address,\n    aligned_memory_size,\n)
 
 
 def test_r0_is_hardwired_zero():
@@ -121,7 +121,7 @@ def test_immediate_integer_operations_mask_results():
 
 
 def test_load_store_widths_and_signedness():
-    cpu = CorelessCPU(memory_size=4096)
+    cpu = CorelessCPU(memory_size=aligned_memory_size())
     cpu.r[1] = 32
     cpu.r[2] = 0x80FF
     cpu._execute(("ST16", 2, 1, 0))
@@ -162,18 +162,18 @@ def test_branch_conditions_and_pc_targeting():
     cpu.pc = 0x100
     cpu.r[1] = 5
     cpu.r[2] = 5
-    assert cpu._execute(("BEQ", 1, 2, 0x20)) == 0x120
-    assert cpu._execute(("BNE", 1, 2, 0x20)) == 0x104
+    assert cpu._execute(("BEQ", 1, 2, 0x20)) == branch_target("BEQ", cpu.pc, cpu.r[1], cpu.r[2], 0x20)
+    assert cpu._execute(("BNE", 1, 2, 0x20)) == branch_target("BNE", cpu.pc, cpu.r[1], cpu.r[2], 0x20)
 
     cpu.r[2] = 6
-    assert cpu._execute(("BLT", 1, 2, 0x30)) == 0x130
-    assert cpu._execute(("BGE", 1, 2, 0x30)) == 0x104
-    assert cpu._execute(("BLTU", 1, 2, 0x30)) == 0x130
+    assert cpu._execute(("BLT", 1, 2, 0x30)) == branch_target("BLT", cpu.pc, cpu.r[1], cpu.r[2], 0x30)
+    assert cpu._execute(("BGE", 1, 2, 0x30)) == branch_target("BGE", cpu.pc, cpu.r[1], cpu.r[2], 0x30)
+    assert cpu._execute(("BLTU", 1, 2, 0x30)) == branch_target("BLTU", cpu.pc, cpu.r[1], cpu.r[2], 0x30)
 
     cpu.r[1] = MASK64
     cpu.r[2] = 1
-    assert cpu._execute(("BLT", 1, 2, 0x30)) == 0x130
-    assert cpu._execute(("BLTU", 1, 2, 0x30)) == 0x104
+    assert cpu._execute(("BLT", 1, 2, 0x30)) == branch_target("BLT", cpu.pc, cpu.r[1], cpu.r[2], 0x30)
+    assert cpu._execute(("BLTU", 1, 2, 0x30)) == branch_target("BLTU", cpu.pc, cpu.r[1], cpu.r[2], 0x30)
 
 
 def test_jumps_and_calls_return_architectural_next_pc():
@@ -182,10 +182,10 @@ def test_jumps_and_calls_return_architectural_next_pc():
     cpu._execute(("CALL", 1, 2, 0x40))
     assert cpu.r[1] == 0x204
     assert cpu.pc == 0x200
-    assert cpu._execute(("J", 0, 0x80, 0)) == 0x280
+    assert cpu._execute(("J", 0, 0x80, 0)) == jump_target("J", cpu.pc, 0x80)
 
     cpu.r[4] = 0x900
-    assert cpu._execute(("JR", 0, 4, 0x10)) == 0x910
+    assert cpu._execute(("JR", 0, 4, 0x10)) == jump_target("JR", cpu.pc, cpu.r[4], 0x10)
     cpu.r[1] = 0xABC
     assert cpu._execute(("RET",)) == 0xABC
 
