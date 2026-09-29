@@ -287,6 +287,24 @@ A native Coreless implementation must fetch and execute Coreless-64 instructions
 
 The reference machine exists to reproduce the behavior that physical hardware must implement.
 
+## Reset state
+
+The architectural reset state is deterministic:
+
+- PC = 0 and SP = 0.
+- All integer and floating-point registers read as zero; R0 remains hard-wired to zero.
+- Privilege = MACHINE.
+- Interrupt enable and pending state are cleared.
+- Cycle and instruction-retirement counters start at zero.
+- Translation/TLB state and reservations are cleared.
+- Vector control state starts with VSTART = 0, VL = 0, and VTYPE = 0.
+- Architectural trap-save state is cleared to its machine-reset values.
+- HALT state is cleared.
+- Capability identity CSRs retain their defined implementation identity values, including CPU_COUNT and ARCH_ID.
+- Reset does not imply erasing backing storage; memory contents are preserved unless a platform explicitly defines a memory initialization operation.
+
+A conforming implementation must expose the same architectural reset state regardless of its physical execution substrate.
+
 ## ISA v1.0 freeze checklist
 
 Before freeze:
