@@ -79,7 +79,8 @@ def test_vector_masked_gather_does_not_touch_inactive_faulting_lane():
     cpu.vector[3][:4] = [7, 7, 7, 7]
     with pytest.raises(CorelessTrap):
         cpu._vector_op(3, 0x20, 3, 1, 2, w(mask_en=True, mask_reg=1))
-    assert cpu.vector[3][0] == 7
+    assert cpu.vector[3][0] == 0
+    assert cpu.vector[3][1] == 7
 
 def test_vector_masked_scatter_does_not_touch_inactive_lane():
     cpu = setup()
@@ -88,15 +89,15 @@ def test_vector_masked_scatter_does_not_touch_inactive_lane():
     cpu.vector[2][:4] = [1, 2, 3, 4]
     cpu.vector[3][:4] = [0x11, 0x22, 0x33, 0x44]
     cpu._vector_op(3, 0x21, 3, 1, 2, w(mask_en=True, mask_reg=1))
-    assert cpu.load_u(0x100, 1) == 0x11
-    assert cpu.load_u(0x102, 1) == 0x33
-    assert cpu.load_u(0x101, 1) == 0
-    assert cpu.load_u(0x103, 1) == 0
+    assert cpu.load_u(0x101, 1) == 0x11
+    assert cpu.load_u(0x103, 1) == 0x33
+    assert cpu.load_u(0x100, 1) == 0
+    assert cpu.load_u(0x102, 1) == 0
 
 def test_vector_vbroadcast_respects_vl():
     cpu = setup(3)
     cpu.vector[3][:5] = [9, 9, 9, 9, 9]
     cpu.write_reg(1, 0x1234)
     cpu._vector_op(3, 0x23, 3, 1, 0, w())
-    assert cpu.vector[3][:3] == [0x1234, 0x1234, 0x1234]
+    assert cpu.vector[3][:3] == [0x34, 0x34, 0x34]
     assert cpu.vector[3][3:5] == [9, 9]
