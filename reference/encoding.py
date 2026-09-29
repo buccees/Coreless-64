@@ -17,6 +17,7 @@ ALUI={0:'ADDI',1:'SUBI',2:'ANDI',3:'ORI',4:'XORI'}
 BRANCH={0:'BEQ',1:'BNE',2:'BLT',3:'BGE',4:'BLTU',5:'BGEU'}
 JUMP={0:'J',1:'CALL',2:'JR',3:'CALLR',4:'RET'}
 SYSTEM={0:'NOP',1:'HALT',2:'WAIT',3:'TRAP',4:'RETX',5:'FENCE',6:'TLBFLUSH',7:'TLBFLUSHVA',8:'READCSR',9:'WRITECSR',10:'SYSCALL'}
+VM={0:'VM_SEND',1:'VM_RECV',2:'VM_GRANT',3:'VM_REVOKE',4:'VM_SHARE',5:'VM_UNSHARE'}
 LOAD={0:'LD8',1:'LD16',2:'LD32',3:'LD64',4:'LD8U',5:'LD16U',6:'LD32U'}
 
 class IllegalEncoding(ValueError):
@@ -107,6 +108,11 @@ def decode(w):
         if f==4 and (rd!=0 or (w&0xfff)!=0):
             raise IllegalEncoding('bad RET')
         return (JUMP[f],rd,rs1,sext(w&0xfff,12))
+    if op==OP_VM:
+        f=w&31
+        if f not in VM:
+            raise IllegalEncoding('bad VM operation')
+        return (VM[f],rd,rs1,rs2)
     if op==OP_SYSTEM:
         f=w&31
         if f not in SYSTEM:
