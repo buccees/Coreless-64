@@ -29,13 +29,55 @@ class Hypervisor:
         vm=VM(self.next_vmid,memory_size,[VCPU(i) for i in range(vcpus)])
         self.vms[vm.vmid]=vm; self.next_vmid+=1; return vm
     def destroy_vm(self,vmid):
+        if vmid not in self.vms:
+            return
         self.vms.pop(vmid,None)
+        self._ipc_caps = {
+            cap: pair for cap, pair in self._ipc_caps.items()
+            if vmid not in pair
+        }
+        self._shared_regions = {
+            key: perms for key, perms in self._shared_regions.items()
+            if vmid not in key[:2]
+        }
     def inject_interrupt(self,vmid,vector):
         vm=self.vms[vmid]; vm.pending_interrupts.append(vector)
     def run(self,vmid):
-        vm=self.vms[vmid]; vm.running=True; return vm
+        vm=self.vms[vmid]
+        if not vm.vcpus:
+            raise ValueError("VM has no vCPUs")
+        vm.running=True
+        return vm
     def stop(self,vmid):
         vm=self.vms[vmid]; vm.running=False
+    def set_vcpu_state(self, vmid, vcpu_id, *, registers=None, pc=None, sp=None,
+                       privilege=None, halted=None):
+        v = self._vcpu(vmid, vcpu_id)
+        if registers is not None:
+            if len(registers) != 32:
+                raise ValueError("vCPU requires 32 registers")
+            v.registers = [int(x) & ((1 << 64) - 1) for x in registers]
+            v.registers[0] = 0
+        if pc is not None: v.pc = int(pc) & ((1 << 64) - 1)
+        if sp is not None: v.sp = int(sp) & ((1 << 64) - 1)
+        if privilege is not None:
+            if privilege not in (0, 1, 2, 3): raise ValueError("invalid privilege")
+            v.privilege = privilege
+        if halted is not None: v.halted = bool(halted)
+    def snapshot_vcpu(self, vmid, vcpu_id):
+        v = self._vcpu(vmid, vcpu_id)
+        return {"id": v.vcpu_id, "registers": v.registers[:], "pc": v.pc,
+                "sp": v.sp, "privilege": v.privilege, "halted": v.halted,
+                "inbox": list(v.inbox)}
+    def restore_vcpu(self, vmid, vcpu_id, state):
+        self._vcpu(vmid, vcpu_id)
+        required = {"registers", "pc", "sp", "privilege", "halted", "inbox"}
+        if not required.issubset(state):
+            raise ValueError("incomplete vCPU state")
+        self.set_vcpu_state(vmid, vcpu_id, registers=state["registers"],
+                            pc=state["pc"], sp=state["sp"],
+                            privilege=state["privilege"], halted=state["halted"])
+        self._vcpu(vmid, vcpu_id).inbox = list(state["inbox"])
     def _vcpu(self, vmid, vcpu_id):
         vm=self.vms[vmid]
         if not 0 <= vcpu_id < len(vm.vcpus): raise ValueError("invalid vCPU")
