@@ -296,6 +296,16 @@ the complete register file and privilege domain before making it visible.
 A hypervisor implementation may use any physical storage or execution mechanism
 for these operations, but VMID is an architectural protection boundary.
 
+### Concrete VM instruction encoding
+
+The base OP_VM family uses the standard 32-bit R-format fields. The low five
+bits select VM_SEND, VM_RECV, VM_GRANT, VM_REVOKE, VM_SHARE, or VM_UNSHARE.
+VM instructions execute only in HYPERVISOR privilege and require an attached
+hypervisor control interface. Otherwise they raise a virtualization fault and
+do not retire. Register operands carry operation-specific VM identifiers,
+capability handles, region identifiers, or payload descriptors. A guest cannot
+bypass VM isolation by directly addressing another VM's state.
+
 ## Compatibility
 
 Coreless-64 is the native ISA. x86-64 and ARM64 compatibility is provided above it through dynamic/static translation, emulation, guest operating systems, and virtualization.
