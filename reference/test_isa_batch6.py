@@ -139,7 +139,7 @@ def test_load_store_widths_and_signedness():
 
 
 def test_load_store_64_bit_round_trip():
-    cpu = CorelessCPU(memory_size=128)
+    cpu = CorelessCPU(memory_size=4096)
     cpu.r[1] = 64
     cpu.r[2] = 0xFEDCBA9876543210
     cpu._execute(("ST64", 2, 1, 0))
@@ -182,7 +182,7 @@ def test_jumps_and_calls_return_architectural_next_pc():
     cpu._execute(("CALL", 1, 2, 0x40))
     assert cpu.r[1] == 0x204
     assert cpu.pc == 0x200
-    assert cpu._execute(("J", 0, 0, 0x80)) == 0x280
+    assert cpu._execute(("J", 0, 0x80, 0)) == 0x280
 
     cpu.r[4] = 0x900
     assert cpu._execute(("JR", 0, 4, 0x10)) == 0x910
