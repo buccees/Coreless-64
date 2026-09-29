@@ -647,8 +647,10 @@ class CorelessCPU:
             else: raise CorelessTrap("illegal_instruction",self.pc,op)
         except (OverflowError,struct.error,ZeroDivisionError):
             raise CorelessTrap("floating_point_fault",self.pc,op)
-            
-        self.f[rd]=enc(z)
+        try:
+            self.f[rd]=enc(z)
+        except (OverflowError,struct.error):
+            raise CorelessTrap("floating_point_fault",self.pc,op)
 
     def _matrix_op(self, op, rd, rs1, rs2, w1, w2, w3):
         """Execute the deterministic Coreless matrix/AI baseline.
