@@ -244,3 +244,108 @@ Architectural principle:
 7. Define observability, resource limits, fallback behavior, and deterministic policy enforcement.
 
 The AI engine is an architectural subsystem target, not a replacement for the Coreless CPU and not a remote execution requirement.
+
+
+## Human-AI terminal management interface
+
+The local intelligence subsystem is intended to be directly accessible through a **Coreless terminal management interface**, modeled on the interactive terminal experience already used by the project's MistralUX work.
+
+This is a first-class Coreless management plane, not merely a chatbot application.
+
+Target interaction flow:
+
+```
+USER
+  |
+  v
+Coreless terminal / AI console
+  |
+  v
+Local AI dialogue/session
+  |
+  v
+AI management/control interface
+  |
+  v
+Deterministic Coreless policy boundary
+  |
+  +--> scheduler
+  +--> VM/hypervisor management
+  +--> CPU/vCPU resources
+  +--> memory / virtual RAM
+  +--> persistent storage
+  +--> devices / networking
+  +--> AI/tensor resources
+  |
+  v
+telemetry / results
+  |
+  +--> Local AI
+  +--> USER
+```
+
+The terminal should allow the user to communicate with the local AI conversationally while also exposing the functional management surface of the Coreless environment.
+
+The local AI may:
+- inspect system and workload telemetry exposed through the management interface;
+- explain current resource usage and system conditions;
+- answer questions about VMs, CPUs, memory, storage, devices, workloads, and AI resources;
+- propose configuration or resource-management changes;
+- execute changes that are explicitly permitted by the active policy;
+- ask the user for a decision when a management choice is ambiguous or requires approval;
+- retain explicitly configured management preferences and policies;
+- report the result of accepted management actions.
+
+The user may issue natural-language management requests such as:
+- prioritize a workload;
+- preserve or reduce a VM's allocation;
+- change an allowed resource limit;
+- inspect memory or storage pressure;
+- ask why performance has changed;
+- request the AI to optimize an allowed subsystem;
+- ask what the AI recommends before applying a change.
+
+### Management authority levels
+
+The management interface should distinguish at least:
+- **OBSERVE** — AI can inspect permitted telemetry but cannot change state;
+- **RECOMMEND** — AI can propose actions but cannot apply them;
+- **ASK** — AI must obtain user approval for configured classes of changes;
+- **POLICY** — AI may automatically perform actions already authorized by an explicit policy;
+- **SAFE** — the deterministic Coreless control layer can force a safe state independently of AI decisions.
+
+A conversational response is never itself an authorization token. Every state-changing operation must pass through the deterministic management/policy boundary and the applicable CPU, MMU, hypervisor, capability, and privilege checks.
+
+### Terminal/session requirements
+
+The future implementation should provide:
+- a local interactive terminal command or shell entry point for AI communication;
+- persistent dialogue/session context within defined resource limits;
+- structured commands alongside natural-language requests;
+- machine-readable action proposals and results behind the human-readable conversation;
+- explicit confirmation for actions governed by ASK policy;
+- policy inspection and configuration;
+- audit records for AI proposals, user decisions, policy-authorized actions, and resulting state changes;
+- a way for the user to interrupt or cancel an AI management operation;
+- clear indication of whether a response is informational, a recommendation, a pending approval, or an executed action.
+
+The terminal is an interface to the Coreless management plane. It must not become a privileged bypass around the architecture.
+
+### Reference implementation direction
+
+The first implementation should mirror the proven interactive MistralUX/Termux pattern at the **experience and control-session level**, while adapting the backend to Coreless-native telemetry, policies, VM/resource controls, and local model execution.
+
+The MistralUX implementation should be inspected when its repository is available to the Coreless development workflow; its interface patterns should inform the Coreless terminal without making MistralUX an execution dependency.
+
+### Next steps for the Human-AI plane
+
+1. Define the terminal command/session ABI.
+2. Define the structured AI action/proposal format.
+3. Define telemetry exposed to the local AI.
+4. Define OBSERVE/RECOMMEND/ASK/POLICY/SAFE authorization semantics.
+5. Define persistent management-policy storage.
+6. Define audit/event records and cancellation semantics.
+7. Implement the terminal/session reference layer.
+8. Connect approved operations to scheduler, VM, memory, storage, device, and AI-resource controls.
+9. Add conformance tests for authorization, rejection, approval, cancellation, and audit behavior.
+10. Integrate the local model/tensor runtime and Transformers compatibility layer after the management boundary is stable.
