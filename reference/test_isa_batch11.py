@@ -29,6 +29,7 @@ def test_atomic_swap():
 
 def test_atomic_cas_success_uses_desired_register():
     cpu = setup(10)
+    cpu.r[2] = 10
     run_atomic(cpu, 4, 1, 2, 1, desired_reg=3)
     assert cpu.r[4] == 10 and mem(cpu) == 20
 
@@ -51,16 +52,11 @@ def test_atomic_fetch_sub_wraps():
     assert cpu.r[4] == 2 and mem(cpu) == (1 << 64) - 3
 
 def test_atomic_fetch_logic():
-    cpu = setup(0xF0)
-    cpu.r[2] = 0x0F
-    run_atomic(cpu, 4, 1, 2, 4)
-    assert mem(cpu) == 0
-    cpu = setup(0xF0)
-    run_atomic(cpu, 4, 1, 2, 5)
-    assert mem(cpu) == 0xF0
-    cpu = setup(0xF0)
-    run_atomic(cpu, 4, 1, 2, 6)
-    assert mem(cpu) == 0xFF
+    for funct, expected in ((4, 0x00), (5, 0xFF), (6, 0xFF)):
+        cpu = setup(0xF0)
+        cpu.r[2] = 0x0F
+        run_atomic(cpu, 4, 1, 2, funct)
+        assert mem(cpu) == expected
 
 def test_atomic_signed_min_max():
     cpu = setup((1 << 64) - 5)
