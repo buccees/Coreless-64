@@ -1,130 +1,222 @@
-# Coreless-64 — Handoff for Tomorrow
+# Coreless-64 — Project Handoff
 
-## Stop point
+## Current stop point
 
-Work was paused on 2026-09-26 because the GitHub Actions reference test suite was still failing. **Do not continue making incremental fixes blindly.** First inspect the existing failures and stabilize the reference implementation.
+**Date:** 2026-09-29  
+**Current state:** Coreless-64 reference/conformance work is at a confirmed green milestone after the recent ISA, privilege, VM isolation, hypervisor state-control, and OP_VM batches.
 
-Latest CI result:
+**Important:** Do not start by piling changes onto a failing CI run. Inspect the current repository state first, make coherent batches, and run CI only after the batch is internally consistent.
 
-- **53 passed**
-- **6 failed**
+## Major work completed
 
-Latest failed tests:
+### ISA / encoding
 
-1. `test_conformance.py::test_branch_fields_and_signed_offset`
-2. `test_core.py::test_immediate_and_memory`
-3. `test_core.py::test_branch_and_call`
-4. `test_encoding.py::test_branch_register_fields`
-5. `test_syscall.py::test_native_syscalls`
-6. `test_syscall.py::test_file_network_display_syscalls`
+- Coreless-64 is explicitly a **64-bit architecture**.
+- The base instruction form is 32-bit, with variable-length 32/64/128-bit instruction framing.
+- Instruction length is determined from the first 32-bit word.
+- Base scalar, memory, branch/jump, system, atomic, vector, matrix, crypto, and VM opcode families are represented in the reference encoding.
+- Extended instruction framing and rejection of reserved/unsupported forms are covered by conformance tests.
 
-## Work completed before the pause
+Relevant files:
+- `reference/encoding.py`
+- `reference/test_encoding.py`
+- `specification/encoding.md`
+- `specification/isa.md`
 
-### Repository / CI
+### CPU protection and architectural state
 
-Added:
+The reference CPU now has explicit:
+- four privilege levels: USER, SUPERVISOR, HYPERVISOR, MACHINE;
+- precise traps and retirement behavior;
+- CSR access/privilege checks;
+- read-only CSR protection;
+- R0 hard-wired to zero;
+- MMU/TLB translation and permission checks;
+- deterministic reset behavior;
+- CPU identity/count and architectural counters;
+- vector and matrix architectural state;
+- interrupt/trap state.
 
-`.github/workflows/reference-tests.yml`
+Important CSR rule:
+- writing a read-only CSR -> `illegal_csr`;
+- accessing a CSR below its required privilege -> `privilege_violation`.
 
-It runs the reference suite with pytest on pushes and pull requests.
+Relevant file:
+- `reference/core.py`
 
-### Process isolation direction
+### VM isolation and communication
 
-`reference/process.py` was expanded toward actual MMU-backed process isolation.
+The virtualization reference model now establishes the core isolation rule:
 
-Current intended model:
+> Sharing the same Coreless storage device does **not** grant communication or access permission.
 
-- each process has a private page-table root;
-- each process gets private physical code pages;
-- each process gets a private physical stack page;
-- processes use a common user virtual layout;
-- processes execute in USER privilege;
-- ROOT and ASID are switched with the process;
-- the reference TLB is cleared on address-space switches;
-- code is mapped RX/U;
-- stack is mapped RW/U.
+By default:
+- VM memory is private;
+- VM registers/state are private;
+- VM devices are private;
+- execution state is isolated by VMID.
 
-This is still a **bootstrap implementation**, not a finished production MMU/page-table system.
+Communication rules:
+- vCPUs inside one VM may exchange messages through that VM's IPC queues;
+- VM-to-VM messaging requires an explicit hypervisor-issued **directional IPC capability**;
+- capabilities are opaque/revocable;
+- cross-VM shared memory requires an explicit owner, target, region, and permission grant;
+- VMID, storage location, or physical placement never constitutes authorization;
+- destroying a VM revokes its IPC/shared-memory grants;
+- unauthorized communication must not modify destination state and is rejected at the virtualization boundary.
 
-### Syscall ABI
+Relevant files:
+- `reference/virtualization.py`
+- `reference/test_virtualization.py`
+- `specification/isa.md`
 
-The reference syscall implementation was moved toward a real hardware-shaped ABI.
+### Hypervisor state control
 
-User memory arguments are intended to be passed as:
+The reference hypervisor provides:
+- VM creation/destruction;
+- explicit vCPU allocation bounds;
+- VM start/stop;
+- isolated interrupt injection;
+- per-vCPU state save/restore;
+- register-file validation;
+- R0 enforcement during state restore;
+- IPC/shared-memory grant cleanup on VM destruction.
 
-- pointer in a register;
-- length in another register;
-- kernel accesses user memory through the CPU memory/MMU interface.
+vCPU state currently includes:
+- register file;
+- PC;
+- SP;
+- privilege;
+- halted state;
+- IPC inbox.
 
-Paths, network targets, checkpoints, and input buffers were partially converted from Python objects in registers to pointer/length arguments.
+Relevant file:
+- `reference/virtualization.py`
 
-### Device IO naming
+### OP_VM milestone
 
-The original `reference/io.py` conflicted with Python's standard-library `io` module.
+**OP_VM is now an actual Coreless-64 instruction family.**
 
-It was renamed to:
+Defined operations:
+- `VM_SEND`
+- `VM_RECV`
+- `VM_GRANT`
+- `VM_REVOKE`
+- `VM_SHARE`
+- `VM_UNSHARE`
 
-`reference/device_io.py`
+Encoding:
+- standard 32-bit R-format fields;
+- primary opcode `OP_VM = 12`;
+- low five bits select the VM operation.
 
-References were updated.
+Execution contract:
+- VM instructions require HYPERVISOR privilege;
+- VM instructions require a connected hypervisor control interface;
+- otherwise they take a `virtualization_fault`;
+- a faulting VM instruction does not retire;
+- successful handler results may be written to `rd`;
+- guest code cannot bypass VM isolation by directly addressing another VM's state.
 
-### Other changes attempted
+Reference execution path:
+`instruction decode -> CorelessCPU VM dispatch -> vm_handler -> hypervisor-controlled operation`
 
-Some encoding, CSR, MMU/TLB, shell, and test compatibility fixes were made. **These should be reviewed rather than assumed correct.** Several of them are directly implicated by the remaining failures.
+Relevant files:
+- `reference/encoding.py`
+- `reference/core.py`
+- `reference/test_virtualization.py`
+- `specification/isa.md`
+- `specification/isa_conformance.md`
 
-## Important architectural next step
+Recent commits implementing this milestone:
+- `3331761` — concrete VM instruction encoding
+- `ef7ee5e` — VM instructions routed through hypervisor control
+- `ea69620` — concrete VM instruction conformance
+- `b310ff5` — concrete VM control instruction specification
 
-Once the current 6 failures are understood and the baseline suite is green:
+### Conformance discipline
 
-1. Finish page-table-backed process isolation.
-2. Make every process execute in USER privilege.
-3. Implement the real USER → SUPERVISOR syscall/trap path.
-4. Preserve/restore complete CPU + MMU process state.
-5. Make PID 1 `/init` actually launch during OS boot.
-6. Build a minimal native userspace around that path.
-7. Then expand filesystem, networking, graphics, scheduler, and application support.
+The project now explicitly follows:
+1. spec first;
+2. implementation contract second;
+3. tests third;
+4. distinguish API errors from architectural traps;
+5. distinguish reserved encodings from unsupported valid operations;
+6. keep decoder framing separate from execution semantics;
+7. verify precise retirement/state preservation;
+8. add every architectural batch to the conformance matrix.
 
-### Important syscall issue
+Relevant file:
+- `specification/isa_conformance.md`
 
-The current CPU still has a shortcut where `SYSCALL` directly invokes `cpu.syscall_handler` instead of necessarily entering the architectural supervisor trap path.
+## What is still provisional
 
-That should be corrected before treating userspace as genuinely hardware-shaped.
+The current virtualization model is a **reference/conformance baseline**, not a finished production hypervisor.
 
-Desired eventual flow:
+In particular, the next architectural work should make the OP_VM path perform real hypervisor operations rather than only dispatch through a generic handler. The instruction operands/descriptor ABI must be frozen so each VM operation has unambiguous architectural semantics.
 
-`USER instruction → SYSCALL → supervisor trap → kernel syscall dispatcher → return value → RETX → USER`
+The reference VM model also still needs a stronger architectural representation of:
+- capability ownership/handle semantics;
+- IPC queue limits and backpressure;
+- VM event/interrupt notification;
+- shared-memory mapping into guest address spaces;
+- atomic synchronization across VMs/vCPUs;
+- hypervisor resource accounting;
+- complete VM context state where additional architectural state is introduced.
 
-## Important MMU issue
+## Next implementation order
 
-The current reference MMU uses a simple flat page-table convention:
+1. **Freeze the OP_VM operand/descriptor ABI.**
+2. Connect each OP_VM operation to the existing hypervisor capability/IPC/shared-memory model.
+3. Define exact success/fault results and retirement behavior for each VM instruction.
+4. Add negative tests for stale, revoked, wrong-direction, and unauthorized capabilities.
+5. Add VM event/interrupt notification semantics.
+6. Define shared-memory mapping semantics through the MMU rather than treating a region ID alone as the complete mapping.
+7. Extend context save/restore as new architectural state becomes exposed.
+8. Update the ISA conformance matrix for every new architectural contract.
+9. Only after virtualization is stable, continue the broader ISA freeze checklist and native OS/userspace path.
 
-`PTE address = ROOT + VPN * 8`
+## Other existing roadmap items
 
-This was useful as a bootstrap model, but it is not yet a full multi-level page-table implementation.
+These remain important but should not be mixed into a virtualization fix unless required:
+- finish full multi-level page-table/MMU implementation;
+- complete the architectural USER -> SUPERVISOR syscall/trap path;
+- preserve/restore complete process CPU + MMU state;
+- boot and launch native PID 1 / `/init`;
+- build minimal native userspace;
+- expand filesystem, networking, graphics, scheduler, and application compatibility;
+- preserve legacy interoperability through the documented x86-64/ARM64 translation/emulation compatibility layer.
 
-Do not redesign the Coreless architecture casually. The architecture already specifies virtual memory, permissions, privilege levels, TLB invalidation, page faults, and process isolation. The remaining work is implementation.
+## Repository placement rule
 
-## CI discipline for tomorrow
+Keep each architectural fact in the layer where it belongs:
+- **encoding** -> binary fields, opcode numbers, decode/encode rules;
+- **core** -> CPU execution, privilege, traps, retirement, architectural state;
+- **virtualization** -> VM lifecycle, capabilities, IPC, shared memory, hypervisor state;
+- **tests** -> executable conformance for the exact contracts;
+- **specification/isa.md** -> normative ISA behavior and semantics;
+- **specification/isa_conformance.md** -> implementation/conformance coverage matrix;
+- **HANDOFF.md** -> current state, completed milestones, exact next steps.
 
-**Do not pile fixes onto a failing run.**
+Do not duplicate implementation logic into the specification or turn HANDOFF into a second specification.
 
-Use this sequence:
+## CI discipline
 
-1. Reproduce/inspect the six failures.
-2. Fix the underlying encoding/core contracts first.
-3. Get the baseline reference tests green.
-4. Then test process/MMU isolation independently.
-5. Then implement the supervisor syscall path.
-6. Keep every architectural change covered by a focused test.
+When a failure occurs:
+1. inspect the failing test and implementation together;
+2. determine whether the failure is implementation behavior or an incorrect test expectation;
+3. fix the contract/test mismatch before adding more work;
+4. batch related fixes;
+5. run CI only when the batch is ready.
 
-The last confirmed CI state was **53 passed / 6 failed**.
+The project has had several failures caused by incorrect test expectations, so this distinction is now an explicit workflow requirement.
 
-## Coreless goal
+## Coreless architectural goal
 
-Keep the project aimed at the actual goal:
+Keep the project aligned with the original concept:
 
-> The computational fabric is the computer. Persistent storage carries persistent machine state. The host is the interface to the computer.
+> The Coreless computer is the computational architecture carried by persistent storage. The host provides the external interface; it is not the Coreless CPU.
 
-The reference software is supposed to be hardware-shaped so that the same architectural behavior can later map to FPGA/RTL/ASIC implementations.
+The reference implementation is a digital, hardware-shaped architectural model. It is not itself a claim that the host processor is the Coreless CPU.
 
-**Resume from here.**
+**Resume from the OP_VM ABI/semantics freeze.**
