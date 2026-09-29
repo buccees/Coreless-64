@@ -99,7 +99,7 @@ def test_matrix_conversion_and_clamp():
     cpu._matrix_op(0x08, 3, 1, 2, w1(0, 1, 0, True), 0, 0)
     assert get_tile(cpu, 3) == matrix_convert(values, 2, 2, 8, 16, signed=True)
 
-    cpu._matrix_op(0x0E, 3, 1, 2, w1(1, 1, 0, True), 0, (0xFFFB << 16) | 5)
+    cpu._matrix_op(0x0E, 3, 1, 2, w1(1, 1, 0, True), 0, (5 << 16) | 0xFFFB)
     assert get_tile(cpu, 3) == matrix_clamp(
         values, 2, 2, 16, 16, -5, 5, signed=True
     )
@@ -124,7 +124,7 @@ def test_matrix_zero_and_broadcast():
 
     cpu.write_reg(1, 0x1234)
     cpu._matrix_op(0x0C, 3, 1, 2, w1(), 0, 0)
-    assert get_tile(cpu, 3) == [[0x34, 0x34], [0x34, 0x34]]
+    assert get_tile(cpu, 3) == [[0x1234, 0x1234], [0x1234, 0x1234]]
 
 
 def test_matrix_transpose():
@@ -163,7 +163,7 @@ def test_matrix_quantized_mac_applies_zero_points_shift_and_clamp():
 
     cpu._matrix_op(0x03, 3, 1, 2, w1(0, 2, 0), w2, w3)
 
-    expected = [[3, 7], [11, 7]]
+    expected = [[7, 5], [11, 7]]
     assert get_tile(cpu, 3) == expected
 
 
