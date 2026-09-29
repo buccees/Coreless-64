@@ -189,3 +189,61 @@ def fp_decode(raw, element_type):
 
 def fp_word(element_type):
     return element_type << 29
+
+
+def vector_int_binary(name, a, b, bits):
+    mask = (1 << bits) - 1
+    a &= mask
+    b &= mask
+    if name == "VADD": return (a + b) & mask
+    if name == "VSUB": return (a - b) & mask
+    if name == "VMUL": return (a * b) & mask
+    if name == "VAND": return a & b
+    if name == "VOR": return a | b
+    if name == "VXOR": return a ^ b
+    if name == "VSHL": return (a << (b & (bits - 1))) & mask
+    if name == "VSHR": return a >> (b & (bits - 1))
+    if name == "VSAR":
+        signed = a - (1 << bits) if a & (1 << (bits - 1)) else a
+        return (signed >> (b & (bits - 1))) & mask
+    if name == "VSEQ": return int(a == b)
+    if name == "VSLT": return int((a - (1 << bits) if a & (1 << (bits - 1)) else a) <
+                                  (b - (1 << bits) if b & (1 << (bits - 1)) else b))
+    if name == "VSLTU": return int(a < b)
+    raise ValueError(name)
+
+
+def vector_fp_binary(name, a, b, acc=0.0):
+    import math
+    if name == "VFADD": return a + b
+    if name == "VFSUB": return a - b
+    if name == "VFMUL": return a * b
+    if name == "VFMIN":
+        return b if math.isnan(a) else a if math.isnan(b) else (-0.0 if a == b == 0.0 else min(a, b))
+    if name == "VFMAX":
+        return b if math.isnan(a) else a if math.isnan(b) else (0.0 if a == b == 0.0 else max(a, b))
+    if name == "VFFMA": return a * b + acc
+    raise ValueError(name)
+
+
+def vector_reduce(name, values, bits):
+    mask = (1 << bits) - 1
+    vals = [v & mask for v in values]
+    if name == "VREDSUM": return sum(vals) & mask
+    if name == "VREDAND":
+        r = vals[0]
+        for v in vals[1:]: r &= v
+        return r
+    if name == "VREDOR":
+        r = vals[0]
+        for v in vals[1:]: r |= v
+        return r
+    if name == "VREDXOR":
+        r = vals[0]
+        for v in vals[1:]: r ^= v
+        return r
+    if name == "VREDMIN":
+        return min(v - (1 << bits) if v & (1 << (bits - 1)) else v for v in vals) & mask
+    if name == "VREDMAX":
+        return max(v - (1 << bits) if v & (1 << (bits - 1)) else v for v in vals) & mask
+    raise ValueError(name)
