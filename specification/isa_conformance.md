@@ -37,6 +37,9 @@ This matrix is the preflight contract for ISA work. New conformance tests should
 | Transformers compatibility | Supported local Transformer models translated/executed through Coreless tensor runtime | planned compatibility layer | not implemented | Planned |
 | Device/driver model | Architectural devices and drivers | runtime/device layers | partial | In progress |
 
+
+| Human-AI terminal management | Local interactive AI terminal; telemetry, proposals, approvals, policy-authorized actions, audit/cancellation; deterministic control boundary remains authoritative | planned terminal/session and management runtime | not implemented | Planned |
+
 ## Preflight rules
 
 Before adding a conformance batch:
