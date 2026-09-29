@@ -220,3 +220,27 @@ Keep the project aligned with the original concept:
 The reference implementation is a digital, hardware-shaped architectural model. It is not itself a claim that the host processor is the Coreless CPU.
 
 **Resume from the OP_VM ABI/semantics freeze.**
+
+
+## Coreless Intelligence Layer
+
+The long-term architecture includes a **local Coreless Intelligence Layer**. This is not a remote AI dependency and is not merely an application running on top of the CPU. Its purpose is to provide local AI-assisted management and optimization of the Coreless computer while preserving deterministic architectural control.
+
+Architectural principle:
+- the Coreless CPU remains responsible for deterministic instruction execution, privilege enforcement, memory protection, traps, VM isolation, and other operations that require exact architectural behavior;
+- the local AI engine may assist with scheduling, resource allocation, workload placement, memory/storage management, anomaly detection, optimization, and other explicitly permitted management functions;
+- AI requests must pass through a deterministic policy/control boundary before privileged state is changed;
+- the AI must not receive unrestricted authority to modify machine, hypervisor, memory-protection, or security state;
+- local models and their runtime are intended to reside within the Coreless persistent computational environment, so normal operation does not depend on a remote AI service.
+
+### Local AI roadmap
+
+1. Define the AI-to-Coreless control interface and privilege boundary.
+2. Define AI access to scheduler, VM, memory, storage, and resource-management operations.
+3. Define model storage/loading and local tensor execution requirements.
+4. Build the local AI/tensor runtime around the existing vector and matrix ISA.
+5. Add a Transformers compatibility layer for locally stored compatible models.
+6. Add controlled AI-assisted system management.
+7. Define observability, resource limits, fallback behavior, and deterministic policy enforcement.
+
+The AI engine is an architectural subsystem target, not a replacement for the Coreless CPU and not a remote execution requirement.
