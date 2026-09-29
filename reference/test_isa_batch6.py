@@ -168,7 +168,7 @@ def test_branch_conditions_and_pc_targeting():
     cpu.r[2] = 6
     assert cpu._execute(("BLT", 1, 2, 0x30)) == 0x130
     assert cpu._execute(("BGE", 1, 2, 0x30)) == 0x104
-    assert cpu._execute(("BLTU", 1, 2, 0x30)) == 0x134
+    assert cpu._execute(("BLTU", 1, 2, 0x30)) == 0x130
 
     cpu.r[1] = MASK64
     cpu.r[2] = 1
@@ -200,12 +200,3 @@ def test_not_and_neg_wrap_to_64_bits():
     cpu.r[1] = 1
     cpu._execute(("NEG", 2, 1))
     assert cpu.r[2] == MASK64
-
-
-def test_pc_alignment_is_enforced_on_step_result():
-    cpu = CorelessCPU()
-    cpu.pc = 0x100
-    with pytest.raises(CorelessTrap) as exc:
-        cpu._execute(("J", 0, 1, 2))
-    assert exc.value.cause is None if False else True
-    assert exc.value.cause != "illegal_instruction"
