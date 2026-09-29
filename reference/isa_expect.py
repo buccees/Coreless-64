@@ -247,3 +247,54 @@ def vector_reduce(name, values, bits):
     if name == "VREDMAX":
         return max(v - (1 << bits) if v & (1 << (bits - 1)) else v for v in vals) & mask
     raise ValueError(name)
+
+
+MATRIX_SHAPES = ((2, 2, 2), (4, 4, 4), (8, 8, 8), (8, 16, 16), (16, 8, 16), (16, 16, 16), (32, 8, 16))
+MATRIX_TYPE_BITS = (8, 16, 32, 64, 16, 16, 32, 64)
+
+
+def matrix_shape(shape):
+    return MATRIX_SHAPES[shape]
+
+
+def matrix_decode(value, bits, signed):
+    value &= (1 << bits) - 1
+    return value - (1 << bits) if signed and value & (1 << (bits - 1)) else value
+
+
+def matrix_encode(value, bits):
+    return value & ((1 << bits) - 1)
+
+
+def matrix_matmul(a, b, m, n, k, ibits, abits, signed=False, acc=None):
+    out = [[0 for _ in range(n)] for _ in range(m)]
+    for i in range(m):
+        for j in range(n):
+            total = 0 if acc is None else matrix_decode(acc[i][j], abits, signed)
+            for q in range(k):
+                total += matrix_decode(a[i][q], ibits, signed) * matrix_decode(b[q][j], ibits, signed)
+            out[i][j] = matrix_encode(total, abits)
+    return out
+
+
+def matrix_elementwise(name, a, b, m, n, ibits, abits, signed=False):
+    out = [[0 for _ in range(n)] for _ in range(m)]
+    for i in range(m):
+        for j in range(n):
+            x = matrix_decode(a[i][j], ibits, signed)
+            y = matrix_decode(b[i][j], ibits, signed)
+            z = x + y if name == "MADD" else x - y
+            out[i][j] = matrix_encode(z, abits)
+    return out
+
+
+def matrix_convert(a, m, n, src_bits, dst_bits, signed=False):
+    return [[matrix_encode(matrix_decode(a[i][j], src_bits, signed), dst_bits) for j in range(n)] for i in range(m)]
+
+
+def matrix_reduce(a, m, n, bits, signed=False):
+    return sum(matrix_decode(a[i][j], bits, signed) for i in range(m) for j in range(n))
+
+
+def matrix_clamp(a, m, n, ibits, abits, lo, hi, signed=False):
+    return [[matrix_encode(max(lo, min(hi, matrix_decode(a[i][j], ibits, signed))), abits) for j in range(n)] for i in range(m)]
