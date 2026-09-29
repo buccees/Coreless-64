@@ -104,3 +104,44 @@ def test_interrupt_injection_isolated_per_vm():
     h.inject_interrupt(a.vmid, 7)
     assert a.pending_interrupts == [7]
     assert b.pending_interrupts == []
+
+def vmword(f, rd=0, rs1=0, rs2=0):
+    return (12 << 27) | (rd << 22) | (rs1 << 17) | (rs2 << 12) | f
+
+def test_vm_instruction_encoding_decodes_concrete_operations():
+    from encoding import decode, VM
+    for f, name in VM.items():
+        assert decode(vmword(f)) == (name, 0, 0, 0)
+
+def test_vm_instruction_requires_hypervisor_privilege_and_handler():
+    from core import CorelessCPU, USER, HYPERVISOR
+    cpu = CorelessCPU()
+    cpu.memory[0:4] = vmword(0).to_bytes(4, "little")
+    cpu.privilege = USER
+    cpu.csrs[0x003] = 0x400
+    cpu.step()
+    assert cpu.pc == 0x400
+    assert (cpu.csrs[0x005] & 0x7F) == 0x012
+    cpu.reset()
+    cpu.memory[0:4] = vmword(0).to_bytes(4, "little")
+    cpu.privilege = HYPERVISOR
+    cpu.csrs[0x003] = 0x500
+    cpu.step()
+    assert cpu.pc == 0x500
+    assert (cpu.csrs[0x005] & 0x7F) == 0x012
+
+def test_vm_instruction_dispatches_to_hypervisor_handler():
+    from core import CorelessCPU, HYPERVISOR
+    cpu = CorelessCPU()
+    cpu.privilege = HYPERVISOR
+    cpu.r[1] = 7
+    cpu.r[2] = 9
+    seen = []
+    def handler(machine, op, rd, rs1, rs2):
+        seen.append((op, rd, rs1, rs2, machine.read_reg(rs1), machine.read_reg(rs2)))
+        return 0x55
+    cpu.vm_handler = handler
+    cpu.memory[0:4] = vmword(0, rd=3, rs1=1, rs2=2).to_bytes(4, "little")
+    assert cpu.step()
+    assert seen == [("VM_SEND", 3, 1, 2, 7, 9)]
+    assert cpu.r[3] == 0x55
