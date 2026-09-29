@@ -9,7 +9,9 @@ sys.path.insert(0, ".")
 import pytest
 
 from core import CorelessCPU, CorelessTrap, MASK64
-from isa_expect import (\n    scalar_binary, branch_target, jump_target, aligned_memory_size,\n)
+from isa_expect import (
+    scalar_binary, branch_target, jump_target, aligned_memory_size,
+)
 
 
 def test_r0_is_hardwired_zero():
