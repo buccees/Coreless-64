@@ -45,14 +45,14 @@ def test_vector_integer_reductions_match_oracle(op, name):
     values = [1,2,4,8,16]
     cpu.vector[1][:5] = values
     cpu._vector_op(1, op, 3, 1, 2, et_word(0))
-    assert cpu.vector[3][0] == vector_reduce(name, values, 8)
+    assert cpu.read_reg(3) == vector_reduce(name, values, 8)
 
 def test_vector_reduction_mask_excludes_inactive_lanes():
     cpu = cpu_vl(5)
     cpu.vector[1][:5] = [1,2,4,8,16]
     cpu.vector_mask[0] = 0b10101
     cpu._vector_op(1, 0x18, 3, 1, 2, et_word(0, True))
-    assert cpu.vector[3][0] == 21
+    assert cpu.read_reg(3) == 21
 
 @pytest.mark.parametrize("op,name", [(0x00,"VFADD"),(0x01,"VFSUB"),(0x02,"VFMUL"),(0x04,"VFMIN"),(0x05,"VFMAX"),(0x13,"VFFMA")])
 def test_vector_fp64_ops_match_oracle(op, name):
@@ -89,6 +89,8 @@ def test_vector_indexed_load_respects_mask_without_memory_access():
     cpu = cpu_vl(4)
     cpu.write_reg(1, 0x100)
     cpu.vector[2][:4] = [0,4,8,0xFFFFFFFF]
+    cpu.store_u(0x100, 4, 0)
+    cpu.store_u(0x108, 4, 8)
     cpu.vector_mask[0] = 0b0101
     cpu._vector_op(1, 0x20, 3, 1, 2, et_word(2, True))
     assert cpu.vector[3][:4] == [0,0,8,0]
