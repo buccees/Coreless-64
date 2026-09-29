@@ -251,6 +251,32 @@ Software can discover:
 
 Unsupported extension instructions raise an illegal-instruction exception.
 
+## Virtual-machine isolation and inter-context communication
+
+VM memory is private by default. Multiple VMs residing on the same Coreless
+storage device do not gain access to each other's memory, registers, devices,
+or execution state merely from sharing that storage.
+
+Communication is explicit:
+- vCPUs in one VM may exchange messages through that VM's IPC queues.
+- VM-to-VM messaging requires a hypervisor-issued directional capability.
+- IPC capabilities are opaque and revocable.
+- Cross-VM shared memory requires an explicit owner, target, region, and
+  read/write permission grant.
+- VMID, storage address, or knowledge of physical placement never constitutes
+  authorization.
+- Destroying a VM revokes its IPC and shared-memory grants.
+- Unauthorized communication does not modify destination state and raises a
+  virtualization/permission fault at the architectural interface.
+
+### Concrete VM communication baseline
+
+The OP_VM family reserves virtualization operations for capability-controlled
+communication and management. The initial semantic operations are VM_SEND,
+VM_RECV, VM_GRANT, VM_REVOKE, VM_SHARE, and VM_UNSHARE. These operations are
+hypervisor-controlled and must preserve VM isolation regardless of the
+underlying storage or execution mechanism.
+
 ## Compatibility
 
 Coreless-64 is the native ISA. x86-64 and ARM64 compatibility is provided above it through dynamic/static translation, emulation, guest operating systems, and virtualization.
