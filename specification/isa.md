@@ -720,6 +720,17 @@ Machine-level state controls boot configuration, security policy, memory-access 
 
 Secure boot and attestation mechanisms may be implementation-specific, but any architectural security state exposed to software must have defined access and transition rules.
 
+### Matrix conformance baseline
+
+The reference matrix implementation defines the following v0.x conformance requirements:
+
+- MMUL, MMAC, and MMULADD use the encoded M/N/K shape and accumulator type.
+- MMDOT accepts integer element types only and raises a matrix AI fault for floating-point types.
+- MQUANTMAC requires supported 8-bit integer input types and integer accumulators; zero points, right shift, output zero point, and clamp bounds come from the descriptor.
+- MADD, MSUB, MTRANS, MCONV, MLOAD, MSTORE, MZERO, MBROADCAST, MREDUCE, and MCLAMP are architecturally observable and are covered by reference conformance tests.
+- Matrix loads and stores preflight all architectural accesses before retirement so a later element fault cannot expose partial architectural effects.
+- Unsupported tile shapes raise a capability/resource fault in the reference implementation rather than silently truncating the operation.
+
 ## Consistency audit status
 
 The ISA document is subordinate to the exact encoding and architectural-state definitions. Any statement marked as a target or requiring v1.0 definition remains provisional until the corresponding encoding, CSR, exception, and reset definitions are frozen.

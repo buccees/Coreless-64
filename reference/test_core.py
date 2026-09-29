@@ -383,6 +383,57 @@ def test_vector_extended_ops():
     assert list(cpu.memory[0x200:0x210])==[9,0,0,0,2,0,0,0,9,0,0,0,4,0,0,0]
 
 
+
+def test_matrix_mconv_signed_reduction_and_clamp():
+    cpu=CorelessCPU()
+    cpu.matrix_shape=(2,2,2)
+    cpu.matrix[1][0][:2]=[0xFF, 0x02]
+    cpu.matrix[1][1][:2]=[0xFD, 0x04]
+    cpu.memory[0:16]=ext128(4,0x08,2,1,0,w1=(0<<29)|(1<<26)|(1<<22))
+    cpu.step()
+    assert cpu.matrix[2][0][:2]==[0xFFFF,2] and cpu.matrix[2][1][:2]==[0xFFFD,4]
+    cpu.memory[16:32]=ext128(4,0x0D,3,1,0,w1=(0<<29)|(1<<22))
+    cpu.step()
+    assert cpu.r[3] == 2
+    cpu.memory[32:48]=ext128(4,0x0E,1,1,0,w1=(0<<29)|(1<<22),w3=(0xFFFE & 0xFFFF)|((3 & 0xFFFF)<<16))
+    cpu.step()
+    assert cpu.matrix[1][0][:2]==[0xFE,3] and cpu.matrix[1][1][:2]==[0xFE,3]
+
+
+def test_matrix_rectangular_transpose():
+    cpu=CorelessCPU()
+    cpu.memory[0:16]=ext128(4,0x07,2,1,0,w1=(3<<23))
+    cpu.matrix[1][0][:16]=list(range(16))
+    cpu.matrix[1][1][:16]=list(range(16,32))
+    cpu.step()
+    assert cpu.matrix[2][0][0:2] == [0,16]
+    assert cpu.matrix[2][1][0:2] == [1,17]
+
+
+def test_matrix_mmdot_rejects_floating_point_types():
+    cpu=CorelessCPU()
+    cpu.memory[0:16]=ext128(4,0x02,3,1,2,w1=(6<<29)|(6<<26))
+    cpu.step()
+    assert (cpu.csrs[0x005] & 0xFFFF) == 0x011
+
+
+def test_matrix_shape_resource_fault_is_precise():
+    cpu=CorelessCPU()
+    cpu.memory[0:16]=ext128(4,0x00,3,1,2,w1=(6<<23))
+    cpu.step()
+    assert (cpu.csrs[0x005] & 0xFFFF) == 0x014
+    assert cpu.instret == 0
+
+
+def test_matrix_memory_alignment_fault_is_precise():
+    cpu=CorelessCPU()
+    cpu.matrix_shape=(2,2,2)
+    cpu.r[1]=0x101
+    cpu.memory[0:16]=ext128(4,0x09,2,1,0,w1=(1<<29),w2=2|(2<<16))
+    cpu.step()
+    assert (cpu.csrs[0x005] & 0xFFFF) == 0x006
+    assert cpu.matrix[2][0][:2] == [0,0]
+
 def test_matrix_memory_faults_are_precise():
     # A fault in a later tile element must not expose a partial MLOAD/MSTORE.
     cpu=CorelessCPU(memory_size=0x1000)
