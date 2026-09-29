@@ -23,6 +23,7 @@ class VM:
 class Hypervisor:
     def __init__(self,cpu_count=1):
         self.cpu_count=cpu_count; self.vms={}; self.next_vmid=1
+        self._next_capability=1; self._ipc_caps={}; self._shared_regions={}
     def create_vm(self,memory_size,vcpus=1):
         if vcpus<1 or vcpus>self.cpu_count: raise ValueError("invalid vCPU allocation")
         vm=VM(self.next_vmid,memory_size,[VCPU(i) for i in range(vcpus)])
@@ -35,6 +36,36 @@ class Hypervisor:
         vm=self.vms[vmid]; vm.running=True; return vm
     def stop(self,vmid):
         vm=self.vms[vmid]; vm.running=False
+    def _vcpu(self, vmid, vcpu_id):
+        vm=self.vms[vmid]
+        if not 0 <= vcpu_id < len(vm.vcpus): raise ValueError("invalid vCPU")
+        return vm.vcpus[vcpu_id]
+    def grant_ipc(self, source_vmid, target_vmid):
+        if source_vmid not in self.vms or target_vmid not in self.vms: raise ValueError("unknown VM")
+        cap=self._next_capability; self._next_capability+=1
+        self._ipc_caps[cap]=(source_vmid,target_vmid); return cap
+    def revoke_ipc(self, capability): self._ipc_caps.pop(capability,None)
+    def send_message(self, source_vmid, source_vcpu, target_vmid, target_vcpu, payload, capability=None):
+        self._vcpu(source_vmid,source_vcpu)
+        target=self._vcpu(target_vmid,target_vcpu)
+        if source_vmid != target_vmid and self._ipc_caps.get(capability) != (source_vmid,target_vmid):
+            raise PermissionError("VM-to-VM IPC capability required")
+        if not isinstance(payload,(bytes,bytearray,memoryview)): raise TypeError("IPC payload must be bytes-like")
+        target.inbox.append(bytes(payload))
+    def recv_message(self, vmid, vcpu_id):
+        v=self._vcpu(vmid,vcpu_id); return v.inbox.pop(0) if v.inbox else None
+    def share_memory(self, owner_vmid, target_vmid, region_id, permissions):
+        if owner_vmid not in self.vms or target_vmid not in self.vms: raise ValueError("unknown VM")
+        if permissions not in (1,2,3): raise ValueError("invalid sharing permissions")
+        self._shared_regions[(owner_vmid,target_vmid,region_id)]=permissions
+    def revoke_shared_memory(self, owner_vmid, target_vmid, region_id):
+        self._shared_regions.pop((owner_vmid,target_vmid,region_id),None)
+    def check_shared_memory(self, accessor_vmid, owner_vmid, target_vmid, region_id, write=False):
+        if accessor_vmid == owner_vmid: return True
+        permissions=self._shared_regions.get((owner_vmid,target_vmid,region_id),0)
+        required=2 if write else 1
+        if not permissions & required: raise PermissionError("shared-memory permission required")
+        return True
     def snapshot(self,vmid):
         vm=self.vms[vmid]
         return {"vmid":vm.vmid,"memory_size":vm.memory_size,"running":vm.running,
