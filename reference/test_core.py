@@ -387,7 +387,7 @@ def test_vector_extended_ops():
 def test_matrix_mconv_signed_reduction_and_clamp():
     cpu=CorelessCPU()
     cpu.matrix_shape=(2,2,2)
-    cpu.matrix[1][0][:2]=[0xFF, 0x02]
+    cpu.matrix[1][0][:2]=[0xFD, 0x04]
     cpu.matrix[1][1][:2]=[0xFD, 0x04]
     cpu.memory[0:16]=ext128(4,0x08,2,1,0,w1=(0<<29)|(1<<26)|(1<<22))
     cpu.step()
