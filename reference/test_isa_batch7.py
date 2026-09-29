@@ -70,7 +70,7 @@ def test_scalar_fp_nan_min_max_use_non_nan_operand():
     cpu._scalar_fp_op(4, 3, 1, 2, fp64_word())
     assert fp64_value(cpu.f[3]) == 7.0
     cpu._scalar_fp_op(5, 3, 1, 2, fp64_word())
-    assert cpu.f[3] == 7.0
+    assert fp64_value(cpu.f[3]) == 7.0
 
 
 def test_scalar_fp_signed_zero_min_max():
@@ -154,12 +154,12 @@ def test_scalar_fp_conversion_integer_signed():
     cpu.f[1] = fp64(-7.9)
     word = (7 << 29) | (2 << 26) | 1
     cpu._scalar_fp_op(12, 3, 1, 2, word)
-    assert cpu.read_reg(3) == -7
+    assert cpu.read_reg(3) == ((1 << 64) - 7)
 
 
 def test_scalar_fp_conversion_integer_unsigned_saturates():
     cpu = CorelessCPU()
-    cpu.f[1] = -7.9
+    cpu.f[1] = fp64(-7.9)
     word = (7 << 29) | (2 << 26) | 2
     cpu._scalar_fp_op(12, 3, 1, 2, word)
     assert cpu.read_reg(3) == 0
