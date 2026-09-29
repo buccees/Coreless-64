@@ -125,6 +125,17 @@ class CorelessCPU:
         self.syscall_handler = None  # legacy compatibility; SYSCALL no longer bypasses traps
         self.supervisor_trap_handler = None
 
+    def reset(self):
+        """Return architectural state to the defined power-on reset state.
+
+        Reset preserves the backing memory contents; it resets the CPU's
+        architectural execution state, privilege state, counters, translation
+        state, interrupt state, vector/matrix state, and trap context.
+        """
+        memory = self.memory
+        memory_size = len(memory)
+        self.__init__(memory_size=memory_size, memory=memory)
+
     def read_reg(self, n):
         return 0 if n == 0 else self.r[n]
 
