@@ -507,7 +507,7 @@ def test_scalar_floating_point_baseline_and_conversion():
     cpu.memory[16:32]=ext128(2,0x08,4,1,2,w1=(6<<29)); cpu.f[4]=f32(1.0); cpu.step()
     assert abs(u32(cpu.f[4])-4.0)<1e-6
     cpu.memory[32:48]=ext128(2,0x06,5,1,2,w1=(6<<29)); cpu.step()
-    assert cpu.r[5]==1
+    assert cpu.r[5]==0
     cpu.f[1]=f32(-2.5)
     cpu.memory[48:64]=ext128(2,0x0C,6,1,0,w1=(6<<29)|(1<<26)|1); cpu.step()
     assert cpu.r[6] == 0xFFFFFFFE

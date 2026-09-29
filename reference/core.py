@@ -598,7 +598,7 @@ class CorelessCPU:
         import math, struct
         et=(w1>>29)&7
         if et not in (4,5,6,7): raise CorelessTrap("illegal_instruction",self.pc,et)
-        if self.fp_rounding != 0: raise CorelessTrap("illegal_instruction",self.pc,self.fp_rounding)
+        if ((w1 >> 8) & 7) != 0: raise CorelessTrap("illegal_instruction",self.pc,(w1 >> 8) & 7)
         def dec(raw):
             if et==4: return struct.unpack("<e",(raw&0xffff).to_bytes(2,"little"))[0]
             if et==5: return struct.unpack("<f",((raw&0xffff)<<16).to_bytes(4,"little"))[0]
