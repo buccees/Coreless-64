@@ -510,7 +510,7 @@ def test_scalar_floating_point_baseline_and_conversion():
     assert cpu.r[5]==0
     cpu.f[1]=f32(-2.5)
     cpu.memory[48:64]=ext128(2,0x0C,6,1,0,w1=(6<<29)|(1<<26)|1); cpu.step()
-    assert cpu.r[6] == 0xFFFFFFFE
+    assert cpu.r[6] == 0xFFFFFFFFFFFFFFFE
 
 def test_scalar_floating_point_edge_and_illegal_rounding():
     import struct
