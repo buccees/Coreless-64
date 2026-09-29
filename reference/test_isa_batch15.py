@@ -96,3 +96,50 @@ def test_architectural_counter_reads_do_not_modify_state():
     values = [cpu.read_csr(csr) for csr in (0x00D, 0x00E, 0x00F)]
     assert values == [23, 23, 11]
     assert (cpu.cycle, cpu.instret) == before
+
+
+def test_reset_restores_architectural_state_without_erasing_memory():
+    cpu = CorelessCPU()
+    cpu.memory[0x40] = 0xA5
+    cpu.r[7] = 0x1234
+    cpu.f[3] = 0x5678
+    cpu.pc = 0x400
+    cpu.sp = 0x800
+    cpu.privilege = SUPERVISOR
+    cpu.cycle = 99
+    cpu.instret = 77
+    cpu.csrs[0x003] = 0x900
+    cpu.csrs[0x001] = 0x55
+    cpu.pending_interrupts = 1 << 5
+    cpu.vector_vl = 8
+    cpu.vector_vstart = 3
+    cpu.vector_vtype = 7
+    cpu.tlb[1] = 0x123
+    cpu.reset()
+
+    assert cpu.memory[0x40] == 0xA5
+    assert cpu.r[7] == 0
+    assert cpu.f[3] == 0
+    assert cpu.pc == 0
+    assert cpu.sp == 0
+    assert cpu.privilege == MACHINE
+    assert cpu.cycle == 0
+    assert cpu.instret == 0
+    assert cpu.csrs[0x003] == 0
+    assert cpu.csrs[0x001] == 0
+    assert cpu.pending_interrupts == 0
+    assert cpu.vector_vl == 0
+    assert cpu.vector_vstart == 0
+    assert cpu.vector_vtype == 0
+    assert cpu.tlb == {}
+    assert cpu.read_csr(0x00B) == 1
+    assert cpu.read_csr(0x01F) == int.from_bytes(b"CL64", "big")
+
+
+def test_reset_clears_halt_and_reservation_state():
+    cpu = CorelessCPU()
+    cpu.halted = True
+    cpu.reservation = (1, 2, 3)
+    cpu.reset()
+    assert cpu.halted is False
+    assert cpu.reservation is None
