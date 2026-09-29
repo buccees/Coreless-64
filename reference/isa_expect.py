@@ -153,3 +153,39 @@ def fp64_binary(name, a, b, acc=0.0):
     if name == "FABS":
         return abs(a)
     raise ValueError(name)
+
+
+def fp_encode(value, element_type):
+    """Encode a Python float into a Coreless FP register payload."""
+    import struct
+    if element_type == 4:  # FP16
+        return int.from_bytes(struct.pack("<e", float(value)), "little")
+    if element_type == 5:  # BF16, round FP32 payload to 16 high bits
+        raw = int.from_bytes(struct.pack("<f", float(value)), "little")
+        low, high = raw & 0xFFFF, raw >> 16
+        if low > 0x8000 or (low == 0x8000 and (high & 1)):
+            high = (high + 1) & 0xFFFF
+        return high
+    if element_type == 6:  # FP32
+        return int.from_bytes(struct.pack("<f", float(value)), "little")
+    if element_type == 7:  # FP64
+        return int.from_bytes(struct.pack("<d", float(value)), "little")
+    raise ValueError(element_type)
+
+
+def fp_decode(raw, element_type):
+    """Decode a Coreless FP register payload into a Python float."""
+    import struct
+    if element_type == 4:
+        return struct.unpack("<e", (raw & 0xFFFF).to_bytes(2, "little"))[0]
+    if element_type == 5:
+        return struct.unpack("<f", ((raw & 0xFFFF) << 16).to_bytes(4, "little"))[0]
+    if element_type == 6:
+        return struct.unpack("<f", (raw & 0xFFFFFFFF).to_bytes(4, "little"))[0]
+    if element_type == 7:
+        return struct.unpack("<d", (raw & MASK64).to_bytes(8, "little"))[0]
+    raise ValueError(element_type)
+
+
+def fp_word(element_type):
+    return element_type << 29
