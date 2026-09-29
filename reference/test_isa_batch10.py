@@ -188,7 +188,7 @@ def test_matrix_load_store_respects_descriptor_strides():
 
 def test_matrix_store_preflights_before_mutating_memory():
     cpu = cpu_matrix()
-    cpu.write_reg(1, 0xFFC)
+    cpu.write_reg(1, len(cpu.memory) - 20)
     put_tile(cpu, 3, [[1, 2], [3, 4]])
 
     with pytest.raises(CorelessTrap) as exc:
