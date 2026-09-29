@@ -306,6 +306,35 @@ do not retire. Register operands carry operation-specific VM identifiers,
 capability handles, region identifiers, or payload descriptors. A guest cannot
 bypass VM isolation by directly addressing another VM's state.
 
+## Local Intelligence Architecture
+
+Coreless-64 defines a long-term target for a local intelligence subsystem that operates inside the Coreless computational environment. The subsystem is intended to assist the computer itself rather than serve only as an ordinary application.
+
+The local AI engine is not a replacement for deterministic CPU execution. The CPU remains authoritative for instruction execution, privilege enforcement, memory protection, traps, VM isolation, and security-critical architectural state.
+
+AI-assisted management may include scheduling, workload placement, resource allocation, memory/storage optimization, anomaly detection, and other functions explicitly exposed through an architectural control interface.
+
+All AI requests that could affect privileged state must pass through a deterministic policy/control boundary. The AI does not receive unrestricted authority over machine, hypervisor, memory-protection, or security state.
+
+Local models and the AI runtime are intended to be stored and executed within the Coreless environment. Remote AI services are not a required execution dependency.
+
+### AI and tensor execution
+
+The existing vector and matrix/AI extensions provide the computational foundation for a future local tensor runtime. The runtime should support locally stored model weights, tensor operations, quantized execution, and compatible Transformer model execution without making Python, PyTorch, or another host framework part of the Coreless CPU ISA.
+
+A future Transformers compatibility layer may translate supported model configurations and tensor graphs into Coreless tensor operations. This is a runtime/compatibility layer above the ISA, not a requirement that Transformer models become CPU instructions.
+
+### AI control boundary
+
+The architecture should eventually expose a controlled interface between the local AI engine and:
+- scheduler/resource manager;
+- VM/hypervisor management;
+- memory and storage management;
+- workload telemetry;
+- device/resource topology.
+
+Requests must be validated against deterministic policy and privilege rules before architectural state changes are committed.
+
 ## Compatibility
 
 Coreless-64 is the native ISA. x86-64 and ARM64 compatibility is provided above it through dynamic/static translation, emulation, guest operating systems, and virtualization.
