@@ -73,6 +73,8 @@ def test_csr_write_masks_to_64_bits():
 
 def test_interrupt_takes_before_instruction_without_retiring_it():
     cpu = CorelessCPU()
+    cpu.privilege = USER
+    cpu.csrs[0x000] = USER
     cpu.pc = 0x40
     cpu.csrs[0x003] = 0x100
     cpu.csrs[0x001] = (1 << 3)
