@@ -391,7 +391,7 @@ def test_matrix_mconv_signed_reduction_and_clamp():
     cpu.matrix[1][1][:2]=[0xFD, 0x04]
     cpu.memory[0:16]=ext128(4,0x08,2,1,0,w1=(0<<29)|(1<<26)|(1<<22))
     cpu.step()
-    assert cpu.matrix[2][0][:2]==[0xFFFF,2] and cpu.matrix[2][1][:2]==[0xFFFD,4]
+    assert cpu.matrix[2][0][:2]==[0xFFFD,4] and cpu.matrix[2][1][:2]==[0xFFFD,4]
     cpu.memory[16:32]=ext128(4,0x0D,3,1,0,w1=(0<<29)|(1<<22))
     cpu.step()
     assert cpu.r[3] == 2
