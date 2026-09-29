@@ -9,6 +9,7 @@ class VCPU:
     sp:int=0
     privilege:int=0
     halted:bool=False
+    inbox:list=field(default_factory=list)
 
 @dataclass
 class VM:
@@ -37,5 +38,5 @@ class Hypervisor:
     def snapshot(self,vmid):
         vm=self.vms[vmid]
         return {"vmid":vm.vmid,"memory_size":vm.memory_size,"running":vm.running,
-                "vcpus":[{"id":v.vcpu_id,"registers":v.registers[:],"pc":v.pc,"sp":v.sp,"privilege":v.privilege,"halted":v.halted} for v in vm.vcpus],
+                "vcpus":[{"id":v.vcpu_id,"registers":v.registers[:],"pc":v.pc,"sp":v.sp,"privilege":v.privilege,"halted":v.halted, "inbox":list(v.inbox)} for v in vm.vcpus],
                 "pending_interrupts":list(vm.pending_interrupts),"devices":list(vm.devices)}
