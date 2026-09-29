@@ -510,7 +510,7 @@ def test_scalar_fp_state_and_conversion_destination_type():
 def test_fstatus_rejects_unsupported_rounding():
     cpu=CorelessCPU()
     try:
-        cpu.write_csr(0x010,1)
+        cpu.write_csr(0x010,8)
     except CorelessTrap:
         return
     assert False, "unsupported FP rounding mode was accepted"
