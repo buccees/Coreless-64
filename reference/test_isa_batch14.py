@@ -67,7 +67,7 @@ def test_trap_records_faulting_pc_and_tval_without_retirement():
 def test_fence_is_an_architectural_retirement_point():
     cpu = CorelessCPU()
     cpu.pc = 0x20
-    cpu.memory[0x20:0x24] = sysword(f=4, operand=0x155).to_bytes(4, "little")
+    cpu.memory[0x20:0x24] = sysword(f=5, operand=0x155).to_bytes(4, "little")
     assert cpu.step()
     assert cpu.pc == 0x24
     assert cpu.instret == 1
@@ -75,7 +75,7 @@ def test_fence_is_an_architectural_retirement_point():
 def test_tlbflush_clears_all_cached_translations():
     cpu = CorelessCPU()
     cpu.tlb = {1: 0x1234, 7: 0x5678}
-    cpu.memory[0:4] = sysword(f=5).to_bytes(4, "little")
+    cpu.memory[0:4] = sysword(f=6).to_bytes(4, "little")
     assert cpu.step()
     assert cpu.tlb == {}
 
@@ -84,7 +84,7 @@ def test_tlbflush_requires_machine_privilege():
     cpu.privilege = SUPERVISOR
     cpu.tlb = {1: 0x1234}
     cpu.csrs[0x003] = 0x400
-    cpu.memory[0:4] = sysword(f=5).to_bytes(4, "little")
+    cpu.memory[0:4] = sysword(f=6).to_bytes(4, "little")
     cpu.step()
     assert cpu.pc == 0x400
     assert cpu.tlb == {1: 0x1234}
@@ -94,7 +94,7 @@ def test_tlbflushva_invalidates_only_selected_page():
     cpu = CorelessCPU()
     cpu.tlb = {1: 0x1234, 2: 0x5678}
     cpu.r[1] = 0x2000
-    cpu.memory[0:4] = sysword(rs1=1, f=6).to_bytes(4, "little")
+    cpu.memory[0:4] = sysword(rs1=1, f=7).to_bytes(4, "little")
     assert cpu.step()
     assert cpu.tlb == {1: 0x1234}
 
@@ -104,7 +104,7 @@ def test_tlbflushva_requires_machine_privilege():
     cpu.r[1] = 0x1000
     cpu.tlb = {1: 0x1234}
     cpu.csrs[0x003] = 0x500
-    cpu.memory[0:4] = sysword(rs1=1, f=6).to_bytes(4, "little")
+    cpu.memory[0:4] = sysword(rs1=1, f=7).to_bytes(4, "little")
     cpu.step()
     assert cpu.pc == 0x500
     assert cpu.tlb == {1: 0x1234}
@@ -113,7 +113,7 @@ def test_tlbflushva_requires_machine_privilege():
 def test_readcsr_and_writecsr_preserve_architectural_csr_semantics():
     cpu = CorelessCPU()
     cpu.r[1] = 0x12345678
-    cpu.memory[0:4] = sysword(rs1=1, f=7, operand=0x01).to_bytes(4, "little")
+    cpu.memory[0:4] = sysword(rs1=1, f=9, operand=0x01).to_bytes(4, "little")
     cpu.memory[4:8] = sysword(rd=2, f=8, operand=0x01).to_bytes(4, "little")
     assert cpu.step()
     assert cpu.step()
