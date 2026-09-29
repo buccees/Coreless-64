@@ -84,11 +84,11 @@ def test_variable_shifts_use_only_low_six_count_bits(name):
     elif name == "SHR":
         assert cpu.r[3] == 1 << 62
     elif name == "SAR":
-        assert cpu.r[3] == MASK64
+        assert cpu.r[3] == 0xC000000000000000
     elif name == "ROL":
         assert cpu.r[3] == 1
     else:
-        assert cpu.r[3] == 1
+        assert cpu.r[3] == 1 << 62
 
 
 def test_signed_and_unsigned_comparisons_are_distinct():
@@ -111,7 +111,7 @@ def test_immediate_integer_operations_mask_results():
     cpu._execute(("ADDI", 2, 1, 1))
     assert cpu.r[2] == 0
     cpu._execute(("SUBI", 2, 1, 2))
-    assert cpu.r[2] == MASK64 - 1
+    assert cpu.r[2] == MASK64 - 2
     cpu._execute(("ANDI", 2, 1, 0xF))
     assert cpu.r[2] == 0xF
     cpu._execute(("ORI", 2, 1, 0x10))
@@ -121,7 +121,7 @@ def test_immediate_integer_operations_mask_results():
 
 
 def test_load_store_widths_and_signedness():
-    cpu = CorelessCPU(memory_size=128)
+    cpu = CorelessCPU(memory_size=4096)
     cpu.r[1] = 32
     cpu.r[2] = 0x80FF
     cpu._execute(("ST16", 2, 1, 0))
@@ -182,7 +182,7 @@ def test_jumps_and_calls_return_architectural_next_pc():
     cpu._execute(("CALL", 1, 2, 0x40))
     assert cpu.r[1] == 0x204
     assert cpu.pc == 0x200
-    assert cpu._execute(("J", 0, 3, 0x80)) == 0x280
+    assert cpu._execute(("J", 0, 0, 0x80)) == 0x280
 
     cpu.r[4] = 0x900
     assert cpu._execute(("JR", 0, 4, 0x10)) == 0x910
