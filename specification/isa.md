@@ -277,6 +277,25 @@ VM_RECV, VM_GRANT, VM_REVOKE, VM_SHARE, and VM_UNSHARE. These operations are
 hypervisor-controlled and must preserve VM isolation regardless of the
 underlying storage or execution mechanism.
 
+### Hypervisor state-control baseline
+
+The hypervisor owns VM lifecycle and guest execution state. VM state is isolated
+by VMID and cannot be modified through another VM's state interface.
+
+The baseline control interface provides:
+- VM creation and destruction with explicit vCPU resource bounds;
+- start and stop of a VM;
+- save and restore of individual vCPU architectural state;
+- isolated virtual-interrupt injection;
+- revocation of IPC and shared-memory grants when a VM is destroyed.
+
+vCPU state includes its register file, PC, SP, privilege, halted state, and IPC
+queue. Register zero is always restored as zero. State restoration validates
+the complete register file and privilege domain before making it visible.
+
+A hypervisor implementation may use any physical storage or execution mechanism
+for these operations, but VMID is an architectural protection boundary.
+
 ## Compatibility
 
 Coreless-64 is the native ISA. x86-64 and ARM64 compatibility is provided above it through dynamic/static translation, emulation, guest operating systems, and virtualization.
