@@ -888,3 +888,95 @@ STATUS reports the current privilege. IP contains pending interrupt bits and IE 
 Interrupt pending state is cleared for the interrupt selected at entry. An interrupt does not increment INSTRET or advance the interrupted PC.
 
 The v0.x reference model uses bit positions directly as interrupt codes. Detailed interrupt prioritization, external interrupt routing, and timer/software interrupt sources remain implementation/interface work before v1.0.
+
+
+## Human-AI Terminal Management Interface
+
+The local intelligence architecture includes a first-class **Coreless terminal management interface**. The interface provides an interactive terminal experience through which a human can communicate directly with the local AI and jointly manage the Coreless environment.
+
+The terminal is a management-plane interface, not merely a chat application. It exposes permitted Coreless telemetry and management operations to the local AI through a deterministic control boundary.
+
+### Management flow
+
+```
+Human
+  |
+  v
+Coreless terminal / AI console
+  |
+  v
+Local AI session
+  |
+  v
+AI management interface
+  |
+  v
+Deterministic policy and authorization boundary
+  |
+  +-- scheduler
+  +-- VM/hypervisor
+  +-- CPU/vCPU resources
+  +-- memory / virtual RAM
+  +-- storage
+  +-- devices / networking
+  +-- AI/tensor resources
+```
+
+The local AI may inspect permitted telemetry, explain system state, propose changes, request human decisions, and perform policy-authorized management operations.
+
+Examples include:
+- asking which VM or workload is consuming resources;
+- requesting that a workload be prioritized;
+- asking why performance has changed;
+- requesting an allowed resource-allocation change;
+- asking the AI to optimize an allowed subsystem;
+- asking for a recommendation before applying a change.
+
+### Management authority
+
+The terminal conversation does not itself grant privilege. Every state-changing request is converted into a structured management action and evaluated by the deterministic Coreless control/policy boundary.
+
+The baseline management modes are:
+
+| Mode | Behavior |
+|---|---|
+| OBSERVE | AI may inspect permitted telemetry only |
+| RECOMMEND | AI may propose actions but cannot apply them |
+| ASK | AI requires human approval for configured action classes |
+| POLICY | AI may automatically perform actions explicitly authorized by policy |
+| SAFE | deterministic Coreless controls may force a safe state independently of AI |
+
+CPU privilege, MMU permissions, hypervisor authorization, capability checks, and other architectural protections remain authoritative.
+
+### Terminal/session requirements
+
+The Coreless management interface is intended to provide:
+- local interactive AI terminal access;
+- bounded persistent dialogue/session context;
+- natural-language requests plus structured management commands;
+- machine-readable action proposals and results;
+- explicit approval for ASK-controlled operations;
+- inspection and configuration of persistent management policies;
+- audit records for AI proposals, human decisions, policy-authorized actions, and resulting state changes;
+- cancellation/interruption of an AI management operation;
+- clear status indicating whether an interaction is informational, a recommendation, awaiting approval, or executed.
+
+The terminal must never provide a conversational bypass around Coreless privilege, memory protection, VM isolation, capability, or security boundaries.
+
+### Implementation relationship to MistralUX
+
+The intended user experience should follow the interactive local-AI terminal pattern already demonstrated by the project's MistralUX/Termux work. MistralUX is a design reference for the terminal/session experience, not a runtime dependency of Coreless.
+
+The Coreless implementation must use Coreless-native telemetry, authorization, management operations, and local model execution.
+
+### Architectural roadmap
+
+1. Freeze the terminal/session ABI.
+2. Define the structured AI action/proposal ABI.
+3. Define the telemetry contract exposed to local AI.
+4. Define OBSERVE/RECOMMEND/ASK/POLICY/SAFE authorization semantics.
+5. Define persistent management-policy storage.
+6. Define audit/event and cancellation semantics.
+7. Implement the terminal/session reference layer.
+8. Connect approved actions to scheduler, VM, memory, storage, device, and AI-resource controls.
+9. Add conformance tests for authorization, approval, rejection, cancellation, and audit behavior.
