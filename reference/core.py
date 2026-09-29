@@ -990,7 +990,7 @@ class CorelessCPU:
         elif name=="TLBFLUSHVA":
             if self.privilege < MACHINE:
                 raise CorelessTrap("privilege_violation", self.pc, self.read_reg(ins[1]))
-            self.tlb.pop(self.read_reg(ins[1]) >> 12, None)
+            self.tlb.pop(self.read_reg(ins[2]) >> 12, None)
         elif name=="READCSR":
             self.write_reg(ins[1], self.read_csr(ins[3] & 0xFFFF))
         elif name=="WRITECSR":
