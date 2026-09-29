@@ -53,7 +53,7 @@ def test_user_cannot_write_read_only_capability_csrs():
     for csr in (0x00A, 0x00B, 0x00C, 0x00D, 0x00E, 0x00F, 0x01F):
         with pytest.raises(CorelessTrap) as exc:
             cpu.write_csr(csr, 0x1234)
-        assert exc.value.cause == "privilege_violation" if csr in (0x00A, 0x00B, 0x00C, 0x00D, 0x00E, 0x00F, 0x01F) else True
+        assert exc.value.cause == "illegal_csr"
 
 
 def test_machine_configuration_is_privileged_and_writable():
