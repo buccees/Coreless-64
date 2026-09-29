@@ -509,8 +509,11 @@ def test_scalar_fp_state_and_conversion_destination_type():
 
 def test_fstatus_rejects_unsupported_rounding():
     cpu=CorelessCPU()
-    with pytest.raises(CorelessTrap):
+    try:
         cpu.write_csr(0x010,1)
+    except CorelessTrap:
+        return
+    assert False, "unsupported FP rounding mode was accepted"
 
 def test_scalar_floating_point_baseline_and_conversion():
     import struct
