@@ -1,7 +1,7 @@
 """Eleventh-wave Coreless-64 atomic/memory-ordering conformance batch."""
 import sys
 sys.path.insert(0, ".")
-from core import CorelessCPU, CorelessTrap
+from core import CorelessCPU
 
 def word(op, rd=0, rs1=0, rs2=0, f=0):
     return (op << 27) | (rd << 22) | (rs1 << 17) | (rs2 << 12) | f
@@ -96,11 +96,8 @@ def test_atomic_address_fault_is_precise():
     cpu = CorelessCPU()
     cpu.r[1] = len(cpu.memory) - 4
     cpu.r[2] = 9
-    with_exception = False
-    try:
-        run_atomic(cpu, 4, 1, 2, 0)
-    except CorelessTrap:
-        with_exception = True
-    assert not with_exception
-    assert cpu.pc == 4
-    assert mem(cpu) == 0
+    cpu.csrs[0x003] = 0x200
+    run_atomic(cpu, 4, 1, 2, 0)
+    assert cpu.pc == 0x200
+    assert cpu.csrs[0x006] == len(cpu.memory) - 4
+    assert int.from_bytes(cpu.memory[-8:], "little") == 0
