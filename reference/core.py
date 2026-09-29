@@ -141,6 +141,14 @@ class CorelessCPU:
             raise CorelessTrap("illegal_csr" if info is None else "privilege_violation", self.pc, csr)
         if csr == 0x010:
             return self.csrs[csr] & MASK64
+        if csr == 0x011:
+            return self.vector_vstart & MASK64
+        if csr == 0x012:
+            return self.vector_vl & MASK64
+        if csr == 0x013:
+            return self.vector_vtype & MASK64
+        if csr == 0x014:
+            return self.csrs[csr] & MASK64
         if csr == 0x00D:
             return self.cycle & MASK64
         if csr == 0x00E:
@@ -170,6 +178,19 @@ class CorelessCPU:
                 raise CorelessTrap("illegal_instruction", self.pc, value)
             self.fp_rounding = value & 0x7
             self.csrs[csr] = value & 0x7
+        elif csr == 0x011:
+            self.vector_vstart = value
+            self.csrs[csr] = value
+        elif csr == 0x012:
+            if value > len(self.vector[0]):
+                raise CorelessTrap("capability_resource_fault", self.pc, value)
+            self.vector_vl = value
+            self.csrs[csr] = value
+        elif csr == 0x013:
+            self.vector_vtype = value
+            self.csrs[csr] = value
+        elif csr == 0x014:
+            self.csrs[csr] = value
         elif csr == 0x002:
             self.pending_interrupts = value
             self.csrs[csr] = value
