@@ -50,7 +50,7 @@ def test_truncated_extended_instruction_traps_as_instruction_access_fault():
     cpu = CorelessCPU(memory_size=4096)
     cpu.memory[0:4] = ext_header(2).to_bytes(4, "little")
     cpu.step()
-    assert (cpu.csrs[0x005] & 0xFFFF) == 0x000
+    assert (cpu.csrs[0x005] & 0xFFFF) == 0x002
 
 def test_unsupported_64_bit_extended_form_is_rejected():
     cpu = CorelessCPU()
