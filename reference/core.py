@@ -424,6 +424,7 @@ class CorelessCPU:
                 # width determines the transfer size.
                 width = max(1, bits // 8)
                 for i in range(start, vl):
+                    self.vector_vstart = i
                     if not active(i):
                         if mask_zero and op == 0x20:
                             self.vector[rd][i] = 0
