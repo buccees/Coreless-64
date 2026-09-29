@@ -739,3 +739,50 @@ The ISA document is subordinate to the exact encoding and architectural-state de
 ## Floating-Point Baseline
 
 Coreless-64 floating-point operations support FP16, BF16, FP32, and FP64 where the corresponding capability is present. Arithmetic includes add, subtract, multiply, divide, fused multiply-add/subtract, minimum/maximum, comparisons, negation, absolute value, and conversion. FMA is fused and produces one final rounding. Rounding modes are RNE, RTZ, RDN, RUP, RMM, and dynamic. Exceptional conditions are reported through floating-point status and precise traps when enabled by the architectural control state. NaN propagation, signed zero, infinities, subnormals, and invalid operations follow the selected Coreless floating-point profile; implementations must advertise any profile extensions through capability discovery.
+
+## CSR and interrupt concrete baseline
+
+The reference v0.x architectural CSR map is:
+
+| CSR | Name | Access | Minimum privilege |
+|---:|---|---|---|
+| 0x000 | STATUS | rw | MACHINE |
+| 0x001 | IE | rw | MACHINE |
+| 0x002 | IP | rw | MACHINE |
+| 0x003 | TVEC | rw | MACHINE |
+| 0x004 | EPC | rw | MACHINE |
+| 0x005 | CAUSE | r | MACHINE |
+| 0x006 | TVAL | rw | MACHINE |
+| 0x007 | ROOT | rw | MACHINE |
+| 0x008 | ASID | rw | SUPERVISOR |
+| 0x009 | TLBCTL | rw | MACHINE |
+| 0x00A | CPU_ID | r | USER |
+| 0x00B | CPU_COUNT | r | USER |
+| 0x00C | CAP_BASE | r | USER |
+| 0x00D | TIME | r | USER |
+| 0x00E | CYCLE | r | USER |
+| 0x00F | INSTRET | r | USER |
+| 0x010 | FSTATUS | rw | USER |
+| 0x011 | VSTART | rw | USER |
+| 0x012 | VL | rw | USER |
+| 0x013 | VTYPE | rw | USER |
+| 0x014 | VCSR | rw | USER |
+| 0x015 | MSTATUS | rw | SUPERVISOR |
+| 0x016 | VMSPEC | r | HYPERVISOR |
+| 0x017 | VROOT | rw | HYPERVISOR |
+| 0x018 | VMID | rw | HYPERVISOR |
+| 0x019 | VMCTL | rw | HYPERVISOR |
+| 0x01A | IBASE | rw | SUPERVISOR |
+| 0x01B | IPRIO | rw | SUPERVISOR |
+| 0x01C | FENCECTL | rw | MACHINE |
+| 0x01D | BOOT_STATUS | r | MACHINE |
+| 0x01E | MACHINE_CFG | rw | MACHINE |
+| 0x01F | ARCH_ID | r | USER |
+
+CSR accesses below the required privilege trap with privilege_violation. Writes to read-only CSRs trap with illegal_csr. Unknown CSR numbers trap with illegal_csr.
+
+STATUS reports the current privilege. IP contains pending interrupt bits and IE contains enabled interrupt bits. If an enabled interrupt is pending, the lowest-numbered pending enabled bit is taken before the next instruction executes. Interrupt entry saves EPC as the current PC, marks the CAUSE high bit as an interrupt, disables interrupt-enable state, enters supervisor privilege, and transfers to TVEC. RETX restores the saved privilege and interrupt-enable state and resumes at EPC.
+
+Interrupt pending state is cleared for the interrupt selected at entry. An interrupt does not increment INSTRET or advance the interrupted PC.
+
+The v0.x reference model uses bit positions directly as interrupt codes. Detailed interrupt prioritization, external interrupt routing, and timer/software interrupt sources remain implementation/interface work before v1.0.
