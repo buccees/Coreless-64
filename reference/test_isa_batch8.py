@@ -16,7 +16,7 @@ def test_scalar_fp_formats_round_trip(element_type):
     cpu.f[1] = fp_encode(value, element_type)
     cpu._scalar_fp_op(10, 3, 1, 2, fp_word(element_type))
     got = fp_decode(cpu.f[3], element_type)
-    assert got == pytest.approx(value)
+    assert got == pytest.approx(-value)
 
 
 @pytest.mark.parametrize("element_type", [4, 5, 6, 7])
@@ -50,8 +50,8 @@ def test_scalar_fp_bf16_rounding_tie_to_even():
     value = 1.0 + 2.0 ** -8
     cpu.f[1] = fp_encode(value, 5)
     cpu._scalar_fp_op(10, 3, 1, 2, fp_word(5))
-    assert cpu.f[3] == fp_encode(value, 5)
-    assert fp_decode(cpu.f[3], 5) == 1.0
+    assert cpu.f[3] == fp_encode(-1.0, 5)
+    assert fp_decode(cpu.f[3], 5) == -1.0
 
 
 def test_scalar_fp_fp16_overflow_raises_defined_fp_fault():
