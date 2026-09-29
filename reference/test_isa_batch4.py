@@ -12,13 +12,14 @@ import pytest
 from core import CorelessCPU, USER, SUPERVISOR, HYPERVISOR, MACHINE, CorelessTrap
 
 
-def test_status_csr_tracks_current_privilege():
+def test_status_csr_is_machine_only():
     cpu = CorelessCPU()
     assert cpu.read_csr(0x000) == MACHINE
-    cpu.privilege = USER
-    assert cpu.read_csr(0x000) == USER
-    cpu.privilege = SUPERVISOR
-    assert cpu.read_csr(0x000) == SUPERVISOR
+    for privilege in (USER, SUPERVISOR, HYPERVISOR):
+        cpu.privilege = privilege
+        with pytest.raises(CorelessTrap) as exc:
+            cpu.read_csr(0x000)
+        assert exc.value.cause == "privilege_violation"
 
 
 def test_status_write_changes_privilege_and_status():
@@ -26,7 +27,9 @@ def test_status_write_changes_privilege_and_status():
     cpu.write_csr(0x000, USER)
     assert cpu.privilege == USER
     assert cpu.csrs[0x000] == USER
-    assert cpu.read_csr(0x000) == USER
+    with pytest.raises(CorelessTrap) as exc:
+        cpu.read_csr(0x000)
+    assert exc.value.cause == "privilege_violation"
 
 
 def test_pending_interrupt_csr_is_live_state():
@@ -73,11 +76,12 @@ def test_retx_restores_saved_state_exactly():
     cpu.pc = 0x44
     cpu._enter_trap(CorelessTrap("breakpoint", 0x44, 9))
     assert cpu.privilege == SUPERVISOR
-    cpu._execute(("RETX",))
+    next_pc = cpu._execute(("RETX",))
     assert cpu.privilege == USER
     assert cpu.csrs[0x000] == USER
     assert cpu.csrs[0x001] == 0x2A
-    assert cpu.pc == 0x44
+    assert next_pc == 0x44
+    assert cpu.pc == 0x500
 
 
 def test_retx_is_rejected_from_user_mode():
