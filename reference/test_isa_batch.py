@@ -1,4 +1,5 @@
-import sys, struct, math, tempfile\nimport pytest
+import sys, struct, math, tempfile
+import pytest
 sys.path.insert(0, ".")
 
 from core import CorelessCPU, MACHINE, SUPERVISOR, USER
