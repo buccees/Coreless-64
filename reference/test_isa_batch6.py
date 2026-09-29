@@ -153,7 +153,7 @@ def test_load_store_64_bit_round_trip():
 
 @pytest.mark.parametrize("size", [2, 4, 8])
 def test_misaligned_scalar_access_traps(size):
-    cpu = CorelessCPU(memory_size=128)
+    cpu = CorelessCPU(memory_size=aligned_memory_size())
     cpu.r[1] = 17
     with pytest.raises(CorelessTrap) as exc:
         cpu.load_u(cpu.r[1], size)
