@@ -1,4 +1,5 @@
 import sys;sys.path.insert(0,".")
+import pytest
 from virtualization import Hypervisor
 def test_vm_lifecycle_and_interrupt():
     h=Hypervisor(4); vm=h.create_vm(1<<20,2); h.inject_interrupt(vm.vmid,7); h.run(vm.vmid)
