@@ -279,7 +279,7 @@ Before freeze:
 13. debug behavior
 14. machine configuration interface
 
-## Vector and matrix semantic baseline
+\n### Scalar floating-point concrete baseline\n\nScalar FP uses F0-F31 and extended class 2. w1[31:29] selects FP16/BF16/FP32/FP64; w1[28:26] selects the FCVT destination type. Operations: 0 FADD, 1 FSUB, 2 FMUL, 3 FDIV, 4 FMIN, 5 FMAX, 6 FCMP_EQ, 7 FCMP_LT, 8 FFMA, 9 FFMS, 10 FNEG, 11 FABS, 12 FCVT. The reference baseline uses round-to-nearest-even and rejects unsupported nonzero rounding control. Integer conversion uses w1 bit 0 for signedness and bit 1 for saturation.\n\n## Vector and matrix semantic baseline
 
 Status: Draft — hardware-oriented semantic definition
 

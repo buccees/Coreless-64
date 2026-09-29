@@ -92,6 +92,8 @@ class CorelessCPU:
 
     def __init__(self, memory_size=65536, storage=None, memory_name="ram0", memory=None):
         self.r = [0] * 32
+        self.f = [0] * 32
+        self.fp_rounding = 0
         self.pc = 0
         self.sp = 0
         from memory import VirtualRAM
@@ -590,6 +592,56 @@ class CorelessCPU:
             self.vector[rd][i] = z & ((1 << dst_bits) - 1) if op == 0x17 else z & (mod - 1)
 
         self.vector_vstart = 0
+
+    def _scalar_fp_op(self, op, rd, rs1, rs2, w1):
+        """Execute the Coreless-64 scalar FP baseline."""
+        import math, struct
+        et=(w1>>29)&7
+        if et not in (4,5,6,7): raise CorelessTrap("illegal_instruction",self.pc,et)
+        if self.fp_rounding != 0: raise CorelessTrap("illegal_instruction",self.pc,self.fp_rounding)
+        def dec(raw):
+            if et==4: return struct.unpack("<e",(raw&0xffff).to_bytes(2,"little"))[0]
+            if et==5: return struct.unpack("<f",((raw&0xffff)<<16).to_bytes(4,"little"))[0]
+            if et==6: return struct.unpack("<f",(raw&0xffffffff).to_bytes(4,"little"))[0]
+            return struct.unpack("<d",(raw&MASK64).to_bytes(8,"little"))[0]
+        def enc(v):
+            if et==4: return int.from_bytes(struct.pack("<e",float(v)),"little")
+            if et==5:
+                raw=int.from_bytes(struct.pack("<f",float(v)),"little"); low,high=raw&0xffff,raw>>16
+                if low>0x8000 or (low==0x8000 and (high&1)): high=(high+1)&0xffff
+                return high
+            if et==6: return int.from_bytes(struct.pack("<f",float(v)),"little")
+            return int.from_bytes(struct.pack("<d",float(v)),"little")
+        a,b=dec(self.f[rs1]),dec(self.f[rs2]); acc=dec(self.f[rd])
+        try:
+            if op==0: z=a+b
+            elif op==1: z=a-b
+            elif op==2: z=a*b
+            elif op==3:
+                if b==0.0 and a==0.0: z=float("nan")
+                elif b==0.0: z=math.copysign(float("inf"),a*b)
+                else: z=a/b
+            elif op==4: z=b if math.isnan(a) else a if math.isnan(b) else min(a,b)
+            elif op==5: z=b if math.isnan(a) else a if math.isnan(b) else max(a,b)
+            elif op==6: self.write_reg(rd,int(not math.isnan(a) and not math.isnan(b) and a==b)); return
+            elif op==7: self.write_reg(rd,int(not math.isnan(a) and not math.isnan(b) and a<b)); return
+            elif op==8: z=a*b+acc
+            elif op==9: z=acc-a*b
+            elif op==10: z=-a
+            elif op==11: z=abs(a)
+            elif op==12:
+                dst=(w1>>26)&7; db=(8,16,32,64,16,16,32,64)[dst]; signed=bool(w1&1); sat=bool(w1&2)
+                if dst in (4,5,6,7): self.f[rd]=enc(a); return
+                if math.isnan(a) or math.isinf(a): z=(1<<(db-1))-1 if signed else (1<<db)-1
+                else:
+                    z=int(a); lo=-(1<<(db-1)) if signed else 0; hi=(1<<(db-1))-1 if signed else (1<<db)-1
+                    if sat: z=max(lo,min(hi,z))
+                self.write_reg(rd,z); return
+            else: raise CorelessTrap("illegal_instruction",self.pc,op)
+        except (OverflowError,struct.error,ZeroDivisionError):
+            raise CorelessTrap("floating_point_fault",self.pc,op)
+        self.f[rd]=enc(z)
+
     def _matrix_op(self, op, rd, rs1, rs2, w1, w2, w3):
         """Execute the deterministic Coreless matrix/AI baseline.
 
@@ -931,7 +983,9 @@ class CorelessCPU:
                 words = [int.from_bytes(self.memory[self._phys(self.pc+i, "read", execute=True):self._phys(self.pc+i, "read", execute=True)+4], "little") for i in (4,8,12)]
                 cls, op, rd, rs1, rs2, fmt = h
                 if fmt != 2: raise CorelessTrap("instruction_encoding_fault", self.pc, fmt)
-                if cls == 3:
+                if cls == 2:
+                    self._scalar_fp_op(op, rd, rs1, rs2, words[0])
+                elif cls == 3:
                     self._vector_op(cls, op, rd, rs1, rs2, words[0])
                 elif cls == 4:
                     self._matrix_op(op, rd, rs1, rs2, words[0], words[1], words[2])

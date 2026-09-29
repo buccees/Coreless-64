@@ -494,3 +494,31 @@ def test_matrix_transform_and_data_movement():
     cpu.step()
     assert cpu.matrix[6][0][:2] == [0xFE,5]
     assert cpu.matrix[6][1][:2] == [10,10]
+
+
+def test_scalar_floating_point_baseline_and_conversion():
+    import struct
+    cpu=CorelessCPU()
+    def f32(x): return int.from_bytes(struct.pack("<f",x),"little")
+    def u32(x): return struct.unpack("<f",x.to_bytes(4,"little"))[0]
+    cpu.f[1]=f32(1.5); cpu.f[2]=f32(2.0)
+    cpu.memory[0:16]=ext128(2,0x00,3,1,2,w1=(6<<29)); cpu.step()
+    assert abs(u32(cpu.f[3])-3.5)<1e-6
+    cpu.memory[16:32]=ext128(2,0x08,4,1,2,w1=(6<<29)); cpu.f[4]=f32(1.0); cpu.step()
+    assert abs(u32(cpu.f[4])-4.0)<1e-6
+    cpu.memory[32:48]=ext128(2,0x06,5,1,2,w1=(6<<29)); cpu.step()
+    assert cpu.r[5]==1
+    cpu.f[1]=f32(-2.5)
+    cpu.memory[48:64]=ext128(2,0x0C,6,1,0,w1=(6<<29)|(1<<26)|1); cpu.step()
+    assert cpu.r[6] == 0xFFFFFFFE
+
+def test_scalar_floating_point_edge_and_illegal_rounding():
+    import struct
+    cpu=CorelessCPU()
+    def f32(x): return int.from_bytes(struct.pack("<f",x),"little")
+    def u32(x): return struct.unpack("<f",x.to_bytes(4,"little"))[0]
+    cpu.f[1]=f32(float("nan")); cpu.f[2]=f32(1.0)
+    cpu.memory[0:16]=ext128(2,0x04,3,1,2,w1=(6<<29)); cpu.step()
+    assert u32(cpu.f[3]) == 1.0
+    cpu.memory[16:32]=ext128(2,0x00,3,1,2,w1=(6<<29)|(1<<8)); cpu.step()
+    assert (cpu.csrs[0x005]&0xffff)==0x002
