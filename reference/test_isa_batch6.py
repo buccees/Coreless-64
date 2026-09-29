@@ -8,7 +8,8 @@ sys.path.insert(0, ".")
 
 import pytest
 
-from core import CorelessCPU, CorelessTrap, MASK64\nfrom isa_expect import (\n    scalar_binary, immediate, branch_target, jump_target, effective_address,\n    aligned_memory_size,\n)
+from core import CorelessCPU, CorelessTrap, MASK64
+from isa_expect import scalar_binary, branch_target, jump_target, aligned_memory_size\nfrom isa_expect import (\n    scalar_binary, immediate, branch_target, jump_target, effective_address,\n    aligned_memory_size,\n)
 
 
 def test_r0_is_hardwired_zero():
@@ -26,17 +27,17 @@ def test_integer_arithmetic_wraps_to_64_bits():
     cpu.r[1] = MASK64
     cpu.r[2] = 1
     cpu._execute(("ADD", 3, 1, 2))
-    assert cpu.r[3] == 0
+    assert cpu.r[3] == scalar_binary("ADD", MASK64, 1)
 
     cpu.r[1] = 0
     cpu.r[2] = 1
     cpu._execute(("SUB", 3, 1, 2))
-    assert cpu.r[3] == MASK64
+    assert cpu.r[3] == scalar_binary("SUB", 0, 1)
 
     cpu.r[1] = MASK64
     cpu.r[2] = 2
     cpu._execute(("MUL", 3, 1, 2))
-    assert cpu.r[3] == MASK64 - 1
+    assert cpu.r[3] == scalar_binary("MUL", MASK64, 2)
 
 
 def test_signed_and_unsigned_division_and_remainder():
@@ -45,14 +46,14 @@ def test_signed_and_unsigned_division_and_remainder():
     cpu.r[2] = 3
 
     cpu._execute(("DIV", 3, 1, 2))
-    assert cpu.r[3] == (-2) & MASK64
+    assert cpu.r[3] == scalar_binary("DIV", (-7) & MASK64, 3)
     cpu._execute(("REM", 3, 1, 2))
-    assert cpu.r[3] == (-1) & MASK64
+    assert cpu.r[3] == scalar_binary("REM", (-7) & MASK64, 3)
 
     cpu._execute(("UDIV", 3, 1, 2))
-    assert cpu.r[3] == ((1 << 64) - 7) // 3
+    assert cpu.r[3] == scalar_binary("UDIV", (-7) & MASK64, 3)
     cpu._execute(("UREM", 3, 1, 2))
-    assert cpu.r[3] == ((1 << 64) - 7) % 3
+    assert cpu.r[3] == scalar_binary("UREM", (-7) & MASK64, 3)
 
 
 @pytest.mark.parametrize("name", ["DIV", "UDIV", "REM", "UREM"])
@@ -139,7 +140,7 @@ def test_load_store_widths_and_signedness():
 
 
 def test_load_store_64_bit_round_trip():
-    cpu = CorelessCPU(memory_size=4096)
+    cpu = CorelessCPU(memory_size=aligned_memory_size())
     cpu.r[1] = 64
     cpu.r[2] = 0xFEDCBA9876543210
     cpu._execute(("ST64", 2, 1, 0))
