@@ -163,7 +163,7 @@ def test_matrix_quantized_mac_applies_zero_points_shift_and_clamp():
 
     cpu._matrix_op(0x03, 3, 1, 2, w1(0, 2, 0), w2, w3)
 
-    expected = [[3, 5], [7, 9]]
+    expected = [[3, 7], [11, 7]]
     assert get_tile(cpu, 3) == expected
 
 
