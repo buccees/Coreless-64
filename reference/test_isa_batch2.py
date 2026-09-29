@@ -82,7 +82,8 @@ def test_extended_header_formats_are_visible_to_stream_decoder():
 def test_syscall_encoding_covers_full_immediate_range():
     assert decode(encode_syscall(0))[0] == "SYSCALL"
     assert decode(encode_syscall(2047))[0] == "SYSCALL"
-    expect_illegal(lambda: encode_syscall(2048))
+    with pytest.raises(ValueError):
+        encode_syscall(2048)
 
 
 def test_syscall_user_trap_round_trip_preserves_pc():
