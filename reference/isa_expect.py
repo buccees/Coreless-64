@@ -123,3 +123,33 @@ def effective_address(base, immediate_value):
 def aligned_memory_size(minimum=4096, page_size=4096):
     """Return the smallest valid page-aligned memory size >= minimum."""
     return ((minimum + page_size - 1) // page_size) * page_size
+
+
+def fp64_binary(name, a, b, acc=0.0):
+    """Independent FP64 oracle for the scalar architectural baseline."""
+    import math
+    if name == "FADD":
+        return a + b
+    if name == "FSUB":
+        return a - b
+    if name == "FMUL":
+        return a * b
+    if name == "FDIV":
+        if b == 0.0:
+            if a == 0.0:
+                return float("nan")
+            return math.copysign(float("inf"), a * b)
+        return a / b
+    if name == "FMIN":
+        return b if math.isnan(a) else a if math.isnan(b) else (-0.0 if a == b == 0.0 else min(a, b))
+    if name == "FMAX":
+        return b if math.isnan(a) else a if math.isnan(b) else (0.0 if a == b == 0.0 else max(a, b))
+    if name == "FFMA":
+        return a * b + acc
+    if name == "FFMS":
+        return acc - a * b
+    if name == "FNEG":
+        return -a
+    if name == "FABS":
+        return abs(a)
+    raise ValueError(name)
