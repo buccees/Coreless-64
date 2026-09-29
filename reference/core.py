@@ -647,6 +647,7 @@ class CorelessCPU:
             else: raise CorelessTrap("illegal_instruction",self.pc,op)
         except (OverflowError,struct.error,ZeroDivisionError):
             raise CorelessTrap("floating_point_fault",self.pc,op)
+            
         self.f[rd]=enc(z)
 
     def _matrix_op(self, op, rd, rs1, rs2, w1, w2, w3):
