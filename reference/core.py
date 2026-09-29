@@ -124,6 +124,7 @@ class CorelessCPU:
         self._trap_saved_ie = 0
         self.syscall_handler = None  # legacy compatibility; SYSCALL no longer bypasses traps
         self.supervisor_trap_handler = None
+        self.vm_handler = None
 
     def reset(self):
         """Return architectural state to the defined power-on reset state.
@@ -967,6 +968,12 @@ class CorelessCPU:
             next_pc=target
         elif name=="NOP": pass
         elif name=="ATOMIC": self._atomic(ins)
+        elif name in ("VM_SEND","VM_RECV","VM_GRANT","VM_REVOKE","VM_SHARE","VM_UNSHARE"):
+            if self.privilege < HYPERVISOR or self.vm_handler is None:
+                raise CorelessTrap("virtualization_fault", self.pc, {"VM_SEND":0,"VM_RECV":1,"VM_GRANT":2,"VM_REVOKE":3,"VM_SHARE":4,"VM_UNSHARE":5}[name])
+            result = self.vm_handler(self, name, ins[1], ins[2], ins[3])
+            if result is not None:
+                self.write_reg(ins[1], result)
         elif name=="HALT":
             self.halted=True
         elif name=="WAIT":
