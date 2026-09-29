@@ -63,7 +63,7 @@ class CorelessMachine:
     @staticmethod
     def _cpu_state(cpu):
         return {
-            "r": cpu.r[:], "pc": cpu.pc, "sp": cpu.sp,
+            "r": cpu.r[:], "f": cpu.f[:], "fp_rounding": cpu.fp_rounding, "pc": cpu.pc, "sp": cpu.sp,
             "privilege": cpu.privilege, "halted": cpu.halted,
             "cycle": cpu.cycle, "instret": cpu.instret,
             "csrs": {str(k): v for k, v in cpu.csrs.items()},
@@ -78,6 +78,8 @@ class CorelessMachine:
 
     def _restore_cpu_state(self, cpu, state):
         cpu.r = list(state.get("r", cpu.r)); cpu.r[0] = 0
+        cpu.f = list(state.get("f", cpu.f))
+        cpu.fp_rounding = state.get("fp_rounding", cpu.fp_rounding)
         cpu.pc = state.get("pc", cpu.pc); cpu.sp = state.get("sp", cpu.sp)
         cpu.privilege = state.get("privilege", cpu.privilege)
         cpu.halted = state.get("halted", cpu.halted)

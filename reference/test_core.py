@@ -496,6 +496,22 @@ def test_matrix_transform_and_data_movement():
     assert cpu.matrix[6][1][:2] == [10,10]
 
 
+def test_scalar_fp_state_and_conversion_destination_type():
+    import struct
+    cpu=CorelessCPU()
+    def f32(x): return int.from_bytes(struct.pack("<f",x),"little")
+    cpu.f[1]=f32(1.5)
+    cpu.memory[0:16]=ext128(2,0x0C,2,1,0,w1=(6<<29)|(7<<26)); cpu.step()
+    assert struct.unpack("<d",cpu.f[2].to_bytes(8,"little"))[0] == 1.5
+    cpu.f[3]=f32(2.0); cpu.f[4]=f32(3.0)
+    cpu.memory[16:32]=ext128(2,0x00,5,3,4,w1=(6<<29)); cpu.step()
+    assert struct.unpack("<f",cpu.f[5].to_bytes(4,"little"))[0] == 5.0
+
+def test_fstatus_rejects_unsupported_rounding():
+    cpu=CorelessCPU()
+    with pytest.raises(CorelessTrap):
+        cpu.write_csr(0x010,1)
+
 def test_scalar_floating_point_baseline_and_conversion():
     import struct
     cpu=CorelessCPU()

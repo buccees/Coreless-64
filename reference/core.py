@@ -139,6 +139,8 @@ class CorelessCPU:
         info = self._csr_info(csr)
         if info is None or self.privilege < info[2]:
             raise CorelessTrap("illegal_csr" if info is None else "privilege_violation", self.pc, csr)
+        if csr == 0x010:
+            return self.csrs[csr] & MASK64
         if csr == 0x00D:
             return self.cycle & MASK64
         if csr == 0x00E:
@@ -163,6 +165,11 @@ class CorelessCPU:
         if csr == 0x000:
             self.privilege = value & 0x3
             self.csrs[csr] = self.privilege
+        elif csr == 0x010:
+            if value & ~0x7:
+                raise CorelessTrap("illegal_instruction", self.pc, value)
+            self.fp_rounding = value & 0x7
+            self.csrs[csr] = value & 0x7
         elif csr == 0x002:
             self.pending_interrupts = value
             self.csrs[csr] = value
@@ -598,19 +605,19 @@ class CorelessCPU:
         import math, struct
         et=(w1>>29)&7
         if et not in (4,5,6,7): raise CorelessTrap("illegal_instruction",self.pc,et)
-        if ((w1 >> 8) & 7) != 0: raise CorelessTrap("illegal_instruction",self.pc,(w1 >> 8) & 7)
+        if ((w1 >> 8) & 7) != 0 or (self.fp_rounding & 7) != 0: raise CorelessTrap("illegal_instruction",self.pc,((w1 >> 8) & 7) or (self.fp_rounding & 7))
         def dec(raw):
             if et==4: return struct.unpack("<e",(raw&0xffff).to_bytes(2,"little"))[0]
             if et==5: return struct.unpack("<f",((raw&0xffff)<<16).to_bytes(4,"little"))[0]
             if et==6: return struct.unpack("<f",(raw&0xffffffff).to_bytes(4,"little"))[0]
             return struct.unpack("<d",(raw&MASK64).to_bytes(8,"little"))[0]
-        def enc(v):
-            if et==4: return int.from_bytes(struct.pack("<e",float(v)),"little")
-            if et==5:
+        def enc(v, typ=et):
+            if typ==4: return int.from_bytes(struct.pack("<e",float(v)),"little")
+            if typ==5:
                 raw=int.from_bytes(struct.pack("<f",float(v)),"little"); low,high=raw&0xffff,raw>>16
                 if low>0x8000 or (low==0x8000 and (high&1)): high=(high+1)&0xffff
                 return high
-            if et==6: return int.from_bytes(struct.pack("<f",float(v)),"little")
+            if typ==6: return int.from_bytes(struct.pack("<f",float(v)),"little")
             return int.from_bytes(struct.pack("<d",float(v)),"little")
         a,b=dec(self.f[rs1]),dec(self.f[rs2]); acc=dec(self.f[rd])
         try:
@@ -621,8 +628,8 @@ class CorelessCPU:
                 if b==0.0 and a==0.0: z=float("nan")
                 elif b==0.0: z=math.copysign(float("inf"),a*b)
                 else: z=a/b
-            elif op==4: z=b if math.isnan(a) else a if math.isnan(b) else min(a,b)
-            elif op==5: z=b if math.isnan(a) else a if math.isnan(b) else max(a,b)
+            elif op==4: z=b if math.isnan(a) else a if math.isnan(b) else (-0.0 if a == b == 0.0 else min(a,b))
+            elif op==5: z=b if math.isnan(a) else a if math.isnan(b) else (0.0 if a == b == 0.0 else max(a,b))
             elif op==6: self.write_reg(rd,int(not math.isnan(a) and not math.isnan(b) and a==b)); return
             elif op==7: self.write_reg(rd,int(not math.isnan(a) and not math.isnan(b) and a<b)); return
             elif op==8: z=a*b+acc
@@ -631,7 +638,7 @@ class CorelessCPU:
             elif op==11: z=abs(a)
             elif op==12:
                 dst=(w1>>26)&7; db=(8,16,32,64,16,16,32,64)[dst]; signed=bool(w1&1); sat=bool(w1&2)
-                if dst in (4,5,6,7): self.f[rd]=enc(a); return
+                if dst in (4,5,6,7): self.f[rd]=enc(a,dst); return
                 if math.isnan(a) or math.isinf(a): z=(1<<(db-1))-1 if signed else (1<<db)-1
                 else:
                     z=int(a); lo=-(1<<(db-1)) if signed else 0; hi=(1<<(db-1))-1 if signed else (1<<db)-1
