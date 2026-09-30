@@ -6,6 +6,7 @@ from ai.local_runtime import (
     LocalModelSpec,
     LocalOpenAICompatibleCore,
     build_default_local_cores,
+    register_default_local_cores,
 )
 
 
@@ -55,3 +56,4 @@ def test_default_local_factory_builds_all_selected_cores_without_network():
         "gemma",
         "codestral",
     )
+\n\ndef test_default_local_cores_register_with_common_registry():\n    from ai.registry import AICoreRegistry\n\n    registry = AICoreRegistry()\n    ids = register_default_local_cores(registry, endpoint="http://local.test/v1")\n    assert ids == ("qwen3", "deepseek", "gpt-oss", "gemma", "codestral")\n    assert registry.enabled_cores() == ids\n
