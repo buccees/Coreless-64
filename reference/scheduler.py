@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Protocol
+import threading
 
 from ai.compute_fabric import AIComputeFabric, ComputeResult, ComputeWork
 
@@ -30,6 +31,7 @@ class MachineScheduler:
     def __init__(self) -> None:
         self._resources: dict[str, MachineComputeResource] = {}
         self._load: dict[str, int] = {}
+        self._lock = threading.Lock()
 
     def register(self, resource: MachineComputeResource) -> None:
         if resource.resource_id in self._resources:
@@ -81,11 +83,10 @@ class MachineScheduler:
 
     def execute(self, work: ComputeWork, *, preference="balanced",
                 allow_fallback=True) -> tuple[ComputeResult, Allocation]:
-        resource, fallback = self.allocate(
-            work, preference=preference, allow_fallback=allow_fallback
-        )
-        primary_id = resource.resource_id
-        self._load[primary_id] += 1
+        with self._lock:
+            resource, fallback = self.allocate(work, preference=preference, allow_fallback=allow_fallback)
+            primary_id = resource.resource_id
+            self._load[primary_id] += 1
         try:
             try:
                 result = resource.execute(work)
@@ -106,19 +107,22 @@ class MachineScheduler:
                 )
                 if not alternatives:
                     raise
-                fallback_resource = alternatives[0]
-                self._load[fallback_resource.resource_id] += 1
+                with self._lock:
+                    fallback_resource = alternatives[0]
+                    self._load[fallback_resource.resource_id] += 1
                 try:
                     result = fallback_resource.execute(work)
                 finally:
-                    self._load[fallback_resource.resource_id] -= 1
+                    with self._lock:
+                        self._load[fallback_resource.resource_id] -= 1
                 resource = fallback_resource
                 fallback = True
             return result, Allocation(
                 work.work_id, resource.resource_id, resource.kind, fallback
             )
         finally:
-            self._load[primary_id] -= 1
+            with self._lock:
+                self._load[primary_id] -= 1
 
     @staticmethod
     def _supports(resource, work) -> bool:
