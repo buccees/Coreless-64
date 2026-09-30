@@ -81,7 +81,7 @@ class MachineScheduler:
             if self.telemetry is not None:
                 snapshot = self.telemetry.snapshot()
                 source = snapshot.cpu if resource.kind == "conventional" else snapshot.workloads
-                external = float(source.get(resource.resource_id, 0.0))
+                external = max(0.0, float(source.get(resource.resource_id, 0.0)))
             return (load_ratio + external, load_ratio, external, resource.resource_id)
 
         return min(available, key=score)
