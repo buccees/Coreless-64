@@ -43,3 +43,14 @@ def test_existing_machine_components_remain_available_with_ai():
     assert machine.graphics is not None
     assert machine.devices.discover()
     assert machine.ai_fabric.resources() == ()
+
+
+def test_machine_scheduler_publishes_telemetry():
+    from machine_runtime import CorelessMachine
+
+    machine = CorelessMachine(memory_size=4096)
+    snapshot = machine.publish_telemetry()
+
+    assert "cpu-0" in snapshot.cpu
+    assert snapshot.memory["ram_bytes"] == 4096
+    assert snapshot.storage["objects"] >= 0
