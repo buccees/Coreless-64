@@ -65,3 +65,22 @@ def test_all_cores_can_execute_work_without_specialty_lock_in():
     registry.register(FakeCore("codestral"))
     results = WorkDistributor(registry).execute((item(1), item(2)))
     assert {result.result.model_id for result in results} == {"gemma", "codestral"}
+
+def test_max_workers_limits_concurrency_without_disabling_cores():
+    registry = AICoreRegistry()
+    for model in ("a", "b", "c"):
+        registry.register(Core(model))
+    distributor = WorkDistributor(registry, max_workers=1)
+    items = [WorkItem(str(i), AIRequest(str(i), "x", {})) for i in range(3)]
+    results = distributor.execute(items)
+    assert len(results) == 3
+    assert all(item.result is not None for item in results)
+
+
+def test_work_distribution_can_be_cancelled():
+    registry = AICoreRegistry()
+    registry.register(Core("a"))
+    distributor = WorkDistributor(registry)
+    items = [WorkItem("1", AIRequest("1", "x", {}))]
+    results = distributor.execute(items, cancelled=lambda: True)
+    assert results == ()
