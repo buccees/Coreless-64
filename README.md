@@ -154,3 +154,37 @@ python3 scripts/live-inference.py
 ```
 
 The runner sends one request through the same `AICoreRegistry` and `NestCoordinator` used by 314DNest, prints each live model response, reports failures independently, and shows the resulting group state. A response is never an authorization token; protected actions remain subject to the deterministic policy boundary.
+
+
+---
+
+# 🚧 **CORELESS TEST ENVIRONMENT REQUIRED**
+
+**LIVE INFERENCE CANNOT BE RUN YET UNTIL A TEST ENVIRONMENT EXISTS.**
+
+Coreless is currently a software/reference implementation. A tester needs a machine, VM, or other supported persistent-storage environment on which to install and execute Coreless before live local AI inference can be validated.
+
+**Do not treat the repository's CI tests as live Coreless execution.** CI validates the reference implementation; live inference requires an actual Coreless runtime environment with the local AI runtime and model weights available.
+
+### What a tester needs
+
+- Persistent storage for the Coreless environment
+- A supported host/boot environment capable of starting the Coreless execution engine
+- Display/input/network interfaces as required by the current runtime
+- Local AI runtime (currently Ollama/OpenAI-compatible local endpoint)
+- The configured local models: Qwen3, DeepSeek, gpt-oss, Gemma, and Codestral
+- Python and the Coreless repository
+
+### Live inference test
+
+Once a Coreless test environment exists:
+
+```bash
+python3 scripts/live-inference.py
+```
+
+The script sends one real request through the five local AI cores and 314DNest, then reports each response, failures, and group state.
+
+**This section is intentionally prominent so a tester can see immediately that live inference requires an actual Coreless test environment.**
+
+See `TESTING.md` for the current test-environment checklist and validation sequence.
