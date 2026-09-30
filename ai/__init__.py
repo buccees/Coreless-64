@@ -1,11 +1,9 @@
-"""Coreless AI integration layer.
+"""Coreless AI integration layer."""
 
-Optional adapters live here. The Coreless CPU and architectural control
-boundaries do not depend on a remote AI service.
-"""
-
+from .audit import AuditLog, AuditRecord
+from .commands import CommandDispatcher, CommandResult, TerminalCommand
+from .management import ManagementPlane, ManagementResult
 from .policy import DeterministicPolicy, PolicyDecision
-
-from .session import AISession, SessionEvent, TerminalMessage
-
 from .resource_control import CorelessResourceController
+from .session import AISession, SessionEvent, TerminalMessage
+from .telemetry import TelemetryProvider, TelemetrySnapshot
