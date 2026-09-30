@@ -51,3 +51,14 @@ def test_machine_work_distribution_preserves_input_order():
     )
 
     assert tuple(result.work_id for result in results) == ("first", "second")
+
+
+def test_machine_exposes_unified_work_distribution():
+    from machine_runtime import CorelessMachine
+    machine = CorelessMachine(memory_size=4096)
+    work_item = ComputeWork("machine-1", "cpu.step", AIRequest("request-1", "step", {"count": 1}))
+    results = machine.distribute_work((work_item,))
+    assert len(results) == 1
+    assert results[0].work_id == "machine-1"
+    assert results[0].result is not None
+    assert results[0].resource_id == "cpu"
