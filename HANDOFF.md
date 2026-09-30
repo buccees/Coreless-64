@@ -349,3 +349,28 @@ The MistralUX implementation should be inspected when its repository is availabl
 8. Connect approved operations to scheduler, VM, memory, storage, device, and AI-resource controls.
 9. Add conformance tests for authorization, rejection, approval, cancellation, and audit behavior.
 10. Integrate the local model/tensor runtime and Transformers compatibility layer after the management boundary is stable.
+
+
+## Optional OpenAI development adapter
+
+An optional OpenAI Responses API adapter has now been added under `ai/openai_client.py`.
+
+This adapter is an **external/development backend**, not a replacement for the planned local Coreless Intelligence Layer. It exists so Coreless can communicate with an OpenAI model during development and can later be used as one backend behind the Human-AI terminal interface if explicitly configured.
+
+Security requirements:
+- API credentials are read from `OPENAI_API_KEY`;
+- real credentials must never be committed to the repository;
+- `.env` and local credential files are ignored by Git;
+- `.env.example` documents the configuration shape;
+- the CPU, ISA, hypervisor, and deterministic policy boundary do not depend on the OpenAI service;
+- local AI remains the target for normal self-contained Coreless operation.
+
+Current default API model configuration is `gpt-5.6-luna`; it is configurable through `OPENAI_MODEL`.
+
+Relevant files:
+- `ai/openai_client.py`
+- `.env.example`
+- `.gitignore`
+- `reference/test_openai_client.py`
+
+The adapter uses the OpenAI Responses API directly through Python's standard library, so adding this optional backend does not add a mandatory third-party Python dependency.
