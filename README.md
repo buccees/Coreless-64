@@ -52,7 +52,9 @@ AI cores independently analyze the same context, cross-review results, resolve d
 
 AI output is never itself authorization.
 
-### Local model runtime\n\nThe repository now contains a dependency-free local inference adapter and default registration for the five selected local cores. It targets an OpenAI-compatible local model server, so the Coreless AI layer does not require a remote API key for local inference.\n\nThe default local model names are Qwen3, DeepSeek-R1, gpt-oss:20b, Gemma 3, and Codestral; each can be overridden with a CORELESS_*_MODEL environment variable. The setup helper writes the local configuration template and can optionally pull the configured models through an installed Ollama runtime. Model weights are never placed in Git.\n\nUse `python3 scripts/install-local-ai.py` to generate the local configuration template; add `--pull` to install the configured models through Ollama.\n\n### Fault-tolerant AI workload distribution
+### Local model runtime
+
+The repository now contains a dependency-free local inference adapter and default registration for the five selected local cores. It targets an OpenAI-compatible local model server, so the Coreless AI layer does not require a remote API key for local inference.\n\nThe default local model names are Qwen3, DeepSeek-R1, gpt-oss:20b, Gemma 3, and Codestral; each can be overridden with a CORELESS_*_MODEL environment variable. The setup helper writes the local configuration template and can optionally pull the configured models through an installed Ollama runtime. Model weights are never placed in Git.\n\nUse `python3 scripts/install-local-ai.py` to generate the local configuration template; add `--pull` to install the configured models through Ollama.\n\n### Fault-tolerant AI workload distribution
 
 AI cores are treated as interchangeable workers by default. Work can be dynamically distributed across available cores, and failed work can be reassigned to another healthy core. Model specialties are metadata, not permission boundaries.
 
@@ -72,7 +74,11 @@ A conversational response is never an authorization token.
 
 ## Current status
 
-The reference architecture and execution foundation are substantially implemented and the current CI baseline is green.
+**Current development status: green.** The reference architecture, digital execution foundation, 314DNest management plane, local AI adapter layer, and machine-level AI/conventional scheduling path are implemented and covered by automated tests.
+
+The machine now has a unified compute path: telemetry informs scheduling, the scheduler allocates conventional or AI resources, work can be distributed concurrently, failed resources can fall back, and AI resources advertise explicit capabilities. The latest integration exposes this through `CorelessMachine.distribute_work()`.
+
+The project is **not yet a complete bootable Coreless computer**. The reproducible test-environment track is active, but the actual persistent-storage-hosted Coreless runtime environment still needs to be established before live five-model inference can be validated.
 
 ### Implemented
 
@@ -99,14 +105,20 @@ The reference architecture and execution foundation are substantially implemente
 - structured terminal command ABI
 - cancellation and bounded AI worker scheduling
 - optional OpenAI development adapter
+- AI compute fabric integrated as a native machine resource
+- unified conventional/AI scheduler with capacity and telemetry-aware allocation
+- machine-level concurrent work distribution with fallback
+- explicit AI compute capability advertisement
+- `CorelessMachine.distribute_work()` integration
 
 ### Next major work
 
-1. Local model runtime adapters for Qwen3, DeepSeek, gpt-oss, Gemma, and Codestral.
+1. Complete the reproducible Coreless test environment and validate live execution.
 2. Local tensor runtime built on the existing vector/matrix execution foundation.
-3. Transformer compatibility for supported locally stored models.
-4. Native Coreless operating environment: firmware, boot, kernel, processes, drivers, GUI, and applications.
-5. Final integration and conformance pass.
+3. Transformer compatibility and real model-weight loading for supported local models.
+4. End-to-end local AI execution through Coreless machine resources.
+5. Native Coreless operating environment: firmware, boot, kernel, processes, drivers, GUI, and applications.
+6. Final integration and conformance pass.
 
 ## Compatibility
 
