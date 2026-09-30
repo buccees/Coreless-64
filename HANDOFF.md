@@ -100,11 +100,16 @@ Specifications:
 - specification/isa.md
 - specification/isa_conformance.md
 
-## Local intelligence installation status\n\nThe first local intelligence runtime layer is now in the repository. `ai/local_runtime.py` provides a dependency-free OpenAI-compatible local inference adapter, and `register_default_local_cores()` registers Qwen3, DeepSeek-R1, gpt-oss:20b, Gemma 3, and Codestral with the existing 314DNest registry.\n\n`scripts/install-local-ai.py` creates the local model configuration template. With `--pull`, it can pull the configured models through an installed Ollama runtime. Model weights remain environment/storage content and are never committed to the repository.\n\nThe five local cores are now validated through the common AI-Core interface and a 314DNest end-to-end coordinator test. The next step is live target-environment inference validation, followed by the local tensor/Transformer execution layer.\n\n## Remaining major work
+## Local intelligence installation status\n\nThe first local intelligence runtime layer is now in the repository. `ai/local_runtime.py` provides a dependency-free OpenAI-compatible local inference adapter, and `register_default_local_cores()` registers Qwen3, DeepSeek-R1, gpt-oss:20b, Gemma 3, and Codestral with the existing 314DNest registry.\n\n`scripts/install-local-ai.py` creates the local model configuration template. With `--pull`, it can pull the configured models through an installed Ollama runtime. Model weights remain environment/storage content and are never committed to the repository.\n\nThe five local cores are now validated through the common AI-Core interface and a 314DNest end-to-end coordinator test. The repository has since advanced through the machine AI compute fabric, telemetry-aware scheduler, unified machine work distribution, and explicit AI capability advertisement. Live target-environment inference remains blocked until the actual Coreless test environment exists. The next implementation block is the local tensor/Transformer execution layer in parallel with building that test environment.\n\n## Remaining major work
 
-### 1. Local model runtimes
+### 1. Coreless test environment
 
-Implement adapters/runtimes for the selected local models:
+Establish the reproducible environment needed to execute the actual Coreless machine from persistent storage. CI/reference tests are not a substitute for this live environment.
+
+### 2. Local model runtimes
+
+The common local adapter and five-core registration are implemented. Remaining work is live validation and model-specific runtime/weight integration for:
+
 - Qwen3
 - DeepSeek
 - gpt-oss
@@ -113,15 +118,15 @@ Implement adapters/runtimes for the selected local models:
 
 All local models should use the common AI-Core interface and remain interchangeable at the collaboration/work-distribution layer.
 
-### 2. Local tensor runtime
+### 3. Local tensor runtime
 
 Build tensor execution on the existing Coreless vector/matrix foundation. Keep model-runtime details above the architectural CPU boundary.
 
-### 3. Transformer compatibility
+### 4. Transformer compatibility
 
 Add loading/execution support for compatible locally stored Transformer models through the local tensor runtime.
 
-### 4. Native Coreless operating environment
+### 5. Native Coreless operating environment
 
 Continue the machine itself:
 - firmware
@@ -135,11 +140,11 @@ Continue the machine itself:
 - remote display/input
 - application environment
 
-### 5. Scaling and compatibility
+### 6. Scaling and compatibility
 
 Continue dynamic CPU/memory/AI/GPU scaling, large persistent machine images, multiple guest machines, Coreless-native tooling, x86-64/ARM64 compatibility, binary translation, guest OSes, and legacy virtualization.
 
-### 6. Final integration/conformance
+### 7. Final integration/conformance
 
 After the major runtime layers stabilize, run a final cross-layer audit covering:
 - ISA/spec consistency
@@ -171,4 +176,6 @@ After the major runtime layers stabilize, run a final cross-layer audit covering
 
 ## Resume point
 
-Start with **local model runtime integration**, then build the tensor/Transformer execution layer. Do not rewrite the completed policy, resource-control, collaboration, or Coreless execution foundations unless a concrete failing test or architectural inconsistency requires it.
+**Current green resume point:** the machine scheduler is telemetry-aware, CorelessMachine exposes unified work distribution, AI resources advertise explicit capabilities, and automated validation is green.
+
+Continue with the **local tensor/Transformer execution layer** while the reproducible Coreless test environment is built in parallel. Do not mark live AI inference complete until the actual Coreless runtime environment has been exercised. Do not rewrite the completed policy, resource-control, collaboration, or Coreless execution foundations unless a concrete failing test or architectural inconsistency requires it.
