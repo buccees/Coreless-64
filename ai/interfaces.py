@@ -44,6 +44,7 @@ class AIProposal:
     arguments: Mapping[str, Any] = field(default_factory=dict)
     rationale: str = ""
     authorization_required: bool = True
+    capability: str | None = None
 
 
 @dataclass(frozen=True)
@@ -65,7 +66,6 @@ class ComputeInterface(Protocol):
 
 class MemoryInterface(Protocol):
     def read(self, address: int, size: int) -> bytes: ...
-
     def write(self, address: int, data: bytes) -> None: ...
 
 
@@ -75,7 +75,6 @@ class IOInterface(Protocol):
 
 class StorageInterface(Protocol):
     def read(self, key: str) -> bytes: ...
-
     def write(self, key: str, data: bytes) -> None: ...
 
 
@@ -90,17 +89,14 @@ class FabricInterface(Protocol):
 class AICore(Protocol):
     @property
     def model_id(self) -> str: ...
-
     def infer(self, request: AIRequest) -> AIResult: ...
 
 
 class CollaborationInterface(Protocol):
     def publish(self, result: AIResult) -> None: ...
-
     def deliberate(self, request: AIRequest, results: Sequence[AIResult]) -> GroupResult: ...
 
 
 class PolicyInterface(Protocol):
     def authorize(self, proposal: AIProposal) -> bool: ...
-
     def execute(self, proposal: AIProposal) -> Mapping[str, Any]: ...
