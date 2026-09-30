@@ -9,6 +9,7 @@ from filesystem import FileSystem
 from loader import ProgramLoader
 from ai.compute_fabric import AIComputeFabric, ComputeWork, ComputeResult, RegisteredAICoreResource
 from ai.registry import AICoreRegistry
+from ai.interfaces import AIResult
 from scheduler import MachineScheduler, ConventionalComputeResource, AIComputeSchedulerResource
 
 
@@ -80,12 +81,12 @@ class CorelessMachine:
                 self.cpu.step()
             return ComputeResult(
                 work.work_id, work.operation, "cpu",
-                type("_CPUResult", (), {
-                    "request_id": work.request.request_id,
-                    "model_id": "cpu",
-                    "text": "conventional CPU execution complete",
-                    "metadata": {"resource": "cpu"},
-                })(),
+                AIResult(
+                    work.request.request_id,
+                    "cpu",
+                    "conventional CPU execution complete",
+                    {"resource": "cpu"},
+                ),
             )
         if work.operation == "load_program":
             program = work.request.context["program"]
@@ -94,12 +95,12 @@ class CorelessMachine:
             self.load_program(bytes(program), int(work.request.context.get("address", 0)))
             return ComputeResult(
                 work.work_id, work.operation, "cpu",
-                type("_CPUResult", (), {
-                    "request_id": work.request.request_id,
-                    "model_id": "cpu",
-                    "text": "program loaded",
-                    "metadata": {"resource": "cpu"},
-                })(),
+                AIResult(
+                    work.request.request_id,
+                    "cpu",
+                    "program loaded",
+                    {"resource": "cpu"},
+                ),
             )
         raise ValueError("unsupported conventional compute operation")
 
