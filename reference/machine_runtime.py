@@ -9,6 +9,7 @@ from filesystem import FileSystem
 from loader import ProgramLoader
 from ai.compute_fabric import AIComputeFabric, ComputeWork, ComputeResult, RegisteredAICoreResource
 from ai.registry import AICoreRegistry
+from scheduler import MachineScheduler, ConventionalComputeResource, AIComputeSchedulerResource
 
 
 class CorelessMachine:
@@ -43,6 +44,12 @@ class CorelessMachine:
         # available; AI can augment or replace individual computational jobs.
         self.ai_fabric = AIComputeFabric()
         self.ai_registry = None
+        self.scheduler = MachineScheduler()
+        self.scheduler.register(ConventionalComputeResource(
+            "cpu",
+            self._conventional_compute,
+            capabilities=("cpu.step", "load_program"),
+        ))
         self.booted = False
         self.power_state = "off"
         self.os_runtime = None
@@ -66,11 +73,49 @@ class CorelessMachine:
         self.cpu.memory.flush()
         self.cpu.pc = address
 
+    def _conventional_compute(self, work: ComputeWork) -> ComputeResult:
+        if work.operation == "cpu.step":
+            count = max(1, int(work.request.context.get("count", 1)))
+            for _ in range(count):
+                self.cpu.step()
+            return ComputeResult(
+                work.work_id, work.operation, "cpu",
+                type("_CPUResult", (), {
+                    "request_id": work.request.request_id,
+                    "model_id": "cpu",
+                    "text": "conventional CPU execution complete",
+                    "metadata": {"resource": "cpu"},
+                })(),
+            )
+        if work.operation == "load_program":
+            program = work.request.context["program"]
+            if isinstance(program, str):
+                program = bytes.fromhex(program)
+            self.load_program(bytes(program), int(work.request.context.get("address", 0)))
+            return ComputeResult(
+                work.work_id, work.operation, "cpu",
+                type("_CPUResult", (), {
+                    "request_id": work.request.request_id,
+                    "model_id": "cpu",
+                    "text": "program loaded",
+                    "metadata": {"resource": "cpu"},
+                })(),
+            )
+        raise ValueError("unsupported conventional compute operation")
+
+    def schedule_compute(self, work: ComputeWork, *, preference="balanced",
+                         allow_fallback=True):
+        """Allocate work across conventional and AI machine resources."""
+        return self.scheduler.execute(
+            work, preference=preference, allow_fallback=allow_fallback
+        )
+
     def attach_ai_registry(self, registry: AICoreRegistry, model_ids=None):
         """Expose registered AI cores as native Coreless compute resources."""
         selected = tuple(model_ids) if model_ids is not None else registry.enabled_cores()
         for model_id in selected:
             self.ai_fabric.register(RegisteredAICoreResource(registry, model_id))
+            self.scheduler.register(AIComputeSchedulerResource(self.ai_fabric, model_id))
         self.ai_registry = registry
         return self.ai_fabric.resources()
 
