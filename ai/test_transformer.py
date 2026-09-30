@@ -13,8 +13,8 @@ def test_scaled_dot_product_attention():
     v = Tensor.from_values((2, 2), [10, 0, 0, 20])
     result = scaled_dot_product_attention(q, k, v)
     assert result.shape == (1, 2)
-    assert result.data[0] > result.data[1] * 0.25
-    assert abs(sum(result.data) - 10.0 * (result.data[0] / 10.0) - 20.0 * (result.data[1] / 20.0)) < 1e-12
+    assert abs(result.data[0] - 6.6976) < 0.01
+    assert abs(result.data[1] - 6.6048) < 0.01
 
 
 def test_feed_forward():
