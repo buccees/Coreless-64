@@ -69,7 +69,7 @@ def test_all_cores_can_execute_work_without_specialty_lock_in():
 def test_max_workers_limits_concurrency_without_disabling_cores():
     registry = AICoreRegistry()
     for model in ("a", "b", "c"):
-        registry.register(Core(model))
+        registry.register(FakeCore(model))
     distributor = WorkDistributor(registry, max_workers=1)
     items = [WorkItem(str(i), AIRequest(str(i), "x", {})) for i in range(3)]
     results = distributor.execute(items)
@@ -79,7 +79,7 @@ def test_max_workers_limits_concurrency_without_disabling_cores():
 
 def test_work_distribution_can_be_cancelled():
     registry = AICoreRegistry()
-    registry.register(Core("a"))
+    registry.register(FakeCore("a"))
     distributor = WorkDistributor(registry)
     items = [WorkItem("1", AIRequest("1", "x", {}))]
     results = distributor.execute(items, cancelled=lambda: True)
