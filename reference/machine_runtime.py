@@ -10,6 +10,7 @@ from loader import ProgramLoader
 from ai.compute_fabric import AIComputeFabric, ComputeWork, ComputeResult, RegisteredAICoreResource
 from ai.registry import AICoreRegistry
 from ai.interfaces import AIResult
+from ai.telemetry import TelemetryProvider
 from scheduler import MachineScheduler, ConventionalComputeResource, AIComputeSchedulerResource
 
 
@@ -45,7 +46,8 @@ class CorelessMachine:
         # available; AI can augment or replace individual computational jobs.
         self.ai_fabric = AIComputeFabric()
         self.ai_registry = None
-        self.scheduler = MachineScheduler()
+        self.telemetry = TelemetryProvider()
+        self.scheduler = MachineScheduler(telemetry=self.telemetry)
         self.scheduler.register(ConventionalComputeResource(
             "cpu",
             self._conventional_compute,
@@ -55,6 +57,26 @@ class CorelessMachine:
         self.power_state = "off"
         self.os_runtime = None
         self._restore_machine_state()
+
+    def publish_telemetry(self):
+        """Publish current machine resource state for scheduler decisions."""
+        cpu_load = {
+            f"cpu-{index}": float(self.scheduler.load("cpu"))
+            if index == 0 else 0.0
+            for index in range(len(self.cpus))
+        }
+        workloads = {
+            resource_id: float(self.scheduler.load(resource_id))
+            for resource_id in self.scheduler.resources()
+            if resource_id.startswith("ai:")
+        }
+        return self.telemetry.publish(
+            cpu=cpu_load,
+            memory={"ram_bytes": float(len(self.cpu.memory))},
+            storage={"objects": float(len(self.storage.objects))},
+            workloads=workloads,
+            vms={},
+        )
 
     @property
     def cpu(self):
