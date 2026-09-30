@@ -19,14 +19,19 @@ def test_unregistered_operation_is_rejected():
 def test_policy_authority_allows_only_registered_operations():
     policy = DeterministicPolicy()
     policy.register("schedule", lambda args: {"scheduled": args["cpu"]})
-    assert policy.authorize(proposal()) is True
-    assert policy.execute(proposal()) == {"scheduled": 1}
+    policy.grant_capability("cap-schedule", "schedule")
+    p = proposal()
+    p = AIProposal(p.proposal_id, p.source_model, p.operation, p.arguments, p.rationale, p.authorization_required, "cap-schedule")
+    assert policy.authorize(p) is True
+    assert policy.execute(p) == {"scheduled": 1}
 
 
 def test_ask_requires_explicit_approval():
     policy = DeterministicPolicy()
     p = proposal()
     policy.register("schedule", lambda args: {"ok": True}, authority=AuthorityLevel.ASK)
+    policy.grant_capability("cap-schedule", "schedule")
+    p = AIProposal(p.proposal_id, p.source_model, p.operation, p.arguments, p.rationale, p.authorization_required, "cap-schedule")
     assert policy.authorize(p) is False
     policy.approve("p1")
     assert policy.authorize(p) is True
@@ -47,4 +52,7 @@ def test_recommendation_cannot_execute():
 def test_safe_operation_is_deterministically_executable():
     policy = DeterministicPolicy()
     policy.register("safe_stop", lambda args: {"state": "safe"}, authority=AuthorityLevel.SAFE)
-    assert policy.execute(proposal(operation="safe_stop")) == {"state": "safe"}
+    policy.grant_capability("cap-safe", "safe_stop")
+    p = proposal(operation="safe_stop")
+    p = AIProposal(p.proposal_id, p.source_model, p.operation, p.arguments, p.rationale, p.authorization_required, "cap-safe")
+    assert policy.execute(p) == {"state": "safe"}
