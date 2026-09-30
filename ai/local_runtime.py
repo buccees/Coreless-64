@@ -116,9 +116,9 @@ class LocalOpenAICompatibleCore:
 
 DEFAULT_LOCAL_MODELS: tuple[LocalModelSpec, ...] = (
     LocalModelSpec("qwen3", os.getenv("CORELESS_QWEN3_MODEL", "qwen3")),
-    LocalModelSpec("deepseek", os.getenv("CORELESS_DEEPSEEK_MODEL", "deepseek")),
-    LocalModelSpec("gpt-oss", os.getenv("CORELESS_GPT_OSS_MODEL", "gpt-oss")),
-    LocalModelSpec("gemma", os.getenv("CORELESS_GEMMA_MODEL", "gemma")),
+    LocalModelSpec("deepseek", os.getenv("CORELESS_DEEPSEEK_MODEL", "deepseek-r1")),
+    LocalModelSpec("gpt-oss", os.getenv("CORELESS_GPT_OSS_MODEL", "gpt-oss:20b")),
+    LocalModelSpec("gemma", os.getenv("CORELESS_GEMMA_MODEL", "gemma3")),
     LocalModelSpec("codestral", os.getenv("CORELESS_CODESTRAL_MODEL", "codestral")),
 )
 
