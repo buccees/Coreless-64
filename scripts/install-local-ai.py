@@ -27,9 +27,9 @@ def main() -> None:
     content = f"""# Coreless local AI runtime
 CORELESS_LOCAL_AI_ENDPOINT={endpoint}
 CORELESS_QWEN3_MODEL={os.getenv("CORELESS_QWEN3_MODEL", "qwen3")}
-CORELESS_DEEPSEEK_MODEL={os.getenv("CORELESS_DEEPSEEK_MODEL", "deepseek")}
-CORELESS_GPT_OSS_MODEL={os.getenv("CORELESS_GPT_OSS_MODEL", "gpt-oss")}
-CORELESS_GEMMA_MODEL={os.getenv("CORELESS_GEMMA_MODEL", "gemma")}
+CORELESS_DEEPSEEK_MODEL={os.getenv("CORELESS_DEEPSEEK_MODEL", "deepseek-r1")}
+CORELESS_GPT_OSS_MODEL={os.getenv("CORELESS_GPT_OSS_MODEL", "gpt-oss:20b")}
+CORELESS_GEMMA_MODEL={os.getenv("CORELESS_GEMMA_MODEL", "gemma3")}
 CORELESS_CODESTRAL_MODEL={os.getenv("CORELESS_CODESTRAL_MODEL", "codestral")}
 """
     ENV_EXAMPLE.write_text(content, encoding="utf-8")
