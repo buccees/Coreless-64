@@ -85,3 +85,27 @@ def test_revoked_resource_capability_blocks_reference_control():
     else:
         raise AssertionError("revoked capability must block VM control")
     assert hypervisor.vms[vm.vmid].running is False
+
+
+class Memory:
+    def __init__(self):
+        self.data = bytearray(32)
+        self.flushed = False
+    def __getitem__(self, key):
+        return self.data[key]
+    def __setitem__(self, key, value):
+        self.data[key] = value
+    def flush(self):
+        self.flushed = True
+
+
+def test_authorized_memory_write_reaches_bound_memory():
+    memory = Memory()
+    policy = DeterministicPolicy()
+    controller = CorelessResourceController(policy, memory=memory, compute=Compute())
+    controller.register_defaults()
+    controller.grant("memory.write", "cap-memory")
+    p = AIProposal("p4", "qwen3", "memory.write", {"address": 4, "data": b"abc"}, capability="cap-memory")
+    assert controller.execute(p) == {"written": 3}
+    assert bytes(memory.data[4:7]) == b"abc"
+    assert memory.flushed is True
