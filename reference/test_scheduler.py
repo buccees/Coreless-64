@@ -110,3 +110,21 @@ def test_scheduler_prefers_less_loaded_resource_deterministically():
     assert observations == ["cpu-a", "cpu-a"]
     assert scheduler.load("cpu-a") == 0
     assert scheduler.load("cpu-b") == 0
+
+
+def test_scheduler_uses_telemetry_to_choose_less_loaded_resource():
+    from ai.telemetry import TelemetryProvider
+
+    telemetry = TelemetryProvider()
+    telemetry.publish(cpu={"cpu-a": 0.9, "cpu-b": 0.1})
+    scheduler = MachineScheduler(telemetry=telemetry)
+    scheduler.register(ConventionalComputeResource("cpu-a", lambda w: ComputeResult(
+        w.work_id, w.operation, "cpu-a", AIResult(w.request.request_id, "cpu-a", "a", {})
+    ), capacity=1))
+    scheduler.register(ConventionalComputeResource("cpu-b", lambda w: ComputeResult(
+        w.work_id, w.operation, "cpu-b", AIResult(w.request.request_id, "cpu-b", "b", {})
+    ), capacity=1))
+
+    result, allocation = scheduler.execute(work("cpu.step"))
+    assert result.model_id == "cpu-b"
+    assert allocation.resource_id == "cpu-b"
