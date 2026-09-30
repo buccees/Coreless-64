@@ -11,7 +11,7 @@ class FakeCore:
         return AIResult(
             model_id=self.model_id,
             request_id=request.request_id,
-            output_text="ai-computed",
+            text="ai-computed",
             metadata={"role": "compute"},
         )
 
@@ -32,7 +32,7 @@ def test_machine_exposes_ai_as_native_compute_resource():
     assert result.work_id == "work-1"
     assert result.operation == "accelerate.scheduler"
     assert result.model_id == "qwen3"
-    assert result.result.output_text == "ai-computed"
+    assert result.result.text == "ai-computed"
 
 
 def test_existing_machine_components_remain_available_with_ai():
