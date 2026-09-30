@@ -35,7 +35,7 @@ class CorelessResourceController:
     def bind_coreless_machine(self, machine: Any) -> None:
         """Bind the controller directly to a reference CorelessMachine."""
         self.compute = _MachineCompute(machine)
-        self.memory = machine.cpu.memory
+        self.memory = _MachineMemory(machine.cpu.memory)
         self.storage = _MachineStorage(machine.storage)
         self.io = _MachineIO(machine)
         self.register_defaults()
@@ -125,6 +125,18 @@ class _MachineCompute:
             self.machine.load_program(bytes(program), int(payload.get("address", 0)))
             return "program:loaded"
         raise ValueError("unsupported Coreless compute operation")
+
+
+class _MachineMemory:
+    def __init__(self, memory: Any) -> None:
+        self.memory = memory
+
+    def read(self, address: int, size: int) -> bytes:
+        return bytes(self.memory[address:address + size])
+
+    def write(self, address: int, data: bytes) -> None:
+        self.memory[address:address + len(data)] = bytes(data)
+        self.memory.flush()
 
 
 class _MachineStorage:
