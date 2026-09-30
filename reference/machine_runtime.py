@@ -143,7 +143,18 @@ class CorelessMachine:
         selected = tuple(model_ids) if model_ids is not None else registry.enabled_cores()
         for model_id in selected:
             self.ai_fabric.register(RegisteredAICoreResource(registry, model_id))
-            self.scheduler.register(AIComputeSchedulerResource(self.ai_fabric, model_id))
+            self.scheduler.register(AIComputeSchedulerResource(
+                self.ai_fabric,
+                model_id,
+                capabilities=(
+                    "tensor.matmul",
+                    "tensor.linear",
+                    "tensor.softmax",
+                    "transformer.attention",
+                    "transformer.block",
+                    "ai.infer",
+                ),
+            ))
         self.ai_registry = registry
         return self.ai_fabric.resources()
 
