@@ -124,6 +124,13 @@ class CorelessMachine:
             )
         raise ValueError("unsupported conventional compute operation")
 
+    def distribute_work(self, items, *, preference="balanced", allow_fallback=True):
+        """Execute independent work through the unified machine resource pool."""
+        self.publish_telemetry()
+        results = self.work_distributor.execute(items, preference=preference, allow_fallback=allow_fallback)
+        self.publish_telemetry()
+        return results
+
     def schedule_compute(self, work: ComputeWork, *, preference="balanced",
                          allow_fallback=True):
         """Allocate work across conventional and AI machine resources."""
