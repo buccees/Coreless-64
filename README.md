@@ -144,3 +144,13 @@ Configuration uses OPENAI_API_KEY, OPENAI_MODEL, and OPENAI_BASE_URL. Never comm
 > **The Coreless digital execution engine runs the computer.**
 > **AI can assist the machine, but deterministic Coreless controls remain authoritative.**
 > **Every subsystem communicates through explicit interfaces and authorization boundaries.**
+
+### Live local inference
+
+The repository includes `scripts/live-inference.py` for validating the actual local model runtime. It does not install weights or store them in Git. With Ollama running and the five configured models installed, run:
+
+```bash
+python3 scripts/live-inference.py
+```
+
+The runner sends one request through the same `AICoreRegistry` and `NestCoordinator` used by 314DNest, prints each live model response, reports failures independently, and shows the resulting group state. A response is never an authorization token; protected actions remain subject to the deterministic policy boundary.
