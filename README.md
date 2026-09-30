@@ -52,7 +52,7 @@ AI cores independently analyze the same context, cross-review results, resolve d
 
 AI output is never itself authorization.
 
-### Fault-tolerant AI workload distribution
+### Local model runtime\n\nThe repository now contains a dependency-free local inference adapter and default registration for the five selected local cores. It targets an OpenAI-compatible local model server, so the Coreless AI layer does not require a remote API key for local inference.\n\nThe default local model names are Qwen3, DeepSeek-R1, gpt-oss:20b, Gemma 3, and Codestral; each can be overridden with a CORELESS_*_MODEL environment variable. The setup helper writes the local configuration template but deliberately does not place model weights in Git.\n\nUse `scripts/install-local-ai.py` to generate the local configuration template.\n\n### Fault-tolerant AI workload distribution
 
 AI cores are treated as interchangeable workers by default. Work can be dynamically distributed across available cores, and failed work can be reassigned to another healthy core. Model specialties are metadata, not permission boundaries.
 
