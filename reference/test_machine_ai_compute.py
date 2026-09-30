@@ -54,3 +54,14 @@ def test_machine_scheduler_publishes_telemetry():
     assert "cpu" in snapshot.cpu
     assert snapshot.memory["ram_bytes"] == 4096
     assert snapshot.storage["objects"] >= 0
+
+def test_machine_ai_resources_advertise_explicit_capabilities():
+    machine = CorelessMachine(memory_size=4096)
+    registry = AICoreRegistry()
+    registry.register(FakeCore())
+    machine.attach_ai_registry(registry)
+    resource = next(r for r in machine.scheduler._resources.values() if r.resource_id == "ai:qwen3")
+    assert "tensor.matmul" in resource.capabilities
+    assert "transformer.attention" in resource.capabilities
+    assert "ai.infer" in resource.capabilities
+    assert "unknown.operation" not in resource.capabilities
