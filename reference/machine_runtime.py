@@ -7,6 +7,8 @@ from storage import PersistentMachineImage
 from device_io import NetworkDevice, GraphicsDevice, DisplaySurface
 from filesystem import FileSystem
 from loader import ProgramLoader
+from ai.compute_fabric import AIComputeFabric, ComputeWork, ComputeResult, RegisteredAICoreResource
+from ai.registry import AICoreRegistry
 
 
 class CorelessMachine:
@@ -37,6 +39,10 @@ class CorelessMachine:
         self.graphics = GraphicsDevice()
         self.filesystem = FileSystem(self.storage)
         self.loader = ProgramLoader(self)
+        # AI is a native machine resource. Conventional components remain
+        # available; AI can augment or replace individual computational jobs.
+        self.ai_fabric = AIComputeFabric()
+        self.ai_registry = None
         self.booted = False
         self.power_state = "off"
         self.os_runtime = None
@@ -59,6 +65,18 @@ class CorelessMachine:
         self.cpu.memory[address:end] = program
         self.cpu.memory.flush()
         self.cpu.pc = address
+
+    def attach_ai_registry(self, registry: AICoreRegistry, model_ids=None):
+        """Expose registered AI cores as native Coreless compute resources."""
+        selected = tuple(model_ids) if model_ids is not None else registry.enabled_cores()
+        for model_id in selected:
+            self.ai_fabric.register(RegisteredAICoreResource(registry, model_id))
+        self.ai_registry = registry
+        return self.ai_fabric.resources()
+
+    def ai_compute(self, work: ComputeWork, model_id: str) -> ComputeResult:
+        """Dispatch a machine workload through the AI computational fabric."""
+        return self.ai_fabric.compute(work, model_id)
 
     @staticmethod
     def _cpu_state(cpu):
