@@ -21,10 +21,7 @@ class FakeCore:
 
 
 def item(number: int) -> WorkItem:
-    return WorkItem(
-        work_id=f"w{number}",
-        request=AIRequest(f"r{number}", f"work {number}"),
-    )
+    return WorkItem(work_id=f"w{number}", request=AIRequest(f"r{number}", f"work {number}"))
 
 
 def test_work_is_split_across_all_enabled_cores():
@@ -32,37 +29,39 @@ def test_work_is_split_across_all_enabled_cores():
     cores = [FakeCore(name) for name in ("qwen3", "deepseek", "gpt-oss")]
     for core in cores:
         registry.register(core)
-
     results = WorkDistributor(registry).execute(tuple(item(i) for i in range(6)))
-
     assert all(result.result is not None for result in results)
     assert sum(core.calls for core in cores) == 6
-    assert {result.result.model_id for result in results} == {
-        "qwen3", "deepseek", "gpt-oss"
-    }
+    assert {result.result.model_id for result in results} == {"qwen3", "deepseek", "gpt-oss"}
 
 
-def test_failed_core_work_is_reassigned_to_another_core():
+def test_idle_cores_absorb_extra_work_dynamically():
+    registry = AICoreRegistry()
+    cores = [FakeCore(name) for name in ("qwen3", "deepseek", "gpt-oss")]
+    for core in cores:
+        registry.register(core)
+    results = WorkDistributor(registry).execute(tuple(item(i) for i in range(12)))
+    assert all(result.result is not None for result in results)
+    assert sum(core.calls for core in cores) == 12
+    assert all(core.calls > 1 for core in cores)
+
+
+def test_failed_core_work_is_reassigned_to_healthy_cores():
     registry = AICoreRegistry()
     failed = FakeCore("qwen3", fail=True)
     healthy_a = FakeCore("deepseek")
     healthy_b = FakeCore("gpt-oss")
     for core in (failed, healthy_a, healthy_b):
         registry.register(core)
-
-    results = WorkDistributor(registry).execute(tuple(item(i) for i in range(3)))
-
+    results = WorkDistributor(registry).execute(tuple(item(i) for i in range(6)))
     assert all(result.result is not None for result in results)
     assert all(result.result.model_id != "qwen3" for result in results)
-    assert any(result.result.model_id == "deepseek" for result in results)
-    assert any(result.result.model_id == "gpt-oss" for result in results)
+    assert healthy_a.calls + healthy_b.calls >= 6
 
 
 def test_all_cores_can_execute_work_without_specialty_lock_in():
     registry = AICoreRegistry()
     registry.register(FakeCore("gemma"))
     registry.register(FakeCore("codestral"))
-
     results = WorkDistributor(registry).execute((item(1), item(2)))
-
-    assert [result.result.model_id for result in results] == ["gemma", "codestral"]
+    assert {result.result.model_id for result in results} == {"gemma", "codestral"}
