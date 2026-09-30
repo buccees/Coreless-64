@@ -15,7 +15,7 @@ import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from .interfaces import AIRequest, AIResult
 
@@ -29,6 +29,7 @@ class LocalModelSpec:
     endpoint: str = "http://127.0.0.1:11434/v1"
     api_key: str | None = None
     timeout: float = 120.0
+    api_key_env: str | None = None
 
 
 class LocalOpenAICompatibleCore:
@@ -61,8 +62,11 @@ class LocalOpenAICompatibleCore:
         }
         body = json.dumps(payload).encode("utf-8")
         headers = {"Content-Type": "application/json"}
-        if self.spec.api_key:
-            headers["Authorization"] = f"Bearer {self.spec.api_key}"
+        api_key = self.spec.api_key
+        if api_key is None and self.spec.api_key_env:
+            api_key = os.getenv(self.spec.api_key_env)
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
 
         url = self.spec.endpoint.rstrip("/") + "/chat/completions"
         request_obj = urllib.request.Request(
