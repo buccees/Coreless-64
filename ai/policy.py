@@ -25,7 +25,7 @@ class DeterministicPolicy(PolicyInterface):
     def __init__(self) -> None:
         self._operations: dict[str, Callable[[Mapping[str, Any]], Mapping[str, Any]]] = {}
         self._levels: dict[str, AuthorityLevel] = {}
-        self._approvals: set[str] = set()
+        self._approvals: set[str] = set()\n        self._capabilities: dict[str, str] = {}
 
     def register(
         self,
@@ -41,7 +41,7 @@ class DeterministicPolicy(PolicyInterface):
         self._operations[operation] = handler
         self._levels[operation] = authority
 
-    def approve(self, proposal_id: str) -> None:
+    def grant_capability(self, capability: str, operation: str) -> None:\n        if not capability or not operation or operation not in self._operations:\n            raise ValueError("capability must target a registered operation")\n        self._capabilities[capability] = operation\n\n    def revoke_capability(self, capability: str) -> None:\n        self._capabilities.pop(capability, None)\n\n    def approve(self, proposal_id: str) -> None:
         self._approvals.add(proposal_id)
 
     def revoke_approval(self, proposal_id: str) -> None:
@@ -65,7 +65,7 @@ class DeterministicPolicy(PolicyInterface):
             return PolicyDecision(proposal.proposal_id, True, "explicit policy permits execution")
         if proposal.operation not in self._operations:
             reason = "operation is not registered"
-        elif self._levels[proposal.operation] is AuthorityLevel.ASK:
+        elif self._capabilities.get(proposal.capability) != proposal.operation:\n            reason = "valid capability for the operation is required"\n        elif self._levels[proposal.operation] is AuthorityLevel.ASK:
             reason = "explicit approval is required"
         else:
             reason = "operation authority does not permit execution"
