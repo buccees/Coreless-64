@@ -74,6 +74,25 @@ The external environment supplies power and I/O. The Coreless digital execution 
 
 The Coreless architecture does not require a conventional host CPU, host OS, or host system RAM to be part of the Coreless computer.
 
+## 314DNest / Local Intelligence
+
+- [x] AI-Core registry
+- [x] Multi-model coordination
+- [x] Deterministic collaboration/group result
+- [x] Dynamic AI workload distribution and failover
+- [x] Deterministic policy boundary
+- [x] Capability-controlled Coreless resource operations
+- [x] Telemetry
+- [x] Audit records
+- [x] Human-AI session layer
+- [x] Structured terminal command ABI
+- [x] Cancellation and bounded worker scheduling
+- [x] Optional OpenAI development adapter
+- [ ] Local Qwen3 / DeepSeek / gpt-oss / Gemma / Codestral runtime adapters
+- [ ] Local tensor runtime
+- [ ] Transformer compatibility layer
+- [ ] End-to-end local AI execution on Coreless resources
+
 ## Phase 6 — Scaling
 
 - [ ] Dynamic CPU scaling
@@ -113,6 +132,10 @@ The repository already contains the first digital Coreless execution engine.
 reference/core.py implements Coreless-64 CPU instruction execution. reference/machine_runtime.py integrates those CPUs with shared Coreless memory, persistent storage, devices, graphics, networking, and machine-state persistence.
 
 The next goal is not to replace that engine with an external runtime. The goal is to **complete its integration with the entire Coreless machine**, so the engine can execute a machine whose state is carried by its persistent machine image.
+
+## Current status
+
+The Coreless execution foundation and 314DNest management plane are implemented with a green CI baseline. The next major implementation block is local model runtimes, followed by tensor/Transformer execution and the native Coreless operating environment.
 
 ## Phase 1 status
 
