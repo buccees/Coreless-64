@@ -100,7 +100,7 @@ Specifications:
 - specification/isa.md
 - specification/isa_conformance.md
 
-## Local intelligence installation status\n\nThe first local intelligence runtime layer is now in the repository. `ai/local_runtime.py` provides a dependency-free OpenAI-compatible local inference adapter, and `register_default_local_cores()` registers Qwen3, DeepSeek-R1, gpt-oss:20b, Gemma 3, and Codestral with the existing 314DNest registry.\n\n`scripts/install-local-ai.py` creates the local model configuration template. It intentionally does not download model weights; weights remain an environment/storage concern rather than repository content.\n\nThe next step is to connect the installed local cores to the full 314DNest group workflow and then build the tensor/Transformer execution layer.\n\n## Remaining major work
+## Local intelligence installation status\n\nThe first local intelligence runtime layer is now in the repository. `ai/local_runtime.py` provides a dependency-free OpenAI-compatible local inference adapter, and `register_default_local_cores()` registers Qwen3, DeepSeek-R1, gpt-oss:20b, Gemma 3, and Codestral with the existing 314DNest registry.\n\n`scripts/install-local-ai.py` creates the local model configuration template. With `--pull`, it can pull the configured models through an installed Ollama runtime. Model weights remain environment/storage content and are never committed to the repository.\n\nThe next step is to run the local model installation on the target environment, validate all five cores through the common AI-Core interface, then connect successful local inference to the full 314DNest group workflow and build the tensor/Transformer execution layer.\n\n## Remaining major work
 
 ### 1. Local model runtimes
 
