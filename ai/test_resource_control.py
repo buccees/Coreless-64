@@ -51,3 +51,37 @@ def test_resource_controller_does_not_register_unavailable_resources():
         pass
     else:
         raise AssertionError("compute is required for default registration")
+
+
+def test_authorized_vm_operation_reaches_reference_hypervisor():
+    from reference.virtualization import Hypervisor
+
+    policy = DeterministicPolicy()
+    hypervisor = Hypervisor(cpu_count=1)
+    vm = hypervisor.create_vm(4096)
+    controller = CorelessResourceController(policy, hypervisor=hypervisor)
+    controller.register_defaults()
+    controller.grant("vm.start", "cap-vm")
+    p = AIProposal("p2", "qwen3", "vm.start", {"vmid": vm.vmid}, capability="cap-vm")
+    assert controller.execute(p) == {"vmid": vm.vmid, "running": True}
+    assert hypervisor.vms[vm.vmid].running is True
+
+
+def test_revoked_resource_capability_blocks_reference_control():
+    from reference.virtualization import Hypervisor
+
+    policy = DeterministicPolicy()
+    hypervisor = Hypervisor(cpu_count=1)
+    vm = hypervisor.create_vm(4096)
+    controller = CorelessResourceController(policy, hypervisor=hypervisor)
+    controller.register_defaults()
+    controller.grant("vm.start", "cap-vm")
+    policy.revoke_capability("cap-vm")
+    p = AIProposal("p3", "qwen3", "vm.start", {"vmid": vm.vmid}, capability="cap-vm")
+    try:
+        controller.execute(p)
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("revoked capability must block VM control")
+    assert hypervisor.vms[vm.vmid].running is False
