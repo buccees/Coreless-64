@@ -245,3 +245,18 @@ The next major implementation work is to make the remaining machine subsystems p
 > **If Coreless needs it to remain a computer, its state belongs in the Coreless machine image.**
 
 Coreless is intended to become a portable digital computer architecture whose machine can travel with its persistent storage.
+
+
+## Optional AI development backend
+
+Coreless includes an optional OpenAI Responses API adapter under `ai/openai_client.py`.
+
+This is a development/integration backend for the Human-AI management work. It is **not** the Coreless CPU and does not replace the planned local Coreless Intelligence Layer. Coreless remains architecturally capable of operating with local AI without depending on a remote service.
+
+Configure it through environment variables:
+
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL` (default: `gpt-5.6-luna`)
+- `OPENAI_BASE_URL` (default: `https://api.openai.com/v1`)
+
+Never commit a real API key. Use `.env.example` as the configuration template.
