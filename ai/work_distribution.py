@@ -36,7 +36,7 @@ class WorkDistributor:
         self.registry = registry
         self.max_workers = max_workers
 
-    def execute(self, items: Sequence[WorkItem]) -> tuple[WorkResult, ...]:
+    def execute(self, items: Sequence[WorkItem], *, cancelled: callable | None = None) -> tuple[WorkResult, ...]:
         cores = self.registry.enabled_cores()
         if not items:
             return ()
@@ -46,17 +46,22 @@ class WorkDistributor:
                 for item in items
             )
 
-        worker_ids = cores[: self.max_workers] if self.max_workers else cores
+        worker_ids = cores
+        worker_limit = self.max_workers or len(worker_ids)
         pending = list(items)
         attempted: dict[str, set[str]] = {item.work_id: set() for item in items}
         completed: dict[str, WorkResult] = {}
         active = {}
 
-        with ThreadPoolExecutor(max_workers=max(1, len(worker_ids))) as executor:
+        with ThreadPoolExecutor(max_workers=max(1, min(worker_limit, len(worker_ids)))) as executor:
             for model_id in worker_ids:
                 self._submit_next(executor, active, pending, attempted, model_id)
 
             while active:
+                if cancelled is not None and cancelled():
+                    for future in active:
+                        future.cancel()
+                    break
                 done, _ = wait(tuple(active), return_when=FIRST_COMPLETED)
                 for future in done:
                     item, model_id = active.pop(future)
