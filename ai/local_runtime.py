@@ -123,6 +123,14 @@ DEFAULT_LOCAL_MODELS: tuple[LocalModelSpec, ...] = (
 )
 
 
+def register_default_local_cores(registry: Any, *, endpoint: str | None = None, timeout: float = 120.0) -> tuple[str, ...]:
+    """Register the five local AI cores with an AICoreRegistry."""
+    cores = build_default_local_cores(endpoint=endpoint, timeout=timeout)
+    for core in cores:
+        registry.register(core, provider="local", local=True)
+    return tuple(core.model_id for core in cores)
+
+
 def build_default_local_cores(
     *,
     endpoint: str | None = None,
