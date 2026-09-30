@@ -100,7 +100,7 @@ Specifications:
 - specification/isa.md
 - specification/isa_conformance.md
 
-## Remaining major work
+## Local intelligence installation status\n\nThe first local intelligence runtime layer is now in the repository. `ai/local_runtime.py` provides a dependency-free OpenAI-compatible local inference adapter, and `register_default_local_cores()` registers Qwen3, DeepSeek-R1, gpt-oss:20b, Gemma 3, and Codestral with the existing 314DNest registry.\n\n`scripts/install-local-ai.py` creates the local model configuration template. It intentionally does not download model weights; weights remain an environment/storage concern rather than repository content.\n\nThe next step is to connect the installed local cores to the full 314DNest group workflow and then build the tensor/Transformer execution layer.\n\n## Remaining major work
 
 ### 1. Local model runtimes
 
