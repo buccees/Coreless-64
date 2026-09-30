@@ -63,3 +63,50 @@ def test_preference_can_explicitly_select_ai():
     scheduler.register(AIComputeSchedulerResource(fabric, "qwen3"))
     result, allocation = scheduler.execute(work(), preference="ai")
     assert allocation.kind == "ai"
+
+
+def test_scheduler_exposes_live_load_during_execution():
+    scheduler = MachineScheduler()
+    observed = []
+
+    def execute(w):
+        observed.append(scheduler.load("cpu"))
+        return ComputeResult(w.work_id, w.operation, "cpu",
+                             AIResult(w.request.request_id, "cpu", "cpu", {}))
+
+    scheduler.register(ConventionalComputeResource("cpu", execute, capacity=2))
+    scheduler.execute(work("cpu.step"))
+    assert observed == [1]
+    assert scheduler.load("cpu") == 0
+
+
+def test_scheduler_rejects_invalid_capacity():
+    scheduler = MachineScheduler()
+    try:
+        scheduler.register(ConventionalComputeResource("cpu", lambda w: None, capacity=0))
+    except ValueError as exc:
+        assert "capacity" in str(exc)
+    else:
+        raise AssertionError("invalid capacity was accepted")
+
+
+def test_scheduler_prefers_less_loaded_resource_deterministically():
+    scheduler = MachineScheduler()
+    observations = []
+
+    def make_executor(resource_id):
+        def execute(w):
+            observations.append(resource_id)
+            return ComputeResult(w.work_id, w.operation, resource_id,
+                                 AIResult(w.request.request_id, resource_id, resource_id, {}))
+        return execute
+
+    scheduler.register(ConventionalComputeResource("cpu-a", make_executor("cpu-a"), capacity=2))
+    scheduler.register(ConventionalComputeResource("cpu-b", make_executor("cpu-b"), capacity=2))
+
+    scheduler.execute(work("cpu.step"))
+    scheduler.execute(work("cpu.step"))
+
+    assert observations == ["cpu-a", "cpu-a"]
+    assert scheduler.load("cpu-a") == 0
+    assert scheduler.load("cpu-b") == 0
