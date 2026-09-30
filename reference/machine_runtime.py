@@ -11,6 +11,7 @@ from ai.compute_fabric import AIComputeFabric, ComputeWork, ComputeResult, Regis
 from ai.registry import AICoreRegistry
 from ai.interfaces import AIResult
 from ai.telemetry import TelemetryProvider
+from machine_work_distribution import MachineWorkDistributor
 from scheduler import MachineScheduler, ConventionalComputeResource, AIComputeSchedulerResource
 
 
@@ -48,6 +49,7 @@ class CorelessMachine:
         self.ai_registry = None
         self.telemetry = TelemetryProvider()
         self.scheduler = MachineScheduler(telemetry=self.telemetry)
+        self.work_distributor = MachineWorkDistributor(self.scheduler)
         self.scheduler.register(ConventionalComputeResource(
             "cpu",
             self._conventional_compute,
