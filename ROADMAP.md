@@ -88,7 +88,7 @@ The Coreless architecture does not require a conventional host CPU, host OS, or 
 - [x] Structured terminal command ABI
 - [x] Cancellation and bounded worker scheduling
 - [x] Optional OpenAI development adapter
-- [ ] Local Qwen3 / DeepSeek / gpt-oss / Gemma / Codestral runtime adapters
+- [x] Local Qwen3 / DeepSeek / gpt-oss / Gemma / Codestral runtime adapters
 - [ ] Local tensor runtime
 - [ ] Transformer compatibility layer
 - [ ] End-to-end local AI execution on Coreless resources
@@ -135,7 +135,7 @@ The next goal is not to replace that engine with an external runtime. The goal i
 
 ## Current status
 
-The Coreless execution foundation and 314DNest management plane are implemented with a green CI baseline. The next major implementation block is local model runtimes, followed by tensor/Transformer execution and the native Coreless operating environment.
+The Coreless execution foundation and 314DNest management plane are implemented with a green CI baseline. The local model runtime layer is now installed in the repository through a common OpenAI-compatible adapter and default five-core registration. The next major implementation block is end-to-end local inference validation, followed by tensor/Transformer execution and the native Coreless operating environment.
 
 ## Phase 1 status
 
