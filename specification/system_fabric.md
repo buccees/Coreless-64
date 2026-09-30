@@ -55,3 +55,14 @@ A model failure, runtime failure, unavailable external gateway, or collaboration
 ## Scaling
 
 Additional CPUs, memory capacity, devices, VMs, and AI cores are resources exposed through the same interfaces. Scaling the machine MUST NOT require creating new direct connections between every pair of components.
+
+
+## AI-to-resource control path
+
+314DNest management actions reach Coreless resources only through an explicit policy-bound resource controller. The controller registers concrete operations against the Compute, Memory, Storage, I/O, and virtualization interfaces that are actually present. Each registered operation requires an opaque capability bound to that operation. A proposal without the correct capability is rejected before the underlying resource interface is called.
+
+The protected flow is therefore:
+
+**AI result -> structured proposal -> deterministic Policy -> capability check -> resource interface -> Coreless operation -> telemetry/audit**
+
+Natural-language output, model identity, VM identity, storage location, or physical placement cannot substitute for a capability. Revoking a capability immediately prevents subsequent proposals from reaching the resource interface.
