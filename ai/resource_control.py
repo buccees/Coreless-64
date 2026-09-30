@@ -32,6 +32,19 @@ class CorelessResourceController:
         self.io = io
         self.hypervisor = hypervisor
 
+    def bind_coreless_machine(self, machine: Any) -> None:
+        """Bind the controller directly to a reference CorelessMachine."""
+        self.compute = _MachineCompute(machine)
+        self.memory = machine.cpu.memory
+        self.storage = _MachineStorage(machine.storage)
+        self.io = _MachineIO(machine)
+        self.register_defaults()
+
+    def bind_hypervisor(self, hypervisor: Any) -> None:
+        self.hypervisor = hypervisor
+        self.policy.register("vm.start", self._vm_start)
+        self.policy.register("vm.stop", self._vm_stop)
+
     def register_defaults(self) -> None:
         self._require(self.compute, "compute")
         self.policy.register("compute.submit", self._compute_submit)
@@ -93,3 +106,47 @@ class CorelessResourceController:
         vmid = int(args["vmid"])
         self.hypervisor.stop(vmid)
         return {"vmid": vmid, "running": False}
+
+
+class _MachineCompute:
+    def __init__(self, machine: Any) -> None:
+        self.machine = machine
+
+    def submit(self, operation: str, payload: Mapping[str, Any]) -> str:
+        if operation == "step":
+            count = max(1, int(payload.get("count", 1)))
+            for _ in range(count):
+                self.machine.cpu.step()
+            return f"cpu:{self.machine.cpu.cpu_id if hasattr(self.machine.cpu, 'cpu_id') else 0}:step"
+        if operation == "load_program":
+            program = payload["program"]
+            if isinstance(program, str):
+                program = bytes.fromhex(program)
+            self.machine.load_program(bytes(program), int(payload.get("address", 0)))
+            return "program:loaded"
+        raise ValueError("unsupported Coreless compute operation")
+
+
+class _MachineStorage:
+    def __init__(self, storage: Any) -> None:
+        self.storage = storage
+
+    def read(self, key: str) -> bytes:
+        return self.storage.get(key)
+
+    def write(self, key: str, data: bytes) -> None:
+        self.storage.put(key, data)
+
+
+class _MachineIO:
+    def __init__(self, machine: Any) -> None:
+        self.machine = machine
+
+    def emit(self, device: str, payload: Mapping[str, Any]) -> None:
+        if device == "network":
+            self.machine.network.transmit(bytes(payload["data"]), str(payload.get("destination", "")))
+            return
+        if device == "graphics":
+            self.machine.graphics.submit(dict(payload))
+            return
+        raise ValueError("unsupported Coreless device")
