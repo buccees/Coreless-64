@@ -2,261 +2,145 @@
 
 **Coreless is a computer architecture in which the complete digital computer can be carried by persistent storage and executed by a digital Coreless execution engine.**
 
-Coreless is not intended to be a conventional virtual machine that depends on a host computer to provide its CPU, RAM, operating system, or graphics.
-
-The fundamental model is:
-
 > **Coreless is the computer. Persistent storage carries the machine state. The Coreless digital execution engine runs the machine. External equipment provides power and I/O.**
 
-A Coreless machine includes:
-
-- Coreless CPU and instruction execution
-- virtual RAM
-- operating system
-- processes and address spaces
-- filesystem and persistent storage
-- device state
-- graphics and display
-- networking
-- vector and matrix/AI computation
-- virtualization
-- applications
-- persistent machine state
-- boot state and checkpoints
-
-The machine and the mechanism that executes it are logically distinct, but both are part of the Coreless design. The execution engine is not an external computer that Coreless depends on.
+Coreless is not intended to be a conventional virtual machine whose CPU, RAM, operating system, or computational AI are supplied by a host.
 
 ## Coreless-64
 
-The first Coreless architecture is **Coreless-64**, a 64-bit general-purpose computer architecture designed for:
+**Coreless-64** is the 64-bit Coreless architecture. It defines CPU execution, virtual memory and protection, privilege and interrupts, multiprocessing, vector and matrix/AI computation, graphics and networking, virtualization and VM isolation, persistent machine state, scalable resources, and compatibility through translation, emulation, guest OSes, and virtualization.
 
-- general-purpose computation
-- multiprocessing
-- virtual memory and memory protection
-- privilege separation
-- interrupts and exceptions
-- vector computation
-- matrix and AI computation
-- graphics and display
-- networking
-- virtualization
-- persistent machine state
-- scalable machine configurations
-- compatibility with existing software through translation and virtualization
+The repository contains the digital reference execution engine that implements these rules.
 
-The architecture defines the digital machine. The execution engine implements those architectural rules.
+## Persistent machine
 
-## The Coreless machine and execution engine
+Persistent storage is the authoritative carrier of Coreless machine state, including CPU state, virtual RAM, address-space and process state, operating-system state, filesystem and application state, device/graphics/networking state, virtualization state, boot state, and checkpoints.
 
-Coreless makes an important distinction between the **machine** and its **execution engine**.
+Storage-backed virtual RAM is part of the Coreless machine model. Active pages may be cached by an implementation, but persistent machine state belongs to the Coreless machine image.
 
-The **machine** is the computer being defined:
+## Digital execution engine
 
-- architectural registers and CPU state
-- memory and address spaces
-- instruction semantics
-- processes
-- OS state
-- devices
-- filesystem
-- graphics
-- networking
-- applications
-- persistent state
+The current implementation is software, but it is the **Coreless execution mechanism**, not an architectural host dependency.
 
-The **digital execution engine** is the mechanism that makes that defined machine execute:
+Persistent Coreless Machine Image → Coreless Digital Execution Engine → Coreless Machine State → persistent machine image.
 
-**fetch → decode → execute → memory/device access → commit state → next instruction**
-
-The current software execution engine is already part of this repository. reference/core.py contains the Coreless-64 CPU execution implementation, and reference/machine_runtime.py integrates those CPUs, memory, devices, and persistent machine state into a Coreless machine.
-
-This software engine is not a host dependency in the Coreless architecture. It is the current digital implementation of the Coreless execution mechanism, used to make the complete machine executable, testable, and persistent.
-
-Later implementations may use different digital execution technologies while preserving the same Coreless-64 machine behavior. No particular hardware technology is required by the architecture.
-
-## Persistent machine state
-
-Persistent storage is the authoritative carrier of the Coreless machine state.
-
-The machine image is intended to carry everything required to reconstruct the computer, including:
-
-- CPU architectural state
-- virtual RAM
-- page and address-space state
-- process state
-- operating-system state
-- device state
-- filesystem state
-- application state
-- networking state
-- graphics state
-- virtualization state
-- boot state
-- checkpoints and other persistent state
-
-The current reference storage format is an incremental implementation. It will evolve into a scalable machine-image format suitable for very large virtual memory and complete machine state.
-
-### Storage-backed virtual RAM
-
-Coreless virtual RAM belongs to the Coreless machine.
-
-The current engine uses persistent storage as the authoritative backing for Coreless virtual memory. Active pages may be cached by the implementation, but the architectural memory state belongs to the Coreless machine image.
-
-This is an architectural requirement, not merely a persistence feature.
+reference/core.py implements Coreless-64 CPU execution. reference/machine_runtime.py integrates CPU, memory, persistent storage, devices, graphics, networking, and machine state.
 
 ## External boundary
 
-The external environment is an interface to Coreless, not the computer that executes it.
+The intended external environment provides the interface to Coreless: power/startup, display, keyboard/mouse or other input, and network connectivity.
 
-The intended external requirements are limited to things such as:
+The external environment is not the computational owner of Coreless.
 
-- USB or other power
-- physical connection or transport
-- monitor/display
-- keyboard, mouse, or other input
-- network connection
+## 314DNest — System Fabric and local AI
 
-The Coreless digital execution engine provides the computation. The external equipment provides the means to power and interact with the computer.
+**314DNest** is the codename for the complete system environment that coordinates AI with the Coreless machine.
 
-During development, the software engine necessarily executes on some development platform. That does not make the development platform part of the Coreless machine.
+Coreless AI is a subsystem of the computer, not merely an external chatbot.
 
-## Digital execution
+The System Fabric connects virtual CPUs and scheduling, virtual RAM and memory management, persistent storage, devices and networking, virtualization, AI cores, AI collaboration, deterministic policy and capabilities, telemetry, and audit.
 
-The current repository provides a software implementation of the Coreless digital execution mechanism.
+> **Every component plugs into an interface. Nothing reaches around the interface.**
 
-At the machine level:
+### Multi-core AI
 
-    Persistent Coreless Machine Image
-                |
-                v
-        Coreless Digital Engine
-                |
-                v
-        Coreless machine state
-                |
-                +----> persistent machine image
+The local AI architecture is designed so multiple models can work simultaneously and produce one coordinated result.
 
-The engine executes Coreless instructions and updates the machine state. The machine state can then be persisted, restored, checkpointed, or resumed.
+Current collaboration participants include Qwen3, DeepSeek, gpt-oss, Gemma, and Codestral. The architecture also supports an optional external GPT-5.6 Luna adapter through the OpenAI API. Luna is optional and local operation does not depend on it.
 
-The execution engine therefore belongs **inside the Coreless project and machine model**, rather than being treated as an unrelated host-side emulator.
+AI cores independently analyze the same context, cross-review results, resolve disagreements, and produce one deterministic group result before any protected action reaches Coreless policy.
 
-## Graphics and display
+AI output is never itself authorization.
 
-Coreless is not headless by design.
+### Fault-tolerant AI workload distribution
 
-Graphics and display are Coreless resources. A monitor is an external display interface for Coreless output.
+AI cores are treated as interchangeable workers by default. Work can be dynamically distributed across available cores, and failed work can be reassigned to another healthy core. Model specialties are metadata, not permission boundaries.
 
-The host GPU is not the architectural graphics processor of Coreless.
+### Deterministic management boundary
 
-## Networking
+AI-controlled machine operations pass through explicit capabilities and deterministic policy.
 
-Networking is a Coreless machine resource. External network connectivity is an interface available to the Coreless network subsystem.
+The current management path can bind authorized operations to actual Coreless resources: CPU execution and program loading, virtual memory, persistent storage, network and graphics devices, and VM lifecycle through the Coreless hypervisor.
 
-The host or attached network interface transports packets; Coreless networking logic and state belong to the Coreless machine.
+Unauthorized or capability-free proposals are rejected before reaching those resources.
+
+The management plane also provides telemetry, append-only audit records, human-AI sessions, structured terminal commands, confirmation for sensitive commands, cancellation support, and bounded AI worker scheduling.
+
+Authority levels are OBSERVE, RECOMMEND, ASK, POLICY, and SAFE.
+
+A conversational response is never an authorization token.
+
+## Current status
+
+The reference architecture and execution foundation are substantially implemented and the current CI baseline is green.
+
+### Implemented
+
+- Coreless-64 ISA and variable-length instruction framing
+- CPU execution and architectural protection
+- MMU/TLB foundations
+- interrupts and traps
+- vector and matrix execution
+- multiprocessing foundations
+- persistent machine storage
+- storage-backed virtual RAM
+- graphics/display and networking foundations
+- VM isolation and hypervisor control
+- VM IPC and shared-memory capability model
+- AI-Core registry
+- concurrent 314DNest coordination
+- deterministic AI collaboration
+- fault-tolerant/dynamic AI work distribution
+- deterministic policy and capability enforcement
+- direct Coreless resource control
+- telemetry
+- audit logging
+- human-AI sessions
+- structured terminal command ABI
+- cancellation and bounded AI worker scheduling
+- optional OpenAI development adapter
+
+### Next major work
+
+1. Local model runtime adapters for Qwen3, DeepSeek, gpt-oss, Gemma, and Codestral.
+2. Local tensor runtime built on the existing vector/matrix execution foundation.
+3. Transformer compatibility for supported locally stored models.
+4. Native Coreless operating environment: firmware, boot, kernel, processes, drivers, GUI, and applications.
+5. Final integration and conformance pass.
 
 ## Compatibility
 
-Coreless-native software targets Coreless-64.
+Coreless-native software targets Coreless-64. Existing software can eventually be supported through binary translation, dynamic translation, emulation, guest operating systems, and virtualization. Initial compatibility targets include x86-64 and ARM64.
 
-Existing software may be supported through:
+## Specifications
 
-- binary translation
-- dynamic translation
-- emulation
-- guest operating systems
-- virtualization
+- Execution Model: specification/execution-model.md
+- Digital Execution Engine: specification/computational-fabric.md
+- Coreless-64 Architecture: specification/architecture.md
+- Registers: specification/registers.md
+- ISA: specification/isa.md
+- Memory: specification/memory.md
+- Privilege: specification/privilege.md
+- Interrupts: specification/interrupts.md
+- ABI: specification/abi.md
+- Devices: specification/devices.md
+- Graphics: specification/graphics.md
+- Networking: specification/networking.md
+- Virtualization: specification/virtualization.md
+- System Fabric: specification/system_fabric.md
+- 314DNest: specification/314d_nest.md
+- Roadmap: ROADMAP.md
 
-Initial compatibility targets include x86-64 and ARM64.
+## Optional OpenAI development backend
 
-Compatibility mechanisms do not redefine Coreless-64.
+ai/openai_client.py provides an optional OpenAI Responses API adapter. It is a development/integration backend, not a Coreless CPU dependency and not a replacement for local AI.
 
-## Scalable machine model
-
-Coreless-64 describes machines of different sizes without changing the architecture.
-
-A machine may expose different quantities of:
-
-- CPU resources
-- virtual RAM
-- vector resources
-- matrix/AI resources
-- graphics resources
-- persistent storage
-- network resources
-- guest-machine resources
-
-Storage capacity can carry larger machine images, operating environments, applications, AI models, datasets, checkpoints, and guest machines.
-
-Storage capacity alone does not create computational throughput. The digital execution engine determines what computational resources the machine provides.
-
-## Current implementation status
-
-The project is moving from architectural specification into an executable, persistent digital computer. The reference machine now persists and restores complete machine-image checkpoints, including CPU, RAM, OS, process, device, graphics, filesystem, and application/session state.
-
-The repository currently includes:
-
-- Coreless-64 instruction execution
-- digital CPU execution engine
-- persistent machine storage
-- storage-backed virtual RAM
-- shared Coreless RAM across CPUs
-- persisted architectural CPU state
-- multiprocessing foundations
-- virtual memory/MMU foundations
-- interrupt and device foundations
-- graphics/display foundations
-- networking foundations
-- virtualization foundations
-
-The next major implementation work is to make the remaining machine subsystems persistent parts of the same Coreless machine image, including:
-
-- process and address-space state
-- operating-system state
-- device state
-- boot state
-- application state
-- complete machine-image checkpoint/restore
-
-## Specification
-
-- [Execution Model](specification/execution-model.md)
-- [Digital Execution Engine](specification/computational-fabric.md)
-- [Coreless-64 Architecture](specification/architecture.md)
-- [Registers](specification/registers.md)
-- [ISA](specification/isa.md)
-- [Memory](specification/memory.md)
-- [Privilege](specification/privilege.md)
-- [Interrupts](specification/interrupts.md)
-- [ABI](specification/abi.md)
-- [Devices](specification/devices.md)
-- [Graphics](specification/graphics.md)
-- [Networking](specification/networking.md)
-- [Virtualization](specification/virtualization.md)
-- [Roadmap](ROADMAP.md)
+Configuration uses OPENAI_API_KEY, OPENAI_MODEL, and OPENAI_BASE_URL. Never commit a real API key. Use .env.example.
 
 ## Project principles
 
-> **Coreless is the computer. The Coreless digital execution engine runs the computer.**
-
+> **Coreless is the computer.**
 > **Persistent storage carries persistent machine state.**
-
-> **The external environment is the interface, not the computational owner of Coreless.**
-
-> **If Coreless needs it to remain a computer, its state belongs in the Coreless machine image.**
-
-Coreless is intended to become a portable digital computer architecture whose machine can travel with its persistent storage.
-
-
-## Optional AI development backend
-
-Coreless includes an optional OpenAI Responses API adapter under `ai/openai_client.py`.
-
-This is a development/integration backend for the Human-AI management work. It is **not** the Coreless CPU and does not replace the planned local Coreless Intelligence Layer. Coreless remains architecturally capable of operating with local AI without depending on a remote service.
-
-Configure it through environment variables:
-
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL` (default: `gpt-5.6-luna`)
-- `OPENAI_BASE_URL` (default: `https://api.openai.com/v1`)
-
-Never commit a real API key. Use `.env.example` as the configuration template.
+> **The Coreless digital execution engine runs the computer.**
+> **AI can assist the machine, but deterministic Coreless controls remain authoritative.**
+> **Every subsystem communicates through explicit interfaces and authorization boundaries.**
