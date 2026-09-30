@@ -51,6 +51,6 @@ def test_machine_scheduler_publishes_telemetry():
     machine = CorelessMachine(memory_size=4096)
     snapshot = machine.publish_telemetry()
 
-    assert "cpu-0" in snapshot.cpu
+    assert "cpu" in snapshot.cpu
     assert snapshot.memory["ram_bytes"] == 4096
     assert snapshot.storage["objects"] >= 0
