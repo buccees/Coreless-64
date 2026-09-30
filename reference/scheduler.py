@@ -6,6 +6,7 @@ from typing import Protocol
 import threading
 
 from ai.compute_fabric import AIComputeFabric, ComputeResult, ComputeWork
+from ai.telemetry import TelemetryProvider
 
 
 class MachineComputeResource(Protocol):
@@ -28,7 +29,8 @@ class Allocation:
 class MachineScheduler:
     """Deterministically allocate work using capability, capacity, and load."""
 
-    def __init__(self) -> None:
+    def __init__(self, telemetry: TelemetryProvider | None = None) -> None:
+        self.telemetry = telemetry
         self._resources: dict[str, MachineComputeResource] = {}
         self._load: dict[str, int] = {}
         self._lock = threading.Lock()
@@ -72,14 +74,17 @@ class MachineScheduler:
         if not available:
             raise RuntimeError(f"all compute resources are at capacity for operation: {work.operation}")
 
-        return min(
-            available,
-            key=lambda item: (
-                self._load[item[0].resource_id] / item[0].capacity,
-                self._load[item[0].resource_id],
-                item[0].resource_id,
-            ),
-        )
+        def score(item):
+            resource = item[0]
+            load_ratio = self._load[resource.resource_id] / resource.capacity
+            external = 0.0
+            if self.telemetry is not None:
+                snapshot = self.telemetry.snapshot()
+                source = snapshot.cpu if resource.kind == "conventional" else snapshot.workloads
+                external = float(source.get(resource.resource_id, 0.0))
+            return (load_ratio + external, load_ratio, external, resource.resource_id)
+
+        return min(available, key=score)
 
     def execute(self, work: ComputeWork, *, preference="balanced",
                 allow_fallback=True) -> tuple[ComputeResult, Allocation]:
