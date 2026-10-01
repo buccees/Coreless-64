@@ -93,6 +93,24 @@ class ModelPart:
         if removed & protected:
             raise ValueError("role-required capability cannot be removed")
 
+
+
+    def required_capabilities(self) -> Tuple[str, ...]:
+        """Return mandatory plus deliberately retained role capabilities."""
+        return tuple(dict.fromkeys(
+            self.role_contract.mandatory_capabilities
+            + self.role_contract.retained_optional_capabilities
+        ))
+
+    def validate_role(self, available_capabilities: Sequence[str]) -> None:
+        available = set(available_capabilities)
+        missing = set(self.required_capabilities()) - available
+        if missing:
+            raise ValueError(
+                f"{self.part_id} cannot fulfill {self.role_contract.role.value} role; "
+                f"missing capabilities: {sorted(missing)}"
+            )
+
     def can_remove_capability(self, capability: str) -> bool:
         return (
             capability in self.role_contract.removable_capabilities
