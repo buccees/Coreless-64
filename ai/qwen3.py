@@ -25,7 +25,9 @@ class Qwen3KVCache:
 
     @property
     def sequence_length(self) -> int:
-        return len(self.keys[0]) if self.keys else 0
+        if not self.keys or not self.keys[0]:
+            return 0
+        return len(self.keys[0][0])
 
 from .model_weights import ModelWeights
 from .tensor import Tensor, add, matmul, softmax
@@ -175,8 +177,14 @@ def qwen3_attention(
 
     if cache is not None:
         layer_index = int(prefix.rsplit(".", 1)[-1])
-        cache.keys[layer_index].extend(kh)
-        cache.values[layer_index].extend(vh)
+        if not cache.keys[layer_index]:
+            cache.keys[layer_index] = [[] for _ in kh]
+            cache.values[layer_index] = [[] for _ in vh]
+        if len(cache.keys[layer_index]) != len(kh):
+            raise ValueError("Qwen3 KV cache head count does not match the model")
+        for head in range(len(kh)):
+            cache.keys[layer_index][head].extend(kh[head])
+            cache.values[layer_index][head].extend(vh[head])
         kh = cache.keys[layer_index]
         vh = cache.values[layer_index]
 
