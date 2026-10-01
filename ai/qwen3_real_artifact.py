@@ -35,6 +35,21 @@ def acquire_and_run(
     return run(root, prompt, max_new_tokens)
 
 
+
+def validate_real_artifact(model_directory: str | Path) -> dict[str, object]:
+    """Load only the artifact metadata and return the validated runtime shape."""
+    root = Path(model_directory)
+    require_qwen3_06b_files(root)
+    runtime = load_qwen3_model(root)
+    return {
+        "model": "Qwen3-0.6B",
+        "vocab_size": runtime.config.vocab_size,
+        "hidden_size": runtime.config.hidden_size,
+        "layers": runtime.config.num_hidden_layers,
+        "attention_heads": runtime.config.num_attention_heads,
+        "kv_heads": runtime.config.num_key_value_heads,
+    }
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Acquire and run native Coreless Qwen3 inference"
