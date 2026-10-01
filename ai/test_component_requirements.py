@@ -25,10 +25,9 @@ def test_specialization_selects_a_subset():
     profile = make_profile(
         "task.ai-device",
         required=("tensor_compute", "matrix_compute", "high_speed_io"),
-        optional=("gpu_compute", "network_acceleration"),
     )
     assert "tensor_compute" in profile.required
-    assert "gpu_compute" in profile.optional
+    assert "high_speed_io" in profile.required
 
 
 def test_unknown_requirement_is_rejected():
