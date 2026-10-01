@@ -28,6 +28,8 @@ class Qwen3Config:
     rms_norm_eps: float = 1e-6
     head_dim: int | None = None
     rope_theta: float = 1000000.0
+    rope_scaling_factor: float | None = None
+    original_max_position_embeddings: int | None = None
 
     def __post_init__(self) -> None:
         head_dim = self.head_dim or (self.hidden_size // self.num_attention_heads)
@@ -64,12 +66,12 @@ def _reshape_heads(x: Tensor, heads: int, head_dim: int) -> list[list[list[float
     ]
 
 
-def _rotary(head: list[float], position: int, theta: float) -> list[float]:
+def _rotary(head: list[float], position: int, theta: float, scaling_factor: float | None = None) -> list[float]:
     out = head[:]
     half = len(head) // 2
     for i in range(half):
         inv = theta ** (-2.0 * i / len(head))
-        angle = position * inv
+        angle = position * inv\n        if scaling_factor is not None and scaling_factor > 1.0:\n            angle /= scaling_factor
         c, s = math.cos(angle), math.sin(angle)
         a, b = head[i], head[i + half]
         out[i] = a * c - b * s
