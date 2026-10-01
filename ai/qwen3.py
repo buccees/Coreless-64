@@ -98,17 +98,19 @@ def _repeat_kv(heads: list[list[list[float]]], repeats: int) -> list[list[list[f
     return [head for head in heads for _ in range(repeats)]
 
 
-def _attention(q, k, v, causal=True) -> list[list[float]]:
-    positions = len(q[0])
+def _attention(q, k, v, causal=True, key_position_offset=0) -> list[list[float]]:
+    query_positions = len(q[0])
+    key_positions = len(k[0])
     dim = len(q[0][0])
-    output = [[0.0] * dim for _ in range(positions)]
+    output = [[0.0] * dim for _ in range(query_positions)]
     scale = 1.0 / math.sqrt(dim)
     for head in range(len(q)):
-        for row in range(positions):
+        for row in range(query_positions):
             scores = []
-            for col in range(positions):
+            absolute_query_position = key_position_offset + row
+            for col in range(key_positions):
                 scores.append(sum(q[head][row][i] * k[head][col][i] for i in range(dim))
-                              * scale if (not causal or col <= row) else float("-inf"))
+                              * scale if (not causal or col <= absolute_query_position) else float("-inf"))
             weights = softmax(Tensor.from_values((positions,), scores)).data
             for col, weight in enumerate(weights):
                 for i in range(dim):
@@ -180,7 +182,9 @@ def qwen3_attention(
 
     kh = _repeat_kv(kh, cfg.kv_group_size)
     vh = _repeat_kv(vh, cfg.kv_group_size)
-    attended = _heads_to_tensor(_attention(qh, kh, vh))
+    attended = _heads_to_tensor(_attention(
+        qh, kh, vh, key_position_offset=position_offset
+    ))
     return _linear(attended, weights.get(f"{prefix}.self_attn.o_proj.weight"))
 
 
