@@ -118,10 +118,30 @@ def _rms_norm(x: Tensor, weight: Tensor, eps: float) -> Tensor:
     return Tensor.from_values(x.shape, rows)
 
 
+def _linear(x: Tensor, weight: Tensor) -> Tensor:
+    """Apply a Hugging Face Linear weight stored as [out_features, in_features]."""
+    return matmul(x, _transpose(weight))
+
+
+def _apply_head_norm(heads: list[list[list[float]]], weight: Tensor, eps: float) -> list[list[list[float]]]:
+    return [
+        [
+            list(_rms_norm(Tensor.from_values((1, len(values)), values), weight, eps).data)
+            for values in head
+        ]
+        for head in heads
+    ]
+
+
 def qwen3_attention(x: Tensor, weights: ModelWeights, prefix: str, cfg: Qwen3Config) -> Tensor:
-    q = matmul(x, weights.get(f"{prefix}.q_proj"))
-    k = matmul(x, weights.get(f"{prefix}.k_proj"))
-    v = matmul(x, weights.get(f"{prefix}.v_proj"))
+    q = _linear(x, weights.get(f"{prefix}.self_attn.q_proj.weight"))
+    k = _linear(x, weights.get(f"{prefix}.self_attn.k_proj.weight"))
+    v = _linear(x, weights.get(f"{prefix}.self_attn.v_proj.weight"))
+    qh = _reshape_heads(q, cfg.num_attention_heads, cfg.resolved_head_dim)
+    kh = _reshape_heads(k, cfg.num_key_value_heads, cfg.resolved_head_dim)
+    vh = _reshape_heads(v, cfg.num_key_value_heads, cfg.resolved_head_dim)
+    qh = _apply_head_norm(qh, weights.get(f"{prefix}.self_attn.q_norm.weight"), cfg.rms_norm_eps)
+    kh = _apply_head_norm(kh, weights.get(f"{prefix}.self_attn.k_norm.weight"), cfg.rms_norm_eps)
     qh = _reshape_heads(q, cfg.num_attention_heads, cfg.resolved_head_dim)
     kh = _reshape_heads(k, cfg.num_key_value_heads, cfg.resolved_head_dim)
     vh = _reshape_heads(v, cfg.num_key_value_heads, cfg.resolved_head_dim)
@@ -130,16 +150,16 @@ def qwen3_attention(x: Tensor, weights: ModelWeights, prefix: str, cfg: Qwen3Con
     kh = _repeat_kv(kh, cfg.kv_group_size)
     vh = _repeat_kv(vh, cfg.kv_group_size)
     attended = _heads_to_tensor(_attention(qh, kh, vh))
-    return matmul(attended, weights.get(f"{prefix}.o_proj"))
+    return _linear(attended, weights.get(f"{prefix}.self_attn.o_proj.weight"))
 
 
 def qwen3_mlp(x: Tensor, weights: ModelWeights, prefix: str) -> Tensor:
-    gate = matmul(x, weights.get(f"{prefix}.gate_proj"))
-    up = matmul(x, weights.get(f"{prefix}.up_proj"))
+    gate = _linear(x, weights.get(f"{prefix}.mlp.gate_proj.weight"))
+    up = _linear(x, weights.get(f"{prefix}.mlp.up_proj.weight"))
     gated = Tensor.from_values(gate.shape, (
         (g / (1.0 + math.exp(-g))) * u for g, u in zip(gate.data, up.data)
     ))
-    return matmul(gated, weights.get(f"{prefix}.down_proj"))
+    return _linear(gated, weights.get(f"{prefix}.mlp.down_proj.weight"))
 
 
 class Qwen3Runtime:
@@ -171,4 +191,4 @@ class Qwen3Runtime:
             hidden = add(hidden, qwen3_mlp(normed, self.weights, prefix))
         hidden = _rms_norm(hidden, self.weights.get("model.norm.weight"), self.config.rms_norm_eps)
         lm_head = self.weights.get("lm_head.weight") if self.weights.contains("lm_head.weight") else embedding
-        return matmul(hidden, _transpose(lm_head))
+        return _linear(hidden, lm_head)
