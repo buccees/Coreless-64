@@ -89,3 +89,21 @@ def test_qwen3_kv_cache_preserves_gqa_heads():
     assert len(cache.values[0]) == 2
     assert all(len(head) == 1 for head in cache.keys[0])
     assert cache.sequence_length == 1
+
+
+def test_qwen3_attention_single_query_uses_score_length():
+    identity = _identity(2)
+    weights = ModelWeights([
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight",
+                    Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight",
+                    Tensor.from_values((2,), (1.0, 1.0))),
+    ])
+    cfg = Qwen3Config(2, 4, 1, 1, 1, 8, 16, head_dim=2)
+    hidden = Tensor.from_values((1, 2), (1.0, 0.0))
+    result = qwen3_attention(hidden, weights, "model.layers.0", cfg)
+    assert result.shape == (1, 2)
