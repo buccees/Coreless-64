@@ -5,8 +5,7 @@ interoperate with the full computer. It is intentionally broader than any
 single model or VM. Specialization may remove unused capabilities only after
 the task contract and validation suite prove they are unnecessary.
 
-This is a capability model, not a claim that every deployed part must
-implement every feature.
+A deployed part implements the complete requirement profile for its hardware role; it does not need unrelated capabilities.
 """
 
 from dataclasses import dataclass
@@ -92,9 +91,9 @@ class RequirementEnvelope:
         )
 
 
-# Broad reference envelope. A specialized component is allowed to expose only
-# the subset it actually needs; this envelope prevents the architecture from
-# being designed around a narrow model or one vendor's device set.
+# Broad reference envelope. A component selects a complete role from this
+# envelope. Selection defines what the component MUST retain, not a list of
+# conveniences that may later be stripped away.
 CURRENT_COMPUTER_ENVELOPE = RequirementEnvelope(
     name="coreless.current-computer-io",
     capabilities=frozenset().union(
@@ -106,7 +105,7 @@ CURRENT_COMPUTER_ENVELOPE = RequirementEnvelope(
 
 @dataclass(frozen=True)
 class RequirementProfile:
-    """Task-specific requirements selected from the broad envelope."""
+    """Complete mandatory requirements for one hardware-component role."""
 
     task_id: str
     required: FrozenSet[str]
