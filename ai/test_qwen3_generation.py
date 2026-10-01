@@ -16,8 +16,8 @@ class FakeRuntime:
     def __init__(self):
         self.calls = []
 
-    def forward(self, token_ids):
-        self.calls.append(tuple(token_ids))
+    def forward(self, token_ids, cache=None):
+        self.calls.append((tuple(token_ids), cache is not None))
         return FakeLogits([[0.0, 1.0, 0.0, 0.0]])
 
 
@@ -35,7 +35,7 @@ def test_greedy_generation_appends_highest_logit():
     runtime = FakeRuntime()
     result = Qwen3Generator(runtime, FakeTokenizer()).generate_ids([1], 2)
     assert result == [1, 1, 1]
-    assert runtime.calls == [(1,), (1, 1)]
+    assert runtime.calls == [((1,), True), ((1,), True)]
 
 
 def test_text_generation_uses_native_tokenizer_boundary():
