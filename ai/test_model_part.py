@@ -82,3 +82,42 @@ def test_communication_role_cannot_drop_user_communication():
         role_contract=role,
     )
     assert part.role_contract.user_communication
+
+
+def test_hardware_assignment_preserves_native_architecture_and_role():
+    role = RoleContract(
+        role=ComponentRole.CPU,
+        mandatory_capabilities=("scalar_compute",),
+        retained_optional_capabilities=("cryptographic_compute",),
+    )
+    registry = HardwareAssignmentRegistry()
+    assignment = registry.assign(
+        "trained-cpu-model",
+        "cpu-0",
+        role,
+        native_architecture="native-model-architecture",
+    )
+    assignment.validate(("scalar_compute", "cryptographic_compute"))
+    assert assignment.native_architecture == "native-model-architecture"
+    assert registry.get(ComponentRole.CPU).model_id == "trained-cpu-model"
+
+
+def test_hardware_assignment_rejects_missing_role_capability():
+    role = RoleContract(
+        role=ComponentRole.GPU,
+        mandatory_capabilities=("matrix_compute",),
+    )
+    assignment = HardwareAssignment(
+        model_id="gpu-model",
+        part_id="gpu-0",
+        role_contract=role,
+        required_capabilities=("matrix_compute",),
+        retained_optional_capabilities=(),
+        native_architecture="native-gpu",
+    )
+    try:
+        assignment.validate(())
+    except ValueError as exc:
+        assert "matrix_compute" in str(exc)
+    else:
+        raise AssertionError("missing hardware capability was accepted")
