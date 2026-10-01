@@ -1,4 +1,5 @@
 from ai.tensor import Tensor
+from pathlib import Path
 from reference.machine_runtime import CorelessMachine
 
 
@@ -11,13 +12,14 @@ def test_machine_exposes_native_tensor_runtime():
     assert result.data == (23.0,)
 
 
-def test_machine_tensor_state_survives_reopen():
-    machine = CorelessMachine()
+def test_machine_tensor_state_survives_reopen(tmp_path: Path):
+    image_path = tmp_path / "coreless.img"
+    machine = CorelessMachine(storage_path=image_path)
     value = Tensor.from_values((2,), [7, 11])
     machine.tensor_runtime.save("persistent", value)
     machine.storage.sync()
 
-    reopened = CorelessMachine(storage_path=machine.storage.path)
+    reopened = CorelessMachine(storage_path=image_path)
     restored = reopened.tensor_runtime.load("persistent")
     assert restored.shape == value.shape
     assert restored.data == value.data
