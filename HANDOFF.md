@@ -100,33 +100,111 @@ Specifications:
 - specification/isa.md
 - specification/isa_conformance.md
 
-## Local intelligence installation status\n\nThe first local intelligence runtime layer is now in the repository. `ai/local_runtime.py` provides a dependency-free OpenAI-compatible local inference adapter, and `register_default_local_cores()` registers Qwen3, DeepSeek-R1, gpt-oss:20b, Gemma 3, and Codestral with the existing 314DNest registry.\n\n`scripts/install-local-ai.py` creates the local model configuration template. With `--pull`, it can pull the configured models through an installed Ollama runtime. Model weights remain environment/storage content and are never committed to the repository.\n\nThe five local cores are now validated through the common AI-Core interface and a 314DNest end-to-end coordinator test. The repository has since advanced through the machine AI compute fabric, telemetry-aware scheduler, unified machine work distribution, and explicit AI capability advertisement. Live target-environment inference remains blocked until the actual Coreless test environment exists. The next implementation block is the local tensor/Transformer execution layer in parallel with building that test environment.\n\n## Remaining major work
+## Local intelligence / model-runtime status
+
+The local AI runtime work has advanced substantially beyond the earlier adapter-only stage.
+
+### Qwen3 native runtime
+
+Qwen3 is the first model being taken through the full native-runtime path because it is currently assigned to the Coreless CPU role.
+
+Implemented and green:
+
+- native Qwen3 configuration/model compatibility
+- native Qwen3 tokenizer boundary; generic tokenization is not substituted
+- Qwen3 attention Q/K normalization
+- Qwen3 RoPE handling with position offsets
+- Qwen3 tied word-embedding support
+- storage-backed safetensors/model-weight loading
+- native Qwen3 forward path
+- greedy text generation
+- native KV-cache generation
+- position-aware causal masking for cached decoding
+- grouped-query-attention (GQA) KV-cache layout and regression coverage
+- official Qwen3-0.6B artifact validation
+- managed Qwen3-0.6B artifact acquisition
+- immutable artifact revision pinning
+- SHA-256 verification of the large model artifact
+- atomic .part downloads
+- real-artifact integration runner
+- real-artifact metadata validation entry point
+
+The latest confirmed GitHub Actions checkpoint is **run #403 — successful/green**.
+
+Important distinction: green CI proves the repository implementation and tests pass. It does **not** by itself prove that the official trained Qwen3-0.6B weights have successfully completed end-to-end inference. That remains an explicit validation milestone.
+
+### Qwen3 real-artifact path
+
+Relevant files include:
+
+- ai/qwen3.py
+- ai/qwen3_model.py
+- ai/qwen3_loader.py
+- ai/qwen3_tokenizer.py
+- ai/qwen3_generation.py
+- ai/qwen3_artifact.py
+- ai/qwen3_real_artifact.py
+- ai/test_qwen3.py
+- ai/test_qwen3_model.py
+- ai/test_qwen3_artifact.py
+
+The official model weights are runtime data and must not be committed to the repository.
+
+The current development path is:
+
+**official trained artifact → Coreless artifact validation → native tokenizer → native Qwen3 runtime → KV-cached generation → real-model execution**
+
+### Model-as-hardware-component architecture
+
+The project direction is NOT to permanently constrain each model to a simplistic fixed Transformer role.
+
+The intended lifecycle is:
+
+**large capable trained model → role-specific training/specialization → careful slimming → Coreless hardware-component integration → continuous user-specific static adaptation**
+
+Specialization must remove only capabilities that are genuinely irrelevant to the component's assigned role. Capabilities that are necessary, optional-but-useful, or required for future compatibility remain available.
+
+Communication with the user is specifically **not** a capability to remove or minimize. Terminal/session/I/O communication remains a first-class component capability.
+
+The model components are intended to behave as specialized computer parts:
+
+- Qwen3 currently assigned as the CPU intelligence component
+- GPU intelligence component must retain the breadth required for multiple driver/API compatibility rather than being aggressively minimized
+- other AI components can specialize around storage, networking, communication, orchestration, or other machine roles
+- each component must retain sufficient general capability to perform its assigned hardware role
+- the VM is a containment/nesting environment, not the definition of the component
+- final users should not need to manually manage every model file; model acquisition/installation belongs to the Coreless runtime
+- development artifacts can remain external and large; deployment components are the optimized local machine parts
+
+The final product should therefore distinguish between the **training artifact** and the **deployed Coreless component**.
+## Remaining major work
 
 ### 1. Coreless test environment
 
 Establish the reproducible environment needed to execute the actual Coreless machine from persistent storage. CI/reference tests are not a substitute for this live environment.
 
-### 2. Local model runtimes
+### 2. Native local model runtimes
 
-The common local adapter and five-core registration are implemented. Remaining work is live validation and model-specific runtime/weight integration for:
+Qwen3 is now the first native model-runtime implementation and is the immediate execution target. Do not replace its native tokenizer or architecture with a generic Transformer path.
 
-- Qwen3
+Remaining model-specific native-runtime work will follow for:
+
 - DeepSeek
 - gpt-oss
 - Gemma
 - Codestral
 
-All local models should use the common AI-Core interface and remain interchangeable at the collaboration/work-distribution layer.
+All local models should still use the common AI-Core interface at the coordination layer while retaining their own native architectures internally.
 
-### 3. Local tensor runtime
+### 4. Local tensor runtime
 
 Build tensor execution on the existing Coreless vector/matrix foundation. Keep model-runtime details above the architectural CPU boundary.
 
-### 4. Transformer compatibility
+### 5. Transformer compatibility
 
 Add loading/execution support for compatible locally stored Transformer models through the local tensor runtime.
 
-### 5. Native Coreless operating environment
+### 6. Native Coreless operating environment
 
 Continue the machine itself:
 - firmware
@@ -140,11 +218,11 @@ Continue the machine itself:
 - remote display/input
 - application environment
 
-### 6. Scaling and compatibility
+### 7. Scaling and compatibility
 
 Continue dynamic CPU/memory/AI/GPU scaling, large persistent machine images, multiple guest machines, Coreless-native tooling, x86-64/ARM64 compatibility, binary translation, guest OSes, and legacy virtualization.
 
-### 7. Final integration/conformance
+### 8. Final integration/conformance
 
 After the major runtime layers stabilize, run a final cross-layer audit covering:
 - ISA/spec consistency
@@ -176,6 +254,18 @@ After the major runtime layers stabilize, run a final cross-layer audit covering
 
 ## Resume point
 
-**Current green resume point:** the machine scheduler is telemetry-aware, CorelessMachine exposes unified work distribution, AI resources advertise explicit capabilities, and automated validation is green.
+**Current green resume point: GitHub Actions run #403 — successful.**
 
-Continue with the **local tensor/Transformer execution layer** while the reproducible Coreless test environment is built in parallel. Do not mark live AI inference complete until the actual Coreless runtime environment has been exercised. Do not rewrite the completed policy, resource-control, collaboration, or Coreless execution foundations unless a concrete failing test or architectural inconsistency requires it.
+The immediate objective is **real trained Qwen3-0.6B execution**, not another synthetic compatibility layer.
+
+Resume in this order:
+
+1. Use the managed Qwen3 artifact path to obtain/validate the official trained artifact.
+2. Execute a minimal one-token forward pass through the native Qwen3 runtime.
+3. Verify the output shape and numerical/runtime behavior.
+4. Run short real generation using the native tokenizer and KV cache.
+5. Only after correctness is established, optimize the storage-backed tensor implementation.
+6. Then extend the native-runtime architecture to the other model families.
+7. Preserve the model-as-specialized-hardware-component architecture throughout.
+
+Do not mark live AI inference complete merely because CI is green. Do not commit large model weights. Do not replace model-native architectures with a generic path just to make integration easier.
