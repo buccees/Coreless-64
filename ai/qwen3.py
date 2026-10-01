@@ -113,7 +113,7 @@ def _attention(q, k, v, causal=True, key_position_offset=0) -> list[list[float]]
             for col in range(key_positions):
                 scores.append(sum(q[head][row][i] * k[head][col][i] for i in range(dim))
                               * scale if (not causal or col <= absolute_query_position) else float("-inf"))
-            weights = softmax(Tensor.from_values((positions,), scores)).data
+            weights = softmax(Tensor.from_values((len(scores),), scores)).data
             for col, weight in enumerate(weights):
                 for i in range(dim):
                     output[row][i] += weight * v[head][col][i]
