@@ -1,4 +1,4 @@
-from ai.tensor import Tensor, add, linear, matmul, relu, softmax
+from ai.tensor import Tensor, add, dot, linear, matmul, mul, relu, softmax, sub
 
 
 def test_tensor_shape_and_indexing():
@@ -37,3 +37,30 @@ def test_shape_mismatch_rejected():
         pass
     else:
         raise AssertionError("shape mismatch must fail")
+
+
+def test_vector_ops_and_reductions_are_deterministic():
+    a = Tensor.from_values((3,), [1, 2, 3], dtype="fp32")
+    b = Tensor.from_values((3,), [4, 5, 6], dtype="fp32")
+    assert sub(a, b).data == (-3.0, -3.0, -3.0)
+    assert mul(a, b).data == (4.0, 10.0, 18.0)
+    assert dot(a, b) == 32.0
+    assert a.sum() == 6.0
+    assert a.mean() == 2.0
+
+
+def test_tensor_normalization_preserves_shape_and_dtype():
+    value = Tensor.from_values((2,), [3, 4], dtype="bf16")
+    normalized = value.normalize()
+    assert normalized.shape == value.shape
+    assert normalized.dtype == "bf16"
+    assert normalized.data == (0.6, 0.8)
+
+
+def test_tensor_dtype_is_validated():
+    try:
+        Tensor.from_values((1,), [1], dtype="unknown")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("unsupported dtype must fail")
