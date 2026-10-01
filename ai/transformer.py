@@ -14,6 +14,7 @@ from typing import Sequence
 from .model_architecture import TransformerConfig
 from .model_weights import ModelWeights
 from .tensor import Tensor, add, matmul, softmax
+from .tensor_runtime import TensorRuntime
 
 
 def transpose(matrix: Tensor) -> Tensor:
@@ -60,6 +61,7 @@ def scaled_dot_product_attention(
     scale: float | None = None,
     *,
     causal: bool = False,
+    runtime: TensorRuntime | None = None,
 ) -> Tensor:
     if any(len(t.shape) != 2 for t in (query, key, value)):
         raise ValueError("attention inputs must be rank-2 tensors")
@@ -69,7 +71,8 @@ def scaled_dot_product_attention(
         raise ValueError("key/value sequence dimensions must match")
 
     factor = scale if scale is not None else 1.0 / sqrt(query.shape[1])
-    scores = matmul(query, transpose(key)).map(lambda x: x * factor)
+    multiply = runtime.matmul if runtime is not None else matmul
+    scores = multiply(query, transpose(key)).map(lambda x: x * factor)
     rows, cols = scores.shape
     weights = []
     for row in range(rows):
@@ -89,42 +92,49 @@ def feed_forward(
     weight_out: Tensor,
     bias_in: Tensor | None = None,
     bias_out: Tensor | None = None,
+    runtime: TensorRuntime | None = None,
 ) -> Tensor:
-    hidden = matmul(x, weight_in)
+    multiply = runtime.matmul if runtime is not None else matmul
+    add_values = runtime.add if runtime is not None else add
+    hidden = multiply(x, weight_in)
     if bias_in is not None:
-        hidden = add(hidden, bias_in)
+        hidden = add_values(hidden, bias_in)
     hidden = hidden.map(lambda v: v if v > 0 else 0.0)
-    output = matmul(hidden, weight_out)
+    output = multiply(hidden, weight_out)
     if bias_out is not None:
-        output = add(output, bias_out)
+        output = add_values(output, bias_out)
     return output
 
 
-def transformer_layer(x: Tensor, weights: ModelWeights, prefix: str) -> Tensor:
+def transformer_layer(x: Tensor, weights: ModelWeights, prefix: str, runtime: TensorRuntime | None = None) -> Tensor:
+    multiply = runtime.matmul if runtime is not None else matmul
+    add_values = runtime.add if runtime is not None else add
     normed = rms_norm(x, weights.get(f"{prefix}.input_norm"))
-    q = matmul(normed, weights.get(f"{prefix}.q_proj"))
-    k = matmul(normed, weights.get(f"{prefix}.k_proj"))
-    v = matmul(normed, weights.get(f"{prefix}.v_proj"))
+    q = multiply(normed, weights.get(f"{prefix}.q_proj"))
+    k = multiply(normed, weights.get(f"{prefix}.k_proj"))
+    v = multiply(normed, weights.get(f"{prefix}.v_proj"))
     attended = matmul(
-        scaled_dot_product_attention(q, k, v, causal=True),
+        scaled_dot_product_attention(q, k, v, causal=True, runtime=runtime),
         weights.get(f"{prefix}.o_proj"),
     )
-    residual = add(x, attended)
+    residual = add_values(x, attended)
     post = rms_norm(residual, weights.get(f"{prefix}.post_norm"))
     ff = feed_forward(
         post,
         weights.get(f"{prefix}.ffn_up"),
         weights.get(f"{prefix}.ffn_down"),
+        runtime=runtime,
     )
-    return add(residual, ff)
+    return add_values(residual, ff)
 
 
 class TransformerRuntime:
     """Execute a decoder-only Transformer from Coreless-native tensors."""
 
-    def __init__(self, config: TransformerConfig, weights: ModelWeights) -> None:
+    def __init__(self, config: TransformerConfig, weights: ModelWeights, tensor_runtime: TensorRuntime | None = None) -> None:
         self.config = config
         self.weights = weights
+        self.tensor_runtime = tensor_runtime
 
     def forward(self, token_ids: Sequence[int]) -> Tensor:
         if not token_ids:
@@ -138,11 +148,12 @@ class TransformerRuntime:
 
         for layer in range(self.config.num_layers):
             hidden = transformer_layer(
-                hidden, self.weights, f"layers.{layer}"
+                hidden, self.weights, f"layers.{layer}", self.tensor_runtime
             )
 
         hidden = rms_norm(hidden, self.weights.get("final_norm"))
-        logits = matmul(hidden, transpose(self.weights.get("lm_head")))
+        multiply = self.tensor_runtime.matmul if self.tensor_runtime is not None else matmul
+        logits = multiply(hidden, transpose(self.weights.get("lm_head")))
         if logits.shape[1] != self.config.vocab_size:
             raise ValueError("lm_head output size does not match vocabulary")
         return logits
