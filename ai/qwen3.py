@@ -12,6 +12,21 @@ import math
 from dataclasses import dataclass
 from typing import Sequence
 
+
+@dataclass
+class Qwen3KVCache:
+    """Per-layer native Q/K cache used by autoregressive generation."""
+    keys: list[list[list[float]]]
+    values: list[list[list[float]]]
+
+    @classmethod
+    def create(cls, num_layers: int) -> "Qwen3KVCache":
+        return cls([[] for _ in range(num_layers)], [[] for _ in range(num_layers)])
+
+    @property
+    def sequence_length(self) -> int:
+        return len(self.keys[0]) if self.keys else 0
+
 from .model_weights import ModelWeights
 from .tensor import Tensor, add, matmul, softmax
 
@@ -135,7 +150,14 @@ def _apply_head_norm(heads: list[list[list[float]]], weight: Tensor, eps: float)
     ]
 
 
-def qwen3_attention(x: Tensor, weights: ModelWeights, prefix: str, cfg: Qwen3Config) -> Tensor:
+def qwen3_attention(
+    x: Tensor,
+    weights: ModelWeights,
+    prefix: str,
+    cfg: Qwen3Config,
+    cache: Qwen3KVCache | None = None,
+    position_offset: int = 0,
+) -> Tensor:
     q = _linear(x, weights.get(f"{prefix}.self_attn.q_proj.weight"))
     k = _linear(x, weights.get(f"{prefix}.self_attn.k_proj.weight"))
     v = _linear(x, weights.get(f"{prefix}.self_attn.v_proj.weight"))
@@ -144,10 +166,18 @@ def qwen3_attention(x: Tensor, weights: ModelWeights, prefix: str, cfg: Qwen3Con
     vh = _reshape_heads(v, cfg.num_key_value_heads, cfg.resolved_head_dim)
     qh = _apply_head_norm(qh, weights.get(f"{prefix}.self_attn.q_norm.weight"), cfg.rms_norm_eps)
     kh = _apply_head_norm(kh, weights.get(f"{prefix}.self_attn.k_norm.weight"), cfg.rms_norm_eps)
-    qh = [[_rotary(h, p, cfg.rope_theta, cfg.rope_scaling_factor)
+    qh = [[_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor)
            for p, h in enumerate(head)] for head in qh]
-    kh = [[_rotary(h, p, cfg.rope_theta, cfg.rope_scaling_factor)
+    kh = [[_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor)
            for p, h in enumerate(head)] for head in kh]
+
+    if cache is not None:
+        layer_index = int(prefix.rsplit(".", 1)[-1])
+        cache.keys[layer_index].extend(kh)
+        cache.values[layer_index].extend(vh)
+        kh = cache.keys[layer_index]
+        vh = cache.values[layer_index]
+
     kh = _repeat_kv(kh, cfg.kv_group_size)
     vh = _repeat_kv(vh, cfg.kv_group_size)
     attended = _heads_to_tensor(_attention(qh, kh, vh))
@@ -170,11 +200,19 @@ class Qwen3Runtime:
         self.config = config
         self.weights = weights
 
-    def forward(self, token_ids: Sequence[int]) -> Tensor:
+    def forward(
+        self,
+        token_ids: Sequence[int],
+        cache: Qwen3KVCache | None = None,
+    ) -> Tensor:
         if not token_ids:
             raise ValueError("token sequence must not be empty")
-        if len(token_ids) > self.config.max_position_embeddings:
+        position_offset = cache.sequence_length if cache is not None else 0
+        if position_offset + len(token_ids) > self.config.max_position_embeddings:
             raise ValueError("token sequence exceeds Qwen3 context length")
+        if cache is not None and len(cache.keys) != self.config.num_hidden_layers:
+            raise ValueError("Qwen3 KV cache layer count does not match the model")
+
         embedding = self.weights.get("model.embed_tokens.weight")
         hidden = Tensor.from_values(
             (len(token_ids), self.config.hidden_size),
@@ -186,7 +224,9 @@ class Qwen3Runtime:
             prefix = f"model.layers.{layer}"
             normed = _rms_norm(hidden, self.weights.get(f"{prefix}.input_layernorm.weight"),
                                self.config.rms_norm_eps)
-            hidden = add(hidden, qwen3_attention(normed, self.weights, prefix, self.config))
+            hidden = add(hidden, qwen3_attention(
+                normed, self.weights, prefix, self.config, cache, position_offset
+            ))
             normed = _rms_norm(hidden, self.weights.get(f"{prefix}.post_attention_layernorm.weight"),
                                self.config.rms_norm_eps)
             hidden = add(hidden, qwen3_mlp(normed, self.weights, prefix))
