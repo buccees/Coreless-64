@@ -44,7 +44,7 @@ class CorelessMachine:
         self.graphics = GraphicsDevice()
         self.filesystem = FileSystem(self.storage)
         self.loader = ProgramLoader(self)
-        self.tensor_runtime = TensorRuntime(self.storage)
+        self.tensor_runtime = TensorRuntime(self.storage, self.cpu)
         # AI is a native machine resource. Conventional components remain
         # available; AI can augment or replace individual computational jobs.
         self.ai_fabric = AIComputeFabric()
