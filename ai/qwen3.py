@@ -163,7 +163,7 @@ class Qwen3Runtime:
         )
         for layer in range(self.config.num_hidden_layers):
             prefix = f"model.layers.{layer}"
-            normed = _rms_norm(hidden, weights.get(f"{prefix}.input_layernorm.weight"),
+            normed = _rms_norm(hidden, self.weights.get(f"{prefix}.input_layernorm.weight"),
                                self.config.rms_norm_eps)
             hidden = add(hidden, qwen3_attention(normed, self.weights, prefix, self.config))
             normed = _rms_norm(hidden, self.weights.get(f"{prefix}.post_attention_layernorm.weight"),
