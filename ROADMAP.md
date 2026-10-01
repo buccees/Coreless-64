@@ -99,6 +99,22 @@ The intended lifecycle is:
 
 The specialization system must not constrain a model's native architecture merely to fit the VM. Architecture-specific execution is responsible for preserving model semantics; the model-part ABI defines the interface exposed to the rest of Coreless.
 
+## AI-Derived Hardware Components
+
+- [x] Define complete CPU hardware-role capability envelope
+- [x] Define complete GPU hardware-role capability envelope
+- [x] Define complete user-communication hardware-role capability envelope
+- [x] Distinguish mandatory, retained-optional, and removable capabilities
+- [x] Assign trained models to explicit Coreless hardware roles
+- [x] Preserve each model's native architecture at the hardware boundary
+- [x] Add validated model-part hardware execution endpoints
+- [x] Add Coreless hardware-fabric request routing between model-parts
+- [ ] Bind CPU model-part to the Coreless-64 instruction execution engine
+- [ ] Bind GPU model-part to graphics/device/driver execution
+- [ ] Bind communication model-part to the user session layer
+- [ ] Add architecture-specific native execution adapters
+- [ ] Validate real trained-model artifacts as hardware components
+
 ## 314DNest / Local Intelligence
 
 - [x] AI-Core registry
