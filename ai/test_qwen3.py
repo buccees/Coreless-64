@@ -62,3 +62,30 @@ def test_qwen3_kv_cache_matches_uncached_attention():
     assert first.data == uncached.data[:2]
     assert second.data == uncached.data[2:]
     assert cache.sequence_length == 2
+
+
+def test_qwen3_kv_cache_preserves_gqa_heads():
+    hidden = Tensor.from_values((1, 4), (1.0, 2.0, 3.0, 4.0))
+    def zeros(shape):
+        size = 1
+        for dim in shape:
+            size *= dim
+        return Tensor.from_values(shape, (0.0 for _ in range(size)))
+
+    weights = ModelWeights([
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", zeros((8, 4))),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", zeros((4, 4))),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", zeros((4, 4))),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", zeros((4, 8))),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight",
+                    Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight",
+                    Tensor.from_values((2,), (1.0, 1.0))),
+    ])
+    cfg = Qwen3Config(4, 8, 1, 4, 2, 16, 16, head_dim=2)
+    cache = Qwen3KVCache.create(1)
+    qwen3_attention(hidden, weights, "model.layers.0", cfg, cache)
+    assert len(cache.keys[0]) == 2
+    assert len(cache.values[0]) == 2
+    assert all(len(head) == 1 for head in cache.keys[0])
+    assert cache.sequence_length == 1
