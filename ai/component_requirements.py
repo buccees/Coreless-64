@@ -130,3 +130,48 @@ def make_profile(
     )
     profile.validate_against(envelope)
     return profile
+
+
+# Role-level capability contracts. These are intentionally broader than a
+# single workload: a component retains every capability required by its role.
+CPU_REQUIRED_CAPABILITIES = frozenset({
+    "scalar_compute", "integer_compute", "floating_point", "vector_compute",
+    "matrix_compute", "parallel_compute", "atomic_operations", "branch_control",
+    "virtual_memory", "shared_memory", "cacheable_memory", "coherent_memory",
+    "memory_protection", "dma", "persistent_storage", "interrupts", "iommu",
+    "process_isolation", "scheduling", "fault_isolation", "error_detection",
+    "error_correction", "timeout_recovery", "health_monitoring",
+    "capability_security", "access_control", "inference",
+})
+
+GPU_REQUIRED_CAPABILITIES = frozenset({
+    "vector_compute", "matrix_compute", "parallel_compute", "tensor_compute",
+    "floating_point", "mixed_precision", "quantized_compute", "graphics",
+    "gpu_compute", "display_output", "memory_protection", "dma",
+    "coherent_memory", "peer_to_peer_dma", "interrupts", "iommu",
+    "device_discovery", "high_speed_io", "error_detection", "timeout_recovery",
+    "health_monitoring", "capability_security", "access_control",
+})
+
+COMMUNICATION_REQUIRED_CAPABILITIES = frozenset({
+    "inference", "embedding", "tensor_compute", "mixed_precision",
+    "virtual_memory", "persistent_memory", "persistent_storage",
+    "filesystem_io", "secure_transport", "network_acceleration",
+    "packet_processing", "low_latency_networking", "capability_security",
+    "access_control", "sandboxing", "rollback", "health_monitoring",
+})
+
+CPU_RETAINED_OPTIONAL_CAPABILITIES = frozenset({
+    "cryptographic_compute", "network_acceleration", "checkpoint_restore",
+    "telemetry", "audit", "power_management", "thermal_awareness",
+})
+GPU_RETAINED_OPTIONAL_CAPABILITIES = frozenset({
+    "video_encode", "video_decode", "image_processing", "camera_input",
+    "display_input", "usb4_class_io", "pcie", "hotplug",
+    "peer_to_peer_dma", "cryptographic_compute", "network_acceleration",
+})
+COMMUNICATION_RETAINED_OPTIONAL_CAPABILITIES = frozenset({
+    "video_encode", "video_decode", "image_processing", "audio_input",
+    "audio_output", "camera_input", "display_input", "display_output",
+    "network_acceleration", "bluetooth", "wifi", "ethernet",
+})
