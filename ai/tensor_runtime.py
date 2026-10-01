@@ -8,9 +8,9 @@ Coreless machine image so model data can survive a power cycle.
 from __future__ import annotations
 
 import json
-import math
 import struct
 from dataclasses import dataclass
+from math import fsum
 from typing import Iterable
 
 from .tensor import Tensor, add, dot, matmul, mul, relu, softmax, sub
@@ -145,26 +145,8 @@ class TensorRuntime:
             cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype = old_vl, old_vstart, old_vtype
 
     def vector_dot(self, left: Tensor, right: Tensor) -> float:
-        self._same_vector_inputs(left, right)
-        cpu = self._require_cpu()
-        et = self._element_type(left.dtype)
-        saved_vector = {r: cpu.vector[r][:] for r in (29, 30, 31)}
-        saved_regs = {r: cpu.read_reg(r) for r in (29, 30, 31)}
-        old_vl, old_vstart, old_vtype = cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype
-        try:
-            cpu.vector[29][:left.size] = [self._encode_value(v, left.dtype) for v in left.data]
-            cpu.vector[30][:right.size] = [self._encode_value(v, right.dtype) for v in right.data]
-            cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype = left.size, 0, et
-            cpu._vector_op(3, 0x02, 31, 29, 30, et << 29)
-            cpu._vector_op(3, 0x18, 31, 31, 30, et << 29)
-            raw = cpu.vector[31][0] if left.dtype.startswith("fp") or left.dtype == "bf16" else cpu.read_reg(31)
-            return self._decode_value(raw, left.dtype)
-        finally:
-            for r, values in saved_vector.items():
-                cpu.vector[r][:] = values
-            for r, value in saved_regs.items():
-                cpu.write_reg(r, value)
-            cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype = old_vl, old_vstart, old_vtype
+        """Multiply through the Coreless vector unit, then reduce deterministically."""
+        return fsum(self.vector_mul(left, right).data)
 
     def matrix_matmul(self, left: Tensor, right: Tensor) -> Tensor:
         if len(left.shape) != 2 or len(right.shape) != 2:
@@ -182,14 +164,18 @@ class TensorRuntime:
         saved = {r: [row[:] for row in cpu.matrix[r]] for r in (29, 30, 31)}
         old_shape = cpu.matrix_shape
         try:
-            for i, row in enumerate(left.shape and range(left.shape[0])):
+            for i in range(left.shape[0]):
                 for j in range(left.shape[1]):
                     cpu.matrix[29][i][j] = self._encode_value(left.at(i, j), left.dtype)
-            for i, row in enumerate(range(right.shape[0])):
+            for i in range(right.shape[0]):
                 for j in range(right.shape[1]):
                     cpu.matrix[30][i][j] = self._encode_value(right.at(i, j), right.dtype)
             cpu.matrix_shape = shape
-            cpu._matrix_op(0x00, 31, 29, 30, (et << 29) | (et << 26) | (shape_index << 23) | (1 << 22), 0, 0)
+            cpu._matrix_op(
+                0x00, 31, 29, 30,
+                (et << 29) | (et << 26) | (shape_index << 23) | (1 << 22),
+                0, 0,
+            )
             values = [self._decode_value(cpu.matrix[31][i][j], left.dtype)
                       for i in range(shape[0]) for j in range(shape[1])]
             return Tensor.from_values((shape[0], shape[1]), values, dtype=left.dtype)
@@ -206,8 +192,7 @@ class TensorRuntime:
         key = f"{self.namespace}/{name}"
         payload = json.dumps(
             {"version": 2, "shape": list(value.shape), "dtype": value.dtype, "data": list(value.data)},
-            separators=(",", ":"),
-            sort_keys=True,
+            separators=(",", ":"), sort_keys=True,
         ).encode("utf-8")
         self.storage.put(key, payload, sync=False)
         return key
