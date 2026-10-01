@@ -142,3 +142,121 @@ def load_transformer_model(directory: str | Path) -> tuple[TransformerConfig, Mo
     """Load config.json and all safetensors weights from a model directory."""
     root = Path(directory)
     return load_config(root / "config.json"), load_model_weights(root)
+
+
+class _MappedFloatSequence:
+    """Read-only float view over a safetensors payload without materializing it."""
+
+    def __init__(self, handle, offset: int, count: int, dtype: str) -> None:
+        self._handle = handle
+        self._offset = offset
+        self._count = count
+        self._dtype = dtype
+        if dtype == "BF16":
+            self._width = 2
+        elif dtype in _DTYPE_FORMAT:
+            self._width = _DTYPE_FORMAT[dtype][1]
+        else:
+            raise ValueError(f"unsupported safetensors dtype: {dtype}")
+
+    def __len__(self) -> int:
+        return self._count
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return tuple(self[i] for i in range(*index.indices(self._count)))
+        if index < 0:
+            index += self._count
+        if not 0 <= index < self._count:
+            raise IndexError("tensor index out of range")
+        self._handle.seek(self._offset + index * self._width)
+        raw = self._handle.read(self._width)
+        if self._dtype == "BF16":
+            return _bfloat16_to_float(raw)
+        fmt, _ = _DTYPE_FORMAT[self._dtype]
+        return struct.unpack(fmt, raw)[0]
+
+
+def load_safetensors_mmap(path: str | Path) -> ModelWeights:
+    """Load a safetensors file with storage-backed tensor values.
+
+    Tensor values are decoded on demand from the model file rather than
+    materialized into a Python tuple. The returned ModelWeights retains the
+    backing file handles for the lifetime of the weights.
+    """
+    import mmap
+
+    file_handle = open(path, "rb")
+    mapped = mmap.mmap(file_handle.fileno(), 0, access=mmap.ACCESS_READ)
+    if len(mapped) < 8:
+        mapped.close()
+        file_handle.close()
+        raise ValueError("safetensors file is truncated")
+    header_len = struct.unpack_from("<Q", mapped, 0)[0]
+    header_start = 8
+    header_end = header_start + header_len
+    if header_end > len(mapped):
+        mapped.close()
+        file_handle.close()
+        raise ValueError("safetensors header exceeds file size")
+
+    header = json.loads(mapped[header_start:header_end].decode("utf-8"))
+    if not isinstance(header, dict):
+        mapped.close()
+        file_handle.close()
+        raise ValueError("safetensors header must be an object")
+
+    tensors: list[ModelTensor] = []
+    for name, entry in header.items():
+        if name == "__metadata__":
+            continue
+        if not isinstance(entry, dict):
+            raise ValueError(f"invalid tensor entry: {name}")
+        dtype = entry.get("dtype")
+        shape = tuple(int(v) for v in entry.get("shape", ()))
+        offsets = entry.get("data_offsets")
+        if not isinstance(dtype, str) or not shape or not isinstance(offsets, list) or len(offsets) != 2:
+            raise ValueError(f"invalid tensor metadata: {name}")
+        start, end = (int(offsets[0]), int(offsets[1]))
+        payload_start = header_end + start
+        payload_end = header_end + end
+        if start < 0 or end < start or payload_end > len(mapped):
+            raise ValueError(f"invalid tensor offsets: {name}")
+        count = math.prod(shape)
+        if end - start != count * (2 if dtype == "BF16" else _DTYPE_FORMAT.get(dtype, (None, 0))[1]):
+            mapped.close()
+            file_handle.close()
+            raise ValueError(f"tensor byte count does not match tensor shape: {name}")
+        tensor = Tensor(shape, _MappedFloatSequence(
+            mapped, payload_start, count, dtype
+        ))
+        tensors.append(ModelTensor(name, tensor))
+
+    loaded = ModelWeights(tensors)
+    loaded._backing_handles = (file_handle, mapped)
+    return loaded
+
+
+def load_model_weights_mmap(directory: str | Path) -> ModelWeights:
+    """Load all safetensors shards as storage-backed tensors."""
+    root = Path(directory)
+    tensors: list[ModelTensor] = []
+    seen: set[str] = set()
+    handles = []
+    for shard in _index_files(root):
+        loaded = load_safetensors_mmap(shard)
+        handles.extend(getattr(loaded, "_backing_handles", ()))
+        for name in loaded.names():
+            if name in seen:
+                raise ValueError(f"duplicate tensor across shards: {name}")
+            seen.add(name)
+            tensors.append(ModelTensor(name, loaded.get(name)))
+    result = ModelWeights(tensors)
+    result._backing_handles = tuple(handles)
+    return result
+
+
+def load_transformer_model_mmap(directory: str | Path) -> tuple[TransformerConfig, ModelWeights]:
+    """Load config plus storage-backed safetensors weights."""
+    root = Path(directory)
+    return load_config(root / "config.json"), load_model_weights_mmap(root)
