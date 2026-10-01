@@ -100,6 +100,7 @@ The intended lifecycle is:
 The specialization system must not constrain a model's native architecture merely to fit the VM. Architecture-specific execution is responsible for preserving model semantics; the model-part ABI defines the interface exposed to the rest of Coreless.
 
 ## AI-Derived Hardware Components
+- [x] Add storage-backed safetensors loading for persistent model weights
 
 - [x] Define complete CPU hardware-role capability envelope
 - [x] Define complete GPU hardware-role capability envelope
