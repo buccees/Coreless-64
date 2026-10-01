@@ -1,5 +1,9 @@
 from model_part import (
     Capability,
+    ComponentRole,
+    HardwareAssignment,
+    HardwareAssignmentRegistry,
+    RoleContract,
     ModelPart,
     PartState,
     StaticAdaptiveSpecializer,
