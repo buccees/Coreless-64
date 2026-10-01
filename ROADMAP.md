@@ -89,6 +89,9 @@ Coreless treats trained models as potential specialized computational parts rath
 - [ ] Specialized-part regression and acceptance suite
 - [ ] Persistent adaptation history and rollback
 - [ ] Continuous workload observation and adaptation triggers
+- [x] Comprehensive compute/memory/storage/interconnect/network/media/external-I/O requirement envelope
+- [ ] Automatic requirement discovery from installed devices and available I/O
+- [ ] Market-generation capability profile updates without changing the Model-Part ABI
 
 The intended lifecycle is:
 
