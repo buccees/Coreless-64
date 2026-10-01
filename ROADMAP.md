@@ -74,6 +74,28 @@ The external environment supplies power and I/O. The Coreless digital execution 
 
 The Coreless architecture does not require a conventional host CPU, host OS, or host system RAM to be part of the Coreless computer.
 
+## Static-Adaptive Model Parts
+
+Coreless treats trained models as potential specialized computational parts rather than forcing every model into one generic Transformer implementation. A VM is the isolation/container "nest"; the model part retains its native architecture behind a Coreless model-part ABI.
+
+- [x] Define ModelPart lifecycle and task contract
+- [x] Define candidate → validating → active → retired adaptation lifecycle
+- [x] Require validation before an adapted part can replace an active part
+- [ ] Architecture-specific model-part execution (Qwen3, DeepSeek/R1, gpt-oss, Gemma, Codestral)
+- [ ] Model-part ABI integration with VM IPC and capability control
+- [ ] Task-driven automatic specialization planner
+- [ ] User/workload-specific static adaptation state
+- [ ] Slimline/pruning/quantization pipeline driven by retained task capability
+- [ ] Specialized-part regression and acceptance suite
+- [ ] Persistent adaptation history and rollback
+- [ ] Continuous workload observation and adaptation triggers
+
+The intended lifecycle is:
+
+**foundation training → released model → task specialization → slimline → validate → deploy as model part → observe workload → propose adaptation → validate → replace or rollback**
+
+The specialization system must not constrain a model's native architecture merely to fit the VM. Architecture-specific execution is responsible for preserving model semantics; the model-part ABI defines the interface exposed to the rest of Coreless.
+
 ## 314DNest / Local Intelligence
 
 - [x] AI-Core registry
