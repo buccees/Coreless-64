@@ -7,7 +7,7 @@ model's internal architecture.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Mapping, Sequence, Tuple
 
 
 class PartState(str, Enum):
@@ -33,6 +33,36 @@ class TaskContract:
 
 
 @dataclass(frozen=True)
+class ComponentRole(str, Enum):
+    CPU = "cpu"
+    GPU = "gpu"
+    COMMUNICATION = "communication"
+    OTHER = "other"
+
+
+@dataclass(frozen=True)
+class RoleContract:
+    """Complete hardware role contract for a model-derived component."""
+
+    role: ComponentRole
+    mandatory_capabilities: Tuple[str, ...] = ()
+    retained_optional_capabilities: Tuple[str, ...] = ()
+    removable_capabilities: Tuple[str, ...] = ()
+    user_communication: bool = False
+
+    def __post_init__(self) -> None:
+        mandatory = set(self.mandatory_capabilities)
+        retained = set(self.retained_optional_capabilities)
+        removable = set(self.removable_capabilities)
+        if mandatory & removable:
+            raise ValueError("a mandatory capability cannot be removable")
+        if retained & removable:
+            raise ValueError("a retained optional capability cannot be removable")
+        if self.role is ComponentRole.COMMUNICATION and not self.user_communication:
+            raise ValueError("communication components must retain user communication")
+
+
+@dataclass(frozen=True)
 class AdaptationRecord:
     source_part_id: str
     candidate_part_id: str
@@ -48,10 +78,27 @@ class ModelPart:
     part_id: str
     architecture: str
     task_contract: TaskContract
+    role_contract: RoleContract
     state: PartState = PartState.CANDIDATE
     metadata: Dict[str, Any] = field(default_factory=dict)
     retained_parameters: Tuple[str, ...] = ()
     removed_parameters: Tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Enforce the role contract at component creation time."""
+        retained = set(self.retained_parameters)
+        removed = set(self.removed_parameters)
+        mandatory = set(self.role_contract.mandatory_capabilities)
+        protected = mandatory | set(self.role_contract.retained_optional_capabilities)
+        if removed & protected:
+            raise ValueError("role-required capability cannot be removed")
+
+    def can_remove_capability(self, capability: str) -> bool:
+        return (
+            capability in self.role_contract.removable_capabilities
+            and capability not in self.role_contract.mandatory_capabilities
+            and capability not in self.role_contract.retained_optional_capabilities
+        )
 
     def transition(self, state: PartState) -> None:
         allowed = {
