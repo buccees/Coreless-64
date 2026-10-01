@@ -41,3 +41,21 @@ def test_machine_tensor_runtime_uses_coreless_matrix_execution():
     assert result.shape == (2, 2)
     assert result.dtype == "int8"
     assert result.data == (19.0, 22.0, 43.0, 50.0)
+
+
+def test_machine_tensor_runtime_auto_routes_supported_integer_matmul():
+    machine = CorelessMachine()
+    left = Tensor.from_values((2, 2), [1, 2, 3, 4], dtype="int8")
+    right = Tensor.from_values((2, 2), [5, 6, 7, 8], dtype="int8")
+    result = machine.tensor_runtime.matmul(left, right)
+    assert result.data == (19.0, 22.0, 43.0, 50.0)
+    assert result.dtype == "int8"
+
+
+def test_machine_tensor_runtime_supports_fp32_vector_execution():
+    machine = CorelessMachine()
+    left = Tensor.from_values((3,), [1.5, 2.5, 3.5], dtype="fp32")
+    right = Tensor.from_values((3,), [2.0, 4.0, 6.0], dtype="fp32")
+    result = machine.tensor_runtime.vector_add(left, right)
+    assert result.dtype == "fp32"
+    assert result.data == (3.5, 6.5, 9.5)
