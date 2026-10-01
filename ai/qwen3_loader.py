@@ -72,13 +72,18 @@ def validate_qwen3_artifact(directory: str | Path) -> tuple[str, ...]:
     cfg = load_qwen3_config(root / "config.json")
     headers = _headers(root)
 
-    required = {"model.embed_tokens.weight", "model.norm.weight", "lm_head.weight"}
-    missing = set(required)
-    expected = {name: shape for name, shape in (
-        ("model.embed_tokens.weight", (cfg.vocab_size, cfg.hidden_size)),
-        ("model.norm.weight", (cfg.hidden_size,)),
-        ("lm_head.weight", (cfg.vocab_size, cfg.hidden_size)),
-    )}
+    required = {"model.embed_tokens.weight", "model.norm.weight"}
+    expected = {
+        "model.embed_tokens.weight": (cfg.vocab_size, cfg.hidden_size),
+        "model.norm.weight": (cfg.hidden_size,),
+    }
+    tie_word_embeddings = bool(
+        json.loads((root / "config.json").read_text(encoding="utf-8"))
+        .get("tie_word_embeddings", False)
+    )
+    if not tie_word_embeddings:
+        required.add("lm_head.weight")
+        expected["lm_head.weight"] = (cfg.vocab_size, cfg.hidden_size)
     for layer in range(cfg.num_hidden_layers):
         p = f"model.layers.{layer}"
         layer_expected = {
