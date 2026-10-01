@@ -144,11 +144,10 @@ def qwen3_attention(x: Tensor, weights: ModelWeights, prefix: str, cfg: Qwen3Con
     vh = _reshape_heads(v, cfg.num_key_value_heads, cfg.resolved_head_dim)
     qh = _apply_head_norm(qh, weights.get(f"{prefix}.self_attn.q_norm.weight"), cfg.rms_norm_eps)
     kh = _apply_head_norm(kh, weights.get(f"{prefix}.self_attn.k_norm.weight"), cfg.rms_norm_eps)
-    qh = _reshape_heads(q, cfg.num_attention_heads, cfg.resolved_head_dim)
-    kh = _reshape_heads(k, cfg.num_key_value_heads, cfg.resolved_head_dim)
-    vh = _reshape_heads(v, cfg.num_key_value_heads, cfg.resolved_head_dim)
-    qh = [[_rotary(h, p, cfg.rope_theta) for p, h in enumerate(head)] for head in qh]
-    kh = [[_rotary(h, p, cfg.rope_theta) for p, h in enumerate(head)] for head in kh]
+    qh = [[_rotary(h, p, cfg.rope_theta, cfg.rope_scaling_factor)
+           for p, h in enumerate(head)] for head in qh]
+    kh = [[_rotary(h, p, cfg.rope_theta, cfg.rope_scaling_factor)
+           for p, h in enumerate(head)] for head in kh]
     kh = _repeat_kv(kh, cfg.kv_group_size)
     vh = _repeat_kv(vh, cfg.kv_group_size)
     attended = _heads_to_tensor(_attention(qh, kh, vh))
