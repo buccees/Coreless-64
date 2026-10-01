@@ -9,7 +9,7 @@ native Coreless vector/matrix instructions.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import exp
+from math import exp, fsum, sqrt
 from typing import Iterable, Sequence
 
 
@@ -19,10 +19,13 @@ class Tensor:
 
     shape: tuple[int, ...]
     data: tuple[float, ...]
+    dtype: str = "fp64"
 
     def __post_init__(self) -> None:
         if not self.shape or any(d <= 0 for d in self.shape):
             raise ValueError("tensor shape must contain positive dimensions")
+        if self.dtype not in {"fp16", "bf16", "fp32", "fp64", "int8", "int16", "int32", "int64"}:
+            raise ValueError("unsupported tensor dtype")
         size = 1
         for dim in self.shape:
             size *= dim
@@ -30,8 +33,8 @@ class Tensor:
             raise ValueError("tensor data does not match tensor shape")
 
     @classmethod
-    def from_values(cls, shape: Sequence[int], values: Iterable[float]) -> "Tensor":
-        return cls(tuple(shape), tuple(float(v) for v in values))
+    def from_values(cls, shape: Sequence[int], values: Iterable[float], dtype: str = "fp64") -> "Tensor":
+        return cls(tuple(shape), tuple(float(v) for v in values), dtype)
 
     @property
     def size(self) -> int:
@@ -51,7 +54,24 @@ class Tensor:
         return self.data[self._offset(indices)]
 
     def map(self, fn) -> "Tensor":
-        return Tensor(self.shape, tuple(float(fn(x)) for x in self.data))
+        return Tensor(self.shape, tuple(float(fn(x)) for x in self.data), self.dtype)
+
+    def sum(self) -> float:
+        return fsum(self.data)
+
+    def mean(self) -> float:
+        return self.sum() / self.size
+
+    def l2_norm(self) -> float:
+        return sqrt(fsum(x * x for x in self.data))
+
+    def normalize(self, epsilon: float = 1e-12) -> "Tensor":
+        if epsilon <= 0:
+            raise ValueError("epsilon must be positive")
+        norm = self.l2_norm()
+        if norm <= epsilon:
+            return Tensor(self.shape, tuple(0.0 for _ in self.data), self.dtype)
+        return Tensor(self.shape, tuple(x / norm for x in self.data), self.dtype)
 
 
 def matmul(a: Tensor, b: Tensor) -> Tensor:
@@ -65,7 +85,7 @@ def matmul(a: Tensor, b: Tensor) -> Tensor:
     values = []
     for row in range(rows):
         for col in range(cols):
-            values.append(sum(a.at(row, k) * b.at(k, col) for k in range(inner)))
+            values.append(fsum(a.at(row, k) * b.at(k, col) for k in range(inner)))
     return Tensor((rows, cols), tuple(values))
 
 
@@ -93,3 +113,21 @@ def linear(x: Tensor, weights: Tensor, bias: Tensor | None = None) -> Tensor:
     if bias is not None:
         result = add(result, bias)
     return result
+
+
+def sub(a: Tensor, b: Tensor) -> Tensor:
+    if a.shape != b.shape:
+        raise ValueError("tensor shapes must match")
+    return Tensor(a.shape, tuple(x - y for x, y in zip(a.data, b.data)), a.dtype)
+
+
+def mul(a: Tensor, b: Tensor) -> Tensor:
+    if a.shape != b.shape:
+        raise ValueError("tensor shapes must match")
+    return Tensor(a.shape, tuple(x * y for x, y in zip(a.data, b.data)), a.dtype)
+
+
+def dot(a: Tensor, b: Tensor) -> float:
+    if a.size != b.size:
+        raise ValueError("dot product requires equal tensor sizes")
+    return fsum(x * y for x, y in zip(a.data, b.data))
