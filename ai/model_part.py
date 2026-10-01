@@ -78,7 +78,7 @@ class ModelPart:
     part_id: str
     architecture: str
     task_contract: TaskContract
-    role_contract: RoleContract
+    role_contract: RoleContract = field(default_factory=lambda: RoleContract(role=ComponentRole.OTHER))
     state: PartState = PartState.CANDIDATE
     metadata: Dict[str, Any] = field(default_factory=dict)
     retained_parameters: Tuple[str, ...] = ()
