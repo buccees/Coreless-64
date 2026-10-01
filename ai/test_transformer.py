@@ -23,3 +23,31 @@ def test_feed_forward():
     w_out = Tensor.from_values((2, 2), [2, 0, 0, 3])
     result = feed_forward(x, w_in, w_out)
     assert result.data == (2.0, 6.0)
+
+
+def test_transformer_runtime_routes_tensor_math_through_coreless_tensor_runtime():
+    from ai.model_architecture import TransformerConfig
+    from ai.model_weights import ModelTensor, ModelWeights
+    from ai.tensor_runtime import TensorRuntime
+    from ai.transformer import TransformerRuntime
+
+    identity = Tensor.from_values((2, 2), [1, 0, 0, 1])
+    norm = Tensor.from_values((2,), [1, 1])
+    weights = ModelWeights([
+        ModelTensor("embedding", Tensor.from_values((2, 2), [1, 0, 0, 1])),
+        ModelTensor("layers.0.input_norm", norm),
+        ModelTensor("layers.0.q_proj", identity),
+        ModelTensor("layers.0.k_proj", identity),
+        ModelTensor("layers.0.v_proj", identity),
+        ModelTensor("layers.0.o_proj", identity),
+        ModelTensor("layers.0.post_norm", norm),
+        ModelTensor("layers.0.ffn_up", identity),
+        ModelTensor("layers.0.ffn_down", identity),
+        ModelTensor("final_norm", norm),
+        ModelTensor("lm_head", identity),
+    ])
+    config = TransformerConfig(2, 2, 1, 1, 2, 4)
+    runtime = TransformerRuntime(config, weights, TensorRuntime())
+    result = runtime.next_token_logits([0, 1])
+    assert result.shape == (2,)
+    assert all(value == value for value in result.data)
