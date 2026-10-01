@@ -43,6 +43,16 @@ class TensorRuntime:
         return add(left, right)
 
     def matmul(self, left: Tensor, right: Tensor) -> Tensor:
+        """Multiply tensors, using the Coreless matrix unit when supported."""
+        if (
+            self.cpu is not None
+            and len(left.shape) == 2
+            and len(right.shape) == 2
+            and left.dtype == right.dtype
+            and left.dtype.startswith("int")
+            and (left.shape[0], right.shape[1], left.shape[1]) in self._MATRIX_SHAPES
+        ):
+            return self.matrix_matmul(left, right)
         return matmul(left, right)
 
     def sub(self, left: Tensor, right: Tensor) -> Tensor:
