@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .qwen3 import Qwen3Runtime
+from .qwen3 import Qwen3KVCache, Qwen3Runtime
 from .qwen3_tokenizer import Qwen3TokenizerArtifact
 
 
@@ -24,12 +24,16 @@ class Qwen3Generator:
         if max_new_tokens < 0:
             raise ValueError("max_new_tokens must be non-negative")
         generated = list(token_ids)
+        if not generated:
+            raise ValueError("token_ids must not be empty")
+        cache = Qwen3KVCache.create(self.runtime.config.num_hidden_layers)
+        logits = self.runtime.forward(generated, cache)
         for _ in range(max_new_tokens):
-            logits = self.runtime.forward(generated)
             width = logits.shape[1]
             row = logits.data[(logits.shape[0] - 1) * width:]
             next_token = max(range(width), key=row.__getitem__)
             generated.append(next_token)
+            logits = self.runtime.forward([next_token], cache)
         return generated
 
     def generate(self, text: str, max_new_tokens: int) -> str:
