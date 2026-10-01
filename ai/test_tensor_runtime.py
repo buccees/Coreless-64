@@ -12,13 +12,14 @@ def test_tensor_runtime_executes_core_operations():
     assert runtime.relu(Tensor.from_values((3,), [-1, 2, -3])).data == (0.0, 2.0, 0.0)
 
 
-def test_tensor_runtime_persists_tensor():
+def test_tensor_runtime_persists_tensor_dtype():
     image = PersistentMachineImage()
     runtime = TensorRuntime(image)
-    value = Tensor.from_values((2, 2), [1, 2, 3, 4])
+    value = Tensor.from_values((2, 2), [1, 2, 3, 4], dtype="bf16")
     key = runtime.save("weights", value)
     image.sync()
     assert key == "tensor/weights"
     restored = TensorRuntime(image).load("weights")
     assert restored.shape == value.shape
+    assert restored.dtype == value.dtype
     assert restored.data == value.data
