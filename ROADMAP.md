@@ -96,8 +96,9 @@ The Coreless architecture does not require a conventional host CPU, host OS, or 
 - [x] CorelessMachine unified work-distribution API
 - [ ] Reproducible live Coreless test environment
 - [ ] Live five-core inference on Coreless
-- [ ] Local tensor runtime
-- [ ] Transformer compatibility layer
+- [x] Local tensor runtime foundation
+- [x] Transformer execution foundation
+- [ ] Model-format compatibility and real model-weight loading
 - [ ] End-to-end local AI execution on Coreless resources
 
 ## Phase 6 — Scaling
@@ -142,7 +143,9 @@ The next goal is not to replace that engine with an external runtime. The goal i
 
 ## Current status
 
-The Coreless execution foundation and 314DNest management plane are implemented with a green CI baseline. The local model runtime layer is now installed in the repository through a common OpenAI-compatible adapter and default five-core registration. The current implementation block is the local tensor/Transformer execution layer, developed in parallel with the reproducible live Coreless test environment.
+The Coreless execution foundation and 314DNest management plane remain on the green baseline. The local model adapter and five-core registration are implemented. The current local-AI execution milestone is now the **reference tensor/Transformer path**: Coreless can execute token embeddings, causal attention, feed-forward layers, residual paths, normalization, and vocabulary logits using dependency-free Coreless tensors.
+
+This is not yet live execution of Qwen3, DeepSeek, gpt-oss, Gemma, or Codestral weights. Model-format translation, real weight loading, tokenizer integration, and execution on an actual Coreless test environment remain separate tasks.
 
 ## Phase 1 status
 
