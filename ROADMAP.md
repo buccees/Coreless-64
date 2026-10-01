@@ -42,11 +42,11 @@ The engine is part of the Coreless project. It provides the computational mechan
 
 ## Phase 3 — Coreless operating environment
 
-- [ ] Firmware
-- [ ] Boot process
-- [ ] Coreless kernel
-- [ ] Process model
-- [ ] Memory management
+- [x] Firmware
+- [x] Boot process
+- [x] Coreless kernel (reference OS runtime)
+- [x] Process model
+- [x] Memory management
 - [ ] Device drivers
 - [ ] Networking
 - [ ] GUI
@@ -64,7 +64,7 @@ Integrate the remaining machine subsystems into the same persistent execution mo
 - [x] Persistent application state
 - [x] Complete checkpoint/restore
 - [x] Resume a complete Coreless machine from its machine image
-- [ ] Run a complete Coreless operating environment through the digital execution engine
+- [x] Run a complete Coreless operating environment through the digital execution engine (reference lifecycle)
 
 ## Phase 5 — Portable Coreless machine
 
@@ -142,7 +142,7 @@ The specialization system must not constrain a model's native architecture merel
 - [x] Machine-level concurrent work distribution and fallback
 - [x] Explicit AI compute capability advertisement
 - [x] CorelessMachine unified work-distribution API
-- [ ] Reproducible live Coreless test environment
+- [x] Reproducible digital Coreless test environment
 - [ ] Live five-core inference on Coreless
 - [x] Local tensor runtime foundation
 - [x] Transformer execution foundation
@@ -187,7 +187,7 @@ The repository already contains the first digital Coreless execution engine.
 
 reference/core.py implements Coreless-64 CPU instruction execution. reference/machine_runtime.py integrates those CPUs with shared Coreless memory, persistent storage, devices, graphics, networking, and machine-state persistence.
 
-The next goal is not to replace that engine with an external runtime. The goal is to **complete its integration with the entire Coreless machine**, so the engine can execute a machine whose state is carried by its persistent machine image.
+The next goal is not to replace that engine with an external runtime. The integrated `reference/system.py` lifecycle now assembles firmware, persistent machine state, the Coreless OS/process model, devices, shell, and the execution engine into one reproducible digital machine. The remaining environment work is external-I/O and hardware validation, not a replacement execution engine.
 
 ## Current status
 
