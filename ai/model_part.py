@@ -193,3 +193,69 @@ class StaticAdaptiveSpecializer:
             reason=str(candidate.metadata.get("adaptation_reason", "")),
             validation_passed=True,
         )
+
+
+@dataclass(frozen=True)
+class HardwareAssignment:
+    """Validated assignment of a trained model to a Coreless hardware role."""
+
+    model_id: str
+    part_id: str
+    role_contract: RoleContract
+    required_capabilities: Tuple[str, ...]
+    retained_optional_capabilities: Tuple[str, ...]
+    native_architecture: str
+
+    def validate(self, available_capabilities: Sequence[str]) -> None:
+        available = set(available_capabilities)
+        required = set(self.required_capabilities) | set(
+            self.retained_optional_capabilities
+        )
+        missing = required - available
+        if missing:
+            raise ValueError(
+                f"model {self.model_id} cannot be assigned to "
+                f"{self.role_contract.role.value}: missing {sorted(missing)}"
+            )
+
+
+class HardwareAssignmentRegistry:
+    """Registry for model-to-hardware assignments.
+
+    Assignment does not alter the model's native architecture. The role
+    contract defines the external hardware behavior while the model remains
+    responsible for its native execution semantics.
+    """
+
+    def __init__(self) -> None:
+        self._assignments: Dict[str, HardwareAssignment] = {}
+
+    def assign(
+        self,
+        model_id: str,
+        part_id: str,
+        role_contract: RoleContract,
+        *,
+        native_architecture: str,
+    ) -> HardwareAssignment:
+        assignment = HardwareAssignment(
+            model_id=model_id,
+            part_id=part_id,
+            role_contract=role_contract,
+            required_capabilities=role_contract.mandatory_capabilities,
+            retained_optional_capabilities=role_contract.retained_optional_capabilities,
+            native_architecture=native_architecture,
+        )
+        if role_contract.role.value in self._assignments:
+            raise ValueError(f"hardware role already assigned: {role_contract.role.value}")
+        self._assignments[role_contract.role.value] = assignment
+        return assignment
+
+    def get(self, role: ComponentRole) -> HardwareAssignment:
+        try:
+            return self._assignments[role.value]
+        except KeyError as exc:
+            raise KeyError(f"no model assigned to hardware role: {role.value}") from exc
+
+    def all(self) -> Tuple[HardwareAssignment, ...]:
+        return tuple(self._assignments.values())
