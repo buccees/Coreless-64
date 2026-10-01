@@ -49,3 +49,36 @@ def test_capability_contract_is_explicit():
 
     assert part.satisfies("task.vision", "vision.encode")
     assert not part.satisfies("task.text", "vision.encode")
+
+
+def test_role_contract_preserves_retained_optional_capabilities():
+    role = RoleContract(
+        role=ComponentRole.GPU,
+        mandatory_capabilities=("matrix_compute", "graphics"),
+        retained_optional_capabilities=("driver_compatibility",),
+        removable_capabilities=("unrelated_capability",),
+    )
+    part = ModelPart(
+        part_id="gpu-1",
+        architecture="native-gpu-model",
+        task_contract=TaskContract("graphics", (Capability("graphics"),)),
+        role_contract=role,
+        retained_parameters=("driver_compatibility",),
+    )
+    assert not part.can_remove_capability("driver_compatibility")
+    assert part.can_remove_capability("unrelated_capability")
+
+
+def test_communication_role_cannot_drop_user_communication():
+    role = RoleContract(
+        role=ComponentRole.COMMUNICATION,
+        mandatory_capabilities=("language", "dialogue"),
+        user_communication=True,
+    )
+    part = ModelPart(
+        part_id="comm-1",
+        architecture="native-language-model",
+        task_contract=TaskContract("user-communication", (Capability("dialogue"),)),
+        role_contract=role,
+    )
+    assert part.role_contract.user_communication
