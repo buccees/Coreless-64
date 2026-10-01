@@ -101,6 +101,11 @@ The specialization system must not constrain a model's native architecture merel
 
 ## AI-Derived Hardware Components
 - [x] Add storage-backed safetensors loading for persistent model weights
+- [x] Add native Qwen3 artifact validation and storage-backed model construction
+- [x] Add native Qwen3 tokenizer and greedy generation pipeline
+- [x] Add Qwen3 KV-cache generation support
+- [x] Add real Qwen3 artifact integration runner
+- [ ] Execute and validate an official trained Qwen3 artifact end-to-end
 
 - [x] Define complete CPU hardware-role capability envelope
 - [x] Define complete GPU hardware-role capability envelope
@@ -115,6 +120,7 @@ The specialization system must not constrain a model's native architecture merel
 - [ ] Bind communication model-part to the user session layer
 - [ ] Add architecture-specific native execution adapters
 - [ ] Validate real trained-model artifacts as hardware components
+- [ ] Bind a validated trained model-part to live Coreless machine resources
 
 ## 314DNest / Local Intelligence
 
@@ -140,7 +146,7 @@ The specialization system must not constrain a model's native architecture merel
 - [ ] Live five-core inference on Coreless
 - [x] Local tensor runtime foundation
 - [x] Transformer execution foundation
-- [ ] Model-format compatibility and real model-weight loading
+- [x] Model-format compatibility and real model-weight loading
 - [ ] End-to-end local AI execution on Coreless resources
 
 ## Phase 6 — Scaling
