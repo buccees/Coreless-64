@@ -49,15 +49,18 @@ def load_qwen3_config(path: str | Path) -> Qwen3Config:
 def _headers(directory: Path) -> dict[str, tuple[str, tuple[int, ...]]]:
     headers: dict[str, tuple[str, tuple[int, ...]]] = {}
     import struct
+
     for shard in _index_files(directory):
-        blob = shard.read_bytes()
-        if len(blob) < 8:
-            raise ValueError(f"truncated safetensors file: {shard.name}")
-        header_len = struct.unpack_from("<Q", blob, 0)[0]
-        end = 8 + header_len
-        if end > len(blob):
-            raise ValueError(f"invalid safetensors header: {shard.name}")
-        data = json.loads(blob[8:end].decode("utf-8"))
+        with shard.open("rb") as handle:
+            prefix = handle.read(8)
+            if len(prefix) < 8:
+                raise ValueError(f"truncated safetensors file: {shard.name}")
+            header_len = struct.unpack("<Q", prefix)[0]
+            header = handle.read(header_len)
+            if len(header) != header_len:
+                raise ValueError(f"truncated safetensors header: {shard.name}")
+            data = json.loads(header.decode("utf-8"))
+
         for name, entry in data.items():
             if name == "__metadata__":
                 continue
