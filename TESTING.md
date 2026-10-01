@@ -1,69 +1,56 @@
 # Coreless Testing
 
-# 🚧 **LIVE TEST ENVIRONMENT REQUIRED**
+## Current checkpoint
 
-**The repository cannot perform live Coreless inference until an actual Coreless test environment exists.**
+**GREEN — GitHub Actions run #423 succeeded.**
 
-GitHub CI validates the reference implementation and its deterministic components. It does **not** prove that the complete Coreless computer can boot/run as the intended persistent-storage-hosted environment, nor does it provide the local model weights needed for live AI inference.
+Reference/CI testing validates the software implementation. It does not by itself prove execution of a complete persistent-storage-hosted Coreless computer or live trained-model inference.
 
-## Current status
+## Covered foundation
 
-- Reference implementation: available
-- CI/reference tests: available
-- 314DNest coordination: available
-- Local AI adapters: available
-- Live inference runner: available
-- **Actual Coreless runtime test environment: NOT YET AVAILABLE**
-- Live five-model inference: **BLOCKED until the test environment exists**
+- Coreless-64 ISA and execution
+- memory/MMU/privilege/interrupts/atomics
+- vector and matrix execution
+- multiprocessing and shared RAM
+- persistent machine state and checkpoint/restore
+- virtualization/VM capability boundaries
+- firmware/boot/reference OS lifecycle
+- 314DNest coordination/policy/capabilities/telemetry/audit
+- persistent TensorRuntime
+- native vector and supported matrix routing
+- Transformer → TensorRuntime routing
 
-## Test environment requirements
+## Not yet validated
 
-The test environment needs:
+- stable public native execution boundary for all model tensor operations
+- official trained Qwen3-0.6B end-to-end inference
+- complete persistent-storage-hosted Coreless runtime environment
+- live five-core inference on Coreless
 
-1. Persistent storage containing the Coreless environment.
-2. A way to start the current Coreless execution engine.
-3. Required display/input/network interfaces for the current runtime.
-4. Python and the Coreless repository.
-5. A local AI runtime such as Ollama exposing an OpenAI-compatible endpoint.
-6. The configured local models:
-   - Qwen3
-   - DeepSeek
-   - gpt-oss
-   - Gemma
-   - Codestral
+## Reference tests
 
-Model weights should remain outside Git.
+```bash
+python -m pytest
+```
 
-## Live inference validation
+## Live local AI
 
-After the environment is available:
+Once the actual Coreless runtime environment exists and local model weights are installed outside Git:
 
 ```bash
 python3 scripts/live-inference.py
 ```
 
-Expected validation flow:
+Expected path:
 
-```
-Coreless runtime
-      ↓
-314DNest
-      ↓
-AI-Core Registry
-      ↓
-Qwen3 / DeepSeek / gpt-oss / Gemma / Codestral
-      ↓
-live responses
-      ↓
-314DNest group result
-      ↓
-deterministic policy boundary
-```
+**Coreless runtime → 314DNest → AI-Core Registry → local models → group result → deterministic policy**
 
-A model response is never authorization to modify protected Coreless state.
+AI output is never authorization.
 
-## What comes next
+## Immediate next test target
 
-The immediate infrastructure task is to establish a **repeatable Coreless test environment** that another developer can reproduce. Once that exists, live inference can be tested against the real runtime rather than mocked CI endpoints.
+Add focused tests for the **native Coreless execution boundary** between TensorRuntime/Transformer operations and the public Coreless vector/matrix architectural interface.
 
-Do not mark live inference complete based solely on CI.
+After that, perform real Qwen3-0.6B forward/generation validation.
+
+Do not mark live inference complete from CI alone.

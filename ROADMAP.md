@@ -1,50 +1,49 @@
 # Coreless Roadmap
 
+## Current checkpoint
+
+**GREEN — GitHub Actions run #423 succeeded.**
+
+The current implementation checkpoint includes the complete reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, and Transformer → TensorRuntime routing.
+
 ## Phase 1 — Architecture
 
-- [x] Establish Coreless as the project name
-- [x] Establish Coreless-64 as the first architecture
-- [x] Define the independent-computer objective
-- [x] Define the external environment as an interface
-- [x] Define the machine / digital execution-engine distinction
-- [x] Freeze CPU architectural state
-- [x] Freeze instruction encoding and semantics
-- [x] Freeze memory and address model
-- [x] Freeze privilege and interrupt architecture
-- [x] Freeze multiprocessing model
-- [x] Freeze vector architecture
-- [x] Freeze matrix/AI architecture
-- [x] Freeze device and interconnect architecture
-- [x] Freeze GPU/display architecture
-- [x] Freeze virtualization architecture
+- [x] Coreless-64 architecture and independent-computer objective
+- [x] CPU architectural state
+- [x] Variable-length instruction encoding
+- [x] Memory/address model
+- [x] Privilege/interrupt architecture
+- [x] Multiprocessing
+- [x] Vector architecture
+- [x] Matrix/AI architecture
+- [x] Device/interconnect architecture
+- [x] Graphics/display architecture
+- [x] Virtualization architecture
+- [ ] Final specification consistency audit and normative v1.0 freeze
 
 ## Phase 2 — Digital execution engine
 
-Build the executable digital engine that runs the Coreless-64 machine.
-
-The engine is part of the Coreless project. It provides the computational mechanism that makes the digital Coreless machine execute; it is not an external host dependency.
-
-- [x] ISA decoder and instruction-length engine
+- [x] ISA decoder/instruction-length engine
 - [x] CPU execution core
 - [x] Memory system
-- [x] Interrupt controller and timer foundation
+- [x] Interrupt/timer foundation
 - [x] Atomic execution
-- [x] Persistent machine-state reference model
+- [x] Persistent machine state
 - [x] Storage-backed virtual RAM
-- [x] Shared Coreless RAM across CPUs
-- [x] Persist architectural CPU state
+- [x] Shared RAM across CPUs
+- [x] Persistent CPU state
 - [x] Network controller reference model
-- [x] Virtual GPU/display reference model
+- [x] Virtual GPU/display model
 - [x] Vector execution
 - [x] Matrix/AI execution
-- [x] Multiprocessing reference fabric
-- [x] Virtualization reference model
+- [x] Multiprocessing fabric
+- [x] Virtualization model
 
 ## Phase 3 — Coreless operating environment
 
 - [x] Firmware
-- [x] Boot process
-- [x] Coreless kernel (reference OS runtime)
+- [x] Boot
+- [x] Reference Coreless OS runtime
 - [x] Process model
 - [x] Memory management
 - [ ] Device drivers
@@ -53,109 +52,84 @@ The engine is part of the Coreless project. It provides the computational mechan
 - [ ] Remote display/input
 - [ ] Application environment
 
-## Phase 4 — Complete digital Coreless machine
+## Phase 4 — Complete digital machine
 
-Integrate the remaining machine subsystems into the same persistent execution model.
-
-- [x] Persistent process and address-space state
-- [x] Persistent operating-system state
-- [x] Persistent device state
-- [x] Persistent boot state
-- [x] Persistent application state
-- [x] Complete checkpoint/restore
-- [x] Resume a complete Coreless machine from its machine image
-- [x] Run a complete Coreless operating environment through the digital execution engine (reference lifecycle)
+- [x] Persistent process/address-space state
+- [x] Persistent OS/device/boot/application state
+- [x] Checkpoint/restore
+- [x] Resume from machine image
+- [x] Complete reference lifecycle through the digital execution engine
 
 ## Phase 5 — Portable Coreless machine
 
-The target system is a portable computer whose digital machine travels with its persistent storage.
-
-The external environment supplies power and I/O. The Coreless digital execution mechanism supplies the computation.
-
-The Coreless architecture does not require a conventional host CPU, host OS, or host system RAM to be part of the Coreless computer.
+- [x] Reproducible digital/reference test environment
+- [x] Complete reference machine lifecycle
+- [x] Persistent TensorRuntime
+- [x] Transformer execution through TensorRuntime
+- [ ] Stable native Coreless execution boundary for Transformer tensor operations
+- [ ] Actual persistent-storage-hosted Coreless runtime environment
+- [ ] Live five-core inference on Coreless
+- [ ] End-to-end local AI execution on Coreless resources
 
 ## Static-Adaptive Model Parts
 
-Coreless treats trained models as potential specialized computational parts rather than forcing every model into one generic Transformer implementation. A VM is the isolation/container "nest"; the model part retains its native architecture behind a Coreless model-part ABI.
-
-- [x] Define ModelPart lifecycle and task contract
-- [x] Define candidate → validating → active → retired adaptation lifecycle
-- [x] Require validation before an adapted part can replace an active part
-- [ ] Architecture-specific model-part execution (Qwen3, DeepSeek/R1, gpt-oss, Gemma, Codestral)
-- [ ] Model-part ABI integration with VM IPC and capability control
-- [ ] Task-driven automatic specialization planner
-- [ ] User/workload-specific static adaptation state
-- [ ] Slimline/pruning/quantization pipeline driven by retained task capability
-- [ ] Specialized-part regression and acceptance suite
-- [ ] Persistent adaptation history and rollback
-- [ ] Continuous workload observation and adaptation triggers
-- [x] Comprehensive compute/memory/storage/interconnect/network/media/external-I/O requirement envelope
-- [ ] Automatic requirement discovery from installed devices and available I/O
-- [ ] Market-generation capability profile updates without changing the Model-Part ABI
-
-The intended lifecycle is:
-
-**foundation training → released model → task specialization → slimline → validate → deploy as model part → observe workload → propose adaptation → validate → replace or rollback**
-
-The specialization system must not constrain a model's native architecture merely to fit the VM. Architecture-specific execution is responsible for preserving model semantics; the model-part ABI defines the interface exposed to the rest of Coreless.
+- [x] ModelPart lifecycle/task contract
+- [x] Candidate → validating → active → retired lifecycle
+- [x] Validation before replacement
+- [ ] Architecture-specific native execution for Qwen3, DeepSeek/R1, gpt-oss, Gemma, Codestral
+- [ ] Model-part ABI/VM IPC/capability integration
+- [ ] Specialization planner
+- [ ] User/workload adaptation state
+- [ ] Slimming/pruning/quantization
+- [ ] Regression/acceptance suite
+- [ ] Adaptation history/rollback
+- [ ] Continuous workload adaptation triggers
 
 ## AI-Derived Hardware Components
-- [x] Add storage-backed safetensors loading for persistent model weights
-- [x] Add native Qwen3 artifact validation and storage-backed model construction
-- [x] Add native Qwen3 tokenizer and greedy generation pipeline
-- [x] Add Qwen3 KV-cache generation support
-- [x] Add real Qwen3 artifact integration runner
-- [ ] Execute and validate an official trained Qwen3 artifact end-to-end
 
-- [x] Define complete CPU hardware-role capability envelope
-- [x] Define complete GPU hardware-role capability envelope
-- [x] Define complete user-communication hardware-role capability envelope
-- [x] Distinguish mandatory, retained-optional, and removable capabilities
-- [x] Assign trained models to explicit Coreless hardware roles
-- [x] Preserve each model's native architecture at the hardware boundary
-- [x] Add validated model-part hardware execution endpoints
-- [x] Add Coreless hardware-fabric request routing between model-parts
-- [ ] Bind CPU model-part to the Coreless-64 instruction execution engine
-- [ ] Bind GPU model-part to graphics/device/driver execution
-- [ ] Bind communication model-part to the user session layer
-- [ ] Add architecture-specific native execution adapters
-- [ ] Validate real trained-model artifacts as hardware components
-- [ ] Bind a validated trained model-part to live Coreless machine resources
+- [x] Storage-backed safetensors
+- [x] Native Qwen3 artifact validation/loading
+- [x] Native Qwen3 tokenizer/greedy generation
+- [x] Qwen3 KV cache
+- [x] Real artifact integration runner
+- [ ] Official trained Qwen3-0.6B end-to-end validation
+- [x] CPU/GPU/communication capability envelopes
+- [x] Explicit hardware-role assignment
+- [x] Native architecture preservation
+- [x] Model-part execution endpoints and fabric routing
+- [ ] Bind CPU model part to Coreless-64 instruction execution
+- [ ] Bind GPU model part to graphics/device/driver execution
+- [ ] Bind communication model part to user session layer
+- [ ] Native architecture adapters
+- [ ] Live trained model components
 
 ## 314DNest / Local Intelligence
 
 - [x] AI-Core registry
 - [x] Multi-model coordination
-- [x] Deterministic collaboration/group result
-- [x] Dynamic AI workload distribution and failover
+- [x] Deterministic group result
+- [x] Dynamic workload distribution/failover
 - [x] Deterministic policy boundary
-- [x] Capability-controlled Coreless resource operations
-- [x] Telemetry
-- [x] Audit records
-- [x] Human-AI session layer
-- [x] Structured terminal command ABI
-- [x] Cancellation and bounded worker scheduling
-- [x] Optional OpenAI development adapter
-- [x] Local Qwen3 / DeepSeek / gpt-oss / Gemma / Codestral runtime adapters
-- [x] AI compute fabric as a native machine resource
-- [x] Unified conventional/AI scheduler with capacity and telemetry-aware allocation
-- [x] Machine-level concurrent work distribution and fallback
-- [x] Explicit AI compute capability advertisement
-- [x] CorelessMachine unified work-distribution API
-- [x] Reproducible digital Coreless test environment
-- [ ] Live five-core inference on Coreless
-- [x] Local tensor runtime foundation
+- [x] Capability-controlled Coreless resources
+- [x] Telemetry/audit
+- [x] Human-AI sessions
+- [x] Structured terminal ABI
+- [x] Cancellation/bounded workers
+- [x] Optional OpenAI adapter
+- [x] Local model runtime adapters
+- [x] Native AI compute resource/scheduler
+- [x] Unified machine work-distribution API
+- [x] Digital/reference test environment
+- [x] Local TensorRuntime foundation
 - [x] Transformer execution foundation
-- [x] Model-format compatibility and real model-weight loading
-- [ ] End-to-end local AI execution on Coreless resources
+- [x] Model-format/loading foundation
+- [ ] Native Coreless execution boundary
+- [ ] Live five-core inference
+- [ ] End-to-end local AI on Coreless resources
 
 ## Phase 6 — Scaling
 
-- [ ] Dynamic CPU scaling
-- [ ] Dynamic memory scaling
-- [ ] Scalable vector resources
-- [ ] Scalable AI resources
-- [ ] Scalable GPU resources
+- [ ] Dynamic CPU/memory/vector/AI/GPU scaling
 - [ ] Large persistent machine images
 - [ ] Multiple guest machines
 - [ ] Multi-device Coreless systems
@@ -167,40 +141,8 @@ The specialization system must not constrain a model's native architecture merel
 - [ ] ARM64 compatibility
 - [ ] Guest operating systems
 - [ ] Binary translation
-- [ ] Virtualized legacy environments
+- [ ] Legacy virtualization
 
-## Machine-state direction
+## Resume point
 
-The persistent machine image is becoming the authoritative carrier of Coreless machine state.
-
-The target architecture is:
-
-**power/startup → Coreless digital execution engine → Coreless machine → external I/O**
-
-The machine image is intended to carry virtual RAM, CPU state, operating-system state, process state, device state, applications, filesystem state, and other state required to reconstruct the computer.
-
-The current reference image still uses a simple object-based format. A later storage layer will replace this with a scalable sparse machine-image format suitable for very large virtual RAM and complete machine state.
-
-## Execution-engine direction
-
-The repository already contains the first digital Coreless execution engine.
-
-reference/core.py implements Coreless-64 CPU instruction execution. reference/machine_runtime.py integrates those CPUs with shared Coreless memory, persistent storage, devices, graphics, networking, and machine-state persistence.
-
-The next goal is not to replace that engine with an external runtime. The integrated `reference/system.py` lifecycle now assembles firmware, persistent machine state, the Coreless OS/process model, devices, shell, and the execution engine into one reproducible digital machine. The remaining environment work is external-I/O and hardware validation, not a replacement execution engine.
-
-## Current status
-
-The Coreless execution foundation and 314DNest management plane remain on the green baseline. The local model adapter and five-core registration are implemented. The current local-AI execution milestone is now the **reference tensor/Transformer path**: Coreless can execute token embeddings, causal attention, feed-forward layers, residual paths, normalization, and vocabulary logits using dependency-free Coreless tensors.
-
-This is not yet live execution of Qwen3, DeepSeek, gpt-oss, Gemma, or Codestral weights. Model-format translation, real weight loading, tokenizer integration, and execution on an actual Coreless test environment remain separate tasks.
-
-## Phase 1 status
-
-The architectural definition is substantially complete. Coreless-64 defines CPU state, variable-length encoding, scalar/memory/atomic operations, virtual memory/MMU, privilege, interrupts, vector execution, matrix/AI execution, multiprocessing, device/interconnect principles, graphics/display, networking, virtualization, scaling, and security direction.
-
-The remaining work before declaring a normative ISA v1.0 freeze is executable consistency testing, reserved-field audit, vector/matrix encoding cross-checks, and completion of implementation-heavy subsystem semantics.
-
-## Phase 1 exit criteria
-
-Before Coreless-64 is declared architecturally frozen, the project must pass a specification consistency audit covering instruction lengths, operand encodings, CSR numbering, exception causes, privilege transitions, page-table formats, memory ordering, vector/matrix restart semantics, device discovery, virtualization state, and capability discovery. The reference implementation must then execute conformance tests derived from the normative specification.
+**Next:** native Coreless execution boundary → real trained Qwen3-0.6B validation → live Coreless runtime/inference.

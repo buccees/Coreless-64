@@ -1,48 +1,41 @@
 # Coreless Test Environment
 
-# 🚧 **THIS IS THE REPRODUCIBLE CORELESS TEST ENVIRONMENT TRACK**
+## Current state
 
-The test environment is part of Coreless, not a side project. It exists so another developer can reproduce a developer-side execution environment and eventually execute the complete persistent-storage-hosted computer.
+The repository has a reproducible **digital/reference** test environment. The separate milestone of executing the complete persistent-storage-hosted Coreless machine has not yet been validated.
 
-## Phase 1 — Prepare
+**CI checkpoint: run #423 — green.**
+
+## Reference setup
 
 ```bash
 bash scripts/bootstrap-test-environment.sh
 source .coreless-venv/bin/activate
-```
-
-This creates an isolated Python environment and installs repository requirements when present. It does not download model weights or replace the host operating system.
-
-## Phase 2 — Reference validation
-
-```bash
 python -m pytest
 ```
 
-## Phase 3 — Local intelligence
+## Local AI setup
 
-```bash
-python3 scripts/install-local-ai.py --pull
-```
+Use the repository local-AI setup tooling as documented by the current scripts. Model weights stay outside Git.
 
-Model weights remain outside Git.
-
-## Phase 4 — Live five-core inference
-
-With the local runtime running:
+The live inference runner is:
 
 ```bash
 python3 scripts/live-inference.py
 ```
 
-This exercises Qwen3, DeepSeek, gpt-oss, Gemma, and Codestral through 314DNest.
+## Actual Coreless runtime milestone
 
-## Phase 5 — Full Coreless execution target
+Still required:
 
-The remaining environment milestone is a reproducible way to start the Coreless execution engine itself from persistent storage, with virtual CPUs, virtual memory, storage, devices, and System Fabric operating together.
+1. persistent storage carrying the Coreless machine;
+2. reproducible startup of the Coreless digital execution engine;
+3. Coreless virtual CPUs, memory, storage and devices operating together;
+4. display/input/network interfaces;
+5. local AI runtime and model weights outside Git.
 
-That is distinct from ordinary Python test execution and must be validated separately.
+This is distinct from ordinary Python/CI execution.
 
-## Parallel development
+## Next
 
-The environment track does not stop Coreless architecture development. Tensor runtime, vector/matrix execution, Transformer compatibility, native Coreless OS/runtime, ISA/conformance, and 314DNest integration continue in parallel.
+The immediate engineering target is the **native Coreless execution boundary** for TensorRuntime/Transformer operations. Then validate a real official trained Qwen3-0.6B artifact and establish live runtime inference.
