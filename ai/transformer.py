@@ -24,6 +24,7 @@ def transpose(matrix: Tensor) -> Tensor:
     return Tensor.from_values(
         (cols, rows),
         (matrix.at(r, c) for c in range(cols) for r in range(rows)),
+        dtype=matrix.dtype,
     )
 
 
@@ -38,7 +39,7 @@ def embedding(token_ids: Sequence[int], weights: Tensor) -> Tensor:
         if not 0 <= token_id < vocab:
             raise ValueError("token id is outside vocabulary")
         rows.extend(weights.data[token_id * hidden:(token_id + 1) * hidden])
-    return Tensor.from_values((len(token_ids), hidden), rows)
+    return Tensor.from_values((len(token_ids), hidden), rows, dtype=weights.dtype)
 
 
 def rms_norm(x: Tensor, weight: Tensor, eps: float = 1e-6) -> Tensor:
@@ -51,7 +52,7 @@ def rms_norm(x: Tensor, weight: Tensor, eps: float = 1e-6) -> Tensor:
         chunk = x.data[start:start + hidden]
         scale = (sum(v * v for v in chunk) / hidden + eps) ** -0.5
         values.extend(v * scale * weight.data[i] for i, v in enumerate(chunk))
-    return Tensor.from_values(x.shape, values)
+    return Tensor.from_values(x.shape, values, dtype=x.dtype)
 
 
 def scaled_dot_product_attention(
@@ -82,8 +83,8 @@ def scaled_dot_product_attention(
             else float("-inf")
             for col in range(cols)
         ]
-        weights.extend(softmax(Tensor.from_values((cols,), row_scores)).data)
-    return matmul(Tensor.from_values(scores.shape, weights), value)
+        weights.extend(softmax(Tensor.from_values((cols,), row_scores, dtype=scores.dtype)).data)
+    return multiply(Tensor.from_values(scores.shape, weights, dtype=scores.dtype), value)
 
 
 def feed_forward(
@@ -113,7 +114,7 @@ def transformer_layer(x: Tensor, weights: ModelWeights, prefix: str, runtime: Te
     q = multiply(normed, weights.get(f"{prefix}.q_proj"))
     k = multiply(normed, weights.get(f"{prefix}.k_proj"))
     v = multiply(normed, weights.get(f"{prefix}.v_proj"))
-    attended = matmul(
+    attended = multiply(
         scaled_dot_product_attention(q, k, v, causal=True, runtime=runtime),
         weights.get(f"{prefix}.o_proj"),
     )
@@ -162,4 +163,4 @@ class TransformerRuntime:
         """Return final-position logits as a [vocab] tensor."""
         logits = self.forward(token_ids)
         start = (logits.shape[0] - 1) * logits.shape[1]
-        return Tensor.from_values((logits.shape[1],), logits.data[start:])
+        return Tensor.from_values((logits.shape[1],), logits.data[start:], dtype=logits.dtype)

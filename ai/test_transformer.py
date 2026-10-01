@@ -7,6 +7,11 @@ def test_transpose():
     assert transpose(x).data == (1.0, 4.0, 2.0, 5.0, 3.0, 6.0)
 
 
+def test_transpose_preserves_dtype():
+    x = Tensor.from_values((2, 2), [1, 2, 3, 4], dtype="fp32")
+    assert transpose(x).dtype == "fp32"
+
+
 def test_scaled_dot_product_attention():
     q = Tensor.from_values((1, 2), [1, 0])
     k = Tensor.from_values((2, 2), [1, 0, 0, 1])
@@ -51,3 +56,41 @@ def test_transformer_runtime_routes_tensor_math_through_coreless_tensor_runtime(
     result = runtime.next_token_logits([0, 1])
     assert result.shape == (2,)
     assert all(value == value for value in result.data)
+
+
+def test_transformer_runtime_routes_every_matrix_multiply_through_runtime():
+    from ai.model_architecture import TransformerConfig
+    from ai.model_weights import ModelTensor, ModelWeights
+    from ai.tensor_runtime import TensorRuntime
+    from ai.transformer import TransformerRuntime
+
+    class CountingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.matmul_calls = 0
+
+        def matmul(self, left, right):
+            self.matmul_calls += 1
+            return super().matmul(left, right)
+
+    identity = Tensor.from_values((2, 2), [1, 0, 0, 1])
+    norm = Tensor.from_values((2,), [1, 1])
+    weights = ModelWeights([
+        ModelTensor("embedding", identity),
+        ModelTensor("layers.0.input_norm", norm),
+        ModelTensor("layers.0.q_proj", identity),
+        ModelTensor("layers.0.k_proj", identity),
+        ModelTensor("layers.0.v_proj", identity),
+        ModelTensor("layers.0.o_proj", identity),
+        ModelTensor("layers.0.post_norm", norm),
+        ModelTensor("layers.0.ffn_up", identity),
+        ModelTensor("layers.0.ffn_down", identity),
+        ModelTensor("final_norm", norm),
+        ModelTensor("lm_head", identity),
+    ])
+    runtime = CountingRuntime()
+    result = TransformerRuntime(
+        TransformerConfig(2, 2, 1, 1, 2, 4), weights, runtime
+    ).next_token_logits([0, 1])
+    assert result.shape == (2,)
+    assert runtime.matmul_calls == 10
