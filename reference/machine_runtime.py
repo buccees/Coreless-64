@@ -13,6 +13,7 @@ from ai.interfaces import AIResult
 from ai.telemetry import TelemetryProvider
 from machine_work_distribution import MachineWorkDistributor
 from scheduler import MachineScheduler, ConventionalComputeResource, AIComputeSchedulerResource
+from ai.tensor_runtime import TensorRuntime
 
 
 class CorelessMachine:
@@ -43,6 +44,7 @@ class CorelessMachine:
         self.graphics = GraphicsDevice()
         self.filesystem = FileSystem(self.storage)
         self.loader = ProgramLoader(self)
+        self.tensor_runtime = TensorRuntime(self.storage)
         # AI is a native machine resource. Conventional components remain
         # available; AI can augment or replace individual computational jobs.
         self.ai_fabric = AIComputeFabric()
