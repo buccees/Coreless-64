@@ -110,8 +110,7 @@ class RequirementProfile:
 
     task_id: str
     required: FrozenSet[str]
-    optional: FrozenSet[str] = frozenset()
-
+    
     def validate_against(self, envelope: RequirementEnvelope) -> None:
         missing = envelope.missing(self.required)
         if missing:
@@ -123,14 +122,12 @@ class RequirementProfile:
 def make_profile(
     task_id: str,
     required: Iterable[str],
-    optional: Iterable[str] = (),
     *,
     envelope: RequirementEnvelope = CURRENT_COMPUTER_ENVELOPE,
 ) -> RequirementProfile:
     profile = RequirementProfile(
         task_id=task_id,
         required=frozenset(required),
-        optional=frozenset(optional),
     )
     profile.validate_against(envelope)
     return profile
