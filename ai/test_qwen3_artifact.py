@@ -21,7 +21,7 @@ def test_sha256_file(tmp_path: Path):
     path = tmp_path / "sample.bin"
     path.write_bytes(b"coreless")
     assert sha256_file(path) == (
-        "d7e7a9c6d7f2a4e9b8b5d0c1a7f3c4c6b5d7e6f1a9d2c3b4e5f60718293a4b5c"
+        "bdd374879a252834ff1238fc64889b52d7f862affa34b13fe397cbb6d16a9a1b"
     )
 
 
