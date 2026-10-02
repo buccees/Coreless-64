@@ -40,7 +40,7 @@ def test_load_safetensors_float32(tmp_path):
     raw = struct.pack("<3f", 1.5, -2.0, 4.25)
     _write_safetensors(path, [("embedding", "F32", (3,), raw)])
     weights = load_safetensors(path)
-    assert weights.get("embedding") == Tensor.from_values((3,), [1.5, -2.0, 4.25])
+    assert weights.get("embedding") == Tensor.from_values((3,), [1.5, -2.0, 4.25], dtype="fp32")
 
 
 def test_load_safetensors_bfloat16(tmp_path):
@@ -50,7 +50,9 @@ def test_load_safetensors_bfloat16(tmp_path):
         struct.unpack("<I", struct.pack("<f", -2.0))[0],
     ))
     _write_safetensors(path, [("x", "BF16", (2,), raw)])
-    values = load_safetensors(path).get("x").data
+    tensor = load_safetensors(path).get("x")
+    assert tensor.dtype == "bf16"
+    values = tensor.data
     assert abs(values[0] - 1.5) < 0.001
     assert abs(values[1] + 2.0) < 0.001
 
