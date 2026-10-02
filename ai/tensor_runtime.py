@@ -49,7 +49,7 @@ class TensorRuntime:
             and len(left.shape) == 2
             and len(right.shape) == 2
             and left.dtype == right.dtype
-            and left.dtype.startswith("int")
+            and left.dtype in self._ELEMENT_TYPES
             and (left.shape[0], right.shape[1], left.shape[1]) in self._MATRIX_SHAPES
         ):
             return self.matrix_matmul(left, right)
@@ -163,8 +163,8 @@ class TensorRuntime:
             raise ValueError("native matrix execution requires rank-2 tensors")
         if left.shape[1] != right.shape[0]:
             raise ValueError("matrix dimensions do not agree")
-        if left.dtype != right.dtype or not left.dtype.startswith("int"):
-            raise ValueError("native Coreless matrix baseline requires matching integer dtypes")
+        if left.dtype != right.dtype or left.dtype not in self._ELEMENT_TYPES:
+            raise ValueError("native Coreless matrix execution requires matching supported dtypes")
         shape = left.shape[0], right.shape[1], left.shape[1]
         if shape not in self._MATRIX_SHAPES:
             raise ValueError("matrix shape is not supported by the Coreless baseline")
