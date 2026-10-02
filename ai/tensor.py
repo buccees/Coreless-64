@@ -82,17 +82,21 @@ def matmul(a: Tensor, b: Tensor) -> Tensor:
     other_inner, cols = b.shape
     if inner != other_inner:
         raise ValueError("matmul dimensions do not agree")
+    if a.dtype != b.dtype:
+        raise ValueError("matmul requires matching tensor dtypes")
     values = []
     for row in range(rows):
         for col in range(cols):
             values.append(fsum(a.at(row, k) * b.at(k, col) for k in range(inner)))
-    return Tensor((rows, cols), tuple(values))
+    return Tensor((rows, cols), tuple(values), a.dtype)
 
 
 def add(a: Tensor, b: Tensor) -> Tensor:
     if a.shape != b.shape:
         raise ValueError("tensor shapes must match")
-    return Tensor(a.shape, tuple(x + y for x, y in zip(a.data, b.data)))
+    if a.dtype != b.dtype:
+        raise ValueError("tensor dtypes must match")
+    return Tensor(a.shape, tuple(x + y for x, y in zip(a.data, b.data)), a.dtype)
 
 
 def relu(a: Tensor) -> Tensor:
@@ -105,7 +109,7 @@ def softmax(a: Tensor) -> Tensor:
     maximum = max(a.data)
     values = tuple(exp(x - maximum) for x in a.data)
     total = sum(values)
-    return Tensor(a.shape, tuple(x / total for x in values))
+    return Tensor(a.shape, tuple(x / total for x in values), a.dtype)
 
 
 def linear(x: Tensor, weights: Tensor, bias: Tensor | None = None) -> Tensor:
@@ -124,6 +128,8 @@ def sub(a: Tensor, b: Tensor) -> Tensor:
 def mul(a: Tensor, b: Tensor) -> Tensor:
     if a.shape != b.shape:
         raise ValueError("tensor shapes must match")
+    if a.dtype != b.dtype:
+        raise ValueError("tensor dtypes must match")
     return Tensor(a.shape, tuple(x * y for x, y in zip(a.data, b.data)), a.dtype)
 
 
