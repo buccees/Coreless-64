@@ -686,6 +686,14 @@ class CorelessCPU:
         except (OverflowError,struct.error):
             raise CorelessTrap("floating_point_fault",self.pc,op)
 
+    def execute_vector(self, op, rd, rs1, rs2, w1):
+        """Stable public boundary for architectural vector execution."""
+        return self._vector_op(3, op, rd, rs1, rs2, w1)
+
+    def execute_matrix(self, op, rd, rs1, rs2, w1, w2, w3):
+        """Stable public boundary for architectural matrix execution."""
+        return self._matrix_op(op, rd, rs1, rs2, w1, w2, w3)
+
     def _matrix_op(self, op, rd, rs1, rs2, w1, w2, w3):
         """Execute the deterministic Coreless matrix/AI baseline.
 

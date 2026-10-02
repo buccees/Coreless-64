@@ -146,7 +146,7 @@ class TensorRuntime:
             cpu.vector[29][:left.size] = [self._encode_value(v, left.dtype) for v in left.data]
             cpu.vector[30][:right.size] = [self._encode_value(v, right.dtype) for v in right.data]
             cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype = left.size, 0, et
-            cpu._vector_op(3, op, 31, 29, 30, et << 29)
+            cpu.execute_vector(op, 31, 29, 30, et << 29)
             values = [self._decode_value(cpu.vector[31][i], left.dtype) for i in range(left.size)]
             return Tensor.from_values(left.shape, values, dtype=left.dtype)
         finally:
@@ -181,7 +181,7 @@ class TensorRuntime:
                 for j in range(right.shape[1]):
                     cpu.matrix[30][i][j] = self._encode_value(right.at(i, j), right.dtype)
             cpu.matrix_shape = shape
-            cpu._matrix_op(
+            cpu.execute_matrix(
                 0x00, 31, 29, 30,
                 (et << 29) | (et << 26) | (shape_index << 23) | (1 << 22),
                 0, 0,
