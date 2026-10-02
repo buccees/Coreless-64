@@ -166,6 +166,20 @@ Implemented and green:
 
 **Important:** green CI does not prove that the official trained Qwen3-0.6B weights have completed successful end-to-end inference. That remains a separate validation milestone.
 
+### Qwen3 real-artifact validation issue to revisit
+
+The official Qwen3-0.6B artifact was downloaded to the Lubuntu development VM and all required files were present. A manual SHA-256 check produced:
+
+`f47f71177f32bcd101b7573ec9171e6a57f4f4d31148d38e382306f42996874b`
+
+The extra trailing `b` means the downloaded `model.safetensors` did **not** match the pinned Coreless SHA-256:
+
+`f47f71177f32bcd101b7573ec9171e6a57f4f4d31148d38e382306f42996874`
+
+The mismatched weights were removed during troubleshooting, and restoring the exact pinned artifact was not completed. The Hugging Face/native numerical reference comparison was therefore **deferred**.
+
+**Do not spend development time on this now.** Revisit after the native Coreless execution boundary and remaining implementation work are complete. At that point, reacquire/validate the exact pinned Qwen3 artifact and perform the real forward/reference validation.
+
 Do not commit large model weights.
 
 ## Model-as-hardware-component architecture
@@ -267,6 +281,7 @@ Perform a final cross-layer audit covering:
 - Never commit API keys or credentials.
 - Keep local AI operation independent of the optional OpenAI backend.
 - Do not substitute generic model implementations for native model architectures merely to make integration easier.
+- Defer optional external-reference validation until the native implementation milestone is ready.
 
 ## Architectural goal
 
