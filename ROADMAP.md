@@ -2,7 +2,7 @@
 
 ## Current checkpoint
 
-**GREEN — GitHub Actions run #423 succeeded.**
+**GREEN — GitHub Actions run #427 succeeded.**
 
 The current implementation checkpoint includes the complete reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, and Transformer → TensorRuntime routing.
 
@@ -66,7 +66,7 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Complete reference machine lifecycle
 - [x] Persistent TensorRuntime
 - [x] Transformer execution through TensorRuntime
-- [ ] Stable native Coreless execution boundary for Transformer tensor operations
+- [x] Stable native Coreless execution boundary for Transformer tensor operations
 - [ ] Actual persistent-storage-hosted Coreless runtime environment
 - [ ] Live five-core inference on Coreless
 - [ ] End-to-end local AI execution on Coreless resources
@@ -123,7 +123,7 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Local TensorRuntime foundation
 - [x] Transformer execution foundation
 - [x] Model-format/loading foundation
-- [ ] Native Coreless execution boundary
+- [x] Native Coreless execution boundary
 - [ ] Live five-core inference
 - [ ] End-to-end local AI on Coreless resources
 
@@ -145,4 +145,4 @@ The current implementation checkpoint includes the complete reference digital-ma
 
 ## Resume point
 
-**Next:** native Coreless execution boundary → real trained Qwen3-0.6B validation → live Coreless runtime/inference.
+**Next:** real trained Qwen3-0.6B validation → live Coreless runtime/inference → five-core inference.
