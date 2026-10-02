@@ -729,21 +729,73 @@ class CorelessCPU:
         def encode_int(value, bits):
             return value & ((1 << bits) - 1)
 
+        fp_type = it >= 4 or at >= 4
+        if fp_type and it != at:
+            raise CorelessTrap("matrix_ai_fault", self.pc, (it << 3) | at)
+
+        import math
+        import struct
+
+        def decode_fp(value, typ):
+            if typ == 4:
+                return struct.unpack("<e", (value & 0xFFFF).to_bytes(2, "little"))[0]
+            if typ == 5:
+                return struct.unpack("<f", ((value & 0xFFFF) << 16).to_bytes(4, "little"))[0]
+            if typ == 6:
+                return struct.unpack("<f", (value & 0xFFFFFFFF).to_bytes(4, "little"))[0]
+            if typ == 7:
+                return struct.unpack("<d", (value & MASK64).to_bytes(8, "little"))[0]
+            raise CorelessTrap("matrix_ai_fault", self.pc, typ)
+
+        def encode_fp(value, typ):
+            if not math.isfinite(value):
+                if typ == 4:
+                    return int.from_bytes(struct.pack("<e", float(value)), "little")
+                if typ == 5:
+                    raw = int.from_bytes(struct.pack("<f", float(value)), "little")
+                    return raw >> 16
+                if typ == 6:
+                    return int.from_bytes(struct.pack("<f", float(value)), "little")
+                return int.from_bytes(struct.pack("<d", float(value)), "little")
+            if typ == 4:
+                return int.from_bytes(struct.pack("<e", float(value)), "little")
+            if typ == 5:
+                raw = int.from_bytes(struct.pack("<f", float(value)), "little")
+                low, high = raw & 0xFFFF, raw >> 16
+                if low > 0x8000 or (low == 0x8000 and (high & 1)):
+                    high = (high + 1) & 0xFFFF
+                return high
+            if typ == 6:
+                return int.from_bytes(struct.pack("<f", float(value)), "little")
+            if typ == 7:
+                return int.from_bytes(struct.pack("<d", float(value)), "little")
+            raise CorelessTrap("matrix_ai_fault", self.pc, typ)
+
+        def decode_value(value, bits):
+            return decode_fp(value, bits) if fp_type else decode_int(value, bits, signed_mode)
+
+        def encode_value(value, bits):
+            return encode_fp(value, bits) if fp_type else encode_int(value, bits)
+
         def convert(value, src_bits, dst_bits, signed):
+            if src_bits >= 4 or dst_bits >= 4:
+                if src_bits != dst_bits:
+                    raise CorelessTrap("matrix_ai_fault", self.pc, (src_bits << 3) | dst_bits)
+                return encode_fp(decode_fp(value, src_bits), dst_bits)
             return encode_int(decode_int(value, src_bits, signed), dst_bits)
 
         def matmul(add_tile=None):
             out = [[0 for _ in range(n)] for _ in range(m)]
             for i in range(m):
                 for j in range(n):
-                    acc = self.matrix[add_tile][i][j] if add_tile is not None else 0
+                    acc = decode_value(self.matrix[add_tile][i][j], abits) if add_tile is not None else 0.0 if fp_type else 0
                     if add_tile is None and op == 0x01:
-                        acc = self.matrix[rd][i][j]
+                        acc = decode_value(self.matrix[rd][i][j], abits)
                     for q in range(k):
-                        a = decode_int(self.matrix[rs1][i][q], ibits, signed_mode)
-                        b = decode_int(self.matrix[rs2][q][j], ibits, signed_mode)
+                        a = decode_value(self.matrix[rs1][i][q], ibits)
+                        b = decode_value(self.matrix[rs2][q][j], ibits)
                         acc += a * b
-                    out[i][j] = encode_int(acc, abits)
+                    out[i][j] = encode_value(acc, abits)
             for i in range(m):
                 for j in range(n):
                     self.matrix[rd][i][j] = out[i][j]
