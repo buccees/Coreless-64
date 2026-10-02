@@ -59,7 +59,10 @@ def _decode_tensor(raw: bytes, dtype: str, shape: tuple[int, ...]) -> Tensor:
     expected = math.prod(shape)
     if len(values) != expected:
         raise ValueError("tensor byte count does not match tensor shape")
-    return Tensor.from_values(shape, values)
+    tensor_dtype = {"F16": "fp16", "BF16": "bf16", "F32": "fp32", "F64": "fp64"}.get(dtype)
+    if tensor_dtype is None:
+        raise ValueError(f"unsupported safetensors dtype: {dtype}")
+    return Tensor.from_values(shape, values, dtype=tensor_dtype)
 
 
 def load_safetensors(path: str | Path) -> ModelWeights:
@@ -227,9 +230,14 @@ def load_safetensors_mmap(path: str | Path) -> ModelWeights:
             mapped.close()
             file_handle.close()
             raise ValueError(f"tensor byte count does not match tensor shape: {name}")
+        tensor_dtype = {"F16": "fp16", "BF16": "bf16", "F32": "fp32", "F64": "fp64"}.get(dtype)
+        if tensor_dtype is None:
+            mapped.close()
+            file_handle.close()
+            raise ValueError(f"unsupported safetensors dtype: {dtype}")
         tensor = Tensor(shape, _MappedFloatSequence(
             mapped, payload_start, count, dtype
-        ))
+        ), tensor_dtype)
         tensors.append(ModelTensor(name, tensor))
 
     loaded = ModelWeights(tensors)
