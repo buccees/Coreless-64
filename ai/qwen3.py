@@ -31,6 +31,7 @@ class Qwen3KVCache:
 
 from .model_weights import ModelWeights
 from .tensor import Tensor, add, matmul, softmax
+from .tensor_runtime import TensorRuntime
 
 
 @dataclass(frozen=True)
@@ -139,9 +140,14 @@ def _rms_norm(x: Tensor, weight: Tensor, eps: float) -> Tensor:
     return Tensor.from_values(x.shape, rows)
 
 
-def _linear(x: Tensor, weight: Tensor) -> Tensor:
-    """Apply a Hugging Face Linear weight stored as [out_features, in_features]."""
-    return matmul(x, _transpose(weight))
+def _linear(
+    x: Tensor,
+    weight: Tensor,
+    runtime: TensorRuntime | None = None,
+) -> Tensor:
+    """Apply a Hugging Face Linear weight through the Coreless tensor boundary."""
+    multiply = runtime.matmul if runtime is not None else matmul
+    return multiply(x, _transpose(weight))
 
 
 def _apply_head_norm(heads: list[list[list[float]]], weight: Tensor, eps: float) -> list[list[list[float]]]:
@@ -161,10 +167,11 @@ def qwen3_attention(
     cfg: Qwen3Config,
     cache: Qwen3KVCache | None = None,
     position_offset: int = 0,
+    runtime: TensorRuntime | None = None,
 ) -> Tensor:
-    q = _linear(x, weights.get(f"{prefix}.self_attn.q_proj.weight"))
-    k = _linear(x, weights.get(f"{prefix}.self_attn.k_proj.weight"))
-    v = _linear(x, weights.get(f"{prefix}.self_attn.v_proj.weight"))
+    q = _linear(x, weights.get(f"{prefix}.self_attn.q_proj.weight"), runtime)
+    k = _linear(x, weights.get(f"{prefix}.self_attn.k_proj.weight"), runtime)
+    v = _linear(x, weights.get(f"{prefix}.self_attn.v_proj.weight"), runtime)
     qh = _reshape_heads(q, cfg.num_attention_heads, cfg.resolved_head_dim)
     kh = _reshape_heads(k, cfg.num_key_value_heads, cfg.resolved_head_dim)
     vh = _reshape_heads(v, cfg.num_key_value_heads, cfg.resolved_head_dim)
@@ -202,15 +209,21 @@ def qwen3_mlp(x: Tensor, weights: ModelWeights, prefix: str) -> Tensor:
     gated = Tensor.from_values(gate.shape, (
         (g / (1.0 + math.exp(-g))) * u for g, u in zip(gate.data, up.data)
     ))
-    return _linear(gated, weights.get(f"{prefix}.mlp.down_proj.weight"))
+    return _linear(gated, weights.get(f"{prefix}.mlp.down_proj.weight"), runtime)
 
 
 class Qwen3Runtime:
     """Native reference runtime for the dense Qwen3 architecture."""
 
-    def __init__(self, config: Qwen3Config, weights: ModelWeights) -> None:
+    def __init__(
+        self,
+        config: Qwen3Config,
+        weights: ModelWeights,
+        tensor_runtime: TensorRuntime | None = None,
+    ) -> None:
         self.config = config
         self.weights = weights
+        self.tensor_runtime = tensor_runtime
 
     def forward(
         self,
@@ -236,12 +249,17 @@ class Qwen3Runtime:
             prefix = f"model.layers.{layer}"
             normed = _rms_norm(hidden, self.weights.get(f"{prefix}.input_layernorm.weight"),
                                self.config.rms_norm_eps)
-            hidden = add(hidden, qwen3_attention(
-                normed, self.weights, prefix, self.config, cache, position_offset
-            ))
+            attention = qwen3_attention(
+                normed, self.weights, prefix, self.config, cache, position_offset,
+                self.tensor_runtime,
+            )
+            hidden = (self.tensor_runtime.add(hidden, attention)
+                      if self.tensor_runtime is not None else add(hidden, attention))
             normed = _rms_norm(hidden, self.weights.get(f"{prefix}.post_attention_layernorm.weight"),
                                self.config.rms_norm_eps)
-            hidden = add(hidden, qwen3_mlp(normed, self.weights, prefix))
+            mlp = qwen3_mlp(normed, self.weights, prefix, self.tensor_runtime)
+            hidden = (self.tensor_runtime.add(hidden, mlp)
+                      if self.tensor_runtime is not None else add(hidden, mlp))
         hidden = _rms_norm(hidden, self.weights.get("model.norm.weight"), self.config.rms_norm_eps)
         lm_head = self.weights.get("lm_head.weight") if self.weights.contains("lm_head.weight") else embedding
         return _linear(hidden, lm_head)
