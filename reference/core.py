@@ -778,7 +778,7 @@ class CorelessCPU:
             return encode_fp(value, bits) if fp_type else encode_int(value, bits)
 
         def convert(value, src_bits, dst_bits, signed):
-            if src_bits >= 4 or dst_bits >= 4:
+            if fp_type:
                 if src_bits != dst_bits:
                     raise CorelessTrap("matrix_ai_fault", self.pc, (src_bits << 3) | dst_bits)
                 return encode_fp(decode_fp(value, src_bits), dst_bits)
