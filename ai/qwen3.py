@@ -12,10 +12,15 @@ import math
 from dataclasses import dataclass
 from typing import Sequence
 
+from .model_weights import ModelWeights
+from .tensor import Tensor, add, matmul, softmax
+from .tensor_runtime import TensorRuntime
+
 
 @dataclass
 class Qwen3KVCache:
     """Per-layer native Q/K cache used by autoregressive generation."""
+
     keys: list[list[list[float]]]
     values: list[list[list[float]]]
 
@@ -28,10 +33,6 @@ class Qwen3KVCache:
         if not self.keys or not self.keys[0]:
             return 0
         return len(self.keys[0][0])
-
-from .model_weights import ModelWeights
-from .tensor import Tensor, add, matmul, softmax
-from .tensor_runtime import TensorRuntime
 
 
 @dataclass(frozen=True)
@@ -69,27 +70,38 @@ class Qwen3Config:
 
 def _transpose(x: Tensor) -> Tensor:
     rows, cols = x.shape
-    return Tensor.from_values((cols, rows),
-                              (x.at(r, c) for c in range(cols) for r in range(rows)))
+    return Tensor.from_values(
+        (cols, rows),
+        (x.at(r, c) for c in range(cols) for r in range(rows)),
+    )
 
 
 def _reshape_heads(x: Tensor, heads: int, head_dim: int) -> list[list[list[float]]]:
     if x.shape[1] != heads * head_dim:
         raise ValueError("projection shape does not match Qwen3 head dimensions")
     return [
-        [x.data[(pos * heads + head) * head_dim:
-                 (pos * heads + head + 1) * head_dim]
-         for pos in range(x.shape[0])]
+        [
+            x.data[(pos * heads + head) * head_dim:
+                   (pos * heads + head + 1) * head_dim]
+            for pos in range(x.shape[0])
+        ]
         for head in range(heads)
     ]
 
 
-def _rotary(head: list[float], position: int, theta: float, scaling_factor: float | None = None) -> list[float]:
+def _rotary(
+    head: list[float],
+    position: int,
+    theta: float,
+    scaling_factor: float | None = None,
+) -> list[float]:
     out = head[:]
     half = len(head) // 2
     for i in range(half):
         inv = theta ** (-2.0 * i / len(head))
-        angle = position * inv\n        if scaling_factor is not None and scaling_factor > 1.0:\n            angle /= scaling_factor
+        angle = position * inv
+        if scaling_factor is not None and scaling_factor > 1.0:
+            angle /= scaling_factor
         c, s = math.cos(angle), math.sin(angle)
         a, b = head[i], head[i + half]
         out[i] = a * c - b * s
@@ -101,7 +113,13 @@ def _repeat_kv(heads: list[list[list[float]]], repeats: int) -> list[list[list[f
     return [head for head in heads for _ in range(repeats)]
 
 
-def _attention(q, k, v, causal=True, key_position_offset=0) -> list[list[float]]:
+def _attention(
+    q,
+    k,
+    v,
+    causal=True,
+    key_position_offset=0,
+) -> list[list[float]]:
     query_positions = len(q[0])
     key_positions = len(k[0])
     dim = len(q[0][0])
@@ -112,8 +130,12 @@ def _attention(q, k, v, causal=True, key_position_offset=0) -> list[list[float]]
             scores = []
             absolute_query_position = key_position_offset + row
             for col in range(key_positions):
-                scores.append(sum(q[head][row][i] * k[head][col][i] for i in range(dim))
-                              * scale if (not causal or col <= absolute_query_position) else float("-inf"))
+                scores.append(
+                    sum(q[head][row][i] * k[head][col][i] for i in range(dim))
+                    * scale
+                    if (not causal or col <= absolute_query_position)
+                    else float("-inf")
+                )
             weights = softmax(Tensor.from_values((len(scores),), scores)).data
             for col, weight in enumerate(weights):
                 for i in range(dim):
@@ -150,10 +172,20 @@ def _linear(
     return multiply(x, _transpose(weight))
 
 
-def _apply_head_norm(heads: list[list[list[float]]], weight: Tensor, eps: float) -> list[list[list[float]]]:
+def _apply_head_norm(
+    heads: list[list[list[float]]],
+    weight: Tensor,
+    eps: float,
+) -> list[list[list[float]]]:
     return [
         [
-            list(_rms_norm(Tensor.from_values((1, len(values)), values), weight, eps).data)
+            list(
+                _rms_norm(
+                    Tensor.from_values((1, len(values)), values),
+                    weight,
+                    eps,
+                ).data
+            )
             for values in head
         ]
         for head in heads
@@ -177,10 +209,16 @@ def qwen3_attention(
     vh = _reshape_heads(v, cfg.num_key_value_heads, cfg.resolved_head_dim)
     qh = _apply_head_norm(qh, weights.get(f"{prefix}.self_attn.q_norm.weight"), cfg.rms_norm_eps)
     kh = _apply_head_norm(kh, weights.get(f"{prefix}.self_attn.k_norm.weight"), cfg.rms_norm_eps)
-    qh = [[_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor)
-           for p, h in enumerate(head)] for head in qh]
-    kh = [[_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor)
-           for p, h in enumerate(head)] for head in kh]
+    qh = [
+        [_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor)
+         for p, h in enumerate(head)]
+        for head in qh
+    ]
+    kh = [
+        [_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor)
+         for p, h in enumerate(head)]
+        for head in kh
+    ]
 
     if cache is not None:
         layer_index = int(prefix.rsplit(".", 1)[-1])
@@ -197,19 +235,36 @@ def qwen3_attention(
 
     kh = _repeat_kv(kh, cfg.kv_group_size)
     vh = _repeat_kv(vh, cfg.kv_group_size)
-    attended = _heads_to_tensor(_attention(
-        qh, kh, vh, key_position_offset=position_offset
-    ))
-    return _linear(attended, weights.get(f"{prefix}.self_attn.o_proj.weight"))
+    attended = _heads_to_tensor(
+        _attention(qh, kh, vh, key_position_offset=position_offset)
+    )
+    return _linear(
+        attended,
+        weights.get(f"{prefix}.self_attn.o_proj.weight"),
+        runtime,
+    )
 
 
-def qwen3_mlp(x: Tensor, weights: ModelWeights, prefix: str) -> Tensor:
-    gate = _linear(x, weights.get(f"{prefix}.mlp.gate_proj.weight"))
-    up = _linear(x, weights.get(f"{prefix}.mlp.up_proj.weight"))
-    gated = Tensor.from_values(gate.shape, (
-        (g / (1.0 + math.exp(-g))) * u for g, u in zip(gate.data, up.data)
-    ))
-    return _linear(gated, weights.get(f"{prefix}.mlp.down_proj.weight"), runtime)
+def qwen3_mlp(
+    x: Tensor,
+    weights: ModelWeights,
+    prefix: str,
+    runtime: TensorRuntime | None = None,
+) -> Tensor:
+    gate = _linear(x, weights.get(f"{prefix}.mlp.gate_proj.weight"), runtime)
+    up = _linear(x, weights.get(f"{prefix}.mlp.up_proj.weight"), runtime)
+    gated = Tensor.from_values(
+        gate.shape,
+        (
+            (g / (1.0 + math.exp(-g))) * u
+            for g, u in zip(gate.data, up.data)
+        ),
+    )
+    return _linear(
+        gated,
+        weights.get(f"{prefix}.mlp.down_proj.weight"),
+        runtime,
+    )
 
 
 class Qwen3Runtime:
@@ -232,6 +287,8 @@ class Qwen3Runtime:
     ) -> Tensor:
         if not token_ids:
             raise ValueError("token sequence must not be empty")
+        if any(token_id < 0 or token_id >= self.config.vocab_size for token_id in token_ids):
+            raise ValueError("token id is outside the Qwen3 vocabulary")
         position_offset = cache.sequence_length if cache is not None else 0
         if position_offset + len(token_ids) > self.config.max_position_embeddings:
             raise ValueError("token sequence exceeds Qwen3 context length")
@@ -241,25 +298,83 @@ class Qwen3Runtime:
         embedding = self.weights.get("model.embed_tokens.weight")
         hidden = Tensor.from_values(
             (len(token_ids), self.config.hidden_size),
-            (v for token_id in token_ids
-             for v in embedding.data[token_id * self.config.hidden_size:
-                                     (token_id + 1) * self.config.hidden_size])
+            (
+                v
+                for token_id in token_ids
+                for v in embedding.data[
+                    token_id * self.config.hidden_size:
+                    (token_id + 1) * self.config.hidden_size
+                ]
+            ),
         )
         for layer in range(self.config.num_hidden_layers):
             prefix = f"model.layers.{layer}"
-            normed = _rms_norm(hidden, self.weights.get(f"{prefix}.input_layernorm.weight"),
-                               self.config.rms_norm_eps)
+            normed = _rms_norm(
+                hidden,
+                self.weights.get(f"{prefix}.input_layernorm.weight"),
+                self.config.rms_norm_eps,
+            )
             attention = qwen3_attention(
-                normed, self.weights, prefix, self.config, cache, position_offset,
+                normed,
+                self.weights,
+                prefix,
+                self.config,
+                cache,
+                position_offset,
                 self.tensor_runtime,
             )
-            hidden = (self.tensor_runtime.add(hidden, attention)
-                      if self.tensor_runtime is not None else add(hidden, attention))
-            normed = _rms_norm(hidden, self.weights.get(f"{prefix}.post_attention_layernorm.weight"),
-                               self.config.rms_norm_eps)
-            mlp = qwen3_mlp(normed, self.weights, prefix, self.tensor_runtime)
-            hidden = (self.tensor_runtime.add(hidden, mlp)
-                      if self.tensor_runtime is not None else add(hidden, mlp))
-        hidden = _rms_norm(hidden, self.weights.get("model.norm.weight"), self.config.rms_norm_eps)
-        lm_head = self.weights.get("lm_head.weight") if self.weights.contains("lm_head.weight") else embedding
-        return _linear(hidden, lm_head)
+            hidden = (
+                self.tensor_runtime.add(hidden, attention)
+                if self.tensor_runtime is not None
+                else add(hidden, attention)
+            )
+            normed = _rms_norm(
+                hidden,
+                self.weights.get(f"{prefix}.post_attention_layernorm.weight"),
+                self.config.rms_norm_eps,
+            )
+            mlp = qwen3_mlp(
+                normed,
+                self.weights,
+                prefix,
+                self.tensor_runtime,
+            )
+            hidden = (
+                self.tensor_runtime.add(hidden, mlp)
+                if self.tensor_runtime is not None
+                else add(hidden, mlp)
+            )
+        hidden = _rms_norm(
+            hidden,
+            self.weights.get("model.norm.weight"),
+            self.config.rms_norm_eps,
+        )
+        lm_head = (
+            self.weights.get("lm_head.weight")
+            if self.weights.contains("lm_head.weight")
+            else embedding
+        )
+        return _linear(hidden, lm_head, self.tensor_runtime)
+
+    def generate_greedy(
+        self,
+        token_ids: Sequence[int],
+        max_new_tokens: int,
+        eos_token_id: int | None = None,
+    ) -> list[int]:
+        """Generate tokens using native Coreless greedy decoding and KV cache."""
+        if max_new_tokens < 0:
+            raise ValueError("max_new_tokens must be non-negative")
+        generated = list(token_ids)
+        if not generated or max_new_tokens == 0:
+            return generated
+        cache = Qwen3KVCache.create(self.config.num_hidden_layers)
+        logits = self.forward(generated, cache)
+        for _ in range(max_new_tokens):
+            row = logits.data[-self.config.vocab_size:]
+            next_token = max(range(len(row)), key=row.__getitem__)
+            generated.append(next_token)
+            if eos_token_id is not None and next_token == eos_token_id:
+                break
+            logits = self.forward([next_token], cache)
+        return generated
