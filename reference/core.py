@@ -834,10 +834,10 @@ class CorelessCPU:
         elif op in (0x04, 0x05):
             for i in range(m):
                 for j in range(n):
-                    a = decode_int(self.matrix[rs1][i][j], ibits, signed_mode)
-                    b = decode_int(self.matrix[rs2][i][j], ibits, signed_mode)
+                    a = decode_value(self.matrix[rs1][i][j], ibits)
+                    b = decode_value(self.matrix[rs2][i][j], ibits)
                     z = a + b if op == 0x04 else a - b
-                    self.matrix[rd][i][j] = encode_int(z, abits)
+                    self.matrix[rd][i][j] = encode_value(z, abits)
         elif op == 0x06:
             matmul(add_tile=w2 & 0x1F)
         elif op == 0x07:
