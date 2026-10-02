@@ -37,6 +37,26 @@ def acquire_and_run(
     return run(root, prompt, max_new_tokens)
 
 
+def forward_real_artifact(
+    model_directory: str | Path,
+    prompt: str,
+) -> dict[str, object]:
+    """Run one real trained-weight forward pass through the native runtime."""
+    _, runtime, tokenizer = _load_real_artifact(model_directory)
+    token_ids = tokenizer.encode(prompt)
+    if not token_ids:
+        raise ValueError("prompt must produce at least one token")
+    logits = runtime.forward(token_ids)
+    row = logits.data[-runtime.config.vocab_size:]
+    next_token = max(range(len(row)), key=row.__getitem__)
+    return {
+        "model": "Qwen3-0.6B",
+        "input_tokens": len(token_ids),
+        "logit_shape": logits.shape,
+        "next_token_id": next_token,
+    }
+
+
 def validate_real_artifact(model_directory: str | Path) -> dict[str, object]:
     """Validate the official model, storage layout, and native tokenizer."""
     _, runtime, tokenizer = _load_real_artifact(model_directory)
@@ -68,6 +88,11 @@ def main() -> int:
         action="store_true",
         help="validate model and tokenizer artifacts without inference",
     )
+    parser.add_argument(
+        "--forward-only",
+        action="store_true",
+        help="run one real trained-weight forward pass without generation",
+    )
     args = parser.parse_args()
 
     started = time.monotonic()
@@ -78,6 +103,8 @@ def main() -> int:
 
     if args.validate_only:
         print(validate_real_artifact(root))
+    elif args.forward_only:
+        print(forward_real_artifact(root, args.prompt))
     else:
         print(run(root, args.prompt, args.max_new_tokens))
     elapsed = time.monotonic() - started
