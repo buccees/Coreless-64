@@ -82,6 +82,11 @@ class CorelessMachine:
     def cpu(self):
         return self.cpus[0]
 
+    def load_qwen3_model(self, directory):
+        """Load a Qwen3 model bound to this machine's native tensor boundary."""
+        from ai.qwen3_model import load_qwen3_model
+        return load_qwen3_model(directory, tensor_runtime=self.tensor_runtime)
+
     def attach_os(self, os_runtime):
         self.os_runtime = os_runtime
         raw = self.storage.objects.get("machine/os")
