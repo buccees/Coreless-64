@@ -11,7 +11,9 @@ def test_tensor_shape_and_indexing():
 def test_matmul():
     a = Tensor.from_values((2, 3), [1, 2, 3, 4, 5, 6])
     b = Tensor.from_values((3, 2), [7, 8, 9, 10, 11, 12])
-    assert matmul(a, b).data == (58.0, 64.0, 139.0, 154.0)
+    result = matmul(a, b)
+    assert result.data == (58.0, 64.0, 139.0, 154.0)
+    assert result.dtype == "fp64"
 
 
 def test_linear_and_relu():
@@ -26,6 +28,27 @@ def test_softmax_is_normalized():
     result = softmax(Tensor.from_values((3,), [1, 2, 3]))
     assert abs(sum(result.data) - 1.0) < 1e-12
     assert result.data[2] > result.data[1] > result.data[0]
+
+
+def test_tensor_math_preserves_dtype():
+    a = Tensor.from_values((1, 2), [1, 2], dtype="bf16")
+    b = Tensor.from_values((2, 1), [3, 4], dtype="bf16")
+    assert matmul(a, b).dtype == "bf16"
+    assert add(a, a).dtype == "bf16"
+    assert mul(a, a).dtype == "bf16"
+    assert softmax(a).dtype == "bf16"
+
+
+def test_tensor_math_rejects_mismatched_dtypes():
+    a = Tensor.from_values((2,), [1, 2], dtype="fp32")
+    b = Tensor.from_values((2,), [1, 2], dtype="fp64")
+    for operation in (add, mul):
+        try:
+            operation(a, b)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("mismatched dtypes must fail")
 
 
 def test_shape_mismatch_rejected():
