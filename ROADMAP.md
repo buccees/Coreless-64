@@ -59,6 +59,7 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Persistent process/address-space state
 - [x] Persistent OS/device/boot/application state
 - [x] Checkpoint/restore
+- [x] Coordinated Hub checkpoint commit verification and failed-commit manifest rollback
 - [x] Resume from machine image
 - [x] Complete reference lifecycle through the digital execution engine
 
