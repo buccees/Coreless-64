@@ -148,6 +148,9 @@ class CorelessComponent:
         """Persist identity and specialization in the component machine image."""
         if self.system is None:
             raise RuntimeError("component has no CorelessSystem")
+        storage = getattr(self.system.machine, "storage", None)
+        if storage is None:
+            return
         payload = {
             "version": self.VERSION,
             "descriptor": self.descriptor.to_dict(),
@@ -186,7 +189,13 @@ class CorelessComponent:
         if self.system is None:
             raise RuntimeError("component has no CorelessSystem")
         self.persist_identity()
-        self.system.boot(init_path)
+        if init_path == "/init":
+            try:
+                self.system.boot()
+            except TypeError:
+                self.system.boot(init_path)
+        else:
+            self.system.boot(init_path)
         return self
 
     def resume(self, init_path: str | None = None):
