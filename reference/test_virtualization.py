@@ -105,6 +105,25 @@ def test_interrupt_injection_isolated_per_vm():
     assert a.pending_interrupts == [7]
     assert b.pending_interrupts == []
 
+def test_multiple_native_cpus_bind_and_step_independent_vcpus():
+    from core import CorelessCPU
+    h = Hypervisor(2)
+    vm = h.create_vm(1 << 16, 2)
+    cpu0 = CorelessCPU(memory_size=1 << 16)
+    cpu1 = CorelessCPU(memory_size=1 << 16)
+    h.bind_cpu(vm.vmid, cpu0, 0)
+    h.bind_cpu(vm.vmid, cpu1, 1)
+    cpu0.memory[0:4] = ((1 << 27) | (1 << 22) | 3).to_bytes(4, "little")
+    cpu1.memory[0:4] = ((1 << 27) | (2 << 22) | 7).to_bytes(4, "little")
+    h.run(vm.vmid)
+    assert h.bound_cpu(vm.vmid, 0) is cpu0
+    assert h.bound_cpu(vm.vmid, 1) is cpu1
+    assert h.step(vm.vmid, vcpu_id=0) == 1
+    assert h.step(vm.vmid, vcpu_id=1) == 1
+    assert h.snapshot_vcpu(vm.vmid, 0)["registers"][1] == 3
+    assert h.snapshot_vcpu(vm.vmid, 1)["registers"][2] == 7
+
+
 def vmword(f, rd=0, rs1=0, rs2=0):
     return (12 << 27) | (rd << 22) | (rs1 << 17) | (rs2 << 12) | f
 
