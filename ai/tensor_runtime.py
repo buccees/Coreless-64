@@ -167,9 +167,9 @@ class TensorRuntime:
             raise ValueError("native Coreless matrix execution requires matching supported dtypes")
         if left.shape[0] == 0 or right.shape[1] == 0 or left.shape[1] == 0:
             raise ValueError("native matrix execution requires non-empty dimensions")
-        if max(left.shape + right.shape) > self._MATRIX_TILE:
-            return self._tiled_matrix_matmul(left, right)
         shape = left.shape[0], right.shape[1], left.shape[1]
+        if max(left.shape + right.shape) > self._MATRIX_TILE or shape not in self._MATRIX_SHAPES:
+            return self._tiled_matrix_matmul(left, right)
         if shape not in self._MATRIX_SHAPES:
             raise ValueError("matrix shape is not supported by the Coreless baseline")
         cpu = self._require_cpu()
