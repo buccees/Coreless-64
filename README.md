@@ -31,7 +31,7 @@ The initial software boundary is implemented in `reference/components.py` and sp
 
 ## Current status
 
-**GREEN — GitHub Actions run #423 succeeded.**
+The repository is at the current implementation checkpoint; CI status is tracked by GitHub Actions rather than frozen in this document.
 
 Latest confirmed integration commit:
 `aabd6c177d902b836aad85bda399a73df9fbd659`
@@ -49,18 +49,26 @@ The current implementation includes:
 - supported-shape native integer matrix execution
 - Transformer execution routed through TensorRuntime
 - native Qwen3 runtime foundations, tokenizer, KV cache, artifact validation and generation path
-- autonomous Coreless component identity, specialization, hub discovery, connect/disconnect, and composition metadata
+- autonomous Coreless component identity, specialization, hub discovery, connect/disconnect, composition metadata, fault isolation, and capability-routed workload dispatch
 
 **Important:** green CI is not proof of live trained-model inference. Official trained Qwen3-0.6B end-to-end execution remains unvalidated.
 
+## Plug-and-play computer interface
+
+Coreless now treats the host connection as a narrow external interface: power/startup, display transport, keyboard/input transport, and network/I/O transport. The host does not supply Coreless CPU, RAM, OS execution, VM execution, AI computation, or architectural authority.
+
+The target plug-and-play lifecycle is: **connect → discover → verify Coreless identity → advertise capabilities → negotiate interfaces → attach → boot/resume → operate → detach**.
+
+The normative target is documented in `specification/host_interface.md`. The physical cross-platform enumeration layer is not yet implemented.
+
 ## Next engineering checkpoint
 
-1. **Native Coreless execution boundary:** establish/stabilize a public architectural vector/matrix API and route supported Transformer operations through it.
-2. **Autonomous component foundation:** bind components to complete CorelessSystem instances, persist identity/specialization, and add VM/AI lifecycle ownership.
-3. Validate a real official trained Qwen3-0.6B artifact with a minimal forward pass and short generation.
-4. Extend native model runtimes and bind validated model parts to live Coreless resources.
-5. Continue drivers, networking, GUI, remote display/input and application environment.
-6. Complete final ISA, persistence, capability, AI-control and end-to-end conformance audit.
+1. **Native Coreless execution boundary:** stabilize the public architectural vector/matrix API and route supported Transformer operations through it.
+2. **Autonomous component system:** continue live component execution, hub composition, workload routing, and specialized AI boundaries.
+3. **Plug-and-play host interface:** implement discovery, identity handshake, capability negotiation, attach/detach, and display/input/network channels.
+4. Validate a real official trained Qwen3-0.6B artifact with a minimal forward pass and short generation.
+5. Extend native model runtimes and bind validated model parts to live Coreless resources.
+6. Complete final ISA, persistence, capability, AI-control, host-interface, and end-to-end conformance audit.
 
 ## 314DNest
 
