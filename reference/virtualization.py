@@ -19,6 +19,7 @@ class VM:
     pending_interrupts:list=field(default_factory=list)
     devices:list=field(default_factory=list)
     running:bool=False
+    cpu:object|None=None
 
 class Hypervisor:
     def __init__(self,cpu_count=1):
@@ -48,6 +49,25 @@ class Hypervisor:
             raise ValueError("VM has no vCPUs")
         vm.running=True
         return vm
+
+    def step(self, vmid, count=1):
+        """Retire instructions through the VM's bound native Coreless CPU."""
+        vm = self.vms[vmid]
+        if count < 1:
+            raise ValueError("step count must be positive")
+        if vm.cpu is None:
+            raise RuntimeError("VM has no bound Coreless CPU")
+        if not vm.running:
+            raise RuntimeError("VM is not running")
+        retired = 0
+        for _ in range(count):
+            if vm.cpu.halted:
+                break
+            vm.cpu.step()
+            retired += 1
+        if vm.cpu.halted:
+            vm.running = False
+        return retired
     def stop(self,vmid):
         vm=self.vms[vmid]; vm.running=False
     def set_vcpu_state(self, vmid, vcpu_id, *, registers=None, pc=None, sp=None,
