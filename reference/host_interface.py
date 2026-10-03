@@ -7,7 +7,10 @@ computational owner.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Mapping, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from system import CorelessSystem
 
 
 @dataclass(frozen=True)
@@ -69,6 +72,7 @@ class CorelessHostInterface:
         self._negotiated = frozenset()
         self._attached = False
         self._channels: dict[str, object] = {}
+        self._system: CorelessSystem | None = None
 
     @property
     def attached(self) -> bool:
@@ -103,13 +107,57 @@ class CorelessHostInterface:
         self._negotiated = frozenset(selected)
         return self._negotiated
 
-    def attach(self, identity: CorelessIdentity, host: HostCapabilities) -> frozenset[str]:
-        """Verify identity, negotiate capabilities, and attach the host."""
+    def attach(
+        self,
+        identity: CorelessIdentity,
+        host: HostCapabilities,
+        *,
+        system: CorelessSystem | None = None,
+    ) -> frozenset[str]:
+        """Verify identity, negotiate capabilities, and attach the host.
+
+        An optional CorelessSystem binds the host to the persistent Coreless
+        computer lifecycle. Detaching releases host channels only.
+        """
         if not self.verify(identity):
             raise ValueError("Coreless identity verification failed")
         negotiated = self.negotiate(host)
         self._attached = True
+        if system is not None:
+            self.attach_system(system)
         return negotiated
+
+    @property
+    def system(self) -> CorelessSystem | None:
+        return self._system
+
+    def attach_system(self, system: CorelessSystem) -> None:
+        """Bind an already attached host to a persistent Coreless system."""
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        self._system = system
+
+    def boot(self, init_path: str = "/init"):
+        """Boot or resume the bound Coreless computer through the host."""
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        if "startup" not in self._negotiated:
+            raise PermissionError("startup capability was not negotiated")
+        if self._system is None:
+            raise RuntimeError("no Coreless system is bound")
+        return self._system.boot(init_path)
+
+    def resume(self):
+        """Resume the persistent Coreless system using its saved boot manifest."""
+        if self._system is None or self._system.boot_manifest is None:
+            raise RuntimeError("no resumable Coreless system is bound")
+        return self.boot(str(self._system.boot_manifest.get("init", "/init")))
+
+    def shutdown(self):
+        """Explicitly shut down the bound Coreless system; detach does not."""
+        if self._system is None:
+            raise RuntimeError("no Coreless system is bound")
+        return self._system.shutdown()
 
     def bind_channel(self, capability: str, channel: object) -> None:
         """Bind an externally provided transport to a negotiated capability."""
@@ -144,4 +192,6 @@ class CorelessHostInterface:
             "attached": self.attached,
             "negotiated": tuple(sorted(self.negotiated)),
             "channels": tuple(sorted(self._channels)),
+            "system_bound": self._system is not None,
+            "system_booted": bool(self._system and self._system.machine.booted),
         }
