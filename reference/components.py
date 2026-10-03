@@ -576,26 +576,42 @@ class CorelessHub:
             "checkpoints": checkpoint_names,
         }
         results: dict[str, object] = {}
+        # Snapshot all component systems first.  The Hub manifest is the
+        # commit record: publish it only after every component checkpoint
+        # succeeds so a partial checkpoint cannot appear coordinated.
         for component in targets:
             component.persist_identity()
+            results[component.component_id] = component.system.checkpoint(
+                checkpoint_names[component.component_id]
+            )
+
+        manifest_bytes = json.dumps(
+            manifest, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        for component in targets:
             storage = getattr(component.system.machine, "storage", None)
             if storage is not None:
                 storage.put(
                     f"machine/hub/{self.hub_id}/checkpoint",
-                    json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8"),
+                    manifest_bytes,
                     sync=False,
                 )
-            results[component.component_id] = component.system.checkpoint(
-                checkpoint_names[component.component_id]
-            )
+                sync = getattr(storage, "sync", None)
+                if sync is not None:
+                    sync()
         return {"hub_id": self.hub_id, "checkpoints": results}
 
     def restore(self, name: str = "hub") -> tuple[str, ...]:
         """Restore every persistent component from a coordinated Hub checkpoint."""
-        restored: list[str] = []
-        for component in self.components():
-            if not component.healthy or component.system is None:
-                continue
+        targets = [
+            component for component in self.components()
+            if component.healthy and component.system is not None
+        ]
+        expected = tuple(component.component_id for component in self.components())
+        plans: list[tuple[CorelessComponent, str]] = []
+        # Validate every manifest and checkpoint name before mutating any
+        # component, preventing a malformed peer from causing a partial restore.
+        for component in targets:
             storage = getattr(component.system.machine, "storage", None)
             raw = (
                 storage.objects.get(f"machine/hub/{self.hub_id}/checkpoint")
@@ -603,16 +619,26 @@ class CorelessHub:
             )
             manifest = json.loads(raw.decode("utf-8")) if raw is not None else None
             if manifest is not None:
-                if manifest.get("version") != self.VERSION or manifest.get("hub_id") != self.hub_id:
+                if (
+                    manifest.get("version") != self.VERSION
+                    or manifest.get("hub_id") != self.hub_id
+                ):
                     raise ValueError("Coreless Hub checkpoint manifest mismatch")
-                expected = tuple(component.component_id for component in self.components())
                 if tuple(manifest.get("components", ())) != expected:
                     raise ValueError("Coreless Hub component composition mismatch")
-                checkpoint_name = manifest.get("checkpoints", {}).get(component.component_id)
+                checkpoint_name = manifest.get("checkpoints", {}).get(
+                    component.component_id
+                )
             else:
                 checkpoint_name = f"{name}-{component.component_id}"
             if not checkpoint_name:
-                raise KeyError(f"no Coreless Hub checkpoint for: {component.component_id}")
+                raise KeyError(
+                    f"no Coreless Hub checkpoint for: {component.component_id}"
+                )
+            plans.append((component, checkpoint_name))
+
+        restored: list[str] = []
+        for component, checkpoint_name in plans:
             component.system.restore(checkpoint_name)
             component.restore_identity()
             restored.append(component.component_id)
