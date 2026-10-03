@@ -55,7 +55,10 @@ def test_host_interface_rejects_unnegotiated_channel():
 
 
 def test_host_interface_detach_preserves_identity_but_closes_channels():
-    interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
+    interface = CorelessHostInterface(
+        CorelessIdentity("coreless-0"),
+        supported_capabilities={"display", "input", "network", "startup", "management"},
+    )
     interface.attach(
         interface.discover(),
         HostCapabilities(display=True, input=True, startup=True),
