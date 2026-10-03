@@ -816,27 +816,23 @@ class CorelessHub:
             raise TypeError("bound VM has no vmid")
         return self.hypervisor.step(vmid, count=count, vcpu_id=vcpu_id)
 
-    def schedule_components(self, rounds: int = 1, vcpu_id: int = 0) -> int:
-        """Run one bounded scheduling slice for every executable Hub component."""
+    def schedule_components(self, rounds: int = 1) -> int:
+        """Run bounded round-robin scheduling for every executable component VM."""
         if self.hypervisor is None:
             raise RuntimeError("Hub has no Coreless hypervisor")
         if rounds < 1:
             raise ValueError("rounds must be positive")
         executed = 0
-        for _ in range(rounds):
-            progress = 0
-            for component in self.components():
-                if not component.healthy or component.vm is None:
-                    continue
-                try:
-                    progress += self.execute_component_vm(
-                        component.component_id, count=1, vcpu_id=vcpu_id
-                    )
-                except (RuntimeError, TypeError, KeyError):
-                    continue
-            executed += progress
-            if progress == 0:
-                break
+        for component in self.components():
+            if not component.healthy or component.vm is None:
+                continue
+            vmid = getattr(component.vm, "vmid", None)
+            if vmid is None:
+                continue
+            try:
+                executed += self.hypervisor.schedule(vmid, rounds=rounds)
+            except (RuntimeError, TypeError, KeyError):
+                continue
         return executed
 
     def dispatch(self, workload: Workload) -> WorkloadResult:
