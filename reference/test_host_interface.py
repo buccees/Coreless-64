@@ -85,3 +85,48 @@ def test_host_interface_requires_coreless_identity_match():
             CorelessIdentity("wrong-computer"),
             HostCapabilities(display=True),
         )
+
+
+def test_host_interface_can_boot_and_resume_bound_coreless_system():
+    from system import CorelessSystem
+
+    system = CorelessSystem()
+    interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
+    interface.attach(
+        interface.discover(),
+        HostCapabilities(startup=True),
+        system=system,
+    )
+
+    assert interface.boot("/init") is system
+    assert system.machine.booted
+    assert interface.resume() is system
+
+
+def test_host_interface_detach_does_not_shutdown_bound_system():
+    from system import CorelessSystem
+
+    system = CorelessSystem()
+    interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
+    interface.attach(
+        interface.discover(),
+        HostCapabilities(startup=True),
+        system=system,
+    )
+    interface.boot()
+
+    interface.detach()
+
+    assert not interface.attached
+    assert system.machine.booted
+    assert interface.system is system
+
+
+def test_host_interface_requires_startup_capability_to_boot():
+    from system import CorelessSystem
+
+    interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
+    interface.attach(interface.discover(), HostCapabilities(display=True), system=CorelessSystem())
+
+    with pytest.raises(PermissionError, match="startup"):
+        interface.boot()
