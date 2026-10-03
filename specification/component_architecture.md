@@ -84,6 +84,19 @@ boundary where appropriate.
 The model does not gain architectural authority merely because it is local.
 Coreless CPU, VM, capability, and policy controls remain authoritative.
 
+## Hot-plug and fault isolation
+
+Components are hot-pluggable composition members. Disconnecting a component
+removes it from hub discovery and revokes its hub IPC channels without deleting
+its identity, VM binding, AI binding, or local state. A component can therefore
+continue independently and later rejoin the same or another hub.
+
+Fault isolation removes a faulted component from the active composition and
+revokes its hub channels. The component retains its identity and can be
+recovered explicitly before rejoining. Faulted components cannot be attached
+until recovery, preventing an isolated failure from silently re-entering the
+unified system.
+
 ## Current implementation boundary
 
 reference/components.py establishes the first software contract for:
