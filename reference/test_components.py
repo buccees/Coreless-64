@@ -1056,6 +1056,30 @@ def test_component_executes_bound_vm_through_native_cpu():
     assert vm.vcpus[0].registers[1] == 23
 
 
+def test_hub_schedules_independent_component_vms_round_robin():
+    from core import CorelessCPU
+    from virtualization import Hypervisor
+
+    hypervisor = Hypervisor(2)
+    hub = CorelessHub("hub-schedule", hypervisor=hypervisor)
+    components = []
+    for component_id, value in (("cpu-0", 11), ("cpu-1", 22)):
+        vm = hypervisor.create_vm(1 << 16, 1)
+        cpu = CorelessCPU(memory_size=1 << 16)
+        hypervisor.bind_cpu(vm.vmid, cpu)
+        cpu.memory[0:4] = ((1 << 27) | (1 << 22) | value).to_bytes(4, "little")
+        component = CorelessComponent(
+            ComponentDescriptor(component_id, "compute", frozenset({"compute"}), vm_id=str(vm.vmid)),
+            vm=vm,
+        )
+        hub.connect(component)
+        hypervisor.run(vm.vmid)
+        components.append((component, vm))
+
+    assert hub.schedule_components() == 2
+    assert [vm.vcpus[0].registers[1] for _, vm in components] == [11, 22]
+
+
 def test_component_can_execute_vm_through_its_unified_hub():
     from core import CorelessCPU
     from virtualization import Hypervisor
