@@ -358,6 +358,14 @@ class CorelessComponent:
             raise RuntimeError("component VM vCPU has no bound native CPU")
         return hypervisor.step(vmid, count=count, vcpu_id=vcpu_id)
 
+    def execute_hub_vm_steps(self, hub: "CorelessHub", count: int = 1, vcpu_id: int = 0) -> int:
+        """Execute this component VM through the Hub-owned native execution boundary."""
+        if not self.healthy:
+            raise RuntimeError("cannot execute workload on fault-isolated component")
+        if self._hub_id != hub.hub_id:
+            raise RuntimeError("component is not attached to this Coreless Hub")
+        return hub.execute_component_vm(self.component_id, count=count, vcpu_id=vcpu_id)
+
     def execute_hub_workload(self, hub: "CorelessHub", workload: Workload) -> WorkloadResult:
         """Execute a workload through this component's unified Hub boundary."""
         if not self.healthy:
@@ -791,6 +799,22 @@ class CorelessHub:
                     # best-effort because the storage layer may itself fail.
                     pass
             raise
+
+    def execute_component_vm(self, component_id: str, count: int = 1, vcpu_id: int = 0) -> int:
+        """Execute a connected component VM through the Hub hypervisor boundary."""
+        component = self._components.get(component_id)
+        if component is None:
+            raise KeyError(f"unknown component: {component_id}")
+        if not component.healthy:
+            raise RuntimeError("cannot execute workload on fault-isolated component")
+        if self.hypervisor is None:
+            raise RuntimeError("Hub has no Coreless hypervisor")
+        if component.vm is None:
+            raise RuntimeError("component has no Coreless VM")
+        vmid = getattr(component.vm, "vmid", None)
+        if vmid is None:
+            raise TypeError("bound VM has no vmid")
+        return self.hypervisor.step(vmid, count=count, vcpu_id=vcpu_id)
 
     def dispatch(self, workload: Workload) -> WorkloadResult:
         """Dispatch work to a healthy component advertising the required capability."""
