@@ -628,12 +628,13 @@ class CorelessHub:
                     f"{component.component_id}"
                 )
 
-        # Verify that every manifest checkpoint is actually present before
-        # declaring the coordinated checkpoint committed.
+        # Verify that every machine checkpoint exists before declaring
+        # the coordinated checkpoint committed.
         for component in targets:
             checkpoint_name = checkpoint_names[component.component_id]
-            checkpoints = getattr(component.system, "checkpoints", None)
-            if isinstance(checkpoints, Mapping) and checkpoint_name not in checkpoints:
+            storage = getattr(component.system.machine, "storage", None)
+            listed = getattr(storage, "list_checkpoints", None)
+            if callable(listed) and checkpoint_name not in listed():
                 raise RuntimeError(
                     "Coreless Hub checkpoint commit verification failed: "
                     f"missing checkpoint {checkpoint_name}"
