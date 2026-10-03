@@ -1107,6 +1107,27 @@ def test_hub_schedules_independent_component_vms_round_robin():
     assert [vm.vcpus[0].registers[1] for _, vm in components] == [11, 22]
 
 
+def test_hub_lifecycle_starts_and_stops_standalone_component_services():
+    from core import CorelessCPU
+    from virtualization import Hypervisor
+
+    hypervisor = Hypervisor(1)
+    vm = hypervisor.create_vm(1 << 16, 1)
+    cpu = CorelessCPU(memory_size=1 << 16)
+    hypervisor.bind_cpu(vm.vmid, cpu)
+    component = CorelessComponent(
+        ComponentDescriptor("cpu-standalone", "cpu", frozenset({"compute"}), vm_id=str(vm.vmid)),
+        vm=vm,
+    )
+    hub = CorelessHub("hub-lifecycle", hypervisor=hypervisor)
+    hub.connect(component)
+
+    assert hub.boot() == ("cpu-standalone",)
+    assert vm.running is True
+    assert hub.shutdown() == ("cpu-standalone",)
+    assert vm.running is False
+
+
 def test_component_can_execute_vm_through_its_unified_hub():
     from core import CorelessCPU
     from virtualization import Hypervisor
