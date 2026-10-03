@@ -8,6 +8,7 @@ Hub without becoming a passive peripheral.
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Callable, Mapping
 
@@ -793,6 +794,20 @@ class CorelessHub:
     ) -> tuple[WorkloadResult, ...]:
         """Execute a workload pipeline across specialized components."""
         return tuple(self.dispatch(workload) for workload in workloads)
+
+    def dispatch_parallel(
+        self, workloads: tuple[Workload, ...] | list[Workload]
+    ) -> tuple[WorkloadResult, ...]:
+        """Dispatch independent workloads concurrently across the Hub."""
+        workload_list = tuple(workloads)
+        if not workload_list:
+            return ()
+        with ThreadPoolExecutor(max_workers=len(workload_list)) as executor:
+            futures = tuple(
+                executor.submit(self.dispatch, workload)
+                for workload in workload_list
+            )
+            return tuple(future.result() for future in futures)
 
     def composition(self) -> Mapping[str, object]:
         return {
