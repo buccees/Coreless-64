@@ -649,6 +649,9 @@ class CorelessHub:
                     "Coreless Hub checkpoint commit verification failed: "
                     f"manifest changed after commit: {component.component_id}"
                 )
+            sync = getattr(storage, "sync", None)
+            if callable(sync):
+                sync()
 
         return {
             "hub_id": self.hub_id,
