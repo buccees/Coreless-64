@@ -130,3 +130,42 @@ def test_host_interface_requires_startup_capability_to_boot():
 
     with pytest.raises(PermissionError, match="startup"):
         interface.boot()
+
+
+def test_host_interface_binds_coreless_hub_and_exposes_unified_composition():
+    from components import ComponentDescriptor, CorelessComponent, CorelessHub
+
+    hub = CorelessHub("hub-0")
+    cpu = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute", "inference"}))
+    )
+    vision = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"graphics"}))
+    )
+    hub.connect(cpu)
+    hub.connect(vision)
+
+    interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
+    interface.attach(
+        interface.discover(),
+        HostCapabilities(startup=True, display=True),
+    )
+    interface.attach_hub(hub)
+
+    assert {c.component_id for c in interface.hub_components()} == {"cpu-0", "vision-0"}
+    assert interface.hub_capabilities() == frozenset({"compute", "inference", "graphics"})
+    assert interface.status()["hub_component_count"] == 2
+
+
+def test_host_detach_releases_external_attachment_but_preserves_hub():
+    from components import CorelessHub
+
+    hub = CorelessHub("hub-0")
+    interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
+    interface.attach(interface.discover(), HostCapabilities(display=True))
+    interface.attach_hub(hub)
+
+    interface.detach()
+
+    assert interface.hub is hub
+    assert interface.status()["hub_bound"] is True
