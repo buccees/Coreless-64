@@ -169,3 +169,39 @@ def test_host_detach_releases_external_attachment_but_preserves_hub():
 
     assert interface.hub is hub
     assert interface.status()["hub_bound"] is True
+
+
+def test_host_interface_coordinates_hub_boot_resume_and_shutdown():
+    from components import ComponentDescriptor, CorelessComponent, CorelessHub
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = type("Machine", (), {"booted": False})()
+            self.boot_manifest = None
+        def boot(self, init_path="/init"):
+            self.machine.booted = True
+            self.boot_manifest = {"init": init_path}
+        def shutdown(self):
+            self.machine.booted = False
+            return self
+
+    system = FakeSystem()
+    component = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=system,
+    )
+    hub = CorelessHub("hub-0")
+    hub.connect(component)
+
+    interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
+    interface.attach(
+        interface.discover(),
+        HostCapabilities(startup=True),
+    )
+    interface.attach_hub(hub)
+
+    assert interface.boot_hub("/hub-init") == ("cpu-0",)
+    assert system.machine.booted
+    assert interface.resume() == ("cpu-0",)
+    assert interface.shutdown_hub() == ("cpu-0",)
+    assert not system.machine.booted
