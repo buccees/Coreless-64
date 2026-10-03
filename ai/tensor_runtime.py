@@ -28,6 +28,7 @@ class TensorRuntime:
                       "fp16": 4, "bf16": 5, "fp32": 6, "fp64": 7}
     _MATRIX_SHAPES = ((2, 2, 2), (4, 4, 4), (8, 8, 8),
                       (8, 16, 16), (16, 8, 16), (16, 16, 16))
+    _MATRIX_TILE = 16
 
     def create(self, shape: Iterable[int], values: Iterable[float], dtype: str = "fp64") -> Tensor:
         return Tensor.from_values(tuple(shape), values, dtype=dtype)
@@ -50,7 +51,6 @@ class TensorRuntime:
             and len(right.shape) == 2
             and left.dtype == right.dtype
             and left.dtype in self._ELEMENT_TYPES
-            and (left.shape[0], right.shape[1], left.shape[1]) in self._MATRIX_SHAPES
         ):
             return self.matrix_matmul(left, right)
         return matmul(left, right)
@@ -165,6 +165,10 @@ class TensorRuntime:
             raise ValueError("matrix dimensions do not agree")
         if left.dtype != right.dtype or left.dtype not in self._ELEMENT_TYPES:
             raise ValueError("native Coreless matrix execution requires matching supported dtypes")
+        if left.shape[0] == 0 or right.shape[1] == 0 or left.shape[1] == 0:
+            raise ValueError("native matrix execution requires non-empty dimensions")
+        if max(left.shape + right.shape) > self._MATRIX_TILE:
+            return self._tiled_matrix_matmul(left, right)
         shape = left.shape[0], right.shape[1], left.shape[1]
         if shape not in self._MATRIX_SHAPES:
             raise ValueError("matrix shape is not supported by the Coreless baseline")
@@ -193,6 +197,38 @@ class TensorRuntime:
             for r, rows in saved.items():
                 cpu.matrix[r][:] = rows
             cpu.matrix_shape = old_shape
+
+    def _tiled_matrix_matmul(self, left: Tensor, right: Tensor) -> Tensor:
+        """Execute arbitrarily sized 2-D matmul as Coreless-native 16x16 tiles."""
+        m, k, n = left.shape[0], left.shape[1], right.shape[1]
+        tile = self._MATRIX_TILE
+        out = [0.0] * (m * n)
+        for i0 in range(0, m, tile):
+            im = min(tile, m - i0)
+            for j0 in range(0, n, tile):
+                jn = min(tile, n - j0)
+                block = [0.0] * (im * jn)
+                for k0 in range(0, k, tile):
+                    kk = min(tile, k - k0)
+                    a = [0.0] * (tile * tile)
+                    b = [0.0] * (tile * tile)
+                    for i in range(im):
+                        for q in range(kk):
+                            a[i * tile + q] = left.at(i0 + i, k0 + q)
+                    for q in range(kk):
+                        for j in range(jn):
+                            b[q * tile + j] = right.at(k0 + q, j0 + j)
+                    partial = self.matrix_matmul(
+                        Tensor.from_values((tile, tile), a, dtype=left.dtype),
+                        Tensor.from_values((tile, tile), b, dtype=right.dtype),
+                    )
+                    for i in range(im):
+                        for j in range(jn):
+                            block[i * jn + j] += partial.at(i, j)
+                for i in range(im):
+                    for j in range(jn):
+                        out[(i0 + i) * n + j0 + j] = block[i * jn + j]
+        return Tensor.from_values((m, n), out, dtype=left.dtype)
 
     def save(self, name: str, value: Tensor) -> str:
         if self.storage is None:
