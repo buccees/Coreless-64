@@ -128,19 +128,15 @@ reference/components.py establishes the first software contract for:
 - capability aggregation
 - unified composition metadata
 
-This is intentionally an architectural foundation. It does not yet claim that
-multiple reference machines share live execution state; that comes in the next
-implementation stages.
+The reference implementation now crosses the native CPU/VM execution boundary: a component can execute its bound VM directly, execute through its Hub, and participate in Hub-level multi-vCPU scheduling. The architecture still does not claim physical cross-device execution; that remains an integration target.
 
-## Next implementation stages
+## Current implementation stages
 
-1. Bind a component to a complete CorelessSystem instance.
-2. Persist component identity and specialization in the machine image.
-3. Give each component explicit VM and AI-runtime lifecycle ownership, with AI specialization bounded by the component role and VM.
-4. Add hub IPC/resource channels and capability negotiation.
-5. Add fault isolation and hot-plug/rejoin semantics.
-6. Make a composed hub-backed system execute workloads across components.
-7. Connect the architecture to the eventual plug-and-play host computer interface.
+1. Component identity and specialization persistence are implemented.
+2. VM and AI-runtime lifecycle ownership is implemented, including standalone services inside a Hub lifecycle.
+3. Hub IPC/resource channels, capability negotiation, fault isolation, and hot-plug/rejoin semantics are implemented.
+4. Composed Hub workloads execute through native CPU/VM boundaries with bounded multi-vCPU scheduling.
+5. Reference host-interface and transport contracts are implemented; concrete physical transports remain.
 
 ## Plug-and-play host interface
 
