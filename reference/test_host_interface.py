@@ -252,3 +252,52 @@ def test_host_interface_coordinates_hub_checkpoint_and_restore():
     assert system.checkpoints == ["snapshot-cpu-0"]
     assert interface.restore_hub("snapshot") == ("cpu-0",)
     assert system.restored == ["snapshot-cpu-0"]
+
+
+def test_host_interface_exposes_hub_checkpoint_commit_status():
+    from components import ComponentDescriptor, CorelessComponent, CorelessHub
+
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+        def put(self, key, value, sync=False):
+            self.objects[key] = bytes(value)
+        def sync(self):
+            pass
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = type("Machine", (), {"storage": FakeStorage()})()
+        def checkpoint(self, name):
+            return name
+        def restore(self, name):
+            return self
+
+    system = FakeSystem()
+    component = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=system,
+    )
+    hub = CorelessHub("hub-status")
+    hub.connect(component)
+
+    interface = CorelessHostInterface(
+        CorelessIdentity("coreless-0"),
+        supported={"startup", "management"},
+    )
+    interface.attach(
+        interface.discover(),
+        HostCapabilities(startup=True, management=True),
+    )
+    interface.attach_hub(hub)
+
+    before = interface.hub_checkpoint_status()
+    assert before["committed"] is False
+
+    interface.checkpoint_hub("snapshot")
+
+    after = interface.hub_checkpoint_status()
+    assert after["committed"] is True
+    assert after["components"] == (
+        {"component_id": "cpu-0", "manifest_present": True},
+    )
