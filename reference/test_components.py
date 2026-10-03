@@ -595,6 +595,54 @@ def test_hub_restore_rejects_corrupt_manifest_before_mutation():
 
 
 
+def test_hub_restore_rejects_malformed_manifest_schema_before_mutation():
+    class Storage:
+        def __init__(self):
+            self.objects = {}
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = type("Machine", (), {"storage": Storage()})()
+            self.restored = []
+
+        def restore(self, name):
+            self.restored.append(name)
+
+        def checkpoint(self, name):
+            return name
+
+    first = FakeSystem()
+    second = FakeSystem()
+    hub = CorelessHub("hub-schema-manifest")
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=first,
+    ))
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("mem-0", "memory", frozenset({"memory"})),
+        system=second,
+    ))
+    key = "machine/hub/hub-schema-manifest/checkpoint"
+    malformed = json.dumps({
+        "version": 1,
+        "hub_id": "hub-schema-manifest",
+        "components": ["cpu-0", "mem-0"],
+        "checkpoints": ["not", "a", "mapping"],
+    }).encode("utf-8")
+    first.machine.storage.objects[key] = malformed
+    second.machine.storage.objects[key] = malformed
+
+    try:
+        hub.restore("snapshot")
+        assert False, "restore should reject malformed checkpoint map"
+    except ValueError as exc:
+        assert "invalid Coreless Hub checkpoint map" in str(exc)
+
+    assert first.restored == []
+    assert second.restored == []
+
+
+
 def test_hub_restore_rejects_missing_manifest_on_any_persistent_component():
     class FakeStorage:
         def __init__(self):
