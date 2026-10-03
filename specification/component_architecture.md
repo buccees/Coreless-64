@@ -141,3 +141,13 @@ implementation stages.
 5. Add fault isolation and hot-plug/rejoin semantics.
 6. Make a composed hub-backed system execute workloads across components.
 7. Connect the architecture to the eventual plug-and-play host computer interface.
+
+## Plug-and-play host interface
+
+The Coreless Hub is the composition boundary for autonomous Coreless components. A separate host-interface boundary connects the composed Coreless computer to external equipment.
+
+The host interface handles Coreless identity discovery, verification, capability negotiation, attach/detach, and transport for display, input, networking, and startup services. It does not replace component execution or move Coreless computation into the host.
+
+Target lifecycle: **connect → discover → verify → negotiate → attach → boot/resume → operate → detach**.
+
+The host-interface contract is specified in `specification/host_interface.md`.
