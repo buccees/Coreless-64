@@ -1,7 +1,7 @@
 # Coreless Plug-and-Play Host Interface
 
 **Architecture:** Coreless-64  
-**Status:** Architectural draft
+**Status:** Software contract implemented; physical transport integration in progress
 
 ## Purpose
 
@@ -108,8 +108,8 @@ Connected components continue to:
 
 ## Current implementation status
 
-The repository implements the architectural component/hub foundation and its workload-routing semantics.
+The repository implements the CorelessHostInterface software contract plus a reference HostTransportAdapter. Implemented coverage includes identity discovery/verification, capability negotiation, attach/detach, Hub binding, lifecycle coordination, channel binding, enumeration, and transport-readiness checks.
 
-The plug-and-play host interface is currently a **specified target boundary**, not yet a claim of cross-platform physical enumeration.
+This is not yet a claim of physical cross-platform plug-and-play. Concrete OS/device enumeration and display/input/network transport adapters remain implementation work.
 
-Next implementation work is to add a `CorelessHostInterface` software contract covering discovery, identity handshake, capability negotiation, attach/detach, and display/input/network channel binding.
+The next boundary is to connect concrete host transports to the existing contract without moving Coreless CPU, RAM, VM, OS, AI, or architectural authority into the host.
