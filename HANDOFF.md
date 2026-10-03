@@ -2,7 +2,7 @@
 
 ## Current state
 
-**Status: green.** The repository is at a stable checkpoint with the Coreless-64 digital machine foundation, 314DNest control plane, persistent tensor runtime, and Transformer-to-tensor-runtime integration all passing CI.
+**Status: green.** The repository is at a stable checkpoint with the Coreless-64 digital machine foundation, 314DNest control plane, persistent tensor runtime, Transformer integration, autonomous component execution, Hub scheduling, and reference host transport layer all passing CI.
 
 The project has two connected layers:
 
@@ -167,9 +167,9 @@ Implemented:
 - final language-model head routing through the runtime
 - explicit regression test proving matrix multiplication calls cross the TensorRuntime boundary
 
-Latest CI run #423 confirms this integration is green.
+The current green checkpoint is GitHub Actions run #584.
 
-This is the current resume point before deeper native architectural execution work.
+Native CPU/VM execution and Hub scheduling are now implemented; the next work is concrete host transports, deeper native architectural execution, and real trained-model validation.
 
 ## Qwen3 native runtime
 
@@ -226,7 +226,11 @@ Qwen3 is currently assigned to the CPU intelligence role. Future model component
 
 ## Remaining major work
 
-### 1. Native Coreless execution boundary
+### 1. Plug-and-play host transport integration
+
+The reference software contract and transport adapter now exist. Continue with concrete cross-platform enumeration plus display/input/network transport adapters without moving computation into the host.
+
+### 2. Native Coreless execution boundary
 
 This is the immediate next engineering target.
 
@@ -327,11 +331,15 @@ Continue the **native Coreless execution boundary** and the new **autonomous com
 
 **Green resume point: GitHub Actions run #423 — successful.**
 
-Latest commit:
+Latest green checkpoint: GitHub Actions run #584.
 
-`aabd6c177d902b836aad85bda399a73df9fbd659`
+Latest commits:
 
-**Next session:** continue the **native Coreless execution boundary**, then proceed to real trained Qwen3-0.6B execution.
+`d68b1ca01c722bf1b751a38d2f440d7ad8164a23`
+
+`37236d2f1f8c4294339ca02bf28b1d4fab18000f`
+
+**Next session:** continue concrete host transport integration and native architectural execution in parallel, then validate the real trained Qwen3-0.6B artifact.
 
 Do not restart from the older Qwen3-only handoff. The tensor runtime and Transformer routing work described above is already in `main`.
 
