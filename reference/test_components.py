@@ -513,6 +513,76 @@ def test_hub_checkpoint_does_not_publish_manifest_when_component_checkpoint_fail
     assert second_system.machine.storage.sync_count == 0
 
 
+def test_hub_restore_rolls_back_already_restored_components_on_failure():
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = FakeStorage()
+
+    class FakeSystem:
+        def __init__(self, *, fail_restore=False):
+            self.machine = FakeMachine()
+            self.restored = []
+            self.checkpoints = []
+            self.fail_restore = fail_restore
+
+        def checkpoint(self, name):
+            self.checkpoints.append(name)
+            return f"hash:{name}"
+
+        def restore(self, name):
+            if self.fail_restore and name == "snapshot-vision-0":
+                raise RuntimeError("restore failed")
+            self.restored.append(name)
+            return self
+
+    first_system = FakeSystem()
+    second_system = FakeSystem(fail_restore=True)
+    first = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=first_system,
+    )
+    second = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"vision"})),
+        system=second_system,
+    )
+    first.restore_identity = lambda: first.descriptor
+    second.restore_identity = lambda: second.descriptor
+
+    hub = CorelessHub("hub-rollback")
+    hub.connect(first)
+    hub.connect(second)
+
+    manifest = {
+        "version": hub.VERSION,
+        "hub_id": hub.hub_id,
+        "components": ["cpu-0", "vision-0"],
+        "checkpoints": {
+            "cpu-0": "snapshot-cpu-0",
+            "vision-0": "snapshot-vision-0",
+        },
+    }
+    key = "machine/hub/hub-rollback/checkpoint"
+    encoded = json.dumps(
+        manifest, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    first_system.machine.storage.objects[key] = encoded
+    second_system.machine.storage.objects[key] = encoded
+
+    with pytest.raises(RuntimeError, match="restore failed"):
+        hub.restore("snapshot")
+
+    assert first_system.restored == [
+        "hub-rollback-cpu-0",
+        "snapshot-cpu-0",
+        "hub-rollback-cpu-0",
+    ]
+    assert second_system.restored == ["hub-rollback-vision-0"]
+
+
 def test_hub_restore_preflights_all_manifests_before_restoring_any_component():
     class FakeStorage:
         def __init__(self):
