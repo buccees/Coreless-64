@@ -197,6 +197,56 @@ class CorelessComponent:
             "vcpus": len(getattr(self.vm, "vcpus", ())),
         }
 
+
+    def start_ai(self):
+        """Start this component's local AI runtime."""
+        if self.ai_runtime is None:
+            raise RuntimeError("component has no Coreless AI runtime")
+        starter = getattr(self.ai_runtime, "start", None)
+        if callable(starter):
+            starter()
+        elif hasattr(self.ai_runtime, "running"):
+            self.ai_runtime.running = True
+        else:
+            raise TypeError("bound AI runtime does not expose a Coreless lifecycle")
+        return self.ai_runtime
+
+    def stop_ai(self):
+        """Stop this component's local AI runtime."""
+        if self.ai_runtime is None:
+            raise RuntimeError("component has no Coreless AI runtime")
+        stopper = getattr(self.ai_runtime, "stop", None)
+        if callable(stopper):
+            stopper()
+        elif hasattr(self.ai_runtime, "running"):
+            self.ai_runtime.running = False
+        else:
+            raise TypeError("bound AI runtime does not expose a Coreless lifecycle")
+        return self.ai_runtime
+
+    def ai_status(self) -> dict[str, object]:
+        """Return the live state and specialization of the local AI runtime."""
+        if self.ai_runtime is None:
+            return {
+                "bound": False,
+                "running": False,
+                "model_id": self.descriptor.ai_model_id,
+                "role": self.descriptor.role,
+            }
+        return {
+            "bound": True,
+            "running": bool(getattr(self.ai_runtime, "running", False)),
+            "model_id": self.descriptor.ai_model_id,
+            "role": self.descriptor.role,
+        }
+
+    def require_ai_vm(self) -> None:
+        """Require both local AI and VM boundaries for model adaptation work."""
+        if self.ai_runtime is None:
+            raise RuntimeError("component has no Coreless AI runtime")
+        if self.vm is None:
+            raise RuntimeError("component has no Coreless VM")
+
     def status(self) -> dict[str, object]:
         return {
             "component": self.descriptor.to_dict(),
