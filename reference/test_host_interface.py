@@ -301,3 +301,27 @@ def test_host_interface_exposes_hub_checkpoint_commit_status():
     assert after["components"] == (
         {"component_id": "cpu-0", "manifest_present": True},
     )
+
+
+import sys
+sys.path.insert(0, ".")
+from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
+
+def test_host_interface_requires_required_display_and_input_channels_for_attach():
+    interface = CorelessHostInterface(CorelessIdentity("coreless-transport"))
+    negotiated = interface.attach(
+        interface.discover(),
+        HostCapabilities(display=True, input=True, network=True, startup=True),
+    )
+    assert negotiated == frozenset({"display", "input", "network", "startup"})
+
+def test_host_interface_transport_channels_can_be_rebound_after_detach():
+    interface = CorelessHostInterface(CorelessIdentity("coreless-transport"))
+    interface.attach(interface.discover(), HostCapabilities(display=True, input=True))
+    display = object()
+    interface.bind_channel("display", display)
+    interface.detach()
+    interface.attach(interface.discover(), HostCapabilities(display=True, input=True))
+    replacement = object()
+    interface.bind_channel("display", replacement)
+    assert interface.channel("display") is replacement
