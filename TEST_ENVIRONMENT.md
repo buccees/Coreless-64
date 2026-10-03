@@ -4,8 +4,6 @@
 
 The repository has a reproducible **digital/reference** test environment. The separate milestone of executing the complete persistent-storage-hosted Coreless machine has not yet been validated.
 
-**CI checkpoint: run #423 — green.**
-
 ## Reference setup
 
 ```bash
@@ -32,10 +30,11 @@ Still required:
 2. reproducible startup of the Coreless digital execution engine;
 3. Coreless virtual CPUs, memory, storage and devices operating together;
 4. display/input/network interfaces;
-5. local AI runtime and model weights outside Git.
+5. plug-and-play host discovery, identity, and capability negotiation;
+6. local AI runtime and model weights outside Git.
 
 This is distinct from ordinary Python/CI execution.
 
 ## Next
 
-The immediate engineering target is the **native Coreless execution boundary** for TensorRuntime/Transformer operations. Then validate a real official trained Qwen3-0.6B artifact and establish live runtime inference.
+The immediate engineering targets are the **native Coreless execution boundary** and the **plug-and-play host interface**. Then validate a real official trained Qwen3-0.6B artifact and establish live runtime inference.
