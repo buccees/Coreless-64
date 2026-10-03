@@ -60,6 +60,8 @@ class CorelessComponent:
         self.ai_runtime = ai_runtime
         self.vm = vm
         self._hub_id: str | None = None
+        self._healthy = True
+        self._fault: str | None = None
 
     @property
     def component_id(self) -> str:
@@ -73,7 +75,39 @@ class CorelessComponent:
     def hub_id(self) -> str | None:
         return self._hub_id
 
+    @property
+    def healthy(self) -> bool:
+        return self._healthy
+
+    @property
+    def fault(self) -> str | None:
+        return self._fault
+
+    def isolate(self, reason: str) -> None:
+        """Place this component in a fault-isolated state without losing identity."""
+        if not reason:
+            raise ValueError("fault reason must not be empty")
+        self._healthy = False
+        self._fault = reason
+        if self.vm is not None:
+            try:
+                self.stop_vm()
+            except (RuntimeError, TypeError):
+                pass
+        if self.ai_runtime is not None:
+            try:
+                self.stop_ai()
+            except (RuntimeError, TypeError):
+                pass
+
+    def recover(self) -> None:
+        """Clear fault isolation while preserving component identity and bindings."""
+        self._healthy = True
+        self._fault = None
+
     def attach(self, hub_id: str) -> None:
+        if not self._healthy:
+            raise RuntimeError("faulted component must recover before hub attach")
         if not hub_id:
             raise ValueError("hub_id must not be empty")
         if self._hub_id is not None and self._hub_id != hub_id:
@@ -252,6 +286,8 @@ class CorelessComponent:
             "component": self.descriptor.to_dict(),
             "standalone": self.standalone,
             "hub_id": self.hub_id,
+            "healthy": self.healthy,
+            "fault": self.fault,
             "system_integrated": self.system is not None,
             "ai_integrated": self.ai_runtime is not None
             or self.descriptor.ai_model_id is not None,
@@ -274,6 +310,8 @@ class CorelessHub:
         self._ipc_channels: dict[tuple[str, str], int] = {}
 
     def connect(self, component: CorelessComponent) -> ComponentDescriptor:
+        if not component.healthy:
+            raise RuntimeError("cannot connect a fault-isolated component")
         existing = self._components.get(component.component_id)
         if existing is not None and existing is not component:
             raise ValueError(
@@ -289,7 +327,26 @@ class CorelessHub:
         except KeyError as exc:
             raise KeyError(f"unknown component: {component_id}") from exc
         component.detach(self.hub_id)
+        for pair in tuple(self._ipc_channels):
+            if component_id in pair:
+                self.close_ipc(*pair)
         return component
+
+    def isolate(self, component_id: str, reason: str) -> CorelessComponent:
+        """Fault-isolate a connected component and revoke its hub channels."""
+        component = self.component(component_id)
+        for pair in tuple(self._ipc_channels):
+            if component_id in pair:
+                self.close_ipc(*pair)
+        component.isolate(reason)
+        component.detach(self.hub_id)
+        self._components.pop(component_id, None)
+        return component
+
+    def rejoin(self, component: CorelessComponent) -> ComponentDescriptor:
+        """Rejoin a recovered component after hot-plug or fault isolation."""
+        component.recover()
+        return self.connect(component)
 
     def component(self, component_id: str) -> CorelessComponent:
         try:
@@ -313,6 +370,8 @@ class CorelessHub:
         """Negotiate a capability set between two connected components."""
         source = self.component(source_id)
         target = self.component(target_id)
+        if not source.healthy or not target.healthy:
+            raise RuntimeError("IPC requires healthy components")
         required = frozenset(required)
         shared = source.descriptor.capabilities & target.descriptor.capabilities
         if not required.issubset(shared):
