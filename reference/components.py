@@ -43,7 +43,7 @@ class CorelessComponent:
         self,
         descriptor: ComponentDescriptor,
         *,
-        machine: object | None = None,
+        system: object | None = None,
         ai_runtime: object | None = None,
         vm: object | None = None,
     ) -> None:
@@ -52,7 +52,7 @@ class CorelessComponent:
         if not descriptor.role:
             raise ValueError("role must not be empty")
         self.descriptor = descriptor
-        self.machine = machine
+        self.system = system
         self.ai_runtime = ai_runtime
         self.vm = vm
         self._hub_id: str | None = None
@@ -83,11 +83,23 @@ class CorelessComponent:
             raise ValueError("component is not attached to this hub")
         self._hub_id = None
 
+    def boot(self):
+        if self.system is None:
+            raise RuntimeError("component has no CorelessSystem")
+        self.system.boot()
+        return self
+
+    def shutdown(self):
+        if self.system is None:
+            return None
+        return self.system.shutdown()
+
     def status(self) -> dict[str, object]:
         return {
             "component": self.descriptor.to_dict(),
             "standalone": self.standalone,
             "hub_id": self.hub_id,
+            "system_integrated": self.system is not None,
             "ai_integrated": self.ai_runtime is not None
             or self.descriptor.ai_model_id is not None,
             "vm_integrated": self.vm is not None
