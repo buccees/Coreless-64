@@ -457,3 +457,116 @@ def test_hub_coordinates_checkpoint_and_restore_across_component_machines():
     assert first_system.restored == ["snapshot-cpu-0"]
     assert second_system.restored == ["snapshot-vision-0"]
     assert standalone.standalone is False
+
+
+def test_hub_checkpoint_does_not_publish_manifest_when_component_checkpoint_fails():
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+            self.sync_count = 0
+
+        def put(self, key, value, sync=False):
+            self.objects[key] = bytes(value)
+
+        def sync(self):
+            self.sync_count += 1
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = FakeStorage()
+
+    class FakeSystem:
+        def __init__(self, *, fail=False):
+            self.machine = FakeMachine()
+            self.fail = fail
+            self.checkpoints = []
+
+        def checkpoint(self, name):
+            if self.fail:
+                raise RuntimeError("checkpoint failed")
+            self.checkpoints.append(name)
+            return f"hash:{name}"
+
+    first_system = FakeSystem()
+    second_system = FakeSystem(fail=True)
+    first = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=first_system,
+    )
+    second = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"vision"})),
+        system=second_system,
+    )
+    hub = CorelessHub("hub-atomic")
+    hub.connect(first)
+    hub.connect(second)
+
+    with pytest.raises(RuntimeError, match="checkpoint failed"):
+        hub.checkpoint("snapshot")
+
+    checkpoint_key = "machine/hub/hub-atomic/checkpoint"
+    assert checkpoint_key not in first_system.machine.storage.objects
+    assert checkpoint_key not in second_system.machine.storage.objects
+    assert first_system.checkpoints == ["snapshot-cpu-0"]
+    assert first_system.machine.storage.sync_count == 0
+    assert second_system.machine.storage.sync_count == 0
+
+
+def test_hub_restore_preflights_all_manifests_before_restoring_any_component():
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = FakeStorage()
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = FakeMachine()
+            self.restored = []
+
+        def restore(self, name):
+            self.restored.append(name)
+            return self
+
+    first_system = FakeSystem()
+    second_system = FakeSystem()
+    first = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=first_system,
+    )
+    second = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"vision"})),
+        system=second_system,
+    )
+    hub = CorelessHub("hub-preflight")
+    hub.connect(first)
+    hub.connect(second)
+
+    manifest = {
+        "version": hub.VERSION,
+        "hub_id": hub.hub_id,
+        "components": ["cpu-0", "vision-0"],
+        "checkpoints": {
+            "cpu-0": "snapshot-cpu-0",
+            "vision-0": "snapshot-vision-0",
+        },
+    }
+    key = "machine/hub/hub-preflight/checkpoint"
+    encoded = json.dumps(
+        manifest, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    first_system.machine.storage.objects[key] = encoded
+
+    invalid = dict(manifest)
+    invalid["hub_id"] = "wrong-hub"
+    second_system.machine.storage.objects[key] = json.dumps(
+        invalid, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+
+    with pytest.raises(ValueError, match="manifest mismatch"):
+        hub.restore("snapshot")
+
+    assert first_system.restored == []
+    assert second_system.restored == []
