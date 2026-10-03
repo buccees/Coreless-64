@@ -1005,5 +1005,5 @@ def test_hub_checkpoint_rejects_failed_commit_verification():
         hub.checkpoint("snapshot")
 
     key = "machine/hub/hub-commit-verify/checkpoint"
-    assert key in first.machine.storage.objects
-    assert second.machine.storage.objects[key] == b"corrupt"
+    assert key not in first.machine.storage.objects
+    assert key not in second.machine.storage.objects
