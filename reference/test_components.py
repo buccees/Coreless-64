@@ -513,6 +513,58 @@ def test_hub_checkpoint_does_not_publish_manifest_when_component_checkpoint_fail
     assert second_system.machine.storage.sync_count == 0
 
 
+def test_hub_restore_rejects_missing_manifest_on_any_persistent_component():
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = FakeStorage()
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = FakeMachine()
+            self.restored = []
+        def restore(self, name):
+            self.restored.append(name)
+            return self
+
+    first_system = FakeSystem()
+    second_system = FakeSystem()
+    first = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=first_system,
+    )
+    second = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"vision"})),
+        system=second_system,
+    )
+    hub = CorelessHub("hub-committed")
+    hub.connect(first)
+    hub.connect(second)
+
+    manifest = {
+        "version": hub.VERSION,
+        "hub_id": hub.hub_id,
+        "components": ["cpu-0", "vision-0"],
+        "checkpoints": {
+            "cpu-0": "snapshot-cpu-0",
+            "vision-0": "snapshot-vision-0",
+        },
+    }
+    key = "machine/hub/hub-committed/checkpoint"
+    first_system.machine.storage.objects[key] = json.dumps(
+        manifest, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+
+    with pytest.raises(KeyError, match="committed Coreless Hub checkpoint"):
+        hub.restore("snapshot")
+
+    assert first_system.restored == []
+    assert second_system.restored == []
+
+
 def test_hub_restore_rolls_back_already_restored_components_on_failure():
     class FakeStorage:
         def __init__(self):
