@@ -166,3 +166,27 @@ def test_component_persists_and_restores_identity():
     assert system.booted
     assert restored == descriptor
     assert system.machine.storage.objects[component.persistence_key]
+
+
+def test_component_owns_bound_vm_lifecycle():
+    from virtualization import Hypervisor
+
+    hypervisor = Hypervisor(2)
+    vm = hypervisor.create_vm(1 << 20, 1)
+    component = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"}), vm_id=str(vm.vmid)),
+        vm=vm,
+    )
+
+    assert component.vm_status()["running"] is False
+    component.start_vm()
+    assert component.vm_status()["running"] is True
+    component.stop_vm()
+    assert component.vm_status()["running"] is False
+
+    vm.vcpus[0].registers[1] = 99
+    vm.vcpus[0].pc = 0x100
+    component.reset_vm()
+    assert vm.vcpus[0].registers[1] == 0
+    assert vm.vcpus[0].pc == 0
+    assert component.vm_status()["running"] is False
