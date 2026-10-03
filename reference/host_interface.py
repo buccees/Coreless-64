@@ -167,21 +167,47 @@ class CorelessHostInterface:
             raise RuntimeError("host interface is not attached")
         if "startup" not in self._negotiated:
             raise PermissionError("startup capability was not negotiated")
+        if self._hub is not None:
+            return self._hub.boot(init_path)
         if self._system is None:
             raise RuntimeError("no Coreless system is bound")
         return self._system.boot(init_path)
 
+    def boot_hub(self, init_path: str = "/init"):
+        """Boot the unified Coreless Hub composition through the host boundary."""
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        if "startup" not in self._negotiated:
+            raise PermissionError("startup capability was not negotiated")
+        if self._hub is None:
+            raise RuntimeError("no Coreless Hub is bound")
+        return self._hub.boot(init_path)
+
     def resume(self):
         """Resume the persistent Coreless system using its saved boot manifest."""
+        if self._hub is not None:
+            return self._hub.resume()
         if self._system is None or self._system.boot_manifest is None:
             raise RuntimeError("no resumable Coreless system is bound")
         return self.boot(str(self._system.boot_manifest.get("init", "/init")))
 
     def shutdown(self):
         """Explicitly shut down the bound Coreless system; detach does not."""
+        if self._hub is not None:
+            return self._hub.shutdown()
         if self._system is None:
             raise RuntimeError("no Coreless system is bound")
         return self._system.shutdown()
+
+    def shutdown_hub(self):
+        """Shut down the unified Coreless Hub composition through the host boundary."""
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        if "startup" not in self._negotiated:
+            raise PermissionError("startup capability was not negotiated")
+        if self._hub is None:
+            raise RuntimeError("no Coreless Hub is bound")
+        return self._hub.shutdown()
 
     def bind_channel(self, capability: str, channel: object) -> None:
         """Bind an externally provided transport to a negotiated capability."""
