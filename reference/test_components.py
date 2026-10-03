@@ -121,3 +121,39 @@ def test_component_delegates_lifecycle_to_coreless_system():
     assert component.status()["system_integrated"] is True
     component.shutdown()
     assert not system.booted
+
+
+def test_component_persists_and_restores_identity():
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+        def put(self, key, value, sync=False):
+            self.objects[key] = value
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = FakeStorage()
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = FakeMachine()
+            self.booted = False
+        def boot(self):
+            self.booted = True
+
+    descriptor = ComponentDescriptor(
+        "vision-0",
+        "vision",
+        frozenset({"graphics", "image_processing"}),
+        ai_model_id="vision-specialist",
+        vm_id="vision-ai-vm",
+    )
+    system = FakeSystem()
+    component = CorelessComponent(descriptor, system=system)
+
+    component.boot()
+    restored = component.restore_identity()
+
+    assert system.booted
+    assert restored == descriptor
+    assert system.machine.storage.objects[component.persistence_key]
