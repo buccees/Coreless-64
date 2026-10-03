@@ -643,6 +643,54 @@ def test_hub_restore_rejects_malformed_manifest_schema_before_mutation():
 
 
 
+def test_hub_restore_rejects_incomplete_checkpoint_coverage():
+    class Storage:
+        def __init__(self):
+            self.objects = {}
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = type("Machine", (), {"storage": Storage()})()
+            self.restored = []
+
+        def restore(self, name):
+            self.restored.append(name)
+
+        def checkpoint(self, name):
+            return name
+
+    first = FakeSystem()
+    second = FakeSystem()
+    hub = CorelessHub("hub-coverage-manifest")
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=first,
+    ))
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("mem-0", "memory", frozenset({"memory"})),
+        system=second,
+    ))
+    key = "machine/hub/hub-coverage-manifest/checkpoint"
+    manifest = json.dumps({
+        "version": 1,
+        "hub_id": "hub-coverage-manifest",
+        "components": ["cpu-0", "mem-0"],
+        "checkpoints": {"cpu-0": "snapshot-cpu-0"},
+    }).encode("utf-8")
+    first.machine.storage.objects[key] = manifest
+    second.machine.storage.objects[key] = manifest
+
+    try:
+        hub.restore("snapshot")
+        assert False, "restore should reject incomplete checkpoint coverage"
+    except ValueError as exc:
+        assert "checkpoint coverage mismatch" in str(exc)
+
+    assert first.restored == []
+    assert second.restored == []
+
+
+
 def test_hub_restore_rejects_missing_manifest_on_any_persistent_component():
     class FakeStorage:
         def __init__(self):
