@@ -2,8 +2,6 @@
 
 ## Current checkpoint
 
-**GREEN — GitHub Actions run #427 succeeded.**
-
 The current implementation checkpoint includes the complete reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, and Transformer → TensorRuntime routing.
 
 ## Phase 1 — Architecture
@@ -17,6 +15,8 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Vector architecture
 - [x] Matrix/AI architecture
 - [x] Device/interconnect architecture
+- [x] Autonomous component/hub architecture
+- [x] Plug-and-play host boundary specification
 - [x] Graphics/display architecture
 - [x] Virtualization architecture
 - [ ] Final specification consistency audit and normative v1.0 freeze
@@ -50,6 +50,8 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [ ] Networking
 - [ ] GUI
 - [ ] Remote display/input
+- [ ] Plug-and-play host discovery and identity handshake
+- [ ] Host capability negotiation and attach/detach
 - [ ] Application environment
 
 ## Phase 4 — Complete digital machine
@@ -133,6 +135,7 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [ ] Large persistent machine images
 - [ ] Multiple guest machines
 - [ ] Multi-device Coreless systems
+- [ ] Autonomous component hot-plug across Coreless Hubs
 
 ## Phase 7 — Compatibility
 
@@ -143,6 +146,16 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [ ] Binary translation
 - [ ] Legacy virtualization
 
+## Plug-and-play host interface
+
+- [x] Host boundary defined as external I/O, not Coreless computation
+- [x] Identity/discovery requirements documented
+- [x] Capability negotiation requirements documented
+- [x] Component/hub composition boundary documented
+- [ ] `CorelessHostInterface` software contract
+- [ ] Cross-platform host enumeration
+- [ ] Display/input/network transport adapters
+
 ## Resume point
 
-**Next:** real trained Qwen3-0.6B validation → live Coreless runtime/inference → five-core inference.
+**Next:** native Coreless execution boundary → autonomous component execution → plug-and-play host interface → real trained Qwen3-0.6B validation → live Coreless runtime/inference.
