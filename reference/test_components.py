@@ -395,3 +395,65 @@ def test_hub_coordinates_boot_and_shutdown_without_breaking_standalone_component
     assert hub.shutdown() == ("cpu-0",)
     assert system_component.system.machine.booted is False
     assert hub.components() == (system_component, standalone)
+
+
+def test_hub_coordinates_checkpoint_and_restore_across_component_machines():
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+        def put(self, key, value, sync=False):
+            self.objects[key] = bytes(value)
+        def sync(self):
+            pass
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = FakeStorage()
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = FakeMachine()
+            self.checkpoints = []
+            self.restored = []
+        def checkpoint(self, name):
+            self.checkpoints.append(name)
+            return f"hash:{name}"
+        def restore(self, name):
+            self.restored.append(name)
+            return self
+
+    first_system = FakeSystem()
+    second_system = FakeSystem()
+    first = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=first_system,
+    )
+    second = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"vision"})),
+        system=second_system,
+    )
+    standalone = CorelessComponent(
+        ComponentDescriptor("network-0", "network", frozenset({"network"})),
+    )
+    hub = CorelessHub("hub-checkpoint")
+    hub.connect(first)
+    hub.connect(second)
+    hub.connect(standalone)
+
+    result = hub.checkpoint("snapshot")
+    assert result == {
+        "hub_id": "hub-checkpoint",
+        "checkpoints": {
+            "cpu-0": "hash:snapshot-cpu-0",
+            "vision-0": "hash:snapshot-vision-0",
+        },
+    }
+    assert first_system.checkpoints == ["snapshot-cpu-0"]
+    assert second_system.checkpoints == ["snapshot-vision-0"]
+    assert first.restore_identity() == first.descriptor
+    assert second.restore_identity() == second.descriptor
+
+    assert hub.restore("snapshot") == ("cpu-0", "vision-0")
+    assert first_system.restored == ["snapshot-cpu-0"]
+    assert second_system.restored == ["snapshot-vision-0"]
+    assert standalone.standalone is False
