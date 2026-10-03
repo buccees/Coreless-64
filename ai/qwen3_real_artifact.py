@@ -33,6 +33,7 @@ def acquire_and_run(
     model_directory: str | Path,
     prompt: str,
     max_new_tokens: int,
+    tensor_runtime: TensorRuntime | None = None,
 ) -> str:
     root = download_qwen3_06b(model_directory)
     return run(root, prompt, max_new_tokens, tensor_runtime)
@@ -41,6 +42,7 @@ def acquire_and_run(
 def forward_real_artifact(
     model_directory: str | Path,
     prompt: str,
+    tensor_runtime: TensorRuntime | None = None,
 ) -> dict[str, object]:
     """Run one real trained-weight forward pass through the native runtime."""
     _, runtime, tokenizer = _load_real_artifact(model_directory, tensor_runtime)
@@ -110,7 +112,7 @@ def main() -> int:
     if args.validate_only:
         print(validate_real_artifact(root))
     elif args.forward_only:
-        print(forward_real_artifact(root, args.prompt))
+        print(forward_real_artifact(root, args.prompt, tensor_runtime))
     else:
         print(run(root, args.prompt, args.max_new_tokens, tensor_runtime))
     elapsed = time.monotonic() - started
