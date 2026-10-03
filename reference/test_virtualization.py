@@ -114,7 +114,8 @@ def test_multiple_native_cpus_bind_and_step_independent_vcpus():
     h.bind_cpu(vm.vmid, cpu0, 0)
     h.bind_cpu(vm.vmid, cpu1, 1)
     cpu0.memory[0:4] = ((1 << 27) | (1 << 22) | 3).to_bytes(4, "little")
-    cpu1.memory[0:4] = ((1 << 27) | (2 << 22) | 7).to_bytes(4, "little")
+    cpu1.memory[4:8] = ((1 << 27) | (2 << 22) | 7).to_bytes(4, "little")
+    cpu1.pc = 4
     h.run(vm.vmid)
     assert h.bound_cpu(vm.vmid, 0) is cpu0
     assert h.bound_cpu(vm.vmid, 1) is cpu1
