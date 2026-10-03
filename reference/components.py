@@ -182,11 +182,11 @@ class CorelessComponent:
             version=descriptor["version"],
         )
 
-    def boot(self):
+    def boot(self, init_path: str = "/init"):
         if self.system is None:
             raise RuntimeError("component has no CorelessSystem")
         self.persist_identity()
-        self.system.boot()
+        self.system.boot(init_path)
         return self
 
     def resume(self, init_path: str | None = None):
