@@ -265,11 +265,13 @@ class CorelessHub:
 
     VERSION = 1
 
-    def __init__(self, hub_id: str = "coreless-hub-0") -> None:
+    def __init__(self, hub_id: str = "coreless-hub-0", *, hypervisor: object | None = None) -> None:
         if not hub_id:
             raise ValueError("hub_id must not be empty")
         self.hub_id = hub_id
+        self.hypervisor = hypervisor
         self._components: dict[str, CorelessComponent] = {}
+        self._ipc_channels: dict[tuple[str, str], int] = {}
 
     def connect(self, component: CorelessComponent) -> ComponentDescriptor:
         existing = self._components.get(component.component_id)
@@ -306,6 +308,52 @@ class CorelessHub:
         for component in self.components():
             capabilities.update(component.descriptor.capabilities)
         return frozenset(capabilities)
+
+    def negotiate(self, source_id: str, target_id: str, required: frozenset[str] | set[str] = frozenset()) -> frozenset[str]:
+        """Negotiate a capability set between two connected components."""
+        source = self.component(source_id)
+        target = self.component(target_id)
+        required = frozenset(required)
+        shared = source.descriptor.capabilities & target.descriptor.capabilities
+        if not required.issubset(shared):
+            missing = sorted(required - shared)
+            raise ValueError(f"capability negotiation failed: {missing}")
+        return frozenset(shared)
+
+    def open_ipc(self, source_id: str, target_id: str, required: frozenset[str] | set[str] = frozenset()) -> int:
+        """Authorize a VM-to-VM IPC channel after capability negotiation."""
+        self.negotiate(source_id, target_id, required)
+        if self.hypervisor is None:
+            raise RuntimeError("hub has no Coreless Hypervisor")
+        source = self.component(source_id)
+        target = self.component(target_id)
+        if source.vm is None or target.vm is None:
+            raise RuntimeError("both components require bound VMs for IPC")
+        source_vmid = int(source.vm.vmid)
+        target_vmid = int(target.vm.vmid)
+        capability = self.hypervisor.grant_ipc(source_vmid, target_vmid)
+        self._ipc_channels[(source_id, target_id)] = capability
+        return capability
+
+    def close_ipc(self, source_id: str, target_id: str) -> None:
+        """Revoke a previously negotiated VM-to-VM IPC channel."""
+        capability = self._ipc_channels.pop((source_id, target_id), None)
+        if capability is not None and self.hypervisor is not None:
+            self.hypervisor.revoke_ipc(capability)
+
+    def send_ipc(self, source_id: str, target_id: str, payload: bytes, *, source_vcpu: int = 0, target_vcpu: int = 0) -> None:
+        """Send data through an authorized hub IPC channel."""
+        if self.hypervisor is None:
+            raise RuntimeError("hub has no Coreless Hypervisor")
+        capability = self._ipc_channels.get((source_id, target_id))
+        if capability is None:
+            raise PermissionError("IPC channel has not been negotiated")
+        source = self.component(source_id)
+        target = self.component(target_id)
+        self.hypervisor.send_message(
+            int(source.vm.vmid), source_vcpu, int(target.vm.vmid), target_vcpu,
+            payload, capability=capability,
+        )
 
     def composition(self) -> Mapping[str, object]:
         return {
