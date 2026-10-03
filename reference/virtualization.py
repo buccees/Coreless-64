@@ -15,8 +15,8 @@ class VCPU:
 class VM:
     vmid:int
     memory_size:int
-    memory:object|None=None
     vcpus:list=field(default_factory=list)
+    memory:object|None=None
     pending_interrupts:list=field(default_factory=list)
     devices:list=field(default_factory=list)
     running:bool=False
