@@ -45,3 +45,9 @@ Packet processing may be performed by dedicated hardware, scalar/vector executio
 The Coreless operating environment owns network configuration and isolation. Virtual machines may receive isolated virtual network devices.
 
 Host-provided networking is an optional external interface; it does not redefine the Coreless network architecture.
+
+## Plug-and-play network transport
+
+The host may provide network connectivity as external transport. Coreless owns the logical network interface, protocol stack, packet state, permissions, and network policy.
+
+The host is not required to execute the Coreless network stack. The negotiated host channel transports packets between the Coreless network subsystem and the external link.
