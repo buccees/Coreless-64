@@ -450,6 +450,7 @@ def test_hub_coordinates_checkpoint_and_restore_across_component_machines():
         },
         "committed": True,
         "manifest_version": hub.VERSION,
+        "component_count": 2,
     }
     assert first_system.checkpoints == ["snapshot-cpu-0"]
     assert second_system.checkpoints == ["snapshot-vision-0"]
