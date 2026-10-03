@@ -205,3 +205,47 @@ def test_host_interface_coordinates_hub_boot_resume_and_shutdown():
     assert interface.resume() == ("cpu-0",)
     assert interface.shutdown_hub() == ("cpu-0",)
     assert not system.machine.booted
+
+
+def test_host_interface_coordinates_hub_checkpoint_and_restore():
+    from components import ComponentDescriptor, CorelessComponent, CorelessHub
+
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+        def put(self, key, value, sync=False):
+            self.objects[key] = bytes(value)
+        def sync(self):
+            pass
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = type("Machine", (), {"storage": FakeStorage()})()
+            self.checkpoints = []
+            self.restored = []
+        def checkpoint(self, name):
+            self.checkpoints.append(name)
+            return name
+        def restore(self, name):
+            self.restored.append(name)
+            return self
+
+    system = FakeSystem()
+    component = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=system,
+    )
+    hub = CorelessHub("hub-0")
+    hub.connect(component)
+
+    interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
+    interface.attach(
+        interface.discover(),
+        HostCapabilities(startup=True, management=True),
+    )
+    interface.attach_hub(hub)
+
+    assert interface.checkpoint_hub("snapshot")["hub_id"] == "hub-0"
+    assert system.checkpoints == ["snapshot-cpu-0"]
+    assert interface.restore_hub("snapshot") == ("cpu-0",)
+    assert system.restored == ["snapshot-cpu-0"]
