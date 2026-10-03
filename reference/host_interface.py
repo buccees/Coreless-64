@@ -199,6 +199,26 @@ class CorelessHostInterface:
             raise RuntimeError("no Coreless system is bound")
         return self._system.shutdown()
 
+    def checkpoint_hub(self, name: str = "hub"):
+        """Create a coordinated checkpoint of the unified Coreless Hub."""
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        if "management" not in self._negotiated:
+            raise PermissionError("management capability was not negotiated")
+        if self._hub is None:
+            raise RuntimeError("no Coreless Hub is bound")
+        return self._hub.checkpoint(name)
+
+    def restore_hub(self, name: str = "hub"):
+        """Restore the unified Coreless Hub from a coordinated checkpoint."""
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        if "management" not in self._negotiated:
+            raise PermissionError("management capability was not negotiated")
+        if self._hub is None:
+            raise RuntimeError("no Coreless Hub is bound")
+        return self._hub.restore(name)
+
     def shutdown_hub(self):
         """Shut down the unified Coreless Hub composition through the host boundary."""
         if not self._attached:
