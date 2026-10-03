@@ -20,6 +20,7 @@ class VM:
     devices:list=field(default_factory=list)
     running:bool=False
     cpu:object|None=None
+    cpus:dict=field(default_factory=dict)
 
 class Hypervisor:
     def __init__(self,cpu_count=1):
@@ -58,7 +59,9 @@ class Hypervisor:
             raise TypeError("VM CPU must provide a step() method")
         if len(cpu.r) != 32:
             raise ValueError("Coreless CPU requires 32 registers")
-        vm.cpu = cpu
+        vm.cpus[vcpu_id] = cpu
+        if vcpu_id == 0:
+            vm.cpu = cpu
         cpu.r[:] = vcpu.registers
         cpu.r[0] = 0
         cpu.pc = vcpu.pc
@@ -67,16 +70,23 @@ class Hypervisor:
         cpu.halted = vcpu.halted
         return cpu
 
+    def bound_cpu(self, vmid, vcpu_id=0):
+        """Return the native CPU bound to a VM vCPU, if any."""
+        vm = self.vms[vmid]
+        self._vcpu(vmid, vcpu_id)
+        return vm.cpus.get(vcpu_id)
+
     def _sync_bound_cpu(self, vm, vcpu_id=0):
-        if vm.cpu is None:
+        cpu = vm.cpus.get(vcpu_id)
+        if cpu is None:
             return
         vcpu = vm.vcpus[vcpu_id]
-        vcpu.registers = [int(x) & ((1 << 64) - 1) for x in vm.cpu.r]
+        vcpu.registers = [int(x) & ((1 << 64) - 1) for x in cpu.r]
         vcpu.registers[0] = 0
-        vcpu.pc = int(vm.cpu.pc) & ((1 << 64) - 1)
-        vcpu.sp = int(vm.cpu.sp) & ((1 << 64) - 1)
-        vcpu.privilege = int(vm.cpu.privilege)
-        vcpu.halted = bool(vm.cpu.halted)
+        vcpu.pc = int(cpu.pc) & ((1 << 64) - 1)
+        vcpu.sp = int(cpu.sp) & ((1 << 64) - 1)
+        vcpu.privilege = int(cpu.privilege)
+        vcpu.halted = bool(cpu.halted)
 
     def sync_vcpu(self, vmid, vcpu_id=0):
         """Synchronize a bound native CPU into its VM vCPU state."""
@@ -89,38 +99,40 @@ class Hypervisor:
     def sync_cpu(self, vmid, vcpu_id=0):
         """Synchronize VM vCPU state back into its bound native CPU."""
         vm = self.vms[vmid]
-        if vm.cpu is None:
-            raise RuntimeError("VM has no bound native CPU")
+        cpu = vm.cpus.get(vcpu_id)
+        if cpu is None:
+            raise RuntimeError("VM has no bound native CPU for this vCPU")
         if not 0 <= vcpu_id < len(vm.vcpus):
             raise ValueError("invalid vCPU")
         vcpu = vm.vcpus[vcpu_id]
-        vm.cpu.r[:] = vcpu.registers
-        vm.cpu.r[0] = 0
-        vm.cpu.pc = vcpu.pc
-        vm.cpu.sp = vcpu.sp
-        vm.cpu.privilege = vcpu.privilege
-        vm.cpu.halted = vcpu.halted
-        return vm.cpu
+        cpu.r[:] = vcpu.registers
+        cpu.r[0] = 0
+        cpu.pc = vcpu.pc
+        cpu.sp = vcpu.sp
+        cpu.privilege = vcpu.privilege
+        cpu.halted = vcpu.halted
+        return cpu
 
     def step(self, vmid, count=1, vcpu_id=0):
         """Retire instructions through the VM's bound native Coreless CPU."""
         vm = self.vms[vmid]
         if count < 1:
             raise ValueError("step count must be positive")
-        if vm.cpu is None:
-            raise RuntimeError("VM has no bound Coreless CPU")
+        cpu = vm.cpus.get(vcpu_id)
+        if cpu is None:
+            raise RuntimeError("VM has no bound Coreless CPU for this vCPU")
         if not vm.running:
             raise RuntimeError("VM is not running")
         retired = 0
         if not 0 <= vcpu_id < len(vm.vcpus):
             raise ValueError("invalid vCPU")
         for _ in range(count):
-            if vm.cpu.halted:
+            if cpu.halted:
                 break
-            vm.cpu.step()
+            cpu.step()
             retired += 1
             self._sync_bound_cpu(vm, vcpu_id)
-        if vm.cpu.halted:
+        if all(v.halted or i not in vm.cpus for i, v in enumerate(vm.vcpus)):
             vm.running = False
         return retired
     def stop(self,vmid):
