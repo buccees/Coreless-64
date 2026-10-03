@@ -63,3 +63,9 @@ The architecture does not require a specific shader ISA. Graphics acceleration i
 Display surfaces are memory objects with defined ownership and synchronization. Scanout cannot observe a surface before required producer synchronization has completed.
 
 Input events are delivered through the Coreless device/event model. Remote display/input may transport these architectural events without changing the Coreless graphics model.
+
+## Plug-and-play display transport
+
+Display output is a Coreless architectural resource. A host may transport the resulting display stream to a physical monitor after Coreless identity and display capabilities have been negotiated. Input events travel through the same host-interface boundary in the reverse direction.
+
+The host is a transport endpoint, not the Coreless graphics executor.
