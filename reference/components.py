@@ -612,7 +612,28 @@ class CorelessHub:
                 sync = getattr(storage, "sync", None)
                 if sync is not None:
                     sync()
-        return {"hub_id": self.hub_id, "checkpoints": results}
+
+        # Read back the published commit record from every participating
+        # storage.  A checkpoint is committed only when every copy contains
+        # the exact same manifest bytes after publication.
+        for component in targets:
+            storage = getattr(component.system.machine, "storage", None)
+            published = (
+                storage.objects.get(checkpoint_key)
+                if storage is not None else None
+            )
+            if published != manifest_bytes:
+                raise RuntimeError(
+                    "Coreless Hub checkpoint commit verification failed: "
+                    f"{component.component_id}"
+                )
+
+        return {
+            "hub_id": self.hub_id,
+            "checkpoints": results,
+            "committed": True,
+            "manifest_version": self.VERSION,
+        }
 
     def restore(self, name: str = "hub") -> tuple[str, ...]:
         """Restore every persistent component from a coordinated Hub checkpoint."""
