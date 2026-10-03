@@ -4,7 +4,7 @@ sys.path.insert(0, ".")
 
 import pytest
 
-from components import ComponentDescriptor, CorelessComponent, CorelessHub
+from components import ComponentDescriptor, CorelessComponent, CorelessHub, Workload
 
 
 def test_component_is_complete_and_standalone():
