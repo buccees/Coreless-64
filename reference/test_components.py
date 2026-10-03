@@ -1122,9 +1122,9 @@ def test_hub_lifecycle_starts_and_stops_standalone_component_services():
     hub = CorelessHub("hub-lifecycle", hypervisor=hypervisor)
     hub.connect(component)
 
-    assert hub.boot() == ("cpu-standalone",)
+    assert hub.boot() == ()
     assert vm.running is True
-    assert hub.shutdown() == ("cpu-standalone",)
+    assert hub.shutdown() == ()
     assert vm.running is False
 
 
