@@ -771,11 +771,15 @@ class CorelessCPU:
                 return int.from_bytes(struct.pack("<d", float(value)), "little")
             raise CorelessTrap("matrix_ai_fault", self.pc, typ)
 
-        def decode_value(value, bits):
-            return decode_fp(value, bits) if fp_type else decode_int(value, bits, signed_mode)
+        def decode_value(value, bits, type_code=None):
+            if fp_type:
+                return decode_fp(value, it if type_code is None else type_code)
+            return decode_int(value, bits, signed_mode)
 
-        def encode_value(value, bits):
-            return encode_fp(value, bits) if fp_type else encode_int(value, bits)
+        def encode_value(value, bits, type_code=None):
+            if fp_type:
+                return encode_fp(value, at if type_code is None else type_code)
+            return encode_int(value, bits)
 
         def convert(value, src_bits, dst_bits, signed):
             if fp_type:
@@ -788,14 +792,14 @@ class CorelessCPU:
             out = [[0 for _ in range(n)] for _ in range(m)]
             for i in range(m):
                 for j in range(n):
-                    acc = decode_value(self.matrix[add_tile][i][j], abits) if add_tile is not None else 0.0 if fp_type else 0
+                    acc = decode_value(self.matrix[add_tile][i][j], abits, at) if add_tile is not None else 0.0 if fp_type else 0
                     if add_tile is None and op == 0x01:
-                        acc = decode_value(self.matrix[rd][i][j], abits)
+                        acc = decode_value(self.matrix[rd][i][j], abits, at)
                     for q in range(k):
-                        a = decode_value(self.matrix[rs1][i][q], ibits)
-                        b = decode_value(self.matrix[rs2][q][j], ibits)
+                        a = decode_value(self.matrix[rs1][i][q], ibits, it)
+                        b = decode_value(self.matrix[rs2][q][j], ibits, it)
                         acc += a * b
-                    out[i][j] = encode_value(acc, abits)
+                    out[i][j] = encode_value(acc, abits, at)
             for i in range(m):
                 for j in range(n):
                     self.matrix[rd][i][j] = out[i][j]
