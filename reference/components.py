@@ -653,6 +653,22 @@ class CorelessHub:
             if callable(sync):
                 sync()
 
+        # Re-read the committed manifest after the final durability sync so
+        # checkpoint() only reports success when every target agrees.
+        for component in targets:
+            storage = getattr(component.system.machine, "storage", None)
+            if storage is None:
+                raise RuntimeError(
+                    "Coreless Hub checkpoint commit verification failed: "
+                    f"missing storage: {component.component_id}"
+                )
+            committed = storage.objects.get(checkpoint_key)
+            if committed != manifest_bytes:
+                raise RuntimeError(
+                    "Coreless Hub checkpoint commit verification failed: "
+                    f"manifest changed after durability sync: {component.component_id}"
+                )
+
         return {
             "hub_id": self.hub_id,
             "checkpoints": results,
