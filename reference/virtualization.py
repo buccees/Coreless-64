@@ -142,6 +142,28 @@ class Hypervisor:
         if all(v.halted or i not in vm.cpus for i, v in enumerate(vm.vcpus)):
             vm.running = False
         return retired
+    def schedule(self, vmid, rounds=1):
+        """Run a bounded round-robin schedule across bound VM vCPUs."""
+        vm = self.vms[vmid]
+        if rounds < 1:
+            raise ValueError("schedule rounds must be positive")
+        if not vm.running:
+            raise RuntimeError("VM is not running")
+        retired = 0
+        for _ in range(rounds):
+            progressed = False
+            for vcpu_id in range(len(vm.vcpus)):
+                cpu = vm.cpus.get(vcpu_id)
+                if cpu is None or cpu.halted:
+                    continue
+                self.step(vmid, count=1, vcpu_id=vcpu_id)
+                retired += 1
+                progressed = True
+            if not progressed:
+                break
+            if not vm.running:
+                break
+        return retired
     def stop(self,vmid):
         vm=self.vms[vmid]; vm.running=False
     def set_vcpu_state(self, vmid, vcpu_id, *, registers=None, pc=None, sp=None,
