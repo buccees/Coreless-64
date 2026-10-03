@@ -576,11 +576,12 @@ def test_hub_restore_rolls_back_already_restored_components_on_failure():
         hub.restore("snapshot")
 
     assert first_system.restored == [
-        "hub-rollback-cpu-0",
         "snapshot-cpu-0",
-        "hub-rollback-cpu-0",
+        "snapshot-rollback-hub-rollback-cpu-0",
     ]
-    assert second_system.restored == ["hub-rollback-vision-0"]
+    assert second_system.restored == [
+        "snapshot-rollback-hub-rollback-vision-0",
+    ]
 
 
 def test_hub_restore_preflights_all_manifests_before_restoring_any_component():
