@@ -110,7 +110,7 @@ def test_multiple_native_cpus_bind_and_step_independent_vcpus():
     h = Hypervisor(2)
     vm = h.create_vm(1 << 16, 2)
     cpu0 = CorelessCPU(memory_size=1 << 16)
-    cpu1 = CorelessCPU(memory_size=1 << 16)
+    cpu1 = CorelessCPU(memory_size=1 << 16, memory=cpu0.memory)
     h.bind_cpu(vm.vmid, cpu0, 0)
     h.bind_cpu(vm.vmid, cpu1, 1)
     cpu0.memory[0:4] = ((1 << 27) | (1 << 22) | 3).to_bytes(4, "little")
@@ -164,6 +164,17 @@ def test_vm_instruction_dispatches_to_hypervisor_handler():
     assert cpu.step()
     assert seen == [("VM_SEND", 3, 1, 2, 7, 9)]
     assert cpu.r[3] == 0x55
+
+
+def test_vm_rejects_unshared_native_cpu_memory():
+    from core import CorelessCPU
+    h = Hypervisor(2)
+    vm = h.create_vm(1 << 16, 2)
+    cpu0 = CorelessCPU(memory_size=1 << 16)
+    cpu1 = CorelessCPU(memory_size=1 << 16)
+    h.bind_cpu(vm.vmid, cpu0, 0)
+    with pytest.raises(ValueError):
+        h.bind_cpu(vm.vmid, cpu1, 1)
 
 
 def test_bound_native_cpu_retires_and_syncs_vcpu_state():
