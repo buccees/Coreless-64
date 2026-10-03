@@ -53,6 +53,29 @@ The engine currently executes scalar Coreless-64 instructions and integrates the
 
 Vector and matrix/AI execution remain implementation work in the reference engine.
 
+## Plug-and-play external boundary
+
+The external host boundary is an I/O transport boundary around the Coreless machine:
+
+    Host
+      |
+      +-- power/startup
+      +-- display transport
+      +-- input transport
+      +-- network transport
+      |
+      v
+    Coreless Host Interface
+      |
+      v
+    Coreless Hub
+      |
+      +-- autonomous Coreless components
+
+The host interface performs discovery, identity verification, capability negotiation, and channel binding. It must not move architectural computation into the host.
+
+The component/hub layer remains inside Coreless. A component is a complete autonomous Coreless unit and may operate alone or compose with other components through the Hub.
+
 ## Execution cycle
 
 The basic digital execution cycle is:
