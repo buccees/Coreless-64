@@ -640,6 +640,16 @@ class CorelessHub:
                     f"missing checkpoint {checkpoint_name}"
                 )
 
+        # Re-read the committed manifest after all verification so callers
+        # receive only a state that is known to be durably published.
+        for component in targets:
+            storage = getattr(component.system.machine, "storage", None)
+            if storage is None or storage.objects.get(checkpoint_key) != manifest_bytes:
+                raise RuntimeError(
+                    "Coreless Hub checkpoint commit verification failed: "
+                    f"manifest changed after commit: {component.component_id}"
+                )
+
         return {
             "hub_id": self.hub_id,
             "checkpoints": results,
