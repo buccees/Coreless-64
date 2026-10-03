@@ -670,6 +670,8 @@ class CorelessHub:
                     )
                 ):
                     raise ValueError("invalid Coreless Hub checkpoint map")
+                if set(checkpoints) != set(expected):
+                    raise ValueError("Coreless Hub checkpoint coverage mismatch")
                 checkpoint_name = checkpoints.get(component.component_id)
             else:
                 checkpoint_name = f"{name}-{component.component_id}"
