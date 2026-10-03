@@ -578,9 +578,6 @@ class CorelessHub:
         results: dict[str, object] = {}
         for component in targets:
             component.persist_identity()
-            results[component.component_id] = component.system.checkpoint(
-                checkpoint_names[component.component_id]
-            )
             storage = getattr(component.system.machine, "storage", None)
             if storage is not None:
                 storage.put(
@@ -588,9 +585,9 @@ class CorelessHub:
                     json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8"),
                     sync=False,
                 )
-                sync = getattr(storage, "sync", None)
-                if callable(sync):
-                    sync()
+            results[component.component_id] = component.system.checkpoint(
+                checkpoint_names[component.component_id]
+            )
         return {"hub_id": self.hub_id, "checkpoints": results}
 
     def restore(self, name: str = "hub") -> tuple[str, ...]:
