@@ -105,6 +105,20 @@ def test_qwen3_model_routes_dense_execution_through_tensor_runtime(tmp_path):
     assert tensor_runtime.add_calls == 2
 
 
+def test_qwen3_model_executes_dense_ops_through_coreless_cpu(tmp_path):
+    from core import CorelessCPU
+
+    _config(tmp_path)
+    _write(tmp_path / "model.safetensors", _names())
+    tensor_runtime = TensorRuntime(cpu=CorelessCPU())
+    runtime = load_qwen3_model(tmp_path, tensor_runtime=tensor_runtime)
+
+    result = runtime.forward([1])
+
+    assert result.shape == (1, 4)
+    assert result.dtype == "fp32"
+
+
 def test_qwen3_greedy_generation_uses_kv_cache(tmp_path):
     _config(tmp_path)
     _write(tmp_path / "model.safetensors", _names())
