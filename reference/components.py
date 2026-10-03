@@ -630,7 +630,16 @@ class CorelessHub:
                 storage.objects.get(f"machine/hub/{self.hub_id}/checkpoint")
                 if storage is not None else None
             )
-            manifest = json.loads(raw.decode("utf-8")) if raw is not None else None
+            if raw is None:
+                manifest = None
+            else:
+                try:
+                    manifest = json.loads(raw.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    raise ValueError(
+                        f"invalid Coreless Hub checkpoint manifest for: "
+                        f"{component.component_id}"
+                    ) from exc
             if manifest is None:
                 raise KeyError(
                     f"no committed Coreless Hub checkpoint for: {component.component_id}"
