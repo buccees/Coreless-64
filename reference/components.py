@@ -658,6 +658,7 @@ class CorelessHub:
             "checkpoints": results,
             "committed": True,
             "manifest_version": self.VERSION,
+            "component_count": len(targets),
         }
 
     def restore(self, name: str = "hub") -> tuple[str, ...]:
