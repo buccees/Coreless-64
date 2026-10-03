@@ -141,6 +141,62 @@ class CorelessComponent:
             return None
         return self.system.shutdown()
 
+    def start_vm(self):
+        """Start this component's bound Coreless VM."""
+        if self.vm is None:
+            raise RuntimeError("component has no Coreless VM")
+        runner = getattr(self.vm, "run", None)
+        if callable(runner):
+            runner()
+        elif hasattr(self.vm, "running"):
+            self.vm.running = True
+        else:
+            raise TypeError("bound VM does not expose a Coreless lifecycle")
+        return self.vm
+
+    def stop_vm(self):
+        """Stop this component's bound Coreless VM."""
+        if self.vm is None:
+            raise RuntimeError("component has no Coreless VM")
+        stopper = getattr(self.vm, "stop", None)
+        if callable(stopper):
+            stopper()
+        elif hasattr(self.vm, "running"):
+            self.vm.running = False
+        else:
+            raise TypeError("bound VM does not expose a Coreless lifecycle")
+        return self.vm
+
+    def reset_vm(self):
+        """Reset the bound VM's execution state without replacing its identity."""
+        if self.vm is None:
+            raise RuntimeError("component has no Coreless VM")
+        self.stop_vm()
+        if not hasattr(self.vm, "vcpus"):
+            raise TypeError("bound VM does not expose Coreless vCPU state")
+        for vcpu in self.vm.vcpus:
+            vcpu.registers = [0] * 32
+            vcpu.pc = 0
+            vcpu.sp = 0
+            vcpu.privilege = 0
+            vcpu.halted = False
+            vcpu.inbox.clear()
+        pending = getattr(self.vm, "pending_interrupts", None)
+        if pending is not None:
+            pending.clear()
+        return self.vm
+
+    def vm_status(self) -> dict[str, object]:
+        """Return the live lifecycle state of the bound Coreless VM."""
+        if self.vm is None:
+            return {"bound": False, "running": False}
+        return {
+            "bound": True,
+            "vm_id": self.descriptor.vm_id,
+            "running": bool(getattr(self.vm, "running", False)),
+            "vcpus": len(getattr(self.vm, "vcpus", ())),
+        }
+
     def status(self) -> dict[str, object]:
         return {
             "component": self.descriptor.to_dict(),
