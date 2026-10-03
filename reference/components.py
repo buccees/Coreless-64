@@ -358,6 +358,14 @@ class CorelessComponent:
             raise RuntimeError("component VM vCPU has no bound native CPU")
         return hypervisor.step(vmid, count=count, vcpu_id=vcpu_id)
 
+    def execute_hub_workload(self, hub: "CorelessHub", workload: Workload) -> WorkloadResult:
+        """Execute a workload through this component's unified Hub boundary."""
+        if not self.healthy:
+            raise RuntimeError("cannot execute workload on fault-isolated component")
+        if self._hub_id != hub.hub_id:
+            raise RuntimeError("component is not attached to this Coreless Hub")
+        return hub.dispatch(workload)
+
     def execute_workload(self, workload: Workload) -> WorkloadResult:
         """Execute one workload inside this component's local boundary."""
         if not self.healthy:
