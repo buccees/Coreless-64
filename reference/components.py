@@ -637,12 +637,34 @@ class CorelessHub:
                 )
             plans.append((component, checkpoint_name))
 
-        restored: list[str] = []
-        for component, checkpoint_name in plans:
-            component.system.restore(checkpoint_name)
-            component.restore_identity()
-            restored.append(component.component_id)
-        return tuple(restored)
+        # Capture a local rollback point before mutating any component.
+        # If a later restore fails, previously restored components are returned
+        # to their exact pre-restore state.
+        rollback_names: list[tuple[CorelessComponent, str]] = []
+        try:
+            for component, _ in plans:
+                rollback_name = (
+                    f"{name}-rollback-{self.hub_id}-{component.component_id}"
+                )
+                component.system.checkpoint(rollback_name)
+                rollback_names.append((component, rollback_name))
+
+            restored: list[str] = []
+            for component, checkpoint_name in plans:
+                component.system.restore(checkpoint_name)
+                component.restore_identity()
+                restored.append(component.component_id)
+            return tuple(restored)
+        except Exception:
+            for component, rollback_name in reversed(rollback_names):
+                try:
+                    component.system.restore(rollback_name)
+                    component.restore_identity()
+                except Exception:
+                    # Preserve the original restore failure; rollback is
+                    # best-effort because the storage layer may itself fail.
+                    pass
+            raise
 
     def dispatch(self, workload: Workload) -> WorkloadResult:
         """Dispatch work to a healthy component advertising the required capability."""
