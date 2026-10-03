@@ -220,3 +220,30 @@ def test_component_owns_ai_runtime_lifecycle_and_vm_boundary():
     component.require_ai_vm()
     component.stop_ai()
     assert component.ai_status()["running"] is False
+
+def test_hub_negotiates_capabilities_and_opens_ipc():
+    from virtualization import Hypervisor
+
+    hypervisor = Hypervisor(2)
+    source_vm = hypervisor.create_vm(1 << 20, 1)
+    target_vm = hypervisor.create_vm(1 << 20, 1)
+    hub = CorelessHub(hypervisor=hypervisor)
+
+    source = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute", "ipc"})),
+        vm=source_vm,
+    )
+    target = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"graphics", "ipc"})),
+        vm=target_vm,
+    )
+    hub.connect(source)
+    hub.connect(target)
+
+    assert hub.negotiate("cpu-0", "vision-0", {"ipc"}) == frozenset({"ipc"})
+    capability = hub.open_ipc("cpu-0", "vision-0", {"ipc"})
+    hub.send_ipc("cpu-0", "vision-0", b"frame")
+    assert hypervisor.recv_message(target_vm.vmid, 0) == b"frame"
+    hub.close_ipc("cpu-0", "vision-0")
+    with pytest.raises(PermissionError, match="not been negotiated"):
+        hub.send_ipc("cpu-0", "vision-0", b"again")
