@@ -217,3 +217,15 @@ The finished system should behave as a self-contained digital computer:
     Coreless computer
 
 External equipment supplies power and I/O rather than supplying the computer's architectural identity or computation.
+
+## 6A. Plug-and-play host interface
+
+The external environment is presented through a Coreless host interface.
+
+The intended lifecycle is: **connect → discover → verify identity → advertise capabilities → negotiate → attach → boot/resume → operate → detach**.
+
+The host supplies external I/O transport. It does not supply Coreless architectural CPU, RAM, OS execution, VM execution, AI computation, or policy authority.
+
+The host interface connects to the Coreless Hub; autonomous components retain their identities and can continue independently after detachment.
+
+See [Host Interface](host_interface.md).
