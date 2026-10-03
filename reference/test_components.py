@@ -448,6 +448,8 @@ def test_hub_coordinates_checkpoint_and_restore_across_component_machines():
             "cpu-0": "hash:snapshot-cpu-0",
             "vision-0": "hash:snapshot-vision-0",
         },
+        "committed": True,
+        "manifest_version": hub.VERSION,
     }
     assert first_system.checkpoints == ["snapshot-cpu-0"]
     assert second_system.checkpoints == ["snapshot-vision-0"]
@@ -872,3 +874,48 @@ def test_hub_restore_preflights_all_manifests_before_restoring_any_component():
 
     assert first_system.restored == []
     assert second_system.restored == []
+
+
+def test_hub_checkpoint_rejects_failed_commit_verification():
+    class FakeStorage:
+        def __init__(self, corrupt=False):
+            self.objects = {}
+            self.corrupt = corrupt
+
+        def put(self, key, value, sync=False):
+            self.objects[key] = b"corrupt" if self.corrupt else bytes(value)
+
+        def sync(self):
+            pass
+
+    class FakeMachine:
+        def __init__(self, storage):
+            self.storage = storage
+
+    class FakeSystem:
+        def __init__(self, storage):
+            self.machine = FakeMachine(storage)
+            self.checkpoints = []
+
+        def checkpoint(self, name):
+            self.checkpoints.append(name)
+            return f"hash:{name}"
+
+    first = FakeSystem(FakeStorage())
+    second = FakeSystem(FakeStorage(corrupt=True))
+    hub = CorelessHub("hub-commit-verify")
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=first,
+    ))
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("mem-0", "memory", frozenset({"memory"})),
+        system=second,
+    ))
+
+    with pytest.raises(RuntimeError, match="commit verification failed"):
+        hub.checkpoint("snapshot")
+
+    key = "machine/hub/hub-commit-verify/checkpoint"
+    assert key in first.machine.storage.objects
+    assert second.machine.storage.objects[key] == b"corrupt"
