@@ -302,3 +302,63 @@ def test_faulted_component_cannot_hot_plug_until_recovered():
     component.isolate("link failure")
     with pytest.raises(RuntimeError, match="fault-isolated"):
         hub.connect(component)
+
+
+def test_hub_distributes_workload_to_specialized_component():
+    from components import Workload
+
+    cpu = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        workload_executor=lambda payload: payload * 2,
+    )
+    vision = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"image_processing"})),
+        workload_executor=lambda payload: payload.upper(),
+    )
+    hub = CorelessHub()
+    hub.connect(cpu)
+    hub.connect(vision)
+
+    result = hub.dispatch(Workload("w1", "image_processing", "frame"))
+    assert result.component_id == "vision-0"
+    assert result.result == "FRAME"
+
+
+def test_hub_pipeline_distributes_each_stage_by_capability():
+    from components import Workload
+
+    cpu = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        workload_executor=lambda payload: payload + 1,
+    )
+    vision = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"vision"})),
+        workload_executor=lambda payload: payload * 10,
+    )
+    hub = CorelessHub()
+    hub.connect(cpu)
+    hub.connect(vision)
+
+    results = hub.dispatch_pipeline([
+        Workload("compute", "compute", 4),
+        Workload("vision", "vision", 3),
+    ])
+    assert [(r.component_id, r.result) for r in results] == [
+        ("cpu-0", 5),
+        ("vision-0", 30),
+    ]
+
+
+def test_faulted_component_is_excluded_from_workload_dispatch():
+    from components import Workload
+
+    vision = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"vision"})),
+        workload_executor=lambda payload: payload,
+    )
+    hub = CorelessHub()
+    hub.connect(vision)
+    hub.isolate("vision-0", "executor fault")
+
+    with pytest.raises(LookupError, match="no healthy component"):
+        hub.dispatch(Workload("w1", "vision", "frame"))
