@@ -1054,3 +1054,16 @@ def test_component_executes_bound_vm_through_native_cpu():
     h.run(vm.vmid)
     assert component.execute_vm_steps(h) == 1
     assert vm.vcpus[0].registers[1] == 23
+
+
+def test_component_can_execute_through_its_unified_hub():
+    component = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"image_processing"})),
+        workload_executor=lambda payload: payload.upper(),
+    )
+    hub = CorelessHub()
+    hub.connect(component)
+    result = component.execute_hub_workload(hub, Workload("w1", "image_processing", "frame"))
+    assert result.component_id == "vision-0"
+    assert result.result == "FRAME"
+
