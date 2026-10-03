@@ -533,9 +533,10 @@ class CorelessHub:
         started: list[CorelessComponent] = []
         try:
             for component in self.components():
-                if not component.healthy or component.system is None:
+                if not component.healthy:
                     continue
-                component.boot(init_path)
+                if component.system is not None:
+                    component.boot(init_path)
                 component.start_services()
                 started.append(component)
         except Exception:
@@ -552,9 +553,10 @@ class CorelessHub:
         resumed: list[CorelessComponent] = []
         try:
             for component in self.components():
-                if not component.healthy or component.system is None:
+                if not component.healthy:
                     continue
-                component.resume()
+                if component.system is not None:
+                    component.resume()
                 component.start_services()
                 resumed.append(component)
         except Exception:
@@ -570,9 +572,12 @@ class CorelessHub:
         """Shut down all connected systems while preserving the composition."""
         stopped: list[str] = []
         for component in reversed(self.components()):
-            if component.system is None:
+            if component.system is not None:
+                component.shutdown()
+            elif component.vm is not None or component.ai_runtime is not None:
+                component.stop_services()
+            else:
                 continue
-            component.shutdown()
             stopped.append(component.component_id)
         return tuple(stopped)
 
