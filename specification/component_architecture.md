@@ -97,6 +97,24 @@ recovered explicitly before rejoining. Faulted components cannot be attached
 until recovery, preventing an isolated failure from silently re-entering the
 unified system.
 
+
+## Distributed workload execution
+
+The hub can dispatch deterministic workloads by declared capability. A workload
+is routed only to a healthy connected component that advertises the required
+capability and exposes a local workload executor. This keeps specialization
+local while allowing the composed machine to use the combined capabilities of
+its components.
+
+Workloads may also be submitted as a pipeline. Each stage is independently
+dispatched to the component specializing in that stage's capability, allowing
+CPU/intelligence, vision, storage, networking, and future specialists to
+cooperate without collapsing their execution boundaries.
+
+Fault-isolated components are excluded from dispatch automatically. If no
+healthy component can execute a requested capability, dispatch fails rather
+than silently running the work on an unrelated component.
+
 ## Current implementation boundary
 
 reference/components.py establishes the first software contract for:
