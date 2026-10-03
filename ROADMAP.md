@@ -2,7 +2,7 @@
 
 ## Current checkpoint
 
-The current implementation checkpoint includes the complete reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, Transformer → TensorRuntime routing, autonomous Coreless components, Hub composition, coordinated persistence, and parallel Hub workload dispatch.
+The current implementation checkpoint includes the complete reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, Transformer → TensorRuntime routing, autonomous Coreless components, Hub composition, coordinated persistence, native CPU/VM component execution, Hub scheduling, and a reference plug-and-play host transport layer.
 
 ## Phase 1 — Architecture
 
@@ -50,8 +50,9 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [ ] Networking
 - [ ] GUI
 - [ ] Remote display/input
-- [ ] Plug-and-play host discovery and identity handshake
+- [x] Plug-and-play host discovery and identity handshake software contract
 - [x] Host capability negotiation and attach/detach software contract
+- [x] Reference host enumeration/transport adapter
 - [ ] Application environment
 
 ## Phase 4 — Complete digital machine
@@ -64,6 +65,8 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Complete reference lifecycle through the digital execution engine
 - [x] Autonomous component execution boundary
 - [x] Hub workload routing and parallel dispatch
+- [x] Native CPU/VM execution for component VMs
+- [x] Hub multi-vCPU scheduling
 
 ## Phase 5 — Portable Coreless machine
 
@@ -156,9 +159,10 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Capability negotiation requirements documented
 - [x] Component/hub composition boundary documented
 - [x] CorelessHostInterface software contract
-- [ ] Cross-platform host enumeration
-- [ ] Display/input/network transport adapters
+- [x] Reference host enumeration/transport adapter
+- [ ] Cross-platform physical host enumeration
+- [ ] Concrete display/input/network transport adapters
 
 ## Resume point
 
-**Next:** plug-and-play host enumeration/transport adapters → live autonomous component execution through native CPU/VM boundaries → trained Qwen3-0.6B validation → persistent-storage-hosted runtime → live Coreless inference.
+**Next:** deepen concrete plug-and-play host transports and unified component lifecycle → trained Qwen3-0.6B validation → persistent-storage-hosted runtime → live Coreless inference.
