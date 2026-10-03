@@ -66,3 +66,12 @@ The protected flow is therefore:
 **AI result -> structured proposal -> deterministic Policy -> capability check -> resource interface -> Coreless operation -> telemetry/audit**
 
 Natural-language output, model identity, VM identity, storage location, or physical placement cannot substitute for a capability. Revoking a capability immediately prevents subsequent proposals from reaching the resource interface.
+
+## Autonomous component and host boundaries
+
+The System Fabric distinguishes two composition boundaries:
+
+1. **Coreless Hub:** connects autonomous Coreless components while preserving component identities and execution boundaries.
+2. **Coreless Host Interface:** connects the composed Coreless computer to external power and I/O transport without transferring Coreless computation or authority to the host.
+
+The Hub may dispatch workloads by declared capability and excludes faulted components. Host transport is limited to negotiated external services such as display, input, and networking.
