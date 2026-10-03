@@ -15,6 +15,7 @@ class VCPU:
 class VM:
     vmid:int
     memory_size:int
+    memory:object|None=None
     vcpus:list=field(default_factory=list)
     pending_interrupts:list=field(default_factory=list)
     devices:list=field(default_factory=list)
@@ -59,6 +60,12 @@ class Hypervisor:
             raise TypeError("VM CPU must provide a step() method")
         if len(cpu.r) != 32:
             raise ValueError("Coreless CPU requires 32 registers")
+        if len(cpu.memory) != vm.memory_size:
+            raise ValueError("native CPU memory does not match VM memory")
+        if vm.memory is None:
+            vm.memory = cpu.memory
+        elif cpu.memory is not vm.memory:
+            raise ValueError("all VM vCPUs must share the VM memory backing")
         vm.cpus[vcpu_id] = cpu
         if vcpu_id == 0:
             vm.cpu = cpu
