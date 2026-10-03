@@ -601,73 +601,69 @@ class CorelessHub:
         manifest_bytes = json.dumps(
             manifest, sort_keys=True, separators=(",", ":")
         ).encode("utf-8")
-        for component in targets:
-            storage = getattr(component.system.machine, "storage", None)
-            if storage is not None:
-                storage.put(
-                    f"machine/hub/{self.hub_id}/checkpoint",
-                    manifest_bytes,
-                    sync=False,
-                )
+        previous_manifests = {
+            component.component_id: component.system.machine.storage.objects.get(checkpoint_key)
+            for component in targets
+        }
+
+        try:
+            for component in targets:
+                storage = component.system.machine.storage
+                storage.put(checkpoint_key, manifest_bytes, sync=False)
                 sync = getattr(storage, "sync", None)
-                if sync is not None:
+                if callable(sync):
                     sync()
 
-        # Read back the published commit record from every participating
-        # storage.  A checkpoint is committed only when every copy contains
-        # the exact same manifest bytes after publication.
-        for component in targets:
-            storage = getattr(component.system.machine, "storage", None)
-            published = (
-                storage.objects.get(checkpoint_key)
-                if storage is not None else None
-            )
-            if published != manifest_bytes:
-                raise RuntimeError(
-                    "Coreless Hub checkpoint commit verification failed: "
-                    f"{component.component_id}"
-                )
+            for component in targets:
+                storage = component.system.machine.storage
+                if storage.objects.get(checkpoint_key) != manifest_bytes:
+                    raise RuntimeError(
+                        "Coreless Hub checkpoint commit verification failed: "
+                        f"{component.component_id}"
+                    )
 
-        # Verify that every machine checkpoint exists before declaring
-        # the coordinated checkpoint committed.
-        for component in targets:
-            checkpoint_name = checkpoint_names[component.component_id]
-            storage = getattr(component.system.machine, "storage", None)
-            listed = getattr(storage, "list_checkpoints", None)
-            if callable(listed) and checkpoint_name not in listed():
-                raise RuntimeError(
-                    "Coreless Hub checkpoint commit verification failed: "
-                    f"missing checkpoint {checkpoint_name}"
-                )
+            for component in targets:
+                checkpoint_name = checkpoint_names[component.component_id]
+                storage = component.system.machine.storage
+                listed = getattr(storage, "list_checkpoints", None)
+                if callable(listed) and checkpoint_name not in listed():
+                    raise RuntimeError(
+                        "Coreless Hub checkpoint commit verification failed: "
+                        f"missing checkpoint {checkpoint_name}"
+                    )
 
-        # Re-read the committed manifest after all verification so callers
-        # receive only a state that is known to be durably published.
-        for component in targets:
-            storage = getattr(component.system.machine, "storage", None)
-            if storage is None or storage.objects.get(checkpoint_key) != manifest_bytes:
-                raise RuntimeError(
-                    "Coreless Hub checkpoint commit verification failed: "
-                    f"manifest changed after commit: {component.component_id}"
-                )
-            sync = getattr(storage, "sync", None)
-            if callable(sync):
-                sync()
+            for component in targets:
+                storage = component.system.machine.storage
+                if storage.objects.get(checkpoint_key) != manifest_bytes:
+                    raise RuntimeError(
+                        "Coreless Hub checkpoint commit verification failed: "
+                        f"manifest changed after commit: {component.component_id}"
+                    )
+                sync = getattr(storage, "sync", None)
+                if callable(sync):
+                    sync()
 
-        # Re-read the committed manifest after the final durability sync so
-        # checkpoint() only reports success when every target agrees.
-        for component in targets:
-            storage = getattr(component.system.machine, "storage", None)
-            if storage is None:
-                raise RuntimeError(
-                    "Coreless Hub checkpoint commit verification failed: "
-                    f"missing storage: {component.component_id}"
-                )
-            committed = storage.objects.get(checkpoint_key)
-            if committed != manifest_bytes:
-                raise RuntimeError(
-                    "Coreless Hub checkpoint commit verification failed: "
-                    f"manifest changed after durability sync: {component.component_id}"
-                )
+            for component in targets:
+                storage = component.system.machine.storage
+                if storage.objects.get(checkpoint_key) != manifest_bytes:
+                    raise RuntimeError(
+                        "Coreless Hub checkpoint commit verification failed: "
+                        f"manifest changed after durability sync: {component.component_id}"
+                    )
+        except Exception:
+            # Restore the prior commit record everywhere if publication or
+            # verification fails, preventing a partially committed manifest.
+            for component in targets:
+                storage = component.system.machine.storage
+                previous = previous_manifests[component.component_id]
+                if previous is None:
+                    storage.objects.pop(checkpoint_key, None)
+                else:
+                    storage.objects[checkpoint_key] = previous
+                sync = getattr(storage, "sync", None)
+                if callable(sync):
+                    sync()
+            raise
 
         return {
             "hub_id": self.hub_id,
