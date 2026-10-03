@@ -925,6 +925,45 @@ def test_hub_checkpoint_rejects_manifest_change_after_durability_sync():
         hub.checkpoint("snapshot")
 
 
+def test_hub_checkpoint_failed_commit_restores_previous_manifest():
+    class FakeStorage:
+        def __init__(self, corrupt=False):
+            self.objects = {"machine/hub/hub-rollback/checkpoint": b"old-manifest"}
+            self.corrupt = corrupt
+
+        def put(self, key, value, sync=False):
+            self.objects[key] = b"corrupt" if self.corrupt else bytes(value)
+
+        def sync(self):
+            pass
+
+    class FakeMachine:
+        def __init__(self, storage):
+            self.storage = storage
+
+    class FakeSystem:
+        def __init__(self, storage):
+            self.machine = FakeMachine(storage)
+
+        def checkpoint(self, name):
+            return name
+
+    first = FakeSystem(FakeStorage())
+    second = FakeSystem(FakeStorage(corrupt=True))
+    hub = CorelessHub("hub-rollback")
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})), system=first))
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("mem-0", "memory", frozenset({"memory"})), system=second))
+
+    with pytest.raises(RuntimeError, match="commit verification failed"):
+        hub.checkpoint("snapshot")
+
+    key = "machine/hub/hub-rollback/checkpoint"
+    assert first.machine.storage.objects[key] == b"old-manifest"
+    assert second.machine.storage.objects[key] == b"old-manifest"
+
+
 def test_hub_checkpoint_rejects_failed_commit_verification():
     class FakeStorage:
         def __init__(self, corrupt=False):
