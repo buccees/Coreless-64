@@ -49,3 +49,17 @@ def test_tensor_runtime_executes_fp32_matmul_through_coreless_matrix():
 
     assert result.dtype == "fp32"
     assert result.data == (21.5, 25.0, 43.0, 50.0)
+
+
+def test_tensor_runtime_tiles_large_bf16_matmul_through_coreless_matrix():
+    from core import CorelessCPU
+
+    runtime = TensorRuntime(cpu=CorelessCPU())
+    left = runtime.create((17, 17), [1.0] * (17 * 17), dtype="bf16")
+    right = runtime.create((17, 17), [1.0] * (17 * 17), dtype="bf16")
+
+    result = runtime.matmul(left, right)
+
+    assert result.shape == (17, 17)
+    assert result.dtype == "bf16"
+    assert result.data == (17.0,) * (17 * 17)
