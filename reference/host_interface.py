@@ -268,6 +268,20 @@ class CorelessHostInterface:
             )
         self._channels[capability] = channel
 
+    def required_channels(self, capabilities: frozenset[str] | set[str]) -> frozenset[str]:
+        """Return negotiated capabilities that still need an external channel."""
+        required = frozenset(capabilities)
+        missing = required - self._negotiated
+        if missing:
+            raise PermissionError(
+                f"capabilities were not negotiated: {sorted(missing)}"
+            )
+        return frozenset(capability for capability in required if capability not in self._channels)
+
+    def transport_ready(self, capabilities: frozenset[str] | set[str]) -> bool:
+        """Report whether all requested negotiated transports are bound."""
+        return not self.required_channels(capabilities)
+
     def channel(self, capability: str) -> object:
         """Return a bound external channel."""
         if capability not in self._channels:
