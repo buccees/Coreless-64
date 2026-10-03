@@ -12,6 +12,23 @@ Coreless-64 is the 64-bit Coreless architecture. The repository contains its dig
 
 Persistent storage is the authoritative carrier of machine state. The external environment is an I/O boundary, not the computational owner of Coreless.
 
+## Autonomous component architecture
+
+Coreless is also designed as a **composable computer made of autonomous Coreless components**.
+
+Each component is intended to be a complete Coreless unit rather than a passive peripheral. A component can carry its own execution, memory/storage, VM boundary, AI runtime/model, role specialization, and communication identity.
+
+Components therefore support two modes:
+
+- **Standalone:** a component can operate independently.
+- **Unified:** multiple components can connect through a Coreless Hub and form a larger Coreless computer.
+
+A component retains its identity and specialization when connected. Disconnecting it must leave it capable of independent operation, and reconnecting it must allow discovery and composition again.
+
+Per-component AI is part of this architecture. Models can specialize around the role of their component, with training/adaptation occurring inside the component VM where appropriate. Coreless architectural, VM, capability, and policy controls remain authoritative.
+
+The initial software boundary is implemented in `reference/components.py` and specified in `specification/component_architecture.md`.
+
 ## Current status
 
 **GREEN — GitHub Actions run #423 succeeded.**
@@ -32,16 +49,18 @@ The current implementation includes:
 - supported-shape native integer matrix execution
 - Transformer execution routed through TensorRuntime
 - native Qwen3 runtime foundations, tokenizer, KV cache, artifact validation and generation path
+- autonomous Coreless component identity, specialization, hub discovery, connect/disconnect, and composition metadata
 
 **Important:** green CI is not proof of live trained-model inference. Official trained Qwen3-0.6B end-to-end execution remains unvalidated.
 
 ## Next engineering checkpoint
 
 1. **Native Coreless execution boundary:** establish/stabilize a public architectural vector/matrix API and route supported Transformer operations through it.
-2. Validate a real official trained Qwen3-0.6B artifact with a minimal forward pass and short generation.
-3. Extend native model runtimes and bind validated model parts to live Coreless resources.
-4. Continue drivers, networking, GUI, remote display/input and application environment.
-5. Complete final ISA, persistence, capability, AI-control and end-to-end conformance audit.
+2. **Autonomous component foundation:** bind components to complete CorelessSystem instances, persist identity/specialization, and add VM/AI lifecycle ownership.
+3. Validate a real official trained Qwen3-0.6B artifact with a minimal forward pass and short generation.
+4. Extend native model runtimes and bind validated model parts to live Coreless resources.
+5. Continue drivers, networking, GUI, remote display/input and application environment.
+6. Complete final ISA, persistence, capability, AI-control and end-to-end conformance audit.
 
 ## 314DNest
 

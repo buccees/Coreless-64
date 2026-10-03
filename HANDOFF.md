@@ -19,6 +19,46 @@ The project has two connected layers:
 
 314DNest is not the Coreless CPU and is not a remote AI dependency. CPU, MMU, hypervisor, and architectural protection remain authoritative.
 
+## Autonomous component architecture
+
+Coreless now explicitly treats **autonomous, specialized, composable components** as a first-class architectural requirement.
+
+A component is intended to be a complete Coreless computer unit, not merely a peripheral. Its integrated boundary includes:
+
+- Coreless execution
+- local memory/storage
+- VM isolation
+- local AI runtime/model
+- role specialization
+- persistent identity
+- capability advertisement
+- component communication/discovery
+- health and fault isolation
+
+A component must be able to operate independently.
+
+A Coreless Hub is the composition boundary. It discovers components, records their identities and capabilities, connects/disconnects them, and aggregates their capabilities into a unified composition.
+
+The intended lifecycle is:
+
+**component → standalone operation**
+
+and:
+
+**component A + component B + component C → Coreless Hub → unified Coreless computer**
+
+Connecting components does not turn them into passive peripherals. Each component retains its own identity, specialization, AI, VM, and execution boundary.
+
+Per-component AI is intentional. A component can carry a role-specific model and use its VM as the controlled environment for training, adaptation, evaluation, and model updates. AI remains subject to deterministic Coreless CPU, VM, capability, and policy controls.
+
+The first software boundary is now implemented in:
+
+- `reference/components.py`
+- `reference/test_components.py`
+- `specification/component_architecture.md`
+
+This initial layer deliberately establishes identity, specialization, standalone state, hub discovery, connect/disconnect, and capability composition before introducing shared live execution state.
+
 ## Coreless-64 completed foundation
 
 - 64-bit architectural model
@@ -208,7 +248,7 @@ Priority:
 4. add focused regression tests
 5. batch related changes before CI
 
-### 2. Real trained Qwen3-0.6B execution
+### 3. Real trained Qwen3-0.6B execution
 
 After the native execution boundary is stable:
 
@@ -220,7 +260,7 @@ After the native execution boundary is stable:
 
 Do not mark live AI inference complete merely because CI is green.
 
-### 3. Additional native model runtimes
+### 4. Additional native model runtimes
 
 Extend the native-runtime architecture to:
 
@@ -231,7 +271,7 @@ Extend the native-runtime architecture to:
 
 Each model should retain its native architecture internally while using the common AI-Core coordination interface.
 
-### 4. Native Coreless operating environment
+### 5. Native Coreless operating environment
 
 Continue:
 
@@ -241,7 +281,7 @@ Continue:
 - remote display/input
 - application environment
 
-### 5. Scaling and compatibility
+### 6. Scaling and compatibility
 
 Continue:
 
@@ -255,7 +295,7 @@ Continue:
 - guest OSes
 - legacy virtualization
 
-### 6. Final integration/conformance
+### 7. Final integration/conformance
 
 Perform a final cross-layer audit covering:
 
@@ -290,6 +330,8 @@ Perform a final cross-layer audit covering:
 > **314DNest gives the computer a coordinated local intelligence layer without giving AI authority to bypass deterministic Coreless controls.**
 
 ## Resume point
+
+Continue the **native Coreless execution boundary** and the new **autonomous component/hub architecture** in parallel.
 
 **Green resume point: GitHub Actions run #423 — successful.**
 
