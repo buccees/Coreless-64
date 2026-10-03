@@ -151,18 +151,17 @@ def test_qwen3_real_forward_preserves_native_runtime_binding(monkeypatch, tmp_pa
 
     sentinel = object()
     runtime = FakeRuntime()
+    captured = {}
 
-    monkeypatch.setattr(
-        real_artifact,
-        "_load_real_artifact",
-        lambda directory, tensor_runtime=None: (
-            tmp_path,
-            runtime,
-            FakeTokenizer(),
-        ),
-    )
+    def fake_load(directory, tensor_runtime=None):
+        captured["tensor_runtime"] = tensor_runtime
+        return tmp_path, runtime, FakeTokenizer()
+
+    monkeypatch.setattr(real_artifact, "_load_real_artifact", fake_load)
 
     result = real_artifact.forward_real_artifact(tmp_path, "Hello", sentinel)
+
+    assert captured["tensor_runtime"] is sentinel
 
     assert result["model"] == "Qwen3-0.6B"
     assert result["input_tokens"] == 1
