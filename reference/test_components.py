@@ -1037,3 +1037,20 @@ def test_hub_checkpoint_rejects_failed_commit_verification():
     key = "machine/hub/hub-commit-verify/checkpoint"
     assert key not in first.machine.storage.objects
     assert key not in second.machine.storage.objects
+
+
+def test_component_executes_bound_vm_through_native_cpu():
+    from core import CorelessCPU
+    from virtualization import Hypervisor
+    h = Hypervisor(1)
+    vm = h.create_vm(1 << 16, 1)
+    cpu = CorelessCPU(memory_size=1 << 16)
+    h.bind_cpu(vm.vmid, cpu)
+    cpu.memory[0:4] = ((1 << 27) | (1 << 22) | 23).to_bytes(4, "little")
+    component = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"}), vm_id=str(vm.vmid)),
+        vm=vm,
+    )
+    h.run(vm.vmid)
+    assert component.execute_vm_steps(h) == 1
+    assert vm.vcpus[0].registers[1] == 23
