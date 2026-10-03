@@ -2,7 +2,7 @@
 
 ## Current checkpoint
 
-The current implementation checkpoint includes the complete reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, and Transformer → TensorRuntime routing.
+The current implementation checkpoint includes the complete reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, Transformer → TensorRuntime routing, autonomous Coreless components, Hub composition, coordinated persistence, and parallel Hub workload dispatch.
 
 ## Phase 1 — Architecture
 
@@ -51,7 +51,7 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [ ] GUI
 - [ ] Remote display/input
 - [ ] Plug-and-play host discovery and identity handshake
-- [ ] Host capability negotiation and attach/detach
+- [x] Host capability negotiation and attach/detach software contract
 - [ ] Application environment
 
 ## Phase 4 — Complete digital machine
@@ -62,6 +62,8 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Coordinated Hub checkpoint commit verification and failed-commit manifest rollback
 - [x] Resume from machine image
 - [x] Complete reference lifecycle through the digital execution engine
+- [x] Autonomous component execution boundary
+- [x] Hub workload routing and parallel dispatch
 
 ## Phase 5 — Portable Coreless machine
 
@@ -153,10 +155,10 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Identity/discovery requirements documented
 - [x] Capability negotiation requirements documented
 - [x] Component/hub composition boundary documented
-- [ ] `CorelessHostInterface` software contract
+- [x] CorelessHostInterface software contract
 - [ ] Cross-platform host enumeration
 - [ ] Display/input/network transport adapters
 
 ## Resume point
 
-**Next:** native Coreless execution boundary → autonomous component execution → plug-and-play host interface → real trained Qwen3-0.6B validation → live Coreless runtime/inference.
+**Next:** plug-and-play host enumeration/transport adapters → live autonomous component execution through native CPU/VM boundaries → trained Qwen3-0.6B validation → persistent-storage-hosted runtime → live Coreless inference.
