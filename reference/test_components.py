@@ -877,6 +877,54 @@ def test_hub_restore_preflights_all_manifests_before_restoring_any_component():
     assert second_system.restored == []
 
 
+def test_hub_checkpoint_rejects_manifest_change_after_durability_sync():
+    class MutatingStorage:
+        def __init__(self):
+            self.objects = {}
+            self.sync_count = 0
+
+        def put(self, key, value, sync=False):
+            self.objects[key] = bytes(value)
+
+        def sync(self):
+            self.sync_count += 1
+            if self.sync_count == 2:
+                self.objects["machine/hub/hub-durable/checkpoint"] = b"mutated"
+
+        def list_checkpoints(self):
+            return tuple(
+                key.split("/", 1)[1]
+                for key in self.objects
+                if key.startswith("checkpoint/")
+            )
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = MutatingStorage()
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = FakeMachine()
+
+        def checkpoint(self, name):
+            self.machine.storage.objects[f"checkpoint/{name}"] = b"checkpoint"
+
+    first = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=FakeSystem(),
+    )
+    second = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"vision"})),
+        system=FakeSystem(),
+    )
+    hub = CorelessHub("hub-durable")
+    hub.connect(first)
+    hub.connect(second)
+
+    with pytest.raises(RuntimeError, match="manifest changed after durability sync"):
+        hub.checkpoint("snapshot")
+
+
 def test_hub_checkpoint_rejects_failed_commit_verification():
     class FakeStorage:
         def __init__(self, corrupt=False):
