@@ -219,6 +219,35 @@ class CorelessHostInterface:
             raise RuntimeError("no Coreless Hub is bound")
         return self._hub.restore(name)
 
+    def hub_checkpoint_status(self) -> dict[str, object]:
+        """Expose coordinated checkpoint metadata through the host boundary."""
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        if "management" not in self._negotiated:
+            raise PermissionError("management capability was not negotiated")
+        if self._hub is None:
+            raise RuntimeError("no Coreless Hub is bound")
+
+        key = f"machine/hub/{self._hub.hub_id}/checkpoint"
+        components = []
+        for component in self._hub.components():
+            storage = getattr(
+                getattr(component.system, "machine", None), "storage", None
+            ) if component.system is not None else None
+            present = storage is not None and key in getattr(storage, "objects", {})
+            components.append(
+                {"component_id": component.component_id, "manifest_present": present}
+            )
+
+        return {
+            "hub_id": self._hub.hub_id,
+            "checkpoint_key": key,
+            "components": tuple(components),
+            "committed": bool(components) and all(
+                item["manifest_present"] for item in components
+            ),
+        }
+
     def shutdown_hub(self):
         """Shut down the unified Coreless Hub composition through the host boundary."""
         if not self._attached:
