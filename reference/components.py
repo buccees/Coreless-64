@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Callable, Mapping
 
 
 @dataclass(frozen=True)
@@ -37,6 +37,23 @@ class ComponentDescriptor:
         }
 
 
+@dataclass(frozen=True)
+class Workload:
+    """A deterministic unit of work dispatched to a specialized component."""
+
+    workload_id: str
+    capability: str
+    payload: object
+
+
+@dataclass(frozen=True)
+class WorkloadResult:
+    """Result returned by the component that executed a workload."""
+
+    workload_id: str
+    component_id: str
+    result: object
+
 class CorelessComponent:
     """A complete Coreless unit that can run independently or compose."""
 
@@ -50,6 +67,7 @@ class CorelessComponent:
         system: object | None = None,
         ai_runtime: object | None = None,
         vm: object | None = None,
+        workload_executor: Callable[[object], object] | None = None,
     ) -> None:
         if not descriptor.component_id:
             raise ValueError("component_id must not be empty")
@@ -59,6 +77,7 @@ class CorelessComponent:
         self.system = system
         self.ai_runtime = ai_runtime
         self.vm = vm
+        self.workload_executor = workload_executor
         self._hub_id: str | None = None
         self._healthy = True
         self._fault: str | None = None
@@ -281,6 +300,23 @@ class CorelessComponent:
         if self.vm is None:
             raise RuntimeError("component has no Coreless VM")
 
+
+    def execute_workload(self, workload: Workload) -> WorkloadResult:
+        """Execute one workload inside this component's local boundary."""
+        if not self.healthy:
+            raise RuntimeError("cannot execute workload on fault-isolated component")
+        if not self.descriptor.supports(workload.capability):
+            raise ValueError(
+                f"component does not support workload capability: {workload.capability}"
+            )
+        if self.workload_executor is None:
+            raise RuntimeError("component has no workload executor")
+        return WorkloadResult(
+            workload.workload_id,
+            self.component_id,
+            self.workload_executor(workload.payload),
+        )
+
     def status(self) -> dict[str, object]:
         return {
             "component": self.descriptor.to_dict(),
@@ -413,6 +449,31 @@ class CorelessHub:
             int(source.vm.vmid), source_vcpu, int(target.vm.vmid), target_vcpu,
             payload, capability=capability,
         )
+
+
+    def dispatch(self, workload: Workload) -> WorkloadResult:
+        """Dispatch work to a healthy component advertising the required capability."""
+        candidates = [
+            component
+            for component in self.components()
+            if component.healthy and component.descriptor.supports(workload.capability)
+        ]
+        if not candidates:
+            raise LookupError(
+                f"no healthy component provides capability: {workload.capability}"
+            )
+        for component in candidates:
+            if component.workload_executor is not None:
+                return component.execute_workload(workload)
+        raise RuntimeError(
+            f"no executor available for capability: {workload.capability}"
+        )
+
+    def dispatch_pipeline(
+        self, workloads: tuple[Workload, ...] | list[Workload]
+    ) -> tuple[WorkloadResult, ...]:
+        """Execute a workload pipeline across specialized components."""
+        return tuple(self.dispatch(workload) for workload in workloads)
 
     def composition(self) -> Mapping[str, object]:
         return {
