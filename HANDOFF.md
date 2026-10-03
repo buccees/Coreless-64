@@ -4,14 +4,6 @@
 
 **Status: green.** The repository is at a stable checkpoint with the Coreless-64 digital machine foundation, 314DNest control plane, persistent tensor runtime, and Transformer-to-tensor-runtime integration all passing CI.
 
-Latest confirmed GitHub Actions checkpoint:
-
-**Run #423 — successful/green**
-
-Latest commit:
-
-`aabd6c177d902b836aad85bda399a73df9fbd659` — **Complete Transformer tensor-runtime routing boundary**
-
 The project has two connected layers:
 
 1. **Coreless-64** — the 64-bit digital computer architecture and execution engine.
@@ -57,7 +49,7 @@ The first software boundary is now implemented in:
 - `reference/test_components.py`
 - `specification/component_architecture.md`
 
-This initial layer deliberately establishes identity, specialization, standalone state, hub discovery, connect/disconnect, and capability composition before introducing shared live execution state.
+This layer establishes identity, specialization, standalone state, hub discovery, connect/disconnect, capability composition, fault isolation, and deterministic workload dispatch.
 
 ## Coreless-64 completed foundation
 
@@ -344,3 +336,11 @@ Latest commit:
 Do not restart from the older Qwen3-only handoff. The tensor runtime and Transformer routing work described above is already in `main`.
 
 **Do not commit large model weights. Do not claim end-to-end trained-model inference until it has actually been executed and validated.**
+
+## Plug-and-play host interface
+
+The host interface is now a first-class architectural boundary. The host supplies only external services such as power/startup, display transport, keyboard/pointer/input transport, and network connectivity. Coreless remains responsible for CPU execution, memory, VM/OS execution, AI, persistent state, identity, policy, and component composition.
+
+Target lifecycle: **connect → discover → verify Coreless identity → advertise capabilities → negotiate → attach → boot/resume → operate → detach**.
+
+Normative design: `specification/host_interface.md`. Specification is complete; the software contract and cross-platform enumeration remain implementation work.
