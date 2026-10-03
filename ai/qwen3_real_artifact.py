@@ -60,6 +60,25 @@ def forward_real_artifact(
     }
 
 
+def native_cpu_tensor_runtime():
+    """Create the TensorRuntime bound to the native Coreless CPU."""
+    from core import CorelessCPU
+
+    return TensorRuntime(cpu=CorelessCPU())
+
+
+def forward_real_artifact_native_cpu(
+    model_directory: str | Path,
+    prompt: str,
+) -> dict[str, object]:
+    """Run one trained-weight forward pass through the native Coreless CPU."""
+    return forward_real_artifact(
+        model_directory,
+        prompt,
+        tensor_runtime=native_cpu_tensor_runtime(),
+    )
+
+
 def validate_real_artifact(model_directory: str | Path) -> dict[str, object]:
     """Validate the official model, storage layout, and native tokenizer."""
     _, runtime, tokenizer = _load_real_artifact(model_directory)
