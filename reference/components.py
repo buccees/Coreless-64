@@ -189,7 +189,41 @@ class CorelessComponent:
         self.system.boot()
         return self
 
+    def resume(self, init_path: str | None = None):
+        """Resume this component's persistent Coreless system."""
+        if self.system is None:
+            raise RuntimeError("component has no CorelessSystem")
+        self.persist_identity()
+        manifest = getattr(self.system, "boot_manifest", None)
+        path = init_path or str((manifest or {}).get("init", "/init"))
+        self.system.boot(path)
+        return self
+
+    def start_services(self) -> None:
+        """Start the component-local VM and AI services when they are bound."""
+        if self.vm is not None:
+            self.start_vm()
+        if self.ai_runtime is not None:
+            try:
+                self.start_ai()
+            except (RuntimeError, TypeError):
+                pass
+
+    def stop_services(self) -> None:
+        """Stop component-local AI and VM services without destroying identity."""
+        if self.ai_runtime is not None:
+            try:
+                self.stop_ai()
+            except (RuntimeError, TypeError):
+                pass
+        if self.vm is not None:
+            try:
+                self.stop_vm()
+            except (RuntimeError, TypeError):
+                pass
+
     def shutdown(self):
+        self.stop_services()
         if self.system is None:
             return None
         return self.system.shutdown()
@@ -450,6 +484,71 @@ class CorelessHub:
             payload, capability=capability,
         )
 
+
+    def boot(self, init_path: str = "/init") -> tuple[str, ...]:
+        """Boot all connected systems as one composed Coreless computer.
+
+        Components without a bound CorelessSystem remain autonomous and are
+        simply left untouched.
+        """
+        started: list[CorelessComponent] = []
+        try:
+            for component in self.components():
+                if not component.healthy or component.system is None:
+                    continue
+                component.boot(init_path)
+                component.start_services()
+                started.append(component)
+        except Exception:
+            for component in reversed(started):
+                try:
+                    component.shutdown()
+                except (RuntimeError, TypeError):
+                    pass
+            raise
+        return tuple(component.component_id for component in started)
+
+    def resume(self) -> tuple[str, ...]:
+        """Resume all connected persistent Coreless systems."""
+        resumed: list[CorelessComponent] = []
+        try:
+            for component in self.components():
+                if not component.healthy or component.system is None:
+                    continue
+                component.resume()
+                component.start_services()
+                resumed.append(component)
+        except Exception:
+            for component in reversed(resumed):
+                try:
+                    component.shutdown()
+                except (RuntimeError, TypeError):
+                    pass
+            raise
+        return tuple(component.component_id for component in resumed)
+
+    def shutdown(self) -> tuple[str, ...]:
+        """Shut down all connected systems while preserving the composition."""
+        stopped: list[str] = []
+        for component in reversed(self.components()):
+            if component.system is None:
+                continue
+            component.shutdown()
+            stopped.append(component.component_id)
+        return tuple(stopped)
+
+    def lifecycle_status(self) -> Mapping[str, object]:
+        """Report unified lifecycle state without collapsing component identity."""
+        return {
+            "hub_id": self.hub_id,
+            "booted_components": tuple(
+                component.component_id
+                for component in self.components()
+                if component.system is not None
+                and bool(getattr(component.system.machine, "booted", False))
+            ),
+            "component_count": len(self._components),
+        }
 
     def dispatch(self, workload: Workload) -> WorkloadResult:
         """Dispatch work to a healthy component advertising the required capability."""
