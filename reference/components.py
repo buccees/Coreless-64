@@ -345,6 +345,19 @@ class CorelessComponent:
             raise RuntimeError("component has no Coreless VM")
 
 
+    def execute_vm_steps(self, hypervisor: object, count: int = 1, vcpu_id: int = 0) -> int:
+        """Execute this component's bound VM through the native CPU boundary."""
+        if not self.healthy:
+            raise RuntimeError("cannot execute workload on fault-isolated component")
+        if self.vm is None:
+            raise RuntimeError("component has no Coreless VM")
+        vmid = getattr(self.vm, "vmid", None)
+        if vmid is None:
+            raise TypeError("bound VM has no vmid")
+        if getattr(hypervisor, "bound_cpu")(vmid, vcpu_id) is None:
+            raise RuntimeError("component VM vCPU has no bound native CPU")
+        return hypervisor.step(vmid, count=count, vcpu_id=vcpu_id)
+
     def execute_workload(self, workload: Workload) -> WorkloadResult:
         """Execute one workload inside this component's local boundary."""
         if not self.healthy:
