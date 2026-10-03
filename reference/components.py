@@ -559,6 +559,68 @@ class CorelessHub:
             "component_count": len(self._components),
         }
 
+    def checkpoint(self, name: str = "hub") -> Mapping[str, object]:
+        """Checkpoint every persistent component as one composed machine."""
+        targets = [
+            component for component in self.components()
+            if component.healthy and component.system is not None
+        ]
+        checkpoint_names = {
+            component.component_id: f"{name}-{component.component_id}"
+            for component in targets
+        }
+        manifest = {
+            "version": self.VERSION,
+            "hub_id": self.hub_id,
+            "components": tuple(component.component_id for component in self.components()),
+            "checkpoints": checkpoint_names,
+        }
+        results: dict[str, object] = {}
+        for component in targets:
+            component.persist_identity()
+            results[component.component_id] = component.system.checkpoint(
+                checkpoint_names[component.component_id]
+            )
+            storage = getattr(component.system.machine, "storage", None)
+            if storage is not None:
+                storage.put(
+                    f"machine/hub/{self.hub_id}/checkpoint",
+                    json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8"),
+                    sync=False,
+                )
+                sync = getattr(storage, "sync", None)
+                if callable(sync):
+                    sync()
+        return {"hub_id": self.hub_id, "checkpoints": results}
+
+    def restore(self, name: str = "hub") -> tuple[str, ...]:
+        """Restore every persistent component from a coordinated Hub checkpoint."""
+        restored: list[str] = []
+        for component in self.components():
+            if not component.healthy or component.system is None:
+                continue
+            storage = getattr(component.system.machine, "storage", None)
+            raw = (
+                storage.objects.get(f"machine/hub/{self.hub_id}/checkpoint")
+                if storage is not None else None
+            )
+            manifest = json.loads(raw.decode("utf-8")) if raw is not None else None
+            if manifest is not None:
+                if manifest.get("version") != self.VERSION or manifest.get("hub_id") != self.hub_id:
+                    raise ValueError("Coreless Hub checkpoint manifest mismatch")
+                expected = tuple(component.component_id for component in self.components())
+                if tuple(manifest.get("components", ())) != expected:
+                    raise ValueError("Coreless Hub component composition mismatch")
+                checkpoint_name = manifest.get("checkpoints", {}).get(component.component_id)
+            else:
+                checkpoint_name = f"{name}-{component.component_id}"
+            if not checkpoint_name:
+                raise KeyError(f"no Coreless Hub checkpoint for: {component.component_id}")
+            component.system.restore(checkpoint_name)
+            component.restore_identity()
+            restored.append(component.component_id)
+        return tuple(restored)
+
     def dispatch(self, workload: Workload) -> WorkloadResult:
         """Dispatch work to a healthy component advertising the required capability."""
         candidates = [
