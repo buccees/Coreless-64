@@ -553,6 +553,48 @@ def test_hub_checkpoint_rejects_missing_component_storage_before_snapshot():
 
 
 
+def test_hub_restore_rejects_corrupt_manifest_before_mutation():
+    class Storage:
+        def __init__(self):
+            self.objects = {}
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = type("Machine", (), {"storage": Storage()})()
+            self.restored = []
+
+        def restore(self, name):
+            self.restored.append(name)
+
+        def checkpoint(self, name):
+            return name
+
+    first = FakeSystem()
+    second = FakeSystem()
+    hub = CorelessHub("hub-corrupt-manifest")
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=first,
+    ))
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("mem-0", "memory", frozenset({"memory"})),
+        system=second,
+    ))
+    key = "machine/hub/hub-corrupt-manifest/checkpoint"
+    first.machine.storage.objects[key] = b"not-json"
+    second.machine.storage.objects[key] = b"not-json"
+
+    try:
+        hub.restore("snapshot")
+        assert False, "restore should reject corrupt manifest"
+    except ValueError as exc:
+        assert "invalid Coreless Hub checkpoint manifest" in str(exc)
+
+    assert first.restored == []
+    assert second.restored == []
+
+
+
 def test_hub_restore_rejects_missing_manifest_on_any_persistent_component():
     class FakeStorage:
         def __init__(self):
