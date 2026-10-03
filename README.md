@@ -43,6 +43,7 @@ The current implementation includes:
 - VM isolation, IPC, shared-memory capability control and hypervisor lifecycle
 - firmware, boot, reference OS/process/memory lifecycle
 - checkpoint/restore and machine resume
+- coordinated Hub checkpoint commit verification with failed-publication manifest rollback
 - 314DNest coordination, policy, capabilities, telemetry, audit and sessions
 - persistent Coreless TensorRuntime
 - native vector add/multiply and deterministic vector dot
