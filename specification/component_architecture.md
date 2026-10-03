@@ -105,7 +105,7 @@ implementation stages.
 
 1. Bind a component to a complete CorelessSystem instance.
 2. Persist component identity and specialization in the machine image.
-3. Give each component a VM lifecycle and AI-runtime lifecycle.
+3. Give each component explicit VM and AI-runtime lifecycle ownership, with AI specialization bounded by the component role and VM.
 4. Add hub IPC/resource channels and capability negotiation.
 5. Add fault isolation and hot-plug/rejoin semantics.
 6. Make a composed hub-backed system execute workloads across components.
