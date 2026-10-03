@@ -1,0 +1,45 @@
+"""Reference host enumeration and transport adapters for Coreless.
+
+These adapters model the host-side discovery/transport boundary without making
+the host responsible for Coreless computation.
+"""
+from __future__ import annotations
+from dataclasses import dataclass
+from typing import Iterable, Mapping
+from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
+
+@dataclass(frozen=True)
+class HostEndpoint:
+    endpoint_id: str
+    identity: CorelessIdentity
+    capabilities: HostCapabilities
+    channels: Mapping[str, object] = ()
+    def channel_map(self) -> dict[str, object]:
+        return dict(self.channels)
+
+class HostTransportAdapter:
+    def enumerate(self) -> tuple[HostEndpoint, ...]:
+        raise NotImplementedError
+    def connect(self, endpoint: HostEndpoint, interface: CorelessHostInterface) -> frozenset[str]:
+        negotiated = interface.attach(endpoint.identity, endpoint.capabilities)
+        for capability, channel in endpoint.channel_map().items():
+            if capability in negotiated:
+                interface.bind_channel(capability, channel)
+        return negotiated
+
+class MemoryHostTransportAdapter(HostTransportAdapter):
+    def __init__(self, endpoints: Iterable[HostEndpoint] = ()) -> None:
+        self._endpoints = {endpoint.endpoint_id: endpoint for endpoint in endpoints}
+    def register(self, endpoint: HostEndpoint) -> None:
+        if not endpoint.endpoint_id:
+            raise ValueError("endpoint_id must not be empty")
+        self._endpoints[endpoint.endpoint_id] = endpoint
+    def unregister(self, endpoint_id: str) -> None:
+        self._endpoints.pop(endpoint_id, None)
+    def enumerate(self) -> tuple[HostEndpoint, ...]:
+        return tuple(self._endpoints[key] for key in sorted(self._endpoints))
+    def connect(self, endpoint: HostEndpoint, interface: CorelessHostInterface) -> frozenset[str]:
+        current = self._endpoints.get(endpoint.endpoint_id)
+        if current is None or current != endpoint:
+            raise ValueError("unknown host endpoint")
+        return super().connect(current, interface)
