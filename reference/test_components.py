@@ -99,3 +99,25 @@ def test_component_cannot_be_claimed_by_two_hubs():
     first.connect(component)
     with pytest.raises(ValueError, match="already attached"):
         second.connect(component)
+
+
+def test_component_delegates_lifecycle_to_coreless_system():
+    class FakeSystem:
+        def __init__(self):
+            self.booted = False
+        def boot(self):
+            self.booted = True
+        def shutdown(self):
+            self.booted = False
+            return self
+
+    system = FakeSystem()
+    component = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=system,
+    )
+    component.boot()
+    assert system.booted
+    assert component.status()["system_integrated"] is True
+    component.shutdown()
+    assert not system.booted
