@@ -350,6 +350,36 @@ def test_hub_pipeline_distributes_each_stage_by_capability():
     ]
 
 
+def test_hub_dispatch_parallel_runs_independent_component_workloads():
+    from components import Workload
+
+    cpu = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        workload_executor=lambda payload: payload + 1,
+    )
+    vision = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"vision"})),
+        workload_executor=lambda payload: payload * 10,
+    )
+    hub = CorelessHub()
+    hub.connect(cpu)
+    hub.connect(vision)
+
+    results = hub.dispatch_parallel([
+        Workload("compute", "compute", 4),
+        Workload("vision", "vision", 3),
+    ])
+
+    assert [(result.component_id, result.result) for result in results] == [
+        ("cpu-0", 5),
+        ("vision-0", 30),
+    ]
+
+
+def test_hub_dispatch_parallel_preserves_empty_input():
+    assert CorelessHub().dispatch_parallel([]) == ()
+
+
 def test_faulted_component_is_excluded_from_workload_dispatch():
     from components import Workload
 
