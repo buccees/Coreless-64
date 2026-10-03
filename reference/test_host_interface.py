@@ -55,10 +55,7 @@ def test_host_interface_rejects_unnegotiated_channel():
 
 
 def test_host_interface_detach_preserves_identity_but_closes_channels():
-    interface = CorelessHostInterface(
-        CorelessIdentity("coreless-0"),
-        supported_capabilities={"display", "input", "network", "startup", "management"},
-    )
+    interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
     interface.attach(
         interface.discover(),
         HostCapabilities(display=True, input=True, startup=True),
@@ -241,7 +238,7 @@ def test_host_interface_coordinates_hub_checkpoint_and_restore():
     hub = CorelessHub("hub-0")
     hub.connect(component)
 
-    interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
+    interface = CorelessHostInterface(CorelessIdentity("coreless-0"), {"display", "input", "network", "startup", "management"})
     interface.attach(
         interface.discover(),
         HostCapabilities(startup=True, management=True),
