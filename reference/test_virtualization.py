@@ -172,3 +172,19 @@ def test_bound_cpu_initializes_from_vcpu_state():
     assert cpu.pc == 0x20
     assert cpu.sp == 0x8000
     assert cpu.privilege == 3
+
+
+def test_bound_cpu_can_be_resynchronized_from_vm_state():
+    from core import CorelessCPU
+    h = Hypervisor(1)
+    vm = h.create_vm(1 << 16, 1)
+    cpu = CorelessCPU(memory_size=1 << 16)
+    h.bind_cpu(vm.vmid, cpu)
+    h.set_vcpu_state(vm.vmid, 0, registers=[0, 17] + [0] * 30,
+                     pc=0x40, sp=0x9000, privilege=2, halted=True)
+    h.sync_cpu(vm.vmid)
+    assert cpu.r[1] == 17
+    assert cpu.pc == 0x40
+    assert cpu.sp == 0x9000
+    assert cpu.privilege == 2
+    assert cpu.halted is True

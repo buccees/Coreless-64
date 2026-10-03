@@ -78,6 +78,30 @@ class Hypervisor:
         vcpu.privilege = int(vm.cpu.privilege)
         vcpu.halted = bool(vm.cpu.halted)
 
+    def sync_vcpu(self, vmid, vcpu_id=0):
+        """Synchronize a bound native CPU into its VM vCPU state."""
+        vm = self.vms[vmid]
+        if not 0 <= vcpu_id < len(vm.vcpus):
+            raise ValueError("invalid vCPU")
+        self._sync_bound_cpu(vm, vcpu_id)
+        return self.snapshot_vcpu(vmid, vcpu_id)
+
+    def sync_cpu(self, vmid, vcpu_id=0):
+        """Synchronize VM vCPU state back into its bound native CPU."""
+        vm = self.vms[vmid]
+        if vm.cpu is None:
+            raise RuntimeError("VM has no bound native CPU")
+        if not 0 <= vcpu_id < len(vm.vcpus):
+            raise ValueError("invalid vCPU")
+        vcpu = vm.vcpus[vcpu_id]
+        vm.cpu.r[:] = vcpu.registers
+        vm.cpu.r[0] = 0
+        vm.cpu.pc = vcpu.pc
+        vm.cpu.sp = vcpu.sp
+        vm.cpu.privilege = vcpu.privilege
+        vm.cpu.halted = vcpu.halted
+        return vm.cpu
+
     def step(self, vmid, count=1, vcpu_id=0):
         """Retire instructions through the VM's bound native Coreless CPU."""
         vm = self.vms[vmid]
