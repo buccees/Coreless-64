@@ -576,6 +576,19 @@ class CorelessHub:
             "checkpoints": checkpoint_names,
         }
         results: dict[str, object] = {}
+        # A coordinated checkpoint requires every persistent component to
+        # have a writable storage object before any machine state is captured.
+        # This prevents a successful snapshot from being published without a
+        # Hub commit record on one of the participating components.
+        checkpoint_key = f"machine/hub/{self.hub_id}/checkpoint"
+        for component in targets:
+            storage = getattr(component.system.machine, "storage", None)
+            if storage is None or not hasattr(storage, "put"):
+                raise RuntimeError(
+                    f"component has no writable persistent storage: "
+                    f"{component.component_id}"
+                )
+
         # Snapshot all component systems first.  The Hub manifest is the
         # commit record: publish it only after every component checkpoint
         # succeeds so a partial checkpoint cannot appear coordinated.
