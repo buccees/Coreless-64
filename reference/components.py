@@ -7,6 +7,7 @@ Hub without becoming a passive peripheral.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Mapping
 
@@ -83,9 +84,52 @@ class CorelessComponent:
             raise ValueError("component is not attached to this hub")
         self._hub_id = None
 
+    @property
+    def persistence_key(self) -> str:
+        return f"{self.COMPONENT_OBJECT_PREFIX}{self.component_id}"
+
+    def persist_identity(self) -> None:
+        """Persist identity and specialization in the component machine image."""
+        if self.system is None:
+            raise RuntimeError("component has no CorelessSystem")
+        payload = {
+            "version": self.VERSION,
+            "descriptor": self.descriptor.to_dict(),
+        }
+        self.system.machine.storage.put(
+            self.persistence_key,
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8"),
+            sync=False,
+        )
+
+    def restore_identity(self) -> ComponentDescriptor:
+        """Restore and validate this component's persisted identity."""
+        if self.system is None:
+            raise RuntimeError("component has no CorelessSystem")
+        raw = self.system.machine.storage.objects.get(self.persistence_key)
+        if raw is None:
+            raise KeyError(f"no persisted identity: {self.component_id}")
+        payload = json.loads(raw.decode("utf-8"))
+        if payload.get("version") != self.VERSION:
+            raise ValueError("unsupported Coreless component manifest version")
+        descriptor = payload.get("descriptor")
+        if not isinstance(descriptor, dict):
+            raise ValueError("invalid Coreless component descriptor")
+        if descriptor.get("component_id") != self.component_id:
+            raise ValueError("persisted component identity mismatch")
+        return ComponentDescriptor(
+            component_id=descriptor["component_id"],
+            role=descriptor["role"],
+            capabilities=frozenset(descriptor["capabilities"]),
+            ai_model_id=descriptor.get("ai_model_id"),
+            vm_id=descriptor.get("vm_id"),
+            version=descriptor["version"],
+        )
+
     def boot(self):
         if self.system is None:
             raise RuntimeError("component has no CorelessSystem")
+        self.persist_identity()
         self.system.boot()
         return self
 
@@ -111,6 +155,7 @@ class CorelessHub:
     """Discovery and composition boundary for autonomous Coreless components."""
 
     VERSION = 1
+    COMPONENT_OBJECT_PREFIX = "machine/components/"
 
     def __init__(self, hub_id: str = "coreless-hub-0") -> None:
         if not hub_id:
