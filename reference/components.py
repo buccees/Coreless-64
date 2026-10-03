@@ -645,16 +645,32 @@ class CorelessHub:
                     f"no committed Coreless Hub checkpoint for: {component.component_id}"
                 )
             if manifest is not None:
+                if not isinstance(manifest, dict):
+                    raise ValueError("Coreless Hub checkpoint manifest must be an object")
                 if (
                     manifest.get("version") != self.VERSION
                     or manifest.get("hub_id") != self.hub_id
                 ):
                     raise ValueError("Coreless Hub checkpoint manifest mismatch")
-                if tuple(manifest.get("components", ())) != expected:
+
+                manifest_components = manifest.get("components")
+                checkpoints = manifest.get("checkpoints")
+                if (
+                    not isinstance(manifest_components, (list, tuple))
+                    or not all(isinstance(item, str) for item in manifest_components)
+                ):
+                    raise ValueError("invalid Coreless Hub component manifest")
+                if tuple(manifest_components) != expected:
                     raise ValueError("Coreless Hub component composition mismatch")
-                checkpoint_name = manifest.get("checkpoints", {}).get(
-                    component.component_id
-                )
+                if (
+                    not isinstance(checkpoints, dict)
+                    or not all(
+                        isinstance(key, str) and isinstance(value, str)
+                        for key, value in checkpoints.items()
+                    )
+                ):
+                    raise ValueError("invalid Coreless Hub checkpoint map")
+                checkpoint_name = checkpoints.get(component.component_id)
             else:
                 checkpoint_name = f"{name}-{component.component_id}"
             if not checkpoint_name:
