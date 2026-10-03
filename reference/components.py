@@ -620,7 +620,8 @@ class CorelessHub:
             component for component in self.components()
             if component.healthy and component.system is not None
         ]
-        expected = tuple(component.component_id for component in targets)
+        expected = tuple(component.component_id for component in self.components())
+        expected_checkpoints = {component.component_id for component in targets}
         plans: list[tuple[CorelessComponent, str]] = []
         # Validate every manifest and checkpoint name before mutating any
         # component, preventing a malformed peer from causing a partial restore.
@@ -670,7 +671,7 @@ class CorelessHub:
                     )
                 ):
                     raise ValueError("invalid Coreless Hub checkpoint map")
-                if set(checkpoints) != set(expected):
+                if set(checkpoints) != expected_checkpoints:
                     raise ValueError("Coreless Hub checkpoint coverage mismatch")
                 checkpoint_name = checkpoints.get(component.component_id)
             else:
