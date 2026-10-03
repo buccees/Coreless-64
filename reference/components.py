@@ -538,7 +538,8 @@ class CorelessHub:
                 if component.system is not None:
                     component.boot(init_path)
                 component.start_services()
-                started.append(component)
+                if component.system is not None:
+                    started.append(component)
         except Exception:
             for component in reversed(started):
                 try:
@@ -558,7 +559,8 @@ class CorelessHub:
                 if component.system is not None:
                     component.resume()
                 component.start_services()
-                resumed.append(component)
+                if component.system is not None:
+                    resumed.append(component)
         except Exception:
             for component in reversed(resumed):
                 try:
@@ -576,6 +578,7 @@ class CorelessHub:
                 component.shutdown()
             elif component.vm is not None or component.ai_runtime is not None:
                 component.stop_services()
+                continue
             else:
                 continue
             stopped.append(component.component_id)
