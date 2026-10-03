@@ -219,3 +219,20 @@ def test_bound_cpu_can_be_resynchronized_from_vm_state():
     assert cpu.sp == 0x9000
     assert cpu.privilege == 2
     assert cpu.halted is True
+
+
+def test_multi_vcpu_round_robin_scheduler_runs_each_bound_cpu():
+    from core import CorelessCPU
+    h = Hypervisor(2)
+    vm = h.create_vm(1 << 16, 2)
+    cpu0 = CorelessCPU(memory_size=1 << 16)
+    cpu1 = CorelessCPU(memory_size=1 << 16, memory=cpu0.memory)
+    h.bind_cpu(vm.vmid, cpu0, 0)
+    h.bind_cpu(vm.vmid, cpu1, 1)
+    cpu0.memory[0:4] = ((1 << 27) | (1 << 22) | 11).to_bytes(4, "little")
+    cpu1.memory[4:8] = ((1 << 27) | (2 << 22) | 13).to_bytes(4, "little")
+    cpu1.pc = 4
+    h.run(vm.vmid)
+    assert h.schedule(vm.vmid, rounds=1) == 2
+    assert h.snapshot_vcpu(vm.vmid, 0)["registers"][1] == 11
+    assert h.snapshot_vcpu(vm.vmid, 1)["registers"][2] == 13
