@@ -618,6 +618,10 @@ class CorelessHub:
                 if storage is not None else None
             )
             manifest = json.loads(raw.decode("utf-8")) if raw is not None else None
+            if manifest is None:
+                raise KeyError(
+                    f"no committed Coreless Hub checkpoint for: {component.component_id}"
+                )
             if manifest is not None:
                 if (
                     manifest.get("version") != self.VERSION
