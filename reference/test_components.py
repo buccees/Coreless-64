@@ -1056,6 +1056,27 @@ def test_component_executes_bound_vm_through_native_cpu():
     assert vm.vcpus[0].registers[1] == 23
 
 
+def test_component_can_execute_vm_through_its_unified_hub():
+    from core import CorelessCPU
+    from virtualization import Hypervisor
+
+    hypervisor = Hypervisor(1)
+    vm = hypervisor.create_vm(1 << 16, 1)
+    cpu = CorelessCPU(memory_size=1 << 16)
+    hypervisor.bind_cpu(vm.vmid, cpu)
+    cpu.memory[0:4] = ((1 << 27) | (1 << 22) | 31).to_bytes(4, "little")
+    component = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"}), vm_id=str(vm.vmid)),
+        vm=vm,
+    )
+    hub = CorelessHub("hub-exec", hypervisor=hypervisor)
+    hub.connect(component)
+    hypervisor.run(vm.vmid)
+
+    assert component.execute_hub_vm_steps(hub) == 1
+    assert vm.vcpus[0].registers[1] == 31
+
+
 def test_component_can_execute_through_its_unified_hub():
     component = CorelessComponent(
         ComponentDescriptor("vision-0", "vision", frozenset({"image_processing"})),
