@@ -50,7 +50,35 @@ class Hypervisor:
         vm.running=True
         return vm
 
-    def step(self, vmid, count=1):
+    def bind_cpu(self, vmid, cpu, vcpu_id=0):
+        """Bind a native Coreless CPU to one VM vCPU."""
+        vm = self.vms[vmid]
+        vcpu = self._vcpu(vmid, vcpu_id)
+        if cpu is None or not hasattr(cpu, "step"):
+            raise TypeError("VM CPU must provide a step() method")
+        if len(cpu.r) != 32:
+            raise ValueError("Coreless CPU requires 32 registers")
+        vm.cpu = cpu
+        cpu.r[:] = vcpu.registers
+        cpu.r[0] = 0
+        cpu.pc = vcpu.pc
+        cpu.sp = vcpu.sp
+        cpu.privilege = vcpu.privilege
+        cpu.halted = vcpu.halted
+        return cpu
+
+    def _sync_bound_cpu(self, vm, vcpu_id=0):
+        if vm.cpu is None:
+            return
+        vcpu = vm.vcpus[vcpu_id]
+        vcpu.registers = [int(x) & ((1 << 64) - 1) for x in vm.cpu.r]
+        vcpu.registers[0] = 0
+        vcpu.pc = int(vm.cpu.pc) & ((1 << 64) - 1)
+        vcpu.sp = int(vm.cpu.sp) & ((1 << 64) - 1)
+        vcpu.privilege = int(vm.cpu.privilege)
+        vcpu.halted = bool(vm.cpu.halted)
+
+    def step(self, vmid, count=1, vcpu_id=0):
         """Retire instructions through the VM's bound native Coreless CPU."""
         vm = self.vms[vmid]
         if count < 1:
@@ -60,11 +88,14 @@ class Hypervisor:
         if not vm.running:
             raise RuntimeError("VM is not running")
         retired = 0
+        if not 0 <= vcpu_id < len(vm.vcpus):
+            raise ValueError("invalid vCPU")
         for _ in range(count):
             if vm.cpu.halted:
                 break
             vm.cpu.step()
             retired += 1
+            self._sync_bound_cpu(vm, vcpu_id)
         if vm.cpu.halted:
             vm.running = False
         return retired

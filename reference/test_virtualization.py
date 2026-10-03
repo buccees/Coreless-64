@@ -145,3 +145,30 @@ def test_vm_instruction_dispatches_to_hypervisor_handler():
     assert cpu.step()
     assert seen == [("VM_SEND", 3, 1, 2, 7, 9)]
     assert cpu.r[3] == 0x55
+
+
+def test_bound_native_cpu_retires_and_syncs_vcpu_state():
+    from core import CorelessCPU
+    h = Hypervisor(1)
+    vm = h.create_vm(1 << 16, 1)
+    cpu = CorelessCPU(memory_size=1 << 16)
+    h.bind_cpu(vm.vmid, cpu)
+    cpu.memory[0:4] = ((1 << 27) | (1 << 22) | 5).to_bytes(4, "little")
+    h.run(vm.vmid)
+    assert h.step(vm.vmid) == 1
+    assert h.snapshot_vcpu(vm.vmid, 0)["registers"][1] == 5
+    assert h.snapshot_vcpu(vm.vmid, 0)["pc"] == 4
+
+
+def test_bound_cpu_initializes_from_vcpu_state():
+    from core import CorelessCPU
+    h = Hypervisor(1)
+    vm = h.create_vm(1 << 16, 1)
+    h.set_vcpu_state(vm.vmid, 0, registers=[0, 9] + [0] * 30,
+                     pc=0x20, sp=0x8000, privilege=3, halted=False)
+    cpu = CorelessCPU(memory_size=1 << 16)
+    h.bind_cpu(vm.vmid, cpu)
+    assert cpu.r[1] == 9
+    assert cpu.pc == 0x20
+    assert cpu.sp == 0x8000
+    assert cpu.privilege == 3
