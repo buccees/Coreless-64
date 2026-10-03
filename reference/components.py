@@ -620,7 +620,7 @@ class CorelessHub:
             component for component in self.components()
             if component.healthy and component.system is not None
         ]
-        expected = tuple(component.component_id for component in self.components())
+        expected = tuple(component.component_id for component in targets)
         plans: list[tuple[CorelessComponent, str]] = []
         # Validate every manifest and checkpoint name before mutating any
         # component, preventing a malformed peer from causing a partial restore.
