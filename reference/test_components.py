@@ -247,3 +247,58 @@ def test_hub_negotiates_capabilities_and_opens_ipc():
     hub.close_ipc("cpu-0", "vision-0")
     with pytest.raises(PermissionError, match="not been negotiated"):
         hub.send_ipc("cpu-0", "vision-0", b"again")
+
+
+def test_hub_fault_isolates_component_and_revokes_ipc():
+    from virtualization import Hypervisor
+
+    hypervisor = Hypervisor(2)
+    source_vm = hypervisor.create_vm(1 << 20, 1)
+    target_vm = hypervisor.create_vm(1 << 20, 1)
+    hub = CorelessHub(hypervisor=hypervisor)
+    source = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"ipc"})),
+        vm=source_vm,
+    )
+    target = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"ipc"})),
+        vm=target_vm,
+    )
+    hub.connect(source)
+    hub.connect(target)
+    hub.open_ipc("cpu-0", "vision-0", {"ipc"})
+
+    isolated = hub.isolate("vision-0", "vm fault")
+    assert isolated is target
+    assert target.healthy is False
+    assert target.fault == "vm fault"
+    assert target.standalone
+    assert "vision-0" not in {c.component_id for c in hub.components()}
+    with pytest.raises(PermissionError, match="not been negotiated"):
+        hub.send_ipc("cpu-0", "vision-0", b"blocked")
+
+
+def test_faulted_component_can_recover_and_rejoin():
+    hub = CorelessHub()
+    component = CorelessComponent(
+        ComponentDescriptor("storage-0", "storage", frozenset({"storage"}))
+    )
+    hub.connect(component)
+    hub.isolate("storage-0", "storage fault")
+    assert component.healthy is False
+
+    hub.rejoin(component)
+    assert component.healthy is True
+    assert component.fault is None
+    assert component.hub_id == hub.hub_id
+    assert hub.component("storage-0") is component
+
+
+def test_faulted_component_cannot_hot_plug_until_recovered():
+    hub = CorelessHub()
+    component = CorelessComponent(
+        ComponentDescriptor("network-0", "networking", frozenset({"network"}))
+    )
+    component.isolate("link failure")
+    with pytest.raises(RuntimeError, match="fault-isolated"):
+        hub.connect(component)
