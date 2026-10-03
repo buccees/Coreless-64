@@ -40,6 +40,9 @@ class ComponentDescriptor:
 class CorelessComponent:
     """A complete Coreless unit that can run independently or compose."""
 
+    VERSION = 1
+    COMPONENT_OBJECT_PREFIX = "machine/components/"
+
     def __init__(
         self,
         descriptor: ComponentDescriptor,
@@ -155,7 +158,6 @@ class CorelessHub:
     """Discovery and composition boundary for autonomous Coreless components."""
 
     VERSION = 1
-    COMPONENT_OBJECT_PREFIX = "machine/components/"
 
     def __init__(self, hub_id: str = "coreless-hub-0") -> None:
         if not hub_id:
