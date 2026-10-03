@@ -513,6 +513,46 @@ def test_hub_checkpoint_does_not_publish_manifest_when_component_checkpoint_fail
     assert second_system.machine.storage.sync_count == 0
 
 
+def test_hub_checkpoint_rejects_missing_component_storage_before_snapshot():
+    class FakeSystem:
+        def __init__(self, storage):
+            self.machine = type("Machine", (), {"storage": storage})()
+            self.checkpoints = []
+
+        def checkpoint(self, name):
+            self.checkpoints.append(name)
+            return name
+
+    class Storage:
+        def __init__(self):
+            self.objects = {}
+
+        def put(self, key, value, sync=False):
+            self.objects[key] = bytes(value)
+
+    first = FakeSystem(Storage())
+    second = FakeSystem(None)
+    hub = CorelessHub("hub-preflight-storage")
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=first,
+    ))
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("mem-0", "memory", frozenset({"memory"})),
+        system=second,
+    ))
+
+    try:
+        hub.checkpoint("snapshot")
+        assert False, "checkpoint should reject missing persistent storage"
+    except RuntimeError as exc:
+        assert "mem-0" in str(exc)
+
+    assert first.checkpoints == []
+    assert first.machine.storage.objects == {}
+
+
+
 def test_hub_restore_rejects_missing_manifest_on_any_persistent_component():
     class FakeStorage:
         def __init__(self):
