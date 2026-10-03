@@ -20,6 +20,16 @@ Coreless-64 defines architectural behavior independently of physical implementat
 A reference software executor is a validation implementation, not a required execution mechanism for native Coreless hardware. Native implementations may use CPUs, FPGA fabrics, ASICs, heterogeneous accelerators, storage-integrated execution substrates, or future computational mechanisms while conforming to the same Coreless-64 architectural contract.
 
 
+## External host and plug-and-play boundary
+
+The Coreless computer has a deliberately narrow external boundary. A host may provide power/startup and transport for display, keyboard/pointer/input, networking, and other explicitly negotiated I/O.
+
+The host is not the Coreless computational owner. Host CPU execution, host system RAM, host operating-system execution, host virtualization, and host AI computation are not architectural dependencies of Coreless.
+
+Coreless components may connect through a Coreless Hub and form a unified computer while retaining autonomous execution, VM, AI, identity, and specialization boundaries.
+
+The normative plug-and-play host contract is defined in [Host Interface](host_interface.md).
+
 ## Security Architecture
 
 Security is part of the architectural machine model.
