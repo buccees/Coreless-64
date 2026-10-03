@@ -190,3 +190,33 @@ def test_component_owns_bound_vm_lifecycle():
     assert vm.vcpus[0].registers[1] == 0
     assert vm.vcpus[0].pc == 0
     assert component.vm_status()["running"] is False
+
+def test_component_owns_ai_runtime_lifecycle_and_vm_boundary():
+    class FakeAI:
+        def __init__(self):
+            self.running = False
+        def start(self):
+            self.running = True
+        def stop(self):
+            self.running = False
+
+    component = CorelessComponent(
+        ComponentDescriptor(
+            "cpu-0",
+            "cpu-intelligence",
+            frozenset({"inference"}),
+            ai_model_id="qwen3-0.6b",
+            vm_id="cpu-ai-vm",
+        ),
+        ai_runtime=FakeAI(),
+        vm=object(),
+    )
+
+    assert component.ai_status()["running"] is False
+    component.start_ai()
+    assert component.ai_status()["running"] is True
+    assert component.ai_status()["model_id"] == "qwen3-0.6b"
+    assert component.ai_status()["role"] == "cpu-intelligence"
+    component.require_ai_vm()
+    component.stop_ai()
+    assert component.ai_status()["running"] is False
