@@ -11,6 +11,7 @@ from typing import Mapping, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from system import CorelessSystem
+    from components import CorelessHub
 
 
 @dataclass(frozen=True)
@@ -73,6 +74,7 @@ class CorelessHostInterface:
         self._attached = False
         self._channels: dict[str, object] = {}
         self._system: CorelessSystem | None = None
+        self._hub: CorelessHub | None = None
 
     @property
     def attached(self) -> bool:
@@ -130,6 +132,28 @@ class CorelessHostInterface:
     @property
     def system(self) -> CorelessSystem | None:
         return self._system
+
+    @property
+    def hub(self) -> CorelessHub | None:
+        return self._hub
+
+    def attach_hub(self, hub: CorelessHub) -> None:
+        """Bind the host boundary to a Coreless Hub composition."""
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        self._hub = hub
+
+    def hub_components(self) -> tuple[object, ...]:
+        """Return the currently composed autonomous Coreless components."""
+        if self._hub is None:
+            raise RuntimeError("no Coreless Hub is bound")
+        return self._hub.components()
+
+    def hub_capabilities(self) -> frozenset[str]:
+        """Return the capabilities advertised by the unified Coreless system."""
+        if self._hub is None:
+            raise RuntimeError("no Coreless Hub is bound")
+        return self._hub.capabilities()
 
     def attach_system(self, system: CorelessSystem) -> None:
         """Bind an already attached host to a persistent Coreless system."""
@@ -194,4 +218,7 @@ class CorelessHostInterface:
             "channels": tuple(sorted(self._channels)),
             "system_bound": self._system is not None,
             "system_booted": bool(self._system and self._system.machine.booted),
+            "hub_bound": self._hub is not None,
+            "hub_component_count": len(self._hub.components()) if self._hub else 0,
+            "hub_capabilities": tuple(sorted(self._hub.capabilities())) if self._hub else (),
         }
