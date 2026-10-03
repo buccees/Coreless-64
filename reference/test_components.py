@@ -102,8 +102,17 @@ def test_component_cannot_be_claimed_by_two_hubs():
 
 
 def test_component_delegates_lifecycle_to_coreless_system():
+    class FakeStorage:
+        def put(self, key, value, sync=False):
+            pass
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = FakeStorage()
+
     class FakeSystem:
         def __init__(self):
+            self.machine = FakeMachine()
             self.booted = False
         def boot(self):
             self.booted = True
