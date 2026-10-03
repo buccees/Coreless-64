@@ -94,3 +94,10 @@ Coreless devices are discovered through a capability table rooted at CAP_BASE. E
 | 0x38 | 8 | implementation/extension pointer |
 
 A zero device type terminates the table. Unknown nonzero device types are skipped using the fixed record size. Resource ranges must be aligned and non-overlapping within their declared address domain. Device capability bits are self-describing; unsupported optional features must not be assumed.
+## Host interface device boundary
+
+Host-provided transport is an external interface to Coreless devices, not the definition of those devices.
+
+A host connection may transport display output, input events, network packets, startup/power control, and other explicitly negotiated device events. Coreless owns architectural device state, permissions, queues, interrupts, DMA domains, and resource semantics.
+
+The host transport MUST NOT silently substitute host computation for Coreless execution. See [Host Interface](host_interface.md).
