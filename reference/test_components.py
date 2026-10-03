@@ -362,3 +362,36 @@ def test_faulted_component_is_excluded_from_workload_dispatch():
 
     with pytest.raises(LookupError, match="no healthy component"):
         hub.dispatch(Workload("w1", "vision", "frame"))
+
+
+def test_hub_coordinates_boot_and_shutdown_without_breaking_standalone_components():
+    class FakeSystem:
+        def __init__(self):
+            self.machine = type("Machine", (), {"booted": False})()
+            self.boot_manifest = None
+        def boot(self, init_path="/init"):
+            self.machine.booted = True
+            self.boot_manifest = {"init": init_path}
+        def shutdown(self):
+            self.machine.booted = False
+            return self
+
+    system_component = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+        system=FakeSystem(),
+    )
+    standalone = CorelessComponent(
+        ComponentDescriptor("vision-0", "vision", frozenset({"vision"})),
+    )
+    hub = CorelessHub()
+    hub.connect(system_component)
+    hub.connect(standalone)
+
+    assert hub.boot("/coreless-init") == ("cpu-0",)
+    assert system_component.system.machine.booted is True
+    assert standalone.standalone is False
+    assert hub.lifecycle_status()["booted_components"] == ("cpu-0",)
+
+    assert hub.shutdown() == ("cpu-0",)
+    assert system_component.system.machine.booted is False
+    assert hub.components() == (system_component, standalone)
