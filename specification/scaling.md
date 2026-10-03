@@ -119,3 +119,11 @@ Persistent storage capacity determines how much machine state, software, model d
 Execution throughput is determined by the available computational fabric. A native implementation may co-locate execution resources with storage or attach them through a dedicated interconnect.
 
 This separation preserves the Coreless principle that persistent machine state and computational execution are distinct architectural resources.
+
+## Component scaling and composition
+
+Coreless scaling also applies to autonomous computer components. Each component is a complete Coreless unit with its own execution, memory/storage, VM, AI, identity, and capabilities. Components may operate independently or connect to a Coreless Hub.
+
+The Hub discovers specialized capabilities and routes workloads to healthy components that advertise the required capability. Adding components can increase specialized capability without changing the Coreless-64 ISA.
+
+A host interface may expose a composed Coreless computer without becoming its computational owner.
