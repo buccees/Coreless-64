@@ -127,3 +127,44 @@ def test_qwen3_greedy_generation_uses_kv_cache(tmp_path):
     generated = runtime.generate_greedy([1], max_new_tokens=2)
 
     assert generated == [1, 0, 0]
+
+
+def test_qwen3_real_forward_preserves_native_runtime_binding(monkeypatch, tmp_path):
+    import qwen3_real_artifact as real_artifact
+
+    class FakeTokenizer:
+        def encode(self, text):
+            return [1]
+
+    class FakeLogits:
+        shape = (1, 4)
+        data = (0.1, 0.2, 0.9, 0.3)
+
+    class FakeRuntime:
+        config = type("Config", (), {"vocab_size": 4})()
+
+        def __init__(self):
+            self.tensor_runtime = object()
+
+        def forward(self, token_ids):
+            return FakeLogits()
+
+    sentinel = object()
+    runtime = FakeRuntime()
+
+    monkeypatch.setattr(
+        real_artifact,
+        "_load_real_artifact",
+        lambda directory, tensor_runtime=None: (
+            tmp_path,
+            runtime,
+            FakeTokenizer(),
+        ),
+    )
+
+    result = real_artifact.forward_real_artifact(tmp_path, "Hello", sentinel)
+
+    assert result["model"] == "Qwen3-0.6B"
+    assert result["input_tokens"] == 1
+    assert result["logit_shape"] == (1, 4)
+    assert result["next_token_id"] == 2
