@@ -58,3 +58,20 @@ def test_camera_cycle_still_works_without_perception_provider():
     assert result.priority == ()
     assert result.attention == ()
     assert result.presentation is not None
+
+
+def test_camera_cycle_records_complete_derived_pipeline_in_replay():
+    environment = VigilEnvironment(enabled=True, camera=FakeCamera())
+    environment.run_camera_cycle(
+        provider=Provider(),
+        priority_context=PriorityContext(100, reference_position=(0.0, 0.0, 0.0)),
+    )
+    kinds = tuple(event.kind for event in environment.replay.replay())
+    assert kinds == (
+        "camera.frame",
+        "camera.perception",
+        "world.state",
+        "vigil.priority",
+        "vigil.attention",
+        "vigil.presentation",
+    )
