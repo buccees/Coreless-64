@@ -41,7 +41,6 @@ class InteractionResponse:
     provenance: EventProvenance | None = None
 
 
-
 class VoiceInputSource(Protocol):
     """Optional Coreless-owned voice transport/transcription boundary."""
     def available(self) -> bool:
@@ -59,7 +58,7 @@ class VoiceInput:
         if not self.text.strip():
             raise ValueError("voice input text must not be empty")
         if self.timestamp_ns < 0:
-            raise ValueError("timestamp_ns must be non-negative")
+            raise ValueError("voice input timestamp_ns must be non-negative")
 
 
 class HumanInteractionService:
@@ -74,3 +73,14 @@ class HumanInteractionService:
         self.remember(request.text)
         self.remember(answer)
         return InteractionResponse(request.request_id, answer, grounded, timestamp_ns, source_entity_ids, provenance=provenance)
+
+    def persistent_state(self) -> dict[str, object]:
+        return {"version": 1, "context": list(self._context)}
+
+    def restore_state(self, state: object) -> None:
+        if not isinstance(state, Mapping) or state.get("version") != 1:
+            raise ValueError("unsupported interaction state version")
+        context = state.get("context", [])
+        if not isinstance(context, list) or not all(isinstance(item, str) for item in context):
+            raise ValueError("interaction context must be a list of strings")
+        self._context = list(context)
