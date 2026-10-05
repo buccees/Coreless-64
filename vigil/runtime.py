@@ -20,6 +20,7 @@ from .perception import CameraPerceptionProvider, PerceptionPipeline, Perception
 from .priority import PriorityContext
 from .provenance import EventProvenance
 from .security import AuthorizationContext, AuthorizationService
+from .simulation import ReplayEvent, ReplayLog
 from .tracking import TrackManager
 from .world import WorldModel
 
@@ -73,6 +74,7 @@ class VigilEnvironment:
         self.interaction = HumanInteractionService()
         self.authorization = AuthorizationService()
         self.ai = CorelessVigilAI(ai_registry)
+        self.replay = ReplayLog()
 
     def enable(self) -> None:
         self.enabled = True
@@ -193,16 +195,53 @@ class VigilEnvironment:
         frame = self.camera.capture()
         if frame is None:
             return None
+        self.replay.append(ReplayEvent(
+            event_id=f"camera-frame-{frame.sequence}",
+            timestamp_ns=frame.timestamp_ns,
+            kind="camera.frame",
+            payload=frame,
+            provenance=EventProvenance(
+                source_type="camera",
+                source_ids=(frame.source_id,),
+                source_sequences=(frame.sequence,),
+                timestamp_ns=frame.timestamp_ns,
+            ),
+        ))
 
         touch_event = None
         if self.fast_touch is not None and self.visual_input is not None:
             intent = self.fast_touch.process_frame(frame)
             if intent is not None:
                 touch_event = self.visual_input.submit(intent)
+                self.replay.append(ReplayEvent(
+                    event_id=f"visual-touch-{frame.sequence}",
+                    timestamp_ns=intent.timestamp_ns,
+                    kind="visual.touch",
+                    payload=intent,
+                    provenance=EventProvenance(
+                        source_type="visual-touch",
+                        source_ids=(intent.source_id, intent.detection_id),
+                        source_sequences=(frame.sequence,),
+                        timestamp_ns=intent.timestamp_ns,
+                        confidence=intent.confidence,
+                    ),
+                ))
 
         perception_result = None
         if provider is not None:
             perception_result = self.perception.ingest_camera_frame(frame, provider)
+            self.replay.append(ReplayEvent(
+                event_id=f"perception-{frame.sequence}",
+                timestamp_ns=frame.timestamp_ns,
+                kind="camera.perception",
+                payload=perception_result,
+                provenance=EventProvenance(
+                    source_type="camera.perception",
+                    source_ids=(frame.source_id,),
+                    source_sequences=(frame.sequence,),
+                    timestamp_ns=frame.timestamp_ns,
+                ),
+            ))
 
         context = priority_context or PriorityContext(timestamp_ns=frame.timestamp_ns)
         priority_results = tuple(
