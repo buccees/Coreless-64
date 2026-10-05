@@ -27,7 +27,7 @@ __all__ = [
     "InteractionResponse", "GestureInterpreter", "GestureResult", "Observation",
     "TouchPoint", "OptionalAIAnalyzer", "PresentationManager", "PresentationState",
     "PriorityContext", "PriorityResult", "Provenance", "RelevancePriorityEngine",
-    "ReplaySource", "SensorState", "SharedCameraSource", "SimulationFrame",
+    "ReplayEvent", "ReplayLog", "ReplaySource", "ReplayValidation", "SensorState", "SharedCameraSource", "SimulationFrame",
     "SpatialPoint", "Track", "TrackManager", "Uncertainty", "VigilEnvironment",
     "VigilInputInterpreter", "VigilInputLayer", "VigilStatus", "VisualPointer",
     "VisualTouchIntent", "WorldEntity", "WorldModel", "WorldModelEvent",
