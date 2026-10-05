@@ -413,6 +413,7 @@ class VigilEnvironment:
             "input": self.input.persistent_state(),
             "camera": self.camera.persistent_state() if self.camera is not None else None,
             "fast_touch_enabled": self.fast_touch is not None,
+            "fast_touch": self.fast_touch.persistent_state() if self.fast_touch is not None else None,
             "world": self.world.persistent_state(),
             "tracking": self.tracking.persistent_state(),
             "attention": self.attention.persistent_state(),
@@ -425,6 +426,9 @@ class VigilEnvironment:
         if int(state.get("version", self.VERSION)) != self.VERSION:
             raise ValueError("unsupported VIGIL environment state version")
         self.enabled = bool(state.get("enabled", False))
+        camera_state = state.get("camera")
+        if self.camera is not None and isinstance(camera_state, Mapping):
+            self.camera.restore_state(camera_state)
         replay_state = state.get("replay")
         if replay_state is not None:
             self.replay = ReplayLog.from_persistent_state(replay_state)
@@ -455,4 +459,7 @@ class VigilEnvironment:
         presentation_state = state.get("presentation")
         if isinstance(presentation_state, Mapping):
             self.presentation.restore_state(presentation_state)
+        fast_touch_state = state.get("fast_touch")
+        if self.fast_touch is not None and isinstance(fast_touch_state, Mapping):
+            self.fast_touch.restore_state(fast_touch_state)
         self.input.enable(self.enabled)
