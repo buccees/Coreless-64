@@ -1,122 +1,99 @@
-# VIGIL Optional Input Intelligence Layer
+# VIGIL — Complete Optional Coreless-Native Environment
 
 ## Purpose
 
-Coreless-64 contains an optional VIGIL layer for spatial and environmental input
-interpretation. VIGIL is not a separate runtime dependency of Coreless.
+Coreless-64 contains VIGIL as a **complete optional native environment** for perception, spatial understanding, interaction, attention, presentation, and interpreted input. VIGIL is part of the Coreless machine; it is not a separate runtime project or host-side computer.
 
-The layer is disabled by default and must never be required for ordinary
-pointer, touch, stylus, keyboard, display, or network operation.
+VIGIL is disabled by default and must never be required for ordinary Coreless operation. Optional means optional to activate or use, not partial in scope.
 
-## Authority
+## Execution and AI authority
+
+VIGIL uses the existing Coreless execution architecture for CPU, memory, storage, scheduling, persistence, vector/matrix execution, and AI.
+
+**VIGIL does not create or host a second AI system.** All VIGIL AI analysis is submitted through the existing Coreless AI controller/`AICoreRegistry`. The same Coreless AI cores may serve CPU/computational management, Coreless AI workloads, perception, world-model reasoning, spatial reasoning, interaction, and future vision or gesture workloads.
+
+VIGIL cannot grant itself CPU, device, policy, or physical authority.
+
+## Coreless authority
 
 Coreless remains authoritative for:
 
 - physical host input transport;
 - device discovery and identity;
 - user-designated pointing-device assignment;
-- raw input event ordering;
+- raw input event ordering and preservation;
 - input persistence;
-- application delivery; and
-- enabling or disabling optional VIGIL interpretation.
+- application delivery;
+- camera/device transport boundaries;
+- execution, storage, memory, and scheduling; and
+- enabling or disabling optional VIGIL services.
 
-VIGIL is responsible only for interpreting information supplied by Coreless or
-an explicitly attached optional camera source.
-
-VIGIL must not replace or mutate the raw Coreless input stream.
+VIGIL is authoritative only for its own interpretation state and derived perception/interaction results. It must not replace or mutate authoritative raw Coreless input.
 
 ## Input paths
 
 Normal operation:
 
-```
-Host device → Coreless input boundary → GUI/applications
-```
+    Host device → Coreless input boundary → GUI/applications
 
 Optional VIGIL interpretation:
 
-```
-Host device → Coreless input boundary → VIGIL → derived interpretation
-                                      ↘ raw event remains available
-```
+    Host device → Coreless input boundary → VIGIL → derived interpretation
+                                          ↘ raw event remains authoritative
 
 Optional camera path:
 
-```
-Camera → VIGIL camera source → observation/perception → derived interpretation
-```
+    Camera → Coreless device boundary → VIGIL perception → world/interaction results
 
-The camera path is optional. A Coreless machine without a camera remains fully
-functional.
+A Coreless machine without VIGIL or without a camera remains fully functional.
 
-## Current implementation boundary
+## Complete VIGIL environment
 
-The `vigil/` package provides:
+The native `vigil/` environment is designed to contain the complete VIGIL capability surface, including:
 
-- dependency-free spatial data types;
-- camera-frame metadata and ordering;
-- observation/detection/track foundations;
-- a VIGIL input interpreter compatible with the Coreless input ABI;
-- optional enable/disable state;
-- optional camera-source polling;
-- persistent VIGIL enablement state; and
-- deterministic regression tests.
+- input interpretation and designated-device awareness;
+- camera-frame ingestion and spatial metadata;
+- observations, detections, tracks, and temporal state;
+- spatial/temporal fusion;
+- world-model state and provenance;
+- relevance and priority evaluation;
+- attention lifecycle and presentation ordering;
+- human interaction context;
+- authorization boundaries;
+- deterministic simulation/replay;
+- shared Coreless AI analysis; and
+- persistent VIGIL lifecycle/configuration state.
 
-The initial layer deliberately does not invent computer-vision or gesture
-results. Camera processing, gesture recognition, object detection, and richer
-spatial interpretation will be implemented behind this stable boundary.
+Perception capabilities such as camera pointing, hand/finger tracking, gesture recognition, object/environment observation, and richer spatial relationships are implemented inside this environment as they mature. They do not require a separate VIGIL runtime or separate AI authority.
 
-## Spatial information
+## Data integrity
 
-VIGIL uses explicit coordinate frames and preserves:
+VIGIL preserves source identity, timestamps, sequence numbers, confidence, provenance, freshness, and spatial position where available. Unknown or unobserved information must not silently become asserted world state.
 
-- source identity;
-- timestamps;
-- sequence numbers;
-- confidence;
-- provenance;
-- freshness; and
-- spatial position where available.
-
-Unknown or unobserved information must not be silently converted into an
-asserted world state.
-
-## Future camera capabilities
-
-The layer is designed to support future optional capabilities such as:
-
-- camera-based pointing;
-- hand and finger tracking;
-- gesture recognition;
-- multi-touch-like spatial gestures;
-- object/environment observation;
-- spatial relationships;
-- persistent tracks;
-- relevance and priority; and
-- attention-aware presentation.
-
-These capabilities must produce information for Coreless rather than taking
-authority over Coreless devices or applications.
+Raw Coreless input remains available even when VIGIL produces a derived result.
 
 ## Non-goals
 
 VIGIL does not:
 
 - become the Coreless operating system;
-- provide CPU, RAM, or host computation;
-- replace the Coreless input boundary;
+- provide a second CPU, RAM, VM, OS, or AI authority;
+- replace the Coreless input/device boundary;
 - require a camera;
-- require an AI model for basic operation; or
-- perform autonomous physical actions.
+- require AI for basic non-AI input operation; or
+- perform autonomous physical actions without Coreless authority and policy.
 
 ## Acceptance
 
-The VIGIL layer is acceptable when:
+The VIGIL environment is acceptable when:
 
 1. Coreless works normally with VIGIL disabled.
-2. VIGIL can be enabled without changing the raw input ABI.
-3. Derived events retain source identity and source sequence information.
-4. Camera input is optional and ordered deterministically.
-5. Camera absence does not cause Coreless input failure.
-6. Future perception implementations can be added without changing the Coreless
-   device-assignment contract.
+2. VIGIL can be enabled without changing the raw Coreless input ABI.
+3. All VIGIL AI analysis routes through the existing Coreless AI registry.
+4. No second VIGIL model/runtime becomes an architectural authority.
+5. Derived events retain source identity and source sequence information.
+6. Camera input is optional and ordered deterministically.
+7. Camera absence does not cause Coreless input failure.
+8. World-model state remains provenance-aware and deterministic.
+9. VIGIL services can grow without changing the Coreless device-assignment contract.
+10. VIGIL remains optional while its implemented scope remains complete.
