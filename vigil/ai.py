@@ -65,7 +65,10 @@ class CorelessVigilAI:
             ),
             context=context,
         )
-        result = self.registry.infer(request)[0]
+        results = self.registry.infer(request)
+        if not results:
+            return None
+        result = results[0]
         return AnalysisResult(
             text=result.text,
             grounded_entity_ids=entity_ids,
