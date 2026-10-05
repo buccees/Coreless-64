@@ -17,7 +17,7 @@ class EventProvenance:
     def __post_init__(self) -> None:
         if not self.source_type:
             raise ValueError("source_type must not be empty")
-        if self.timestamp_ns < 0:
+        if any(not isinstance(item, str) or not item for item in self.source_ids):\n            raise ValueError("source_ids must contain non-empty strings")\n        if any(not isinstance(item, int) or item < 0 for item in self.source_sequences):\n            raise ValueError("source_sequences must contain non-negative integers")\n        if self.timestamp_ns < 0:
             raise ValueError("timestamp_ns must be non-negative")
         if self.confidence is not None and not 0.0 <= self.confidence <= 1.0:
             raise ValueError("confidence must be between 0 and 1")
