@@ -63,6 +63,9 @@ class VigilEnvironment:
         self.input = input_layer or VigilInputLayer(enabled=enabled)
         self.camera = SharedCameraSource(camera) if camera is not None else None
         self.input_router = input_router
+        if self.input_router is not None:
+            self.input_router.vigil = self.input
+            self.input_router.enable_vigil(enabled)
         self.visual_input: VisualPointingDeviceAdapter | None = None
         self.fast_touch: FastCameraTouchPath | None = None
         self.world = WorldModel()
@@ -169,7 +172,7 @@ class VigilEnvironment:
             source_ids=(request.request_id,),
             timestamp_ns=request.timestamp_ns,
         )
-        return self.interaction.respond(
+        response = self.interaction.respond(
             request,
             analysis.text,
             grounded=bool(analysis.grounded_entity_ids),
@@ -177,6 +180,14 @@ class VigilEnvironment:
             source_entity_ids=analysis.grounded_entity_ids,
             provenance=provenance,
         )
+        self.replay.append(ReplayEvent(
+            event_id=f"interaction-{request.request_id}",
+            timestamp_ns=request.timestamp_ns,
+            kind="interaction.response",
+            payload=response,
+            provenance=provenance,
+        ))
+        return response
 
     def ingest_input_event(self, event) -> tuple[object, ...]:
         """Record a Coreless raw input event and its VIGIL interpretations."""
@@ -185,7 +196,7 @@ class VigilEnvironment:
         device = next((item for item in self.input_router.devices.devices if item.device_id == event.device_id), None)
         if device is None:
             raise ValueError("input event references an unknown Coreless device")
-        interpretations = self.input.interpret(event, device)
+        interpretations = self.input_router.submit(event)
         self.replay.append(ReplayEvent(
             event_id=f"input-{event.sequence}",
             timestamp_ns=event.timestamp_ns,
@@ -287,6 +298,55 @@ class VigilEnvironment:
         ordered_priority = self.priority.order(priority_results)
         attention_items = self.attention.evaluate(ordered_priority)
         presentation_state = self.presentation.present(attention_items, frame.timestamp_ns)
+
+        self.replay.append(ReplayEvent(
+            event_id=f"world-cycle-{frame.sequence}",
+            timestamp_ns=frame.timestamp_ns,
+            kind="world.state",
+            payload=self.world.persistent_state(),
+            provenance=EventProvenance(
+                source_type="vigil.world",
+                source_ids=(frame.source_id,),
+                source_sequences=(frame.sequence,),
+                timestamp_ns=frame.timestamp_ns,
+            ),
+        ))
+        self.replay.append(ReplayEvent(
+            event_id=f"priority-{frame.sequence}",
+            timestamp_ns=frame.timestamp_ns,
+            kind="vigil.priority",
+            payload=ordered_priority,
+            provenance=EventProvenance(
+                source_type="vigil.priority",
+                source_ids=(frame.source_id,),
+                source_sequences=(frame.sequence,),
+                timestamp_ns=frame.timestamp_ns,
+            ),
+        ))
+        self.replay.append(ReplayEvent(
+            event_id=f"attention-{frame.sequence}",
+            timestamp_ns=frame.timestamp_ns,
+            kind="vigil.attention",
+            payload=attention_items,
+            provenance=EventProvenance(
+                source_type="vigil.attention",
+                source_ids=(frame.source_id,),
+                source_sequences=(frame.sequence,),
+                timestamp_ns=frame.timestamp_ns,
+            ),
+        ))
+        self.replay.append(ReplayEvent(
+            event_id=f"presentation-{frame.sequence}",
+            timestamp_ns=frame.timestamp_ns,
+            kind="vigil.presentation",
+            payload=presentation_state,
+            provenance=EventProvenance(
+                source_type="vigil.presentation",
+                source_ids=(frame.source_id,),
+                source_sequences=(frame.sequence,),
+                timestamp_ns=frame.timestamp_ns,
+            ),
+        ))
 
         return VigilCycleResult(
             frame_sequence=frame.sequence,
