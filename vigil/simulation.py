@@ -134,8 +134,10 @@ class ReplayLog:
     """Deterministic append-only VIGIL event log for audit and replay."""
 
     def __init__(self, events: tuple[ReplayEvent, ...] = ()) -> None:
-        self._events = tuple(events)
-        self._last_timestamp = self._events[-1].timestamp_ns if self._events else -1
+        self._events = ()
+        self._last_timestamp = -1
+        for event in events:
+            self.append(event)
 
     @property
     def events(self) -> tuple[ReplayEvent, ...]:
@@ -182,7 +184,7 @@ class ReplayLog:
     def verify_integrity(self, record) -> ReplayValidation:
         """Verify a persisted integrity record before replay."""
         mismatches = []
-        if not isinstance(record, dict):
+        if not isinstance(record, Mapping):
             return ReplayValidation(
                 valid=False,
                 event_count=len(self._events),
@@ -307,6 +309,8 @@ def _decode_value(value: object) -> object:
         return tuple(_decode_value(item) for item in value["__tuple__"])
     if "__mapping__" in value:
         return {_decode_value(pair[0]): _decode_value(pair[1]) for pair in value["__mapping__"]}
+    if "__dataclass__" in value:
+        return {"__dataclass__": value["__dataclass__"], "fields": _decode_value(value.get("fields"))}
     if "__opaque_type__" in value:
         return dict(value)
     if "__enum__" in value:
