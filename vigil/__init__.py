@@ -6,6 +6,7 @@ from .input import VigilInputInterpreter, VigilInputLayer
 from .interaction import HumanInteractionService, InteractionRequest, InteractionResponse
 from .model import Detection, EntityType, Observation, Provenance, SensorState, Track, Uncertainty, WorldEntity
 from .presentation import PresentationManager, PresentationState
+from .perception import PerceptionPipeline, PerceptionResult, detection_from_observation
 from .priority import PriorityContext, PriorityResult, RelevancePriorityEngine
 from .runtime import VigilEnvironment, VigilStatus
 from .security import AuthorizationContext, AuthorizationService
