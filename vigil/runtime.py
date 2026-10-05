@@ -48,7 +48,7 @@ class VigilStatus:
 class VigilEnvironment:
     """Complete optional VIGIL environment hosted by Coreless."""
 
-    VERSION = 4
+    VERSION = 5
 
     def __init__(
         self,
