@@ -33,3 +33,5 @@ __all__ = [
     "VisualTouchIntent", "WorldEntity", "WorldModel", "WorldModelEvent",
     "bearing_degrees", "distance_between",
 ]
+
+from .provenance import EventProvenance
