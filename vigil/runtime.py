@@ -1,6 +1,7 @@
 """Coreless-native VIGIL environment lifecycle."""
 from __future__ import annotations
 from dataclasses import dataclass
+from typing import Mapping
 from .world import WorldModel
 from .tracking import TrackManager
 from .priority import RelevancePriorityEngine
