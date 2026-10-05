@@ -7,7 +7,9 @@ world-model services consume them deterministically.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Protocol
+
+from .spatial import CameraFrame
 
 from .model import Detection, EntityType, Observation, Provenance, Track, Uncertainty, WorldEntity
 from .tracking import TrackManager
