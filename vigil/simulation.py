@@ -278,4 +278,33 @@ class ReplayLog:
             event_count=len(actual),
             mismatches=tuple(mismatches),
         )
-\n\ndef _encode_value(value: object) -> object:\n    if value is None or isinstance(value, (str, int, float, bool)):\n        return value\n    if isinstance(value, Enum):\n        return {"__enum__": f"{type(value).__module__}.{type(value).__qualname__}", "value": _encode_value(value.value)}\n    if isinstance(value, Mapping):\n        return {"__mapping__": [[_encode_value(key), _encode_value(item)] for key, item in value.items()]}\n    if isinstance(value, tuple):\n        return {"__tuple__": [_encode_value(item) for item in value]}\n    if isinstance(value, list):\n        return [_encode_value(item) for item in value]\n    return {"__opaque_type__": f"{type(value).__module__}.{type(value).__qualname__}", "repr": repr(value)}\n\n\ndef _decode_value(value: object) -> object:\n    if isinstance(value, list):\n        return [_decode_value(item) for item in value]\n    if not isinstance(value, Mapping):\n        return value\n    if "__tuple__" in value:\n        return tuple(_decode_value(item) for item in value["__tuple__"])\n    if "__mapping__" in value:\n        return {_decode_value(pair[0]): _decode_value(pair[1]) for pair in value["__mapping__"]}\n    if "__opaque_type__" in value:\n        return dict(value)\n    if "__enum__" in value:\n        return {"__enum__": value["__enum__"], "value": _decode_value(value.get("value"))}\n    return {key: _decode_value(item) for key, item in value.items()}\n
+
+
+def _encode_value(value: object) -> object:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, Enum):
+        return {"__enum__": f"{type(value).__module__}.{type(value).__qualname__}", "value": _encode_value(value.value)}
+    if isinstance(value, Mapping):
+        return {"__mapping__": [[_encode_value(key), _encode_value(item)] for key, item in value.items()]}
+    if isinstance(value, tuple):
+        return {"__tuple__": [_encode_value(item) for item in value]}
+    if isinstance(value, list):
+        return [_encode_value(item) for item in value]
+    return {"__opaque_type__": f"{type(value).__module__}.{type(value).__qualname__}", "repr": repr(value)}
+
+
+def _decode_value(value: object) -> object:
+    if isinstance(value, list):
+        return [_decode_value(item) for item in value]
+    if not isinstance(value, Mapping):
+        return value
+    if "__tuple__" in value:
+        return tuple(_decode_value(item) for item in value["__tuple__"])
+    if "__mapping__" in value:
+        return {_decode_value(pair[0]): _decode_value(pair[1]) for pair in value["__mapping__"]}
+    if "__opaque_type__" in value:
+        return dict(value)
+    if "__enum__" in value:
+        return {"__enum__": value["__enum__"], "value": _decode_value(value.get("value"))}
+    return {key: _decode_value(item) for key, item in value.items()}
