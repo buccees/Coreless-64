@@ -163,3 +163,29 @@ def test_vigil_end_to_end_camera_pipeline_is_replay_auditable():
     restored.restore_state(state)
     assert restored.validate_persisted_replay_integrity().valid
     assert restored.replay.chain_digest() == environment.replay.chain_digest()
+
+
+def test_vigil_input_to_replay_chain_is_end_to_end():
+    from reference.input import CorelessInputRouter, InputCapabilities, InputEvent, InputEventType, CoordinateFrame, PointingDevice
+
+    router = CorelessInputRouter()
+    router.devices.discover([
+        PointingDevice("mouse-e2e", "mouse", InputCapabilities(pointer=True, relative=True, buttons=1))
+    ])
+    router.devices.designate("mouse-e2e")
+    environment = VigilEnvironment(enabled=True, input_router=router)
+    event = InputEvent(
+        1, InputEventType.POINTER_MOVE, "mouse-e2e", 200, 1,
+        CoordinateFrame.CORELESS, x=10.0, y=20.0
+    )
+    derived = environment.ingest_input_event(event)
+    assert derived
+    assert tuple(item.kind for item in environment.replay.events) == (
+        "input.raw", "input.pointer_move"
+    )
+    assert environment.validate_persisted_replay_integrity().valid
+    state = environment.persistent_state()
+    restored = VigilEnvironment(enabled=False, input_router=router)
+    restored.restore_state(state)
+    assert restored.replay.chain_digest() == environment.replay.chain_digest()
+    assert restored.validate_persisted_replay_integrity().valid
