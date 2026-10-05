@@ -3,6 +3,7 @@
 from .ai import AnalysisResult, OptionalAIAnalyzer
 from .attention import AttentionItem, AttentionLifecycle, AttentionManager
 from .input import VigilInputInterpreter, VigilInputLayer
+from .gesture import GestureInterpreter, GestureResult, TouchPoint
 from .interaction import HumanInteractionService, InteractionRequest, InteractionResponse
 from .model import Detection, EntityType, Observation, Provenance, SensorState, Track, Uncertainty, WorldEntity
 from .presentation import PresentationManager, PresentationState
@@ -20,7 +21,7 @@ __all__ = [
     "AnalysisResult", "AttentionItem", "AttentionLifecycle", "AttentionManager",
     "AuthorizationContext", "AuthorizationService", "CameraFrame", "Detection",
     "DetectionKind", "EntityType", "HumanInteractionService", "InteractionRequest",
-    "InteractionResponse", "Observation", "OptionalAIAnalyzer", "PresentationManager",
+    "InteractionResponse", "GestureInterpreter", "GestureResult", "Observation", "TouchPoint", "OptionalAIAnalyzer", "PresentationManager",
     "PresentationState", "PriorityContext", "PriorityResult", "Provenance",
     "RelevancePriorityEngine", "ReplaySource", "SensorState", "SimulationFrame",
     "SpatialPoint", "Track", "TrackManager", "Uncertainty", "VigilEnvironment",
