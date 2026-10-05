@@ -1,10 +1,4 @@
-"""Low-latency camera fast path for VIGIL visual touch input.
-
-This path intentionally bypasses full perception, tracking, world-model, attention,
-and presentation stages. A camera supplies frames, a detector proposes a visual
-touch cue, the existing VIGIL VisualPointer converts it to an intent, and the
-Coreless input boundary remains the final authority.
-"""
+"""Low-latency camera fast path for VIGIL visual touch input."""
 from __future__ import annotations
 
 from dataclasses import replace
@@ -24,7 +18,7 @@ class FastTouchDetector(Protocol):
 
 
 class FastCameraTouchPath:
-    """Process the newest camera frame directly into a visual touch intent."""
+    """Process shared or direct camera frames into visual touch intents."""
 
     def __init__(
         self,
@@ -35,8 +29,10 @@ class FastCameraTouchPath:
         display_width: int | None = None,
         display_height: int | None = None,
     ) -> None:
-        if not hasattr(camera, "available") or not hasattr(camera, "read"):
-            raise TypeError("camera must provide available() and read()")
+        if not hasattr(camera, "available") or not (
+            hasattr(camera, "read") or hasattr(camera, "latest")
+        ):
+            raise TypeError("camera must provide available() and read()/latest()")
         if (display_width is None) != (display_height is None):
             raise ValueError("display_width and display_height must be supplied together")
         self.camera = camera
@@ -49,16 +45,13 @@ class FastCameraTouchPath:
         self.last_detection: Detection | None = None
 
     def poll(self) -> VisualTouchIntent | None:
-        """Read one current frame and immediately process it.
-
-        The adapter deliberately does not maintain a frame queue. Camera
-        implementations should expose their newest available frame so stale
-        frames are not allowed to accumulate.
-        """
+        """Process the newest shared frame without reading the physical camera."""
         if not self.camera.available():
             return None
-        frame = self.camera.read()
+        frame = self.camera.latest() if hasattr(self.camera, "latest") else self.camera.read()
         if frame is None:
+            return None
+        if self.last_frame_sequence is not None and frame.sequence <= self.last_frame_sequence:
             return None
         return self.process_frame(frame)
 
