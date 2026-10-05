@@ -308,6 +308,12 @@ class VigilEnvironment:
             return None
         return self.perception.ingest_camera_frame(frame, provider)
 
+    def replay_events(self, consumer=None) -> tuple[object, ...]:
+        """Replay the recorded VIGIL session without live hardware."""
+        if consumer is None:
+            return self.replay.replay()
+        return self.replay.replay_into(consumer)
+
     def status(self) -> VigilStatus:
         return VigilStatus(
             enabled=self.enabled,
