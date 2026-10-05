@@ -17,6 +17,7 @@ from .interaction import HumanInteractionService
 from .presentation import PresentationManager
 from .priority import RelevancePriorityEngine
 from .perception import CameraPerceptionProvider, PerceptionPipeline, PerceptionResult
+from .priority import PriorityContext
 from .security import AuthorizationService
 from .tracking import TrackManager
 from .world import WorldModel
@@ -27,6 +28,9 @@ class VigilCycleResult:
     frame_sequence: int
     touch_event: object | None
     perception: PerceptionResult | None
+    priority: tuple[object, ...] = ()
+    attention: tuple[object, ...] = ()
+    presentation: object | None = None
 
 
 @dataclass(frozen=True)
@@ -118,6 +122,7 @@ class VigilEnvironment:
         self,
         *,
         provider: CameraPerceptionProvider | None = None,
+        priority_context: PriorityContext | None = None,
     ) -> VigilCycleResult | None:
         """Capture once, then fan the same frame into fast touch and perception."""
         if not self.enabled or self.camera is None:
@@ -136,10 +141,22 @@ class VigilEnvironment:
         if provider is not None:
             perception_result = self.perception.ingest_camera_frame(frame, provider)
 
+        context = priority_context or PriorityContext(timestamp_ns=frame.timestamp_ns)
+        priority_results = tuple(
+            self.priority.evaluate(entity, context)
+            for entity in self.world.entities()
+        )
+        ordered_priority = self.priority.order(priority_results)
+        attention_items = self.attention.evaluate(ordered_priority)
+        presentation_state = self.presentation.present(attention_items, frame.timestamp_ns)
+
         return VigilCycleResult(
             frame_sequence=frame.sequence,
             touch_event=touch_event,
             perception=perception_result,
+            priority=ordered_priority,
+            attention=attention_items,
+            presentation=presentation_state,
         )
 
     def ingest_camera_frame(
