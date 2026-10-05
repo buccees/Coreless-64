@@ -189,3 +189,38 @@ def test_vigil_input_to_replay_chain_is_end_to_end():
     restored.restore_state(state)
     assert restored.replay.chain_digest() == environment.replay.chain_digest()
     assert restored.validate_persisted_replay_integrity().valid
+
+
+def test_vigil_authorized_ai_interaction_is_replay_auditable():
+    from ai.registry import AICoreRegistry
+    from ai.interfaces import AIResult
+    from vigil.interaction import InteractionRequest, InputModality
+    from vigil.provenance import EventProvenance
+
+    class Core:
+        model_id = "test-model"
+        def infer(self, request):
+            return AIResult(model_id=self.model_id, text="grounded answer")
+
+    registry = AICoreRegistry()
+    registry.register(Core())
+    registry.enable("test-model")
+    environment = VigilEnvironment(enabled=True, ai_registry=registry)
+    request = InteractionRequest(
+        request_id="req-e2e",
+        modality=InputModality.TEXT,
+        text="what is here?",
+        timestamp_ns=300,
+        session_id="session-1",
+        authorization_scope="vigil.interact",
+        provenance=EventProvenance("test", ("req-e2e",), timestamp_ns=300),
+    )
+    response = environment.handle_interaction(request, required_scope="vigil.interact")
+    assert response is not None
+    assert response.grounded
+    assert response.provenance is not None
+    assert tuple(event.kind for event in environment.replay.events) == ("interaction.response",)
+    state = environment.persistent_state()
+    restored = VigilEnvironment(enabled=False, ai_registry=registry)
+    restored.restore_state(state)
+    assert restored.validate_persisted_replay_integrity().valid
