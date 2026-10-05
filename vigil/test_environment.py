@@ -261,3 +261,89 @@ def test_vigil_unauthorized_interaction_is_not_replayed_or_sent_to_ai():
         raise AssertionError("expected unauthorized interaction rejection")
     assert core.calls == 0
     assert environment.replay.events == ()
+
+
+
+def test_vigil_voice_input_uses_authorized_ai_replay_and_restore():
+    from ai.registry import AICoreRegistry
+    from ai.interfaces import AIResult
+    from vigil.interaction import VoiceInputSource
+
+    class Core:
+        model_id = "voice-model"
+        calls = 0
+        def infer(self, request):
+            self.calls += 1
+            return AIResult(model_id=self.model_id, text="voice grounded answer")
+
+    class Voice(VoiceInputSource):
+        def __init__(self):
+            self.reads = 0
+        def available(self):
+            return True
+        def read(self):
+            self.reads += 1
+            return ("describe the scene", 500)
+
+    core = Core()
+    registry = AICoreRegistry()
+    registry.register(core)
+    registry.enable("voice-model")
+    voice = Voice()
+    environment = VigilEnvironment(enabled=True, ai_registry=registry)
+    response = environment.poll_voice(
+        voice,
+        session_id="voice-session",
+        authorization_scope="vigil.interact",
+        required_scope="vigil.interact",
+    )
+    assert response is not None
+    assert response.grounded is False
+    assert response.provenance is not None
+    assert response.provenance.source_type == "interaction.voice"
+    assert voice.reads == 1
+    assert core.calls == 1
+    assert tuple(event.kind for event in environment.replay.events) == ("interaction.response",)
+    state = environment.persistent_state()
+    restored = VigilEnvironment(enabled=False, ai_registry=registry)
+    restored.restore_state(state)
+    assert restored.interaction.persistent_state() == environment.interaction.persistent_state()
+    assert restored.replay.chain_digest() == environment.replay.chain_digest()
+    assert restored.validate_persisted_replay_integrity().valid
+
+
+def test_vigil_voice_input_rejects_unauthorized_request_before_ai():
+    from ai.registry import AICoreRegistry
+    from ai.interfaces import AIResult
+
+    class Core:
+        model_id = "voice-guarded"
+        calls = 0
+        def infer(self, request):
+            self.calls += 1
+            return AIResult(model_id=self.model_id, text="must not run")
+
+    class Voice:
+        def available(self):
+            return True
+        def read(self):
+            return ("blocked voice command", 600)
+
+    core = Core()
+    registry = AICoreRegistry()
+    registry.register(core)
+    registry.enable("voice-guarded")
+    environment = VigilEnvironment(enabled=True, ai_registry=registry)
+    try:
+        environment.poll_voice(
+            Voice(),
+            session_id="voice-denied",
+            authorization_scope="vigil.interact",
+            required_scope="vigil.admin",
+        )
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("expected unauthorized voice interaction rejection")
+    assert core.calls == 0
+    assert environment.replay.events == ()
