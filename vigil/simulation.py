@@ -1,7 +1,7 @@
 """Hardware-independent VIGIL simulation/replay foundation."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 from enum import Enum
 import hashlib
 from typing import Mapping
@@ -293,6 +293,8 @@ def _encode_value(value: object) -> object:
         return {"__tuple__": [_encode_value(item) for item in value]}
     if isinstance(value, list):
         return [_encode_value(item) for item in value]
+    if is_dataclass(value) and not isinstance(value, type):
+        return {"__dataclass__": f"{type(value).__module__}.{type(value).__qualname__}", "fields": _encode_value(asdict(value))}
     return {"__opaque_type__": f"{type(value).__module__}.{type(value).__qualname__}", "repr": repr(value)}
 
 
