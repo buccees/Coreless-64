@@ -64,3 +64,21 @@ def test_replay_integrity_detects_tampering():
     result = log.verify_integrity(tampered)
     assert not result.valid
     assert "integrity.chain_digest" in result.mismatches[0]
+
+
+def test_replay_integrity_rejects_unknown_format_version():
+    log = ReplayLog((_event("one"),))
+    record = log.integrity_record()
+    record["version"] = 2
+    result = log.verify_integrity(record)
+    assert not result.valid
+    assert "integrity.version" in result.mismatches[0]
+
+
+def test_replay_integrity_rejects_unknown_algorithm():
+    log = ReplayLog((_event("one"),))
+    record = log.integrity_record()
+    record["algorithm"] = "md5"
+    result = log.verify_integrity(record)
+    assert not result.valid
+    assert "integrity.algorithm" in result.mismatches[0]
