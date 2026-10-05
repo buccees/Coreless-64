@@ -122,3 +122,13 @@ event count, and chain digest. Restore must reject unsupported integrity
 versions, algorithms, event-count changes, or digest changes before accepting
 persisted VIGIL state. This makes replay corruption or tampering detectable
 before the recorded session is reused.
+
+
+### Persisted replay chain
+
+The replay persistence format stores the complete ordered event chain, including
+event identity, timestamp, kind, serialized payload, and provenance. Restore
+reconstructs the chain before exposing it to replay consumers and rejects
+duplicate event IDs, non-monotonic event timestamps, malformed event records,
+or an integrity mismatch. Structured Coreless/VIGIL dataclass payloads use an
+explicit tagged representation; deserialization never executes serialized code.
