@@ -13,12 +13,12 @@ from .attention import AttentionManager
 from .camera import CameraReader, SharedCameraSource
 from .fast_touch import FastCameraTouchPath, FastTouchDetector
 from .input import VigilInputLayer
-from .interaction import HumanInteractionService
+from .interaction import HumanInteractionService, InteractionRequest, InteractionResponse
 from .presentation import PresentationManager
 from .priority import RelevancePriorityEngine
 from .perception import CameraPerceptionProvider, PerceptionPipeline, PerceptionResult
 from .priority import PriorityContext
-from .security import AuthorizationService
+from .security import AuthorizationContext, AuthorizationService
 from .tracking import TrackManager
 from .world import WorldModel
 
@@ -112,6 +112,35 @@ class VigilEnvironment:
         if intent is None:
             return None
         return self.visual_input.submit(intent)
+
+    def handle_interaction(
+        self,
+        request: InteractionRequest,
+        *,
+        required_scope: str,
+    ) -> InteractionResponse | None:
+        """Route an authorized human request through the shared Coreless AI."""
+        if not self.enabled:
+            return None
+        if not self.authorization.authorize(
+            AuthorizationContext(request.session_id, frozenset({request.authorization_scope})),
+            required_scope,
+        ):
+            raise PermissionError("VIGIL interaction is not authorized")
+        analysis = self.ai.analyze(
+            request.text,
+            self.world.entities(),
+            request_id=request.request_id,
+        )
+        if analysis is None:
+            return None
+        return self.interaction.respond(
+            request,
+            analysis.text,
+            grounded=bool(analysis.grounded_entity_ids),
+            timestamp_ns=request.timestamp_ns,
+            source_entity_ids=analysis.grounded_entity_ids,
+        )
 
     def capture_camera_frame(self):
         if not self.enabled or self.camera is None:
