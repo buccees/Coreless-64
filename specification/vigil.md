@@ -132,3 +132,12 @@ reconstructs the chain before exposing it to replay consumers and rejects
 duplicate event IDs, non-monotonic event timestamps, malformed event records,
 or an integrity mismatch. Structured Coreless/VIGIL dataclass payloads use an
 explicit tagged representation; deserialization never executes serialized code.
+
+
+## Complete runtime persistence
+
+A persisted VIGIL environment includes the authoritative world model and its ordered history, tracking state and association configuration, attention items and lifecycle state, human-interaction context, device-independent presentation state, input interpretation state, shared-camera persistence metadata, and the complete replay/audit chain. Restore must validate versioned records before replacing live state.
+
+The shared camera persists only portable metadata such as source identity and the last captured sequence. Physical camera handles are not serialized and must be rebound by the Coreless device layer after restore. Likewise, an enabled fast-touch path may require a newly attached detector/device binding; persistence does not fabricate unavailable physical resources.
+
+World-model restore rejects duplicate entity identifiers, duplicate history event identifiers, malformed entity/provenance records, and non-monotonic history timestamps. Presentation state is derived but persisted so a stopped-and-restored VIGIL session can recover its last device-independent presentation without inventing new perception results.
