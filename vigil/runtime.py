@@ -2,12 +2,15 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping
-from .world import WorldModel
-from .tracking import TrackManager
-from .priority import RelevancePriorityEngine
+from .ai import OptionalAIAnalyzer
 from .attention import AttentionManager
-from .interaction import HumanInteractionService
 from .input import VigilInputLayer
+from .interaction import HumanInteractionService
+from .presentation import PresentationManager
+from .priority import RelevancePriorityEngine
+from .security import AuthorizationService
+from .tracking import TrackManager
+from .world import WorldModel
 
 
 @dataclass(frozen=True)
@@ -17,6 +20,7 @@ class VigilStatus:
     world_entities: int
     tracks: int
     attention_items: int
+    ai_available: bool
 
 
 class VigilEnvironment:
@@ -31,7 +35,10 @@ class VigilEnvironment:
         self.tracking = TrackManager()
         self.priority = RelevancePriorityEngine()
         self.attention = AttentionManager()
+        self.presentation = PresentationManager()
         self.interaction = HumanInteractionService()
+        self.authorization = AuthorizationService()
+        self.ai = OptionalAIAnalyzer()
 
     def enable(self) -> None:
         self.enabled = True
@@ -48,6 +55,7 @@ class VigilEnvironment:
             world_entities=len(self.world.entities()),
             tracks=len(self.tracking.tracks()),
             attention_items=len(self.attention.items()),
+            ai_available=self.ai.available(),
         )
 
     def persistent_state(self) -> dict[str, object]:
