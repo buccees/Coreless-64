@@ -21,6 +21,7 @@ class InteractionRequest:
     session_id: str
     authorization_scope: str
     metadata: Mapping[str, object] = None
+    provenance: EventProvenance | None = None
 
     def __post_init__(self) -> None:
         if not self.request_id or not self.session_id:
