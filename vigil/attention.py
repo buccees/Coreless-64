@@ -25,8 +25,10 @@ class AttentionManager:
     def __init__(self, max_active: int = 8, minimum_priority: float = 0.0) -> None:
         if max_active < 1:
             raise ValueError("max_active must be positive")
+        if not 0.0 <= minimum_priority <= 1.0:
+            raise ValueError("minimum_priority must be between 0 and 1")
         self.max_active = max_active
-        if not 0.0 <= minimum_priority <= 1.0:\n            raise ValueError("minimum_priority must be between 0 and 1")\n        self.minimum_priority = minimum_priority
+        self.minimum_priority = minimum_priority
         self._items: dict[str, AttentionItem] = {}
 
     def evaluate(self, results: tuple[PriorityResult, ...]) -> tuple[AttentionItem, ...]:
@@ -79,6 +81,7 @@ class AttentionManager:
         if not isinstance(items, list):
             raise ValueError("attention items must be a list")
         restored: dict[str, AttentionItem] = {}
+        seen_ids: set[str] = set()
         for record in items:
             if not isinstance(record, Mapping):
                 raise ValueError("attention item must be a mapping")
@@ -94,7 +97,18 @@ class AttentionManager:
                 unavailable_factors=tuple(str(item) for item in priority.get("unavailable_factors", ())),
             )
             entity_id = str(record["world_entity_id"])
+            if not entity_id:
+                raise ValueError("attention world_entity_id must not be empty")
+            if entity_id in seen_ids:
+                raise ValueError("duplicate attention world_entity_id")
+            if result.world_entity_id != entity_id:
+                raise ValueError("attention priority entity mismatch")
+            seen_ids.add(entity_id)
             restored[entity_id] = AttentionItem(entity_id, result, AttentionLifecycle(record["lifecycle"]))
         self.max_active = int(state.get("max_active", self.max_active))
         self.minimum_priority = float(state.get("minimum_priority", self.minimum_priority))
+        if self.max_active < 1:
+            raise ValueError("max_active must be positive")
+        if not 0.0 <= self.minimum_priority <= 1.0:
+            raise ValueError("minimum_priority must be between 0 and 1")
         self._items = restored
