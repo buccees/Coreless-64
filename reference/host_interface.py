@@ -12,6 +12,7 @@ from typing import Mapping, TYPE_CHECKING
 if TYPE_CHECKING:
     from system import CorelessSystem
     from components import CorelessHub
+    from input import CorelessInputRouter
 
 
 @dataclass(frozen=True)
@@ -75,6 +76,7 @@ class CorelessHostInterface:
         self._channels: dict[str, object] = {}
         self._system: CorelessSystem | None = None
         self._hub: CorelessHub | None = None
+        self._input_router: CorelessInputRouter | None = None
 
     @property
     def attached(self) -> bool:
@@ -128,6 +130,30 @@ class CorelessHostInterface:
         if system is not None:
             self.attach_system(system)
         return negotiated
+
+    @property
+    def input_router(self) -> CorelessInputRouter | None:
+        """Return the Coreless input router bound to the negotiated input channel."""
+        return self._input_router
+
+    def bind_input_router(self, router: CorelessInputRouter) -> None:
+        """Bind Coreless-owned input routing after input transport negotiation."""
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        if "input" not in self._negotiated:
+            raise PermissionError("input capability was not negotiated")
+        self._input_router = router
+        self._channels["input"] = router
+
+    def submit_input(self, event):
+        """Submit a host input event through the Coreless input boundary."""
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        if "input" not in self._negotiated:
+            raise PermissionError("input capability was not negotiated")
+        if self._input_router is None:
+            raise RuntimeError("no Coreless input router is bound")
+        return self._input_router.submit(event)
 
     @property
     def system(self) -> CorelessSystem | None:
@@ -291,6 +317,7 @@ class CorelessHostInterface:
     def detach(self) -> None:
         """Close external channels without destroying Coreless state."""
         self._channels.clear()
+        self._input_router = None
         self._negotiated = frozenset()
         self._host_capabilities = None
         self._attached = False
@@ -308,6 +335,15 @@ class CorelessHostInterface:
             "system_bound": self._system is not None,
             "system_booted": bool(self._system and self._system.machine.booted),
             "hub_bound": self._hub is not None,
+            "input_router_bound": self._input_router is not None,
+            "input_designated_device": (
+                self._input_router.devices.designated_device_id
+                if self._input_router is not None else None
+            ),
+            "input_bound_device": (
+                self._input_router.devices.bound_device_id
+                if self._input_router is not None else None
+            ),
             "hub_component_count": len(self._hub.components()) if self._hub else 0,
             "hub_capabilities": tuple(sorted(self._hub.capabilities())) if self._hub else (),
         }
