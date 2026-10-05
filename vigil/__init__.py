@@ -17,15 +17,19 @@ from .spatial import CameraFrame, DetectionKind, SpatialPoint
 from .tracking import TrackManager
 from .world import WorldModel, WorldModelEvent
 from .visual_pointer import VisualPointer, VisualTouchIntent
+from .fast_touch import FastCameraTouchPath, FastTouchDetector
 
 __all__ = [
     "AnalysisResult", "AttentionItem", "AttentionLifecycle", "AttentionManager",
     "AuthorizationContext", "AuthorizationService", "CameraFrame", "Detection",
-    "DetectionKind", "EntityType", "HumanInteractionService", "InteractionRequest",
-    "InteractionResponse", "GestureInterpreter", "GestureResult", "Observation", "TouchPoint", "OptionalAIAnalyzer", "PresentationManager",
-    "PresentationState", "PriorityContext", "PriorityResult", "Provenance",
-    "RelevancePriorityEngine", "ReplaySource", "SensorState", "SimulationFrame",
-    "SpatialPoint", "Track", "TrackManager", "Uncertainty", "VigilEnvironment",
-    "VigilInputInterpreter", "VigilInputLayer", "VigilStatus", "VisualPointer", "VisualTouchIntent", "WorldEntity",
-    "WorldModel", "WorldModelEvent", "bearing_degrees", "distance_between",
+    "DetectionKind", "EntityType", "FastCameraTouchPath", "FastTouchDetector",
+    "HumanInteractionService", "InteractionRequest", "InteractionResponse",
+    "GestureInterpreter", "GestureResult", "Observation", "TouchPoint",
+    "OptionalAIAnalyzer", "PresentationManager", "PresentationState",
+    "PriorityContext", "PriorityResult", "Provenance", "RelevancePriorityEngine",
+    "ReplaySource", "SensorState", "SimulationFrame", "SpatialPoint", "Track",
+    "TrackManager", "Uncertainty", "VigilEnvironment", "VigilInputInterpreter",
+    "VigilInputLayer", "VigilStatus", "VisualPointer", "VisualTouchIntent",
+    "WorldEntity", "WorldModel", "WorldModelEvent", "bearing_degrees",
+    "distance_between",
 ]
