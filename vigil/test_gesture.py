@@ -39,3 +39,24 @@ def test_gesture_results_are_routed_as_derived_input_events():
     assert any(item.kind == "gesture.tap" for item in derived)
     assert all(item.device_id == "touch-1" for item in derived)
     assert all(item.source_sequence for item in derived)
+
+def test_double_tap_and_long_press():
+    g = GestureInterpreter(tap_window_ns=500, long_press_ns=600)
+    g.process(event(20, InputEventType.TOUCH_BEGIN, 1, 5, 5))
+    first = g.process(InputEvent(1, InputEventType.TOUCH_END, "touch-1", 20, 21, CoordinateFrame.CORELESS, x=5, y=5, contact_id=1))
+    assert first[0].gesture == "tap"
+    g.process(event(22, InputEventType.TOUCH_BEGIN, 1, 5, 5))
+    second = g.process(InputEvent(1, InputEventType.TOUCH_END, "touch-1", 22 + 100_000_000, 122_000_000, CoordinateFrame.CORELESS, x=5, y=5, contact_id=1))
+    assert second[0].gesture == "double_tap"
+    g.process(event(30, InputEventType.TOUCH_BEGIN, 1, 0, 0))
+    hold = g.process(InputEvent(1, InputEventType.TOUCH_END, "touch-1", 30 + 700_000_000, 700_000_001, CoordinateFrame.CORELESS, x=0, y=0, contact_id=1))
+    assert hold[0].gesture == "long_press"
+
+
+def test_pinch_and_rotate():
+    g = GestureInterpreter(movement_threshold=5)
+    g.process(event(1, InputEventType.TOUCH_BEGIN, 1, 0, 0))
+    g.process(event(2, InputEventType.TOUCH_BEGIN, 2, 10, 0))
+    pinch = g.process(event(3, InputEventType.TOUCH_UPDATE, 2, 20, 0))
+    assert pinch[0].gesture == "pinch_out"
+    g.process(event(4, InputEventType.TOUCH_END, 1, 0, 0))
