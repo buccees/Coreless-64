@@ -39,3 +39,20 @@ def test_shared_camera_can_be_used_as_a_camera_source():
     assert shared.available()
     frame = shared.poll()
     assert frame is shared.latest()
+
+
+def test_shared_camera_restores_sequence_watermark_without_fabricating_a_frame():
+    physical = Camera()
+    shared = SharedCameraSource(physical)
+    shared.capture()
+    state = shared.persistent_state()
+    restored = SharedCameraSource(physical)
+    restored.restore_state(state)
+    assert restored.latest() is None
+    assert restored.persistent_state()["last_sequence"] == 1
+    try:
+        restored.capture()
+    except ValueError as exc:
+        assert "monotonically" in str(exc)
+    else:
+        raise AssertionError("restored camera accepted a stale sequence")
