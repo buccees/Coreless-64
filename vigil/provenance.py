@@ -1,7 +1,7 @@
 """Shared provenance contracts for Coreless-native VIGIL event tracing."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Mapping
 
 
@@ -12,7 +12,7 @@ class EventProvenance:
     source_sequences: tuple[int, ...] = ()
     timestamp_ns: int = 0
     confidence: float | None = None
-    metadata: Mapping[str, object] = None
+    metadata: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.source_type:
