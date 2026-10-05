@@ -36,8 +36,7 @@ class VisualPointingDeviceAdapter:
             ),
             host_identity=None,
         )
-        devices = list(self.router.devices._devices.values())
-        devices = [item for item in devices if item.device_id != self.device_id]
+        devices = [item for item in self.router.devices.devices if item.device_id != self.device_id]
         devices.append(device)
         self.router.devices.discover(devices)
         self.router.devices.designate(self.device_id)
