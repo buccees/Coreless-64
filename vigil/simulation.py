@@ -37,6 +37,74 @@ class ReplayEvent:
     payload: object
     provenance: EventProvenance | None = None
 
+    def to_record(self) -> dict[str, object]:
+        """Serialize the event into a deterministic, JSON-compatible record."""
+        provenance = self.provenance
+        return {
+            "event_id": self.event_id,
+            "timestamp_ns": self.timestamp_ns,
+            "kind": self.kind,
+            "payload": _encode_value(self.payload),
+            "provenance": None if provenance is None else {
+                "source_type": provenance.source_type,
+                "source_ids": list(provenance.source_ids),
+                "source_sequences": list(provenance.source_sequences),
+                "timestamp_ns": provenance.timestamp_ns,
+                "confidence": provenance.confidence,
+                "metadata": _encode_value(provenance.metadata),
+            },
+        }
+
+    @classmethod
+    def from_record(cls, record: object) -> "ReplayEvent":
+        """Reconstruct an event record without executing arbitrary serialized code."""
+        if not isinstance(record, Mapping):
+            raise ValueError("replay event record must be a mapping")
+        event_id = record.get("event_id")
+        timestamp_ns = record.get("timestamp_ns")
+        kind = record.get("kind")
+        if not isinstance(event_id, str) or not event_id:
+            raise ValueError("replay event_id must be a non-empty string")
+        if not isinstance(timestamp_ns, int) or isinstance(timestamp_ns, bool) or timestamp_ns < 0:
+            raise ValueError("replay timestamp_ns must be a non-negative integer")
+        if not isinstance(kind, str) or not kind:
+            raise ValueError("replay kind must be a non-empty string")
+        provenance_record = record.get("provenance")
+        provenance = None
+        if provenance_record is not None:
+            if not isinstance(provenance_record, Mapping):
+                raise ValueError("replay provenance must be a mapping or null")
+            source_type = provenance_record.get("source_type")
+            source_ids = provenance_record.get("source_ids", ())
+            source_sequences = provenance_record.get("source_sequences", ())
+            p_timestamp = provenance_record.get("timestamp_ns", 0)
+            confidence = provenance_record.get("confidence")
+            if not isinstance(source_type, str) or not source_type:
+                raise ValueError("replay provenance source_type must be a non-empty string")
+            if not isinstance(source_ids, (list, tuple)) or not all(isinstance(x, str) for x in source_ids):
+                raise ValueError("replay provenance source_ids must be strings")
+            if not isinstance(source_sequences, (list, tuple)) or not all(isinstance(x, int) and not isinstance(x, bool) for x in source_sequences):
+                raise ValueError("replay provenance source_sequences must be integers")
+            if not isinstance(p_timestamp, int) or isinstance(p_timestamp, bool) or p_timestamp < 0:
+                raise ValueError("replay provenance timestamp_ns must be non-negative")
+            if confidence is not None and (not isinstance(confidence, (int, float)) or isinstance(confidence, bool)):
+                raise ValueError("replay provenance confidence must be numeric or null")
+            provenance = EventProvenance(
+                source_type=source_type,
+                source_ids=tuple(source_ids),
+                source_sequences=tuple(source_sequences),
+                timestamp_ns=p_timestamp,
+                confidence=None if confidence is None else float(confidence),
+                metadata=_decode_value(provenance_record.get("metadata")),
+            )
+        return cls(
+            event_id=event_id,
+            timestamp_ns=timestamp_ns,
+            kind=kind,
+            payload=_decode_value(record.get("payload")),
+            provenance=provenance,
+        )
+
     def chain_signature(self) -> tuple[object, ...]:
         provenance = self.provenance
         return (
@@ -181,3 +249,4 @@ class ReplayLog:
             event_count=len(actual),
             mismatches=tuple(mismatches),
         )
+\n\ndef _encode_value(value: object) -> object:\n    if value is None or isinstance(value, (str, int, float, bool)):\n        return value\n    if isinstance(value, Enum):\n        return {"__enum__": f"{type(value).__module__}.{type(value).__qualname__}", "value": _encode_value(value.value)}\n    if isinstance(value, Mapping):\n        return {"__mapping__": [[_encode_value(key), _encode_value(item)] for key, item in value.items()]}\n    if isinstance(value, tuple):\n        return {"__tuple__": [_encode_value(item) for item in value]}\n    if isinstance(value, list):\n        return [_encode_value(item) for item in value]\n    return {"__opaque_type__": f"{type(value).__module__}.{type(value).__qualname__}", "repr": repr(value)}\n\n\ndef _decode_value(value: object) -> object:\n    if isinstance(value, list):\n        return [_decode_value(item) for item in value]\n    if not isinstance(value, Mapping):\n        return value\n    if "__tuple__" in value:\n        return tuple(_decode_value(item) for item in value["__tuple__"])\n    if "__mapping__" in value:\n        return {_decode_value(pair[0]): _decode_value(pair[1]) for pair in value["__mapping__"]}\n    if "__opaque_type__" in value:\n        return dict(value)\n    if "__enum__" in value:\n        return {"__enum__": value["__enum__"], "value": _decode_value(value.get("value"))}\n    return {key: _decode_value(item) for key, item in value.items()}\n
