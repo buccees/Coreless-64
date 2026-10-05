@@ -178,6 +178,42 @@ class VigilEnvironment:
             provenance=provenance,
         )
 
+    def ingest_input_event(self, event) -> tuple[object, ...]:
+        """Record a Coreless raw input event and its VIGIL interpretations."""
+        if not self.enabled or self.input_router is None:
+            return ()
+        device = next((item for item in self.input_router.devices.devices if item.device_id == event.device_id), None)
+        if device is None:
+            raise ValueError("input event references an unknown Coreless device")
+        interpretations = self.input.interpret(event, device)
+        self.replay.append(ReplayEvent(
+            event_id=f"input-{event.sequence}",
+            timestamp_ns=event.timestamp_ns,
+            kind="input.raw",
+            payload=event,
+            provenance=EventProvenance(
+                source_type="coreless-input",
+                source_ids=(event.device_id,),
+                source_sequences=(event.sequence,),
+                timestamp_ns=event.timestamp_ns,
+            ),
+        ))
+        for item in interpretations:
+            self.replay.append(ReplayEvent(
+                event_id=item.interpretation_id,
+                timestamp_ns=item.timestamp_ns,
+                kind=item.kind,
+                payload=item,
+                provenance=EventProvenance(
+                    source_type=item.kind,
+                    source_ids=(item.device_id,),
+                    source_sequences=item.source_sequence,
+                    timestamp_ns=item.timestamp_ns,
+                    confidence=item.confidence,
+                ),
+            ))
+        return interpretations
+
     def capture_camera_frame(self):
         if not self.enabled or self.camera is None:
             return None
