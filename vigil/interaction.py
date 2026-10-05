@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Mapping, Protocol
 
+from .provenance import EventProvenance
+
 
 class InputModality(str, Enum):
     TEXT = "text"
@@ -35,7 +37,7 @@ class InteractionResponse:
     timestamp_ns: int
     source_entity_ids: tuple[str, ...] = ()
     metadata: Mapping[str, object] = None
-
+    provenance: EventProvenance | None = None
 
 
 
@@ -67,7 +69,7 @@ class HumanInteractionService:
         if text:
             self._context.append(text)
 
-    def respond(self, request: InteractionRequest, answer: str, *, grounded: bool, timestamp_ns: int, source_entity_ids: tuple[str, ...] = ()) -> InteractionResponse:
+    def respond(self, request: InteractionRequest, answer: str, *, grounded: bool, timestamp_ns: int, source_entity_ids: tuple[str, ...] = (), provenance: EventProvenance | None = None) -> InteractionResponse:
         self.remember(request.text)
         self.remember(answer)
-        return InteractionResponse(request.request_id, answer, grounded, timestamp_ns, source_entity_ids)
+        return InteractionResponse(request.request_id, answer, grounded, timestamp_ns, source_entity_ids, provenance=provenance)
