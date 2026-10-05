@@ -52,7 +52,7 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [ ] Remote display/input
 - [x] User-designated pointing-device subsystem
 - [x] Touch/pointing input routing through Coreless input boundary
-- [ ] VIGIL input interpretation integration
+- [x] Initial optional VIGIL input interpretation layer
 - [x] Plug-and-play host discovery and identity handshake software contract
 - [x] Host capability negotiation and attach/detach software contract
 - [x] Reference host enumeration/transport adapter
@@ -165,26 +165,31 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Reference host enumeration/transport adapter
 - [ ] Cross-platform physical host enumeration
 - [ ] Concrete display/input/network transport adapters
-- [ ] User-designated pointing-device discovery and persistent assignment
-- [ ] Touch/pointing transport protocol
-- [ ] VIGIL-aware input interpretation boundary
-- [ ] Input-device failover and reassignment
+- [x] User-designated pointing-device discovery and persistent assignment
+- [x] Coreless touch/pointing event transport contract
+- [x] VIGIL-aware input interpretation boundary
+- [x] Input-device failover and reassignment
 
 ## VIGIL input integration
 
-The Coreless input architecture may use VIGIL as an interpretation layer for user-designated touch and pointing devices. VIGIL does not become the physical input device or replace the Coreless input boundary.
+The Coreless input architecture uses VIGIL as an optional interpretation layer. VIGIL is now contained in the Coreless repository rather than being a separate runtime dependency.
 
 - [x] Define Coreless input event ABI for pointer, touch, stylus, and gesture events
 - [x] Define user designation and persistent identity for a primary pointing device
 - [x] Define device discovery, capability advertisement, assignment, reassignment, and failover
 - [x] Route designated pointing-device events through the Coreless input boundary
-- [ ] Define VIGIL interpretation API and capability boundary
-- [ ] Support gesture and multi-touch interpretation through VIGIL
+- [x] Define initial VIGIL interpretation API and capability boundary
+- [ ] Implement gesture and multi-touch interpretation through VIGIL
 - [x] Preserve raw-event access for applications that do not use VIGIL
-- [x] Keep VIGIL optional so basic pointer/touch operation does not depend on AI
+- [x] Keep VIGIL optional so basic pointer/touch operation does not depend on VIGIL
 - [x] Add deterministic input regression/acceptance tests
 - [x] Integrate VIGIL input state with persistent Coreless machine state where appropriate
+- [x] Add optional camera-frame ingestion boundary
+- [ ] Implement camera perception/tracking
+- [ ] Implement camera-based pointing
+- [ ] Implement spatial gesture recognition
+- [ ] Implement VIGIL spatial/world-model services inside Coreless
 
 ## Resume point
 
-**Next:** deepen concrete plug-and-play host transports and unified component lifecycle, including the new user-designated pointing-device and VIGIL input boundary → trained Qwen3-0.6B validation → persistent-storage-hosted runtime → live Coreless inference.
+**Next:** deepen the optional VIGIL layer with camera perception/tracking and spatial interaction while continuing concrete plug-and-play host transports → trained Qwen3-0.6B validation → persistent-storage-hosted runtime → live Coreless inference.
