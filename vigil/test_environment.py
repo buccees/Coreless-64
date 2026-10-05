@@ -224,3 +224,40 @@ def test_vigil_authorized_ai_interaction_is_replay_auditable():
     restored = VigilEnvironment(enabled=False, ai_registry=registry)
     restored.restore_state(state)
     assert restored.validate_persisted_replay_integrity().valid
+
+
+def test_vigil_unauthorized_interaction_is_not_replayed_or_sent_to_ai():
+    from ai.registry import AICoreRegistry
+    from ai.interfaces import AIResult
+    from vigil.interaction import InteractionRequest, InputModality
+    from vigil.provenance import EventProvenance
+
+    class Core:
+        model_id = "guarded-model"
+        calls = 0
+        def infer(self, request):
+            self.calls += 1
+            return AIResult(model_id=self.model_id, text="must not run")
+
+    core = Core()
+    registry = AICoreRegistry()
+    registry.register(core)
+    registry.enable("guarded-model")
+    environment = VigilEnvironment(enabled=True, ai_registry=registry)
+    request = InteractionRequest(
+        request_id="req-denied",
+        modality=InputModality.TEXT,
+        text="unauthorized",
+        timestamp_ns=400,
+        session_id="session-denied",
+        authorization_scope="vigil.interact",
+        provenance=EventProvenance("test", ("req-denied",), timestamp_ns=400),
+    )
+    try:
+        environment.handle_interaction(request, required_scope="vigil.admin")
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("expected unauthorized interaction rejection")
+    assert core.calls == 0
+    assert environment.replay.events == ()
