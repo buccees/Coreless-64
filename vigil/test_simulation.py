@@ -82,4 +82,30 @@ def test_replay_integrity_rejects_unknown_algorithm():
     result = log.verify_integrity(record)
     assert not result.valid
     assert "integrity.algorithm" in result.mismatches[0]
-\n\ndef test_replay_event_record_round_trips_safe_payload_and_provenance():\n    event = _event("one", 4)\n    restored = ReplayEvent.from_record(event.to_record())\n    assert restored.chain_signature() == event.chain_signature()\n    assert restored.provenance is not None\n    assert restored.provenance.source_sequences == (4,)\n\n\ndef test_replay_log_persistent_state_round_trips():\n    original = ReplayLog((_event("one"), _event("two", 2)))\n    restored = ReplayLog.from_persistent_state(original.persistent_state())\n    assert restored.chain_digest() == original.chain_digest()\n    assert restored.events[0].event_id == "one"\n\n\ndef test_replay_log_persistent_state_detects_event_tampering():\n    original = ReplayLog((_event("one"),))\n    state = original.persistent_state()\n    state["events"][0]["event_id"] = "tampered"\n    try:\n        ReplayLog.from_persistent_state(state)\n    except ValueError as exc:\n        assert "integrity verification failed" in str(exc)\n    else:\n        raise AssertionError("tampered replay state was accepted")\n
+
+
+def test_replay_event_record_round_trips_safe_payload_and_provenance():
+    event = _event("one", 4)
+    restored = ReplayEvent.from_record(event.to_record())
+    assert restored.chain_signature() == event.chain_signature()
+    assert restored.provenance is not None
+    assert restored.provenance.source_sequences == (4,)
+
+
+def test_replay_log_persistent_state_round_trips():
+    original = ReplayLog((_event("one"), _event("two", 2)))
+    restored = ReplayLog.from_persistent_state(original.persistent_state())
+    assert restored.chain_digest() == original.chain_digest()
+    assert restored.events[0].event_id == "one"
+
+
+def test_replay_log_persistent_state_detects_event_tampering():
+    original = ReplayLog((_event("one"),))
+    state = original.persistent_state()
+    state["events"][0]["event_id"] = "tampered"
+    try:
+        ReplayLog.from_persistent_state(state)
+    except ValueError as exc:
+        assert "integrity verification failed" in str(exc)
+    else:
+        raise AssertionError("tampered replay state was accepted")
