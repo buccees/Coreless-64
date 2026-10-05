@@ -141,6 +141,10 @@ class PointingDeviceManager:
         self._bound_device_id: str | None = None
 
     @property
+    def devices(self) -> tuple[PointingDevice, ...]:
+        return tuple(self._devices.values())
+
+    @property
     def designated_device_id(self) -> str | None:
         return self._designated_device_id
 
