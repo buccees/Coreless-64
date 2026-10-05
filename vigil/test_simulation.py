@@ -36,3 +36,15 @@ def test_replay_validation_detects_missing_and_extra_events():
     extra = original.validate_replay((_event("one"), _event("two", 2), _event("three", 3)))
     assert not missing.valid
     assert not extra.valid
+
+
+def test_replay_chain_digest_is_deterministic():
+    first = ReplayLog((_event("one"), _event("two", 2)))
+    second = ReplayLog((_event("one"), _event("two", 2)))
+    assert first.chain_digest() == second.chain_digest()
+
+
+def test_replay_chain_digest_changes_with_provenance():
+    first = ReplayLog((_event("one"),))
+    changed = ReplayLog((_event("one", 9),))
+    assert first.chain_digest() != changed.chain_digest()
