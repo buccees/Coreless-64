@@ -63,6 +63,16 @@ def _entity_from_record(record: object) -> WorldEntity | None:
     provenance = record.get("provenance", ())
     if not isinstance(provenance, (list, tuple)):
         raise ValueError("world entity provenance must be a list")
+    parsed_provenance = []
+    for item in provenance:
+        if not isinstance(item, Mapping):
+            raise ValueError("world entity provenance entry must be a mapping")
+        parsed_provenance.append(Provenance(
+            source_id=str(item["source_id"]),
+            source_type=str(item["source_type"]),
+            created_ns=int(item["created_ns"]),
+            metadata=dict(item.get("metadata", {})),
+        ))
     return WorldEntity(
         entity_id=str(record["entity_id"]),
         entity_type=EntityType(record["entity_type"]),
@@ -75,15 +85,7 @@ def _entity_from_record(record: object) -> WorldEntity | None:
             time_ns=uncertainty.get("time_ns"),
             classification=uncertainty.get("classification"),
         ),
-        provenance=tuple(
-            Provenance(
-                source_id=str(item["source_id"]),
-                source_type=str(item["source_type"]),
-                created_ns=int(item["created_ns"]),
-                metadata=dict(item.get("metadata", {})),
-            )
-            for item in provenance
-        ),
+        provenance=tuple(parsed_provenance),
         first_seen_ns=int(record["first_seen_ns"]),
         last_seen_ns=int(record["last_seen_ns"]),
         valid=bool(record.get("valid", True)),
@@ -154,14 +156,31 @@ class WorldModel:
         history = state.get("history", [])
         if not isinstance(entities, list) or not isinstance(history, list):
             raise ValueError("world model entities/history must be lists")
-        restored = {_entity_from_record(record).entity_id: _entity_from_record(record) for record in entities}
+        restored: dict[str, WorldEntity] = {}
+        for record in entities:
+            entity = _entity_from_record(record)
+            if entity is None:
+                raise ValueError("world model entity cannot be null")
+            if entity.entity_id in restored:
+                raise ValueError("duplicate world model entity id")
+            restored[entity.entity_id] = entity
         events: list[WorldModelEvent] = []
+        seen_ids: set[str] = set()
+        last_timestamp = -1
         for record in history:
             if not isinstance(record, Mapping):
                 raise ValueError("world model history record must be a mapping")
+            event_id = str(record["event_id"])
+            timestamp_ns = int(record["timestamp_ns"])
+            if event_id in seen_ids:
+                raise ValueError("duplicate world model history event id")
+            if timestamp_ns < last_timestamp:
+                raise ValueError("world model history timestamps must be monotonic")
+            seen_ids.add(event_id)
+            last_timestamp = timestamp_ns
             events.append(WorldModelEvent(
-                str(record["event_id"]),
-                int(record["timestamp_ns"]),
+                event_id,
+                timestamp_ns,
                 str(record["entity_id"]),
                 str(record["kind"]),
                 _entity_from_record(record.get("previous")),
