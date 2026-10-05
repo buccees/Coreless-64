@@ -24,3 +24,18 @@ def test_multitouch_state_is_preserved():
     result = g.process(event(3, InputEventType.TOUCH_UPDATE, 2, 20, 0))
     assert result[0].gesture == "multitouch_update"
     assert result[0].contacts == (1, 2)
+
+from reference.input import InputCapabilities, PointingDevice
+from vigil.input import VigilInputLayer
+
+
+def test_gesture_results_are_routed_as_derived_input_events():
+    layer = VigilInputLayer(enabled=True)
+    device = PointingDevice(
+        "touch-1", "touch", InputCapabilities(touch=True, multitouch=True)
+    )
+    layer.interpret(event(10, InputEventType.TOUCH_BEGIN, 1, 0, 0), device)
+    derived = layer.interpret(event(11, InputEventType.TOUCH_END, 1, 1, 1), device)
+    assert any(item.kind == "gesture.tap" for item in derived)
+    assert all(item.device_id == "touch-1" for item in derived)
+    assert all(item.source_sequence for item in derived)
