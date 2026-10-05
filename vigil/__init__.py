@@ -16,6 +16,7 @@ from .simulation import ReplaySource, SimulationFrame
 from .spatial import CameraFrame, DetectionKind, SpatialPoint
 from .tracking import TrackManager
 from .world import WorldModel, WorldModelEvent
+from .visual_pointer import VisualPointer, VisualTouchIntent
 
 __all__ = [
     "AnalysisResult", "AttentionItem", "AttentionLifecycle", "AttentionManager",
@@ -25,6 +26,6 @@ __all__ = [
     "PresentationState", "PriorityContext", "PriorityResult", "Provenance",
     "RelevancePriorityEngine", "ReplaySource", "SensorState", "SimulationFrame",
     "SpatialPoint", "Track", "TrackManager", "Uncertainty", "VigilEnvironment",
-    "VigilInputInterpreter", "VigilInputLayer", "VigilStatus", "WorldEntity",
+    "VigilInputInterpreter", "VigilInputLayer", "VigilStatus", "VisualPointer", "VisualTouchIntent", "WorldEntity",
     "WorldModel", "WorldModelEvent", "bearing_degrees", "distance_between",
 ]
