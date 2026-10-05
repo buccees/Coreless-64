@@ -5,10 +5,13 @@ from dataclasses import dataclass
 from typing import Mapping
 
 from ai.registry import AICoreRegistry
+from reference.input import CorelessInputRouter
+from reference.visual_input import VisualPointingDeviceAdapter
 
 from .ai import CorelessVigilAI
 from .attention import AttentionManager
 from .camera import CameraReader, SharedCameraSource
+from .fast_touch import FastCameraTouchPath, FastTouchDetector
 from .input import VigilInputLayer
 from .interaction import HumanInteractionService
 from .presentation import PresentationManager
@@ -32,7 +35,7 @@ class VigilStatus:
 class VigilEnvironment:
     """Complete optional VIGIL environment hosted by Coreless."""
 
-    VERSION = 2
+    VERSION = 3
 
     def __init__(
         self,
@@ -41,10 +44,14 @@ class VigilEnvironment:
         input_layer: VigilInputLayer | None = None,
         ai_registry: AICoreRegistry | None = None,
         camera: CameraReader | None = None,
+        input_router: CorelessInputRouter | None = None,
     ) -> None:
         self.enabled = enabled
         self.input = input_layer or VigilInputLayer(enabled=enabled)
         self.camera = SharedCameraSource(camera) if camera is not None else None
+        self.input_router = input_router
+        self.visual_input: VisualPointingDeviceAdapter | None = None
+        self.fast_touch: FastCameraTouchPath | None = None
         self.world = WorldModel()
         self.tracking = TrackManager()
         self.perception = PerceptionPipeline(tracking=self.tracking, world=self.world)
@@ -63,12 +70,42 @@ class VigilEnvironment:
         self.enabled = False
         self.input.enable(False)
 
-    def capture_camera_frame(self):
-        """Capture once at the Coreless-owned camera boundary.
+    def configure_fast_touch(
+        self,
+        detector: FastTouchDetector,
+        *,
+        input_router: CorelessInputRouter | None = None,
+        display_width: int | None = None,
+        display_height: int | None = None,
+    ) -> FastCameraTouchPath:
+        """Attach visual touch to the shared camera and Coreless input boundary."""
+        if self.camera is None:
+            raise RuntimeError("VIGIL fast touch requires a camera")
+        router = input_router or self.input_router
+        if router is None:
+            raise RuntimeError("VIGIL fast touch requires a Coreless input router")
+        self.input_router = router
+        self.visual_input = VisualPointingDeviceAdapter(router)
+        self.visual_input.register_and_designate()
+        self.fast_touch = FastCameraTouchPath(
+            self.camera,
+            detector,
+            display_width=display_width,
+            display_height=display_height,
+        )
+        return self.fast_touch
 
-        Consumers must use the returned/shared latest frame instead of opening
-        or reading the physical camera independently.
-        """
+    def poll_fast_touch(self):
+        """Run one shared-frame touch pass and submit any intent to Coreless input."""
+        if not self.enabled or self.fast_touch is None or self.visual_input is None:
+            return None
+        intent = self.fast_touch.poll()
+        if intent is None:
+            return None
+        return self.visual_input.submit(intent)
+
+    def capture_camera_frame(self):
+        """Capture once at the Coreless-owned camera boundary."""
         if not self.enabled or self.camera is None:
             return None
         return self.camera.capture()
@@ -101,6 +138,7 @@ class VigilEnvironment:
             "enabled": self.enabled,
             "input": self.input.persistent_state(),
             "camera": self.camera.persistent_state() if self.camera is not None else None,
+            "fast_touch_enabled": self.fast_touch is not None,
         }
 
     def restore_state(self, state: Mapping[str, object]) -> None:
