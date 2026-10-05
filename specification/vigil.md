@@ -108,3 +108,17 @@ The VIGIL environment is acceptable when:
 8. World-model state remains provenance-aware and deterministic.
 9. VIGIL services can grow without changing the Coreless device-assignment contract.
 10. VIGIL remains optional while its implemented scope remains complete.
+
+
+## Replay integrity and validation
+
+VIGIL replay is deterministic and audit-oriented. Each recorded event carries an
+ordered event identity, timestamp, kind, and provenance chain. Replay validation
+compares the replayed chain against the original chain rather than relying on
+object identity. The chain also has a deterministic SHA-256 integrity digest.
+
+Persisted replay integrity records contain a format version, digest algorithm,
+event count, and chain digest. Restore must reject unsupported integrity
+versions, algorithms, event-count changes, or digest changes before accepting
+persisted VIGIL state. This makes replay corruption or tampering detectable
+before the recorded session is reused.
