@@ -36,6 +36,13 @@ class ReplayEvent:
     provenance: EventProvenance | None = None
 
 
+@dataclass(frozen=True)
+class ReplayValidation:
+    valid: bool
+    event_count: int
+    mismatches: tuple[str, ...] = ()
+
+
 class ReplayLog:
     """Deterministic append-only VIGIL event log for audit and replay."""
     def __init__(self, events: tuple[ReplayEvent, ...] = ()) -> None:
