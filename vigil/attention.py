@@ -26,7 +26,7 @@ class AttentionManager:
         if max_active < 1:
             raise ValueError("max_active must be positive")
         self.max_active = max_active
-        self.minimum_priority = minimum_priority
+        if not 0.0 <= minimum_priority <= 1.0:\n            raise ValueError("minimum_priority must be between 0 and 1")\n        self.minimum_priority = minimum_priority
         self._items: dict[str, AttentionItem] = {}
 
     def evaluate(self, results: tuple[PriorityResult, ...]) -> tuple[AttentionItem, ...]:
