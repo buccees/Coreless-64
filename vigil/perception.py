@@ -22,12 +22,39 @@ class PerceptionResult:
     world_entities: tuple[WorldEntity, ...]
 
 
+class CameraPerceptionProvider(Protocol):
+    """Optional detector boundary; implementations remain behind Coreless APIs."""
+
+    def detect(self, frame: CameraFrame) -> tuple[Detection, ...]:
+        ...
+
+
 class PerceptionPipeline:
     """Canonical observation -> detection -> track -> world pipeline."""
 
     def __init__(self, *, tracking: TrackManager, world: WorldModel) -> None:
         self.tracking = tracking
         self.world = world
+
+    def ingest_camera_frame(
+        self,
+        frame: CameraFrame,
+        provider: CameraPerceptionProvider,
+    ) -> PerceptionResult:
+        """Convert one camera frame through the canonical perception boundary."""
+        observation = Observation(
+            observation_id=f"camera:{frame.source_id}:{frame.sequence}",
+            source_id=frame.source_id,
+            timestamp_ns=frame.timestamp_ns,
+            payload={"width": frame.width, "height": frame.height, "sequence": frame.sequence},
+            confidence=float(frame.metadata.get("confidence", 1.0)),
+            provenance=Provenance(frame.source_id, "camera", frame.timestamp_ns, frame.metadata),
+        )
+        detections = tuple(provider.detect(frame))
+        for detection in detections:
+            if detection.observation_id != observation.observation_id:
+                raise ValueError("camera detection must reference the current frame observation")
+        return self.ingest((observation,), detections)
 
     def ingest(
         self,
