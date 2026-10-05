@@ -111,9 +111,15 @@ class ReplayLog:
 
     def verify_integrity(self, record) -> ReplayValidation:
         """Verify a persisted integrity record before replay."""
+        version = int(record.get("version", -1))
+        algorithm = str(record.get("algorithm", ""))
         expected_count = int(record.get("event_count", -1))
         expected_digest = str(record.get("chain_digest", ""))
         mismatches = []
+        if version != 1:
+            mismatches.append("integrity.version: unsupported version " + str(version))
+        if algorithm != "sha256":
+            mismatches.append("integrity.algorithm: unsupported algorithm " + repr(algorithm))
         if expected_count != len(self._events):
             mismatches.append(
                 f"integrity.event_count: expected {expected_count}, got {len(self._events)}"
