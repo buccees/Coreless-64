@@ -12,7 +12,6 @@ from vigil.spatial import CameraFrame
 def test_vigil_is_optional_and_disabled_by_default():
     vigil = VigilInputLayer()
     assert not vigil.available()
-    assert vigil.interpret(None, None) == () if False else not vigil.available()
 
 
 def test_vigil_interprets_coreless_input_without_changing_raw_event():
