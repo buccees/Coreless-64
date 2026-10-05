@@ -13,7 +13,7 @@ from .attention import AttentionManager
 from .camera import CameraReader, SharedCameraSource
 from .fast_touch import FastCameraTouchPath, FastTouchDetector
 from .input import VigilInputLayer
-from .interaction import HumanInteractionService, InteractionRequest, InteractionResponse, VoiceInputSource
+from .interaction import HumanInteractionService, InputModality, InteractionRequest, InteractionResponse, VoiceInputSource
 from .presentation import PresentationManager
 from .priority import RelevancePriorityEngine
 from .perception import CameraPerceptionProvider, PerceptionPipeline, PerceptionResult
@@ -134,7 +134,7 @@ class VigilEnvironment:
         text, timestamp_ns = sample
         request = InteractionRequest(
             request_id=f"{request_prefix}-{timestamp_ns}",
-            modality=__import__("vigil.interaction", fromlist=["InputModality"]).InputModality.VOICE,
+            modality=InputModality.VOICE,
             text=text,
             timestamp_ns=timestamp_ns,
             session_id=session_id,
@@ -163,7 +163,7 @@ class VigilEnvironment:
         )
         if analysis is None:
             return None
-        request_provenance = request.metadata.get("provenance") if request.metadata else None
+        request_provenance = request.provenance
         provenance = request_provenance if isinstance(request_provenance, EventProvenance) else EventProvenance(
             source_type=f"interaction.{request.modality.value}",
             source_ids=(request.request_id,),
