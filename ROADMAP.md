@@ -50,8 +50,8 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [ ] Networking
 - [ ] GUI
 - [ ] Remote display/input
-- [ ] User-designated pointing-device subsystem
-- [ ] Touch/pointing input routing through Coreless input boundary
+- [x] User-designated pointing-device subsystem
+- [x] Touch/pointing input routing through Coreless input boundary
 - [ ] VIGIL input interpretation integration
 - [x] Plug-and-play host discovery and identity handshake software contract
 - [x] Host capability negotiation and attach/detach software contract
@@ -174,16 +174,16 @@ The current implementation checkpoint includes the complete reference digital-ma
 
 The Coreless input architecture may use VIGIL as an interpretation layer for user-designated touch and pointing devices. VIGIL does not become the physical input device or replace the Coreless input boundary.
 
-- [ ] Define Coreless input event ABI for pointer, touch, stylus, and gesture events
-- [ ] Define user designation and persistent identity for a primary pointing device
-- [ ] Define device discovery, capability advertisement, assignment, reassignment, and failover
-- [ ] Route designated pointing-device events through the Coreless input boundary
+- [x] Define Coreless input event ABI for pointer, touch, stylus, and gesture events
+- [x] Define user designation and persistent identity for a primary pointing device
+- [x] Define device discovery, capability advertisement, assignment, reassignment, and failover
+- [x] Route designated pointing-device events through the Coreless input boundary
 - [ ] Define VIGIL interpretation API and capability boundary
 - [ ] Support gesture and multi-touch interpretation through VIGIL
-- [ ] Preserve raw-event access for applications that do not use VIGIL
-- [ ] Keep VIGIL optional so basic pointer/touch operation does not depend on AI
-- [ ] Add deterministic input regression/acceptance tests
-- [ ] Integrate VIGIL input state with persistent Coreless machine state where appropriate
+- [x] Preserve raw-event access for applications that do not use VIGIL
+- [x] Keep VIGIL optional so basic pointer/touch operation does not depend on AI
+- [x] Add deterministic input regression/acceptance tests
+- [x] Integrate VIGIL input state with persistent Coreless machine state where appropriate
 
 ## Resume point
 
