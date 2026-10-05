@@ -82,3 +82,26 @@ def test_fast_path_consumes_shared_latest_frame_without_second_camera_read():
     assert first.action == "touch_begin"
     assert second.action == "move"
     assert physical.reads == 2
+
+
+def test_fast_touch_state_round_trips_without_serializing_detector():
+    path = FastCameraTouchPath(
+        Camera([frame(1)]),
+        Detector([detection(1)]),
+        display_width=1280,
+        display_height=720,
+    )
+    path.poll()
+    state = path.persistent_state()
+    restored = FastCameraTouchPath(
+        Camera([frame(2)]),
+        Detector([detection(2)]),
+        display_width=1,
+        display_height=1,
+    )
+    restored.restore_state(state)
+    assert restored.display_width == 1280
+    assert restored.display_height == 720
+    assert restored.frames_processed == 1
+    assert restored.last_frame_sequence == 1
+    assert restored.last_detection is None
