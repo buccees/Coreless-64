@@ -97,3 +97,28 @@ def test_vigil_world_restore_rejects_duplicate_history_ids():
     else:
         raise AssertionError("expected duplicate history id rejection")
 
+
+
+def test_vigil_runtime_persists_camera_and_fast_touch_configuration():
+    from vigil.camera import SharedCameraSource
+    from vigil.fast_touch import FastCameraTouchPath
+
+    class Camera:
+        def available(self):
+            return True
+        def read(self):
+            from vigil.spatial import CameraFrame
+            return CameraFrame("cam", 10, 1, 640, 480)
+
+    source = VigilEnvironment(enabled=True, camera=Camera())
+    source.configure_fast_touch(
+        type("Detector", (), {"detect": lambda self, frame: None})(),
+        display_width=1280,
+        display_height=720,
+    )
+    source.camera.capture()
+    state = source.persistent_state()
+    restored = VigilEnvironment(enabled=False, camera=Camera())
+    restored.restore_state(state)
+    assert restored.camera.persistent_state()["last_sequence"] == 1
+    assert restored.persistent_state()["fast_touch_enabled"]
