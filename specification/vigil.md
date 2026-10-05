@@ -148,3 +148,10 @@ World-model restore rejects duplicate entity identifiers, duplicate history even
 The shared camera persists a sequence watermark rather than a physical frame or camera handle. After restore, a newly rebound camera must not be allowed to move the sequence backward. The physical camera remains owned by the Coreless device layer.
 
 The low-latency visual-touch path persists portable configuration and processing counters, but never serializes a detector object or fabricated physical camera resource. A restored fast-touch path may therefore require a new detector binding before it resumes processing frames.
+
+
+## End-to-end runtime contract
+
+A complete VIGIL camera cycle is normative and ordered: Coreless camera capture produces one frame; VIGIL records the frame; the same frame may feed fast-touch and canonical perception; perception updates tracking and the world model; priority evaluates the resulting world state; attention evaluates ordered priority; presentation materializes the device-independent presentation state; and the complete cycle is appended to the replay/audit chain with provenance. A cycle must not require a second physical camera read.
+
+A persisted VIGIL runtime snapshot must restore the logical world, tracking, attention, interaction context, presentation state, input interpretation state, portable camera/fast-touch resource state, and complete replay chain without fabricating physical resources. Restored replay integrity must match the persisted chain before the snapshot is considered valid.
