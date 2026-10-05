@@ -353,6 +353,10 @@ class VigilEnvironment:
             "input": self.input.persistent_state(),
             "camera": self.camera.persistent_state() if self.camera is not None else None,
             "fast_touch_enabled": self.fast_touch is not None,
+            "world": self.world.persistent_state(),
+            "tracking": self.tracking.persistent_state(),
+            "attention": self.attention.persistent_state(),
+            "interaction": self.interaction.persistent_state(),
             "replay": self.replay.persistent_state(),
         }
 
@@ -375,4 +379,16 @@ class VigilEnvironment:
         input_state = state.get("input", {})
         if isinstance(input_state, Mapping):
             self.input.restore_state(input_state)
+        world_state = state.get("world")
+        if isinstance(world_state, Mapping):
+            self.world.restore_state(world_state)
+        tracking_state = state.get("tracking")
+        if isinstance(tracking_state, Mapping):
+            self.tracking.restore_state(tracking_state)
+        attention_state = state.get("attention")
+        if isinstance(attention_state, Mapping):
+            self.attention.restore_state(attention_state)
+        interaction_state = state.get("interaction")
+        if isinstance(interaction_state, Mapping):
+            self.interaction.restore_state(interaction_state)
         self.input.enable(self.enabled)
