@@ -13,7 +13,7 @@ from .attention import AttentionManager
 from .camera import CameraReader, SharedCameraSource
 from .fast_touch import FastCameraTouchPath, FastTouchDetector
 from .input import VigilInputLayer
-from .interaction import HumanInteractionService, InteractionRequest, InteractionResponse
+from .interaction import HumanInteractionService, InteractionRequest, InteractionResponse, VoiceInputSource
 from .presentation import PresentationManager
 from .priority import RelevancePriorityEngine
 from .perception import CameraPerceptionProvider, PerceptionPipeline, PerceptionResult
@@ -112,6 +112,32 @@ class VigilEnvironment:
         if intent is None:
             return None
         return self.visual_input.submit(intent)
+
+    def poll_voice(
+        self,
+        source: VoiceInputSource,
+        *,
+        session_id: str,
+        authorization_scope: str,
+        required_scope: str,
+        request_prefix: str = "voice",
+    ) -> InteractionResponse | None:
+        """Poll optional voice transport and route it through the same interaction path."""
+        if not self.enabled or not source.available():
+            return None
+        sample = source.read()
+        if sample is None:
+            return None
+        text, timestamp_ns = sample
+        request = InteractionRequest(
+            request_id=f"{request_prefix}-{timestamp_ns}",
+            modality=__import__("vigil.interaction", fromlist=["InputModality"]).InputModality.VOICE,
+            text=text,
+            timestamp_ns=timestamp_ns,
+            session_id=session_id,
+            authorization_scope=authorization_scope,
+        )
+        return self.handle_interaction(request, required_scope=required_scope)
 
     def handle_interaction(
         self,
