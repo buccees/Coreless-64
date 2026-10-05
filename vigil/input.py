@@ -16,6 +16,7 @@ from reference.input import (
     PointingDevice,
 )
 
+from .gesture import GestureInterpreter
 from .spatial import CameraFrame
 
 
@@ -55,6 +56,7 @@ class VigilInputLayer:
     _camera_sequence: int = 0
     _last_event_sequence: int | None = None
     _camera_frames: list[CameraFrame] = field(default_factory=list)
+    _gesture: GestureInterpreter = field(default_factory=GestureInterpreter)
 
     def available(self) -> bool:
         return self.enabled
@@ -73,9 +75,8 @@ class VigilInputLayer:
             raise ValueError("VIGIL input sequence must increase monotonically")
         self._last_event_sequence = event.sequence
 
-        # The first layer preserves a deterministic spatial/input interpretation
-        # without inventing gesture or vision results that have not been observed.
-        return (
+        results = self._gesture.process(event)
+        events = [
             InterpretedInputEvent(
                 interpretation_id=f"vigil-input-{event.sequence}",
                 kind=f"input.{event.event_type.value}",
@@ -87,8 +88,26 @@ class VigilInputLayer:
                     "source": "coreless-input",
                 },
                 confidence=1.0,
-            ),
-        )
+            )
+        ]
+        for index, result in enumerate(results):
+            events.append(
+                InterpretedInputEvent(
+                    interpretation_id=f"vigil-gesture-{event.sequence}-{index}",
+                    kind=f"gesture.{result.gesture}",
+                    device_id=device.device_id,
+                    timestamp_ns=event.timestamp_ns,
+                    source_sequence=result.source_sequence,
+                    metadata={
+                        "coordinate_frame": event.coordinate_frame.value,
+                        "contacts": result.contacts,
+                        **dict(result.metadata or {}),
+                        "source": "vigil-gesture",
+                    },
+                    confidence=result.confidence,
+                )
+            )
+        return tuple(events)
 
     def ingest_camera_frame(self, frame: CameraFrame) -> None:
         if not self.enabled:
