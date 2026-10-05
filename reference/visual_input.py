@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from vigil.visual_pointer import VisualTouchIntent
-from .input import (
+from input import (
     CoordinateFrame,
     CorelessInputRouter,
     InputCapabilities,
