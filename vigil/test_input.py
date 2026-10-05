@@ -59,3 +59,20 @@ def test_disabled_vigil_does_not_accept_camera_work():
         pass
     else:
         raise AssertionError("disabled VIGIL accepted camera input")
+
+
+def test_runtime_input_uses_coreless_router_authority():
+    from reference.input import CorelessInputRouter, InputCapabilities, InputEvent, InputEventType, CoordinateFrame, PointingDevice
+    from vigil.runtime import VigilEnvironment
+
+    router = CorelessInputRouter()
+    router.devices.discover([PointingDevice("mouse", "mouse", InputCapabilities(pointer=True, relative=True, buttons=1))])
+    router.devices.designate("mouse")
+    environment = VigilEnvironment(enabled=True, input_router=router)
+    event = InputEvent(
+        1, InputEventType.POINTER_MOVE, "mouse", 10, 1, CoordinateFrame.CORELESS, x=4.0, y=5.0
+    )
+    derived = environment.ingest_input_event(event)
+    assert len(router.raw_events) == 1
+    assert len(derived) >= 1
+    assert derived[0].device_id == "mouse"
