@@ -1,5 +1,5 @@
-"""Tests for the low-latency VIGIL camera touch path."""
 from vigil.fast_touch import FastCameraTouchPath
+from vigil.camera import SharedCameraSource
 from vigil.model import Detection, EntityType, Provenance
 from vigil.spatial import CameraFrame
 
@@ -7,11 +7,13 @@ from vigil.spatial import CameraFrame
 class Camera:
     def __init__(self, frames):
         self.frames = list(frames)
+        self.reads = 0
 
     def available(self):
         return bool(self.frames)
 
     def read(self):
+        self.reads += 1
         return self.frames.pop(0)
 
 
@@ -38,13 +40,7 @@ def detection(seq, x=100.0, y=200.0):
 
 
 def frame(seq):
-    return CameraFrame(
-        source_id="camera-1",
-        timestamp_ns=seq * 1_000_000,
-        sequence=seq,
-        width=1920,
-        height=1080,
-    )
+    return CameraFrame("camera-1", seq * 1_000_000, seq, 1920, 1080)
 
 
 def test_fast_path_bypasses_full_perception_and_emits_touch_sequence():
@@ -57,11 +53,8 @@ def test_fast_path_bypasses_full_perception_and_emits_touch_sequence():
     move = path.poll()
     end = path.poll()
 
-    assert begin is not None
     assert begin.action == "touch_begin"
-    assert move is not None
     assert move.action == "move"
-    assert end is not None
     assert end.action == "touch_end"
     assert path.frames_processed == 3
     assert path.last_frame_sequence == 3
@@ -72,8 +65,20 @@ def test_unavailable_camera_does_not_invoke_detector():
         def detect(self, frame):
             raise AssertionError("detector must not run")
 
-    path = FastCameraTouchPath(
-        Camera([]),
-        NoReadDetector(),
-    )
+    path = FastCameraTouchPath(Camera([]), NoReadDetector())
     assert path.poll() is None
+
+
+def test_fast_path_consumes_shared_latest_frame_without_second_camera_read():
+    physical = Camera([frame(1), frame(2)])
+    shared = SharedCameraSource(physical)
+    path = FastCameraTouchPath(shared, Detector([detection(1), detection(2, 120, 220)]))
+
+    shared.capture()
+    first = path.poll()
+    shared.capture()
+    second = path.poll()
+
+    assert first.action == "touch_begin"
+    assert second.action == "move"
+    assert physical.reads == 2
