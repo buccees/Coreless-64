@@ -83,6 +83,17 @@ VIGIL does not:
 - require AI for basic non-AI input operation; or
 - perform autonomous physical actions without Coreless authority and policy.
 
+## Unified event cycle
+
+When VIGIL is enabled and a camera is available, the Coreless-hosted VIGIL
+environment may execute one deterministic camera cycle. A single Coreless
+camera capture is shared with the low-latency visual-touch path and normal
+perception. Perception updates the world model; the same cycle then evaluates
+relevance/priority, updates attention, and produces device-independent
+presentation state. Visual-touch output is routed through the Coreless input
+boundary. Consumers remain optional, and absence of a perception provider or
+fast-touch detector does not invalidate the other path.
+
 ## Acceptance
 
 The VIGIL environment is acceptable when:
