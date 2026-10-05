@@ -111,11 +111,28 @@ class ReplayLog:
 
     def verify_integrity(self, record) -> ReplayValidation:
         """Verify a persisted integrity record before replay."""
-        version = int(record.get("version", -1))
-        algorithm = str(record.get("algorithm", ""))
-        expected_count = int(record.get("event_count", -1))
-        expected_digest = str(record.get("chain_digest", ""))
         mismatches = []
+        if not isinstance(record, dict):
+            return ReplayValidation(
+                valid=False,
+                event_count=len(self._events),
+                mismatches=("integrity.record: expected a mapping",),
+            )
+        try:
+            version = int(record.get("version", -1))
+            expected_count = int(record.get("event_count", -1))
+        except (TypeError, ValueError):
+            version = -1
+            expected_count = -1
+            mismatches.append("integrity.record: version/event_count must be integers")
+        algorithm = record.get("algorithm", "")
+        expected_digest = record.get("chain_digest", "")
+        if not isinstance(algorithm, str):
+            mismatches.append("integrity.algorithm: expected string")
+            algorithm = ""
+        if not isinstance(expected_digest, str):
+            mismatches.append("integrity.chain_digest: expected string")
+            expected_digest = ""
         if version != 1:
             mismatches.append("integrity.version: unsupported version " + str(version))
         if algorithm != "sha256":
