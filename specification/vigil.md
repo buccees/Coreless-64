@@ -163,3 +163,16 @@ VIGIL human interaction is authorized before analysis and is routed exclusively 
 
 
 Unauthorized interaction is a hard boundary: VIGIL must reject a request before invoking the Coreless AI registry and must not emit a successful interaction replay event for the rejected request. AI output can never grant or expand authorization.
+
+
+## End-to-end voice interaction contract
+
+When an optional Coreless voice transport is available, VIGIL voice input follows
+the same authorization and AI boundary as text interaction: Coreless provides the
+voice transport/transcription result, VIGIL creates a voice interaction request,
+authorization is checked before AI analysis, and the existing Coreless AI registry
+produces the response. A successful response is recorded as a provenance-bearing
+replay event and survives runtime persistence/restore with replay integrity intact.
+An unauthorized voice request must be rejected before AI invocation and must not
+produce a successful interaction replay event. Voice transport remains optional;
+its absence does not affect Coreless input or non-voice VIGIL operation.
