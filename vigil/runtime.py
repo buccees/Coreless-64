@@ -2,7 +2,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping
-from .ai import OptionalAIAnalyzer
+from ai.registry import AICoreRegistry
+from .ai import CorelessVigilAI
 from .attention import AttentionManager
 from .input import VigilInputLayer
 from .interaction import HumanInteractionService
@@ -28,7 +29,13 @@ class VigilEnvironment:
 
     VERSION = 1
 
-    def __init__(self, *, enabled: bool = False, input_layer: VigilInputLayer | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        enabled: bool = False,
+        input_layer: VigilInputLayer | None = None,
+        ai_registry: AICoreRegistry | None = None,
+    ) -> None:
         self.enabled = enabled
         self.input = input_layer or VigilInputLayer(enabled=enabled)
         self.world = WorldModel()
@@ -38,7 +45,7 @@ class VigilEnvironment:
         self.presentation = PresentationManager()
         self.interaction = HumanInteractionService()
         self.authorization = AuthorizationService()
-        self.ai = OptionalAIAnalyzer()
+        self.ai = CorelessVigilAI(ai_registry)
 
     def enable(self) -> None:
         self.enabled = True
