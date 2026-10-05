@@ -1,0 +1,38 @@
+from vigil.provenance import EventProvenance
+from vigil.simulation import ReplayEvent, ReplayLog
+
+
+def _event(event_id, sequence=1):
+    provenance = EventProvenance(
+        source_type="camera",
+        source_ids=("cam-1",),
+        source_sequences=(sequence,),
+        timestamp_ns=100,
+        confidence=0.9,
+    )
+    return ReplayEvent(event_id, 100, "camera.frame", object(), provenance)
+
+
+def test_replay_validation_accepts_identical_event_chain():
+    original = ReplayLog((_event("one"), _event("two", 2)))
+    replayed = original.replay()
+    result = original.validate_replay(replayed)
+    assert result.valid
+    assert result.event_count == 2
+    assert result.mismatches == ()
+
+
+def test_replay_validation_detects_provenance_change():
+    original = ReplayLog((_event("one"),))
+    replayed = (_event("one", 9),)
+    result = original.validate_replay(replayed)
+    assert not result.valid
+    assert "event[0] one" in result.mismatches[0]
+
+
+def test_replay_validation_detects_missing_and_extra_events():
+    original = ReplayLog((_event("one"), _event("two", 2)))
+    missing = original.validate_replay((_event("one"),))
+    extra = original.validate_replay((_event("one"), _event("two", 2), _event("three", 3)))
+    assert not missing.valid
+    assert not extra.valid
