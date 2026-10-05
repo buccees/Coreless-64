@@ -1,5 +1,6 @@
 """Deterministic track continuity for VIGIL."""
 from __future__ import annotations
+from typing import Mapping
 from .model import Detection, Track
 from .fusion import distance
 
@@ -47,3 +48,45 @@ class TrackManager:
             )
         self._tracks[track.track_id] = track
         return track
+
+    def persistent_state(self) -> dict[str, object]:
+        return {
+            "version": 1,
+            "association_distance": self.association_distance,
+            "next_id": self._next_id,
+            "tracks": [
+                {
+                    "track_id": track.track_id,
+                    "detection_ids": list(track.detection_ids),
+                    "last_timestamp_ns": track.last_timestamp_ns,
+                    "position": None if track.position is None else list(track.position),
+                    "confidence": track.confidence,
+                    "velocity": None if track.velocity is None else list(track.velocity),
+                }
+                for track in self.tracks()
+            ],
+        }
+
+    def restore_state(self, state: object) -> None:
+        if not isinstance(state, Mapping) or state.get("version") != 1:
+            raise ValueError("unsupported tracking state version")
+        tracks = state.get("tracks", [])
+        if not isinstance(tracks, list):
+            raise ValueError("tracking tracks must be a list")
+        restored: dict[str, Track] = {}
+        for record in tracks:
+            if not isinstance(record, Mapping):
+                raise ValueError("tracking record must be a mapping")
+            position = record.get("position")
+            velocity = record.get("velocity")
+            restored[str(record["track_id"])] = Track(
+                track_id=str(record["track_id"]),
+                detection_ids=tuple(str(item) for item in record["detection_ids"]),
+                last_timestamp_ns=int(record["last_timestamp_ns"]),
+                position=None if position is None else tuple(float(item) for item in position),
+                confidence=float(record["confidence"]),
+                velocity=None if velocity is None else tuple(float(item) for item in velocity),
+            )
+        self.association_distance = float(state.get("association_distance", self.association_distance))
+        self._next_id = int(state.get("next_id", 1))
+        self._tracks = restored
