@@ -9,6 +9,7 @@ from .input import VigilInputLayer
 from .interaction import HumanInteractionService
 from .presentation import PresentationManager
 from .priority import RelevancePriorityEngine
+from .perception import PerceptionPipeline
 from .security import AuthorizationService
 from .tracking import TrackManager
 from .world import WorldModel
@@ -40,6 +41,7 @@ class VigilEnvironment:
         self.input = input_layer or VigilInputLayer(enabled=enabled)
         self.world = WorldModel()
         self.tracking = TrackManager()
+        self.perception = PerceptionPipeline(tracking=self.tracking, world=self.world)
         self.priority = RelevancePriorityEngine()
         self.attention = AttentionManager()
         self.presentation = PresentationManager()
