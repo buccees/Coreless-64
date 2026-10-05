@@ -1,14 +1,21 @@
-"""Optional VIGIL spatial-input intelligence layer for Coreless-64."""
+"""Optional, Coreless-native VIGIL environment."""
 
-from .input import VigilInputLayer, VigilInputInterpreter
-from .spatial import CameraFrame, Observation, Detection, Track, SpatialPoint
+from .attention import AttentionItem, AttentionLifecycle, AttentionManager
+from .input import VigilInputInterpreter, VigilInputLayer
+from .interaction import HumanInteractionService, InteractionRequest, InteractionResponse
+from .model import Detection, EntityType, Observation, Provenance, SensorState, Track, Uncertainty, WorldEntity
+from .priority import PriorityContext, PriorityResult, RelevancePriorityEngine
+from .runtime import VigilEnvironment, VigilStatus
+from .spatial import CameraFrame, DetectionKind, SpatialPoint
+from .tracking import TrackManager
+from .world import WorldModel, WorldModelEvent
 
 __all__ = [
-    "CameraFrame",
-    "Detection",
-    "Observation",
-    "SpatialPoint",
-    "Track",
-    "VigilInputInterpreter",
-    "VigilInputLayer",
+    "AttentionItem", "AttentionLifecycle", "AttentionManager",
+    "CameraFrame", "Detection", "DetectionKind", "EntityType",
+    "HumanInteractionService", "InteractionRequest", "InteractionResponse",
+    "Observation", "PriorityContext", "PriorityResult", "Provenance",
+    "RelevancePriorityEngine", "SensorState", "SpatialPoint", "Track",
+    "TrackManager", "Uncertainty", "VigilEnvironment", "VigilInputInterpreter",
+    "VigilInputLayer", "VigilStatus", "WorldEntity", "WorldModel", "WorldModelEvent",
 ]
