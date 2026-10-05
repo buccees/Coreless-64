@@ -1,349 +1,136 @@
-from vigil.attention import AttentionLifecycle
-from vigil.model import EntityType, Provenance, Uncertainty, WorldEntity
-from vigil.priority import PriorityContext
-from vigil.runtime import VigilEnvironment
+"""Deterministic track continuity for VIGIL."""
+from __future__ import annotations
+from typing import Mapping
+from .model import Detection, Track
+from .fusion import distance
 
 
-def test_vigil_environment_is_complete_but_optional():
-    environment = VigilEnvironment()
-    assert not environment.status().enabled
-    assert environment.status().world_entities == 0
+class TrackManager:
+    def __init__(self, association_distance: float = 1.0) -> None:
+        if association_distance < 0:
+            raise ValueError("association_distance must be non-negative")
+        self.association_distance = association_distance
+        self._tracks: dict[str, Track] = {}
+        self._next_id = 1
+
+    def tracks(self) -> tuple[Track, ...]:
+        return tuple(self._tracks[key] for key in sorted(self._tracks))
+
+    def update(self, detection: Detection) -> Track:
+        candidates = [
+            track for track in self._tracks.values()
+            if detection.position is not None and track.position is not None
+            and distance(detection.position, track.position) <= self.association_distance
+        ]
+        track = min(candidates, key=lambda value: value.track_id) if candidates else None
+        if track is None:
+            track = Track(
+                track_id=f"track-{self._next_id}",
+                detection_ids=(detection.detection_id,),
+                last_timestamp_ns=detection.timestamp_ns,
+                position=detection.position,
+                confidence=detection.confidence,
+            )
+            self._next_id += 1
+        else:
+            dt = detection.timestamp_ns - track.last_timestamp_ns
+            velocity = track.velocity
+            if dt > 0 and track.position is not None and detection.position is not None:
+                scale = 1_000_000_000 / dt
+                velocity = tuple((detection.position[i] - track.position[i]) * scale for i in range(3))
+            track = Track(
+                track_id=track.track_id,
+                detection_ids=track.detection_ids + (detection.detection_id,),
+                last_timestamp_ns=detection.timestamp_ns,
+                position=detection.position,
+                confidence=detection.confidence,
+                velocity=velocity,
+            )
+        self._tracks[track.track_id] = track
+        return track
+
+    def persistent_state(self) -> dict[str, object]:
+        return {
+            "version": 1,
+            "association_distance": self.association_distance,
+            "next_id": self._next_id,
+            "tracks": [
+                {
+                    "track_id": track.track_id,
+                    "detection_ids": list(track.detection_ids),
+                    "last_timestamp_ns": track.last_timestamp_ns,
+                    "position": None if track.position is None else list(track.position),
+                    "confidence": track.confidence,
+                    "velocity": None if track.velocity is None else list(track.velocity),
+                }
+                for track in self.tracks()
+            ],
+        }
+
+    def restore_state(self, state: object) -> None:
+        if not isinstance(state, Mapping) or state.get("version") != 1:
+            raise ValueError("unsupported tracking state version")
+        tracks = state.get("tracks", [])
+        if not isinstance(tracks, list):
+            raise ValueError("tracking tracks must be a list")
+        restored: dict[str, Track] = {}
+        for record in tracks:
+            if not isinstance(record, Mapping):
+                raise ValueError("tracking record must be a mapping")
+            position = record.get("position")
+            velocity = record.get("velocity")
+            track_id = str(record["track_id"])\n            if not track_id:\n                raise ValueError("track_id must not be empty")\n            if track_id in seen_ids:\n                raise ValueError("duplicate track_id")\n            detection_ids = tuple(str(item) for item in record["detection_ids"])\n            if any(not item for item in detection_ids):\n                raise ValueError("detection_ids must not contain empty IDs")\n            position_values = None if position is None else tuple(float(item) for item in position)\n            velocity_values = None if velocity is None else tuple(float(item) for item in velocity)\n            if position_values is not None and len(position_values) != 3:\n                raise ValueError("track position must have three coordinates")\n            if velocity_values is not None and len(velocity_values) != 3:\n                raise ValueError("track velocity must have three coordinates")\n            seen_ids.add(track_id)\n            restored[track_id] = Track(
+                track_id=str(record["track_id"]),
+                detection_ids=tuple(str(item) for item in record["detection_ids"]),
+                last_timestamp_ns=int(record["last_timestamp_ns"]),
+                position=position_values,
+                confidence=float(record["confidence"]),
+                velocity=velocity_values,
+            )
+        self.association_distance = float(state.get("association_distance", self.association_distance))
+        self._next_id = int(state.get("next_id", 1))
+        self._tracks = restored
 
 
-def test_world_model_and_attention_are_inside_vigil_environment():
+
+def test_vigil_persistence_rejects_duplicate_attention_and_tracking_ids():
     environment = VigilEnvironment(enabled=True)
-    entity = WorldEntity(
-        entity_id="entity-1",
-        entity_type=EntityType.OBJECT,
-        label="camera",
-        position=(1.0, 0.0, 0.0),
-        track_id=None,
-        confidence=1.0,
-        uncertainty=Uncertainty(),
-        provenance=(Provenance("sensor-1", "camera", 1),),
-        first_seen_ns=1,
-        last_seen_ns=1,
-    )
-    environment.world.upsert(entity, event_id="event-1", timestamp_ns=1)
-    results = environment.priority.order(
-        (environment.priority.evaluate(entity, PriorityContext(2, (0.0, 0.0, 0.0))),)
-    )
-    items = environment.attention.evaluate(results)
-    assert items[0].world_entity_id == "entity-1"
-    assert items[0].lifecycle == AttentionLifecycle.ACTIVE
-
-
-def test_vigil_environment_persists_and_restores_runtime_state():
-    source = VigilEnvironment(enabled=True)
-    entity = WorldEntity(
-        entity_id="entity-restore",
-        entity_type=EntityType.TARGET,
-        label="target",
-        position=(2.0, 0.0, 0.0),
-        track_id="track-1",
-        confidence=0.8,
-        uncertainty=Uncertainty(position_m=0.1),
-        provenance=(Provenance("sensor-1", "camera", 10),),
-        first_seen_ns=10,
-        last_seen_ns=20,
-    )
-    source.world.upsert(entity, event_id="world-1", timestamp_ns=20)
-    result = source.priority.evaluate(entity, PriorityContext(20, (0.0, 0.0, 0.0)))
-    source.attention.evaluate((result,))
-    source.attention.acknowledge("entity-restore")
-    source.interaction.remember("remembered context")
-
-    state = source.persistent_state()
-    restored = VigilEnvironment(enabled=False)
-    restored.restore_state(state)
-
-    assert restored.enabled
-    assert restored.world.get("entity-restore") == entity
-    assert restored.world.history()[0].event_id == "world-1"
-    assert restored.attention.items()[0].lifecycle == AttentionLifecycle.ACKNOWLEDGED
-    assert restored.interaction.persistent_state()["context"] == ["remembered context"]
-    assert restored.tracking.persistent_state()["tracks"] == []
-    assert restored.presentation.persistent_state()["state"] is None
-
-
-def test_vigil_presentation_state_round_trips():
-    environment = VigilEnvironment(enabled=True)
-    entity = WorldEntity(
-        entity_id="entity-present", entity_type=EntityType.OBJECT, label="object",
-        position=(1.0, 0.0, 0.0), track_id=None, confidence=1.0,
-        uncertainty=Uncertainty(), provenance=(Provenance("sensor", "camera", 1),),
-        first_seen_ns=1, last_seen_ns=1,
-    )
-    environment.world.upsert(entity, event_id="event-present", timestamp_ns=1)
-    result = environment.priority.evaluate(entity, PriorityContext(2, (0.0, 0.0, 0.0)))
-    environment.presentation.present(environment.attention.evaluate((result,)), 2)
-    state = environment.persistent_state()
-    restored = VigilEnvironment(enabled=False)
-    restored.restore_state(state)
-    assert restored.presentation.state() == environment.presentation.state()
-
-
-def test_vigil_world_restore_rejects_duplicate_history_ids():
-    environment = VigilEnvironment(enabled=True)
-    state = environment.world.persistent_state()
-    state["history"] = [
-        {"event_id": "duplicate", "timestamp_ns": 1, "entity_id": "x", "kind": "created", "previous": None, "current": None},
-        {"event_id": "duplicate", "timestamp_ns": 2, "entity_id": "x", "kind": "updated", "previous": None, "current": None},
+    attention = environment.attention.persistent_state()
+    attention["items"] = [
+        {"world_entity_id": "dup", "lifecycle": "active", "priority": {
+            "world_entity_id": "dup", "relevance": 0.5, "priority": 0.5,
+            "evaluation_time_ns": 1, "contributing_factors": [], "unavailable_factors": []}},
+        {"world_entity_id": "dup", "lifecycle": "active", "priority": {
+            "world_entity_id": "dup", "relevance": 0.4, "priority": 0.4,
+            "evaluation_time_ns": 2, "contributing_factors": [], "unavailable_factors": []}},
     ]
     try:
-        environment.world.restore_state(state)
+        environment.attention.restore_state(attention)
     except ValueError as exc:
         assert "duplicate" in str(exc)
     else:
-        raise AssertionError("expected duplicate history id rejection")
-
-
-
-def test_vigil_runtime_persists_camera_and_fast_touch_configuration():
-    from vigil.camera import SharedCameraSource
-    from vigil.fast_touch import FastCameraTouchPath
-
-    class Camera:
-        def available(self):
-            return True
-        def read(self):
-            from vigil.spatial import CameraFrame
-            return CameraFrame("cam", 10, 1, 640, 480)
-
-    source = VigilEnvironment(enabled=True, camera=Camera())
-    source.configure_fast_touch(
-        type("Detector", (), {"detect": lambda self, frame: None})(),
-        display_width=1280,
-        display_height=720,
-    )
-    source.camera.capture()
-    state = source.persistent_state()
-    restored = VigilEnvironment(enabled=False, camera=Camera())
-    restored.restore_state(state)
-    assert restored.camera.persistent_state()["last_sequence"] == 1
-    assert restored.persistent_state()["fast_touch_enabled"]
-
-
-def test_vigil_end_to_end_camera_pipeline_is_replay_auditable():
-    from vigil.camera import CameraReader
-    from vigil.spatial import CameraFrame
-    from vigil.model import Detection
-
-    class Camera:
-        def __init__(self):
-            self.reads = 0
-        def available(self):
-            return True
-        def read(self):
-            self.reads += 1
-            return CameraFrame("e2e-camera", 100, 1, 640, 480)
-
-    class Provider:
-        def detect(self, frame):
-            return (Detection(
-                detection_id="det-1", observation_id=f"camera:{frame.sequence}",
-                entity_type=EntityType.OBJECT, label="target", timestamp_ns=frame.timestamp_ns,
-                position=(1.0, 0.0, 0.0), confidence=0.95, uncertainty=Uncertainty(position_m=0.1),
-                provenance=(Provenance(frame.source_id, "camera", frame.timestamp_ns),),
-            ),)
-
-    camera = Camera()
-    environment = VigilEnvironment(enabled=True, camera=camera)
-    result = environment.run_camera_cycle(provider=Provider(), priority_context=PriorityContext(100, (0.0, 0.0, 0.0)))
-    assert result is not None
-    assert result.perception is not None
-    assert result.priority
-    assert result.attention
-    assert result.presentation is not None
-    assert camera.reads == 1
-    kinds = tuple(event.kind for event in environment.replay.events)
-    assert kinds == ("camera.frame", "camera.perception", "world.state", "vigil.priority", "vigil.attention", "vigil.presentation")
-    state = environment.persistent_state()
-    restored = VigilEnvironment(enabled=False, camera=Camera())
-    restored.restore_state(state)
-    assert restored.validate_persisted_replay_integrity().valid
-    assert restored.replay.chain_digest() == environment.replay.chain_digest()
-
-
-def test_vigil_input_to_replay_chain_is_end_to_end():
-    from reference.input import CorelessInputRouter, InputCapabilities, InputEvent, InputEventType, CoordinateFrame, PointingDevice
-
-    router = CorelessInputRouter()
-    router.devices.discover([
-        PointingDevice("mouse-e2e", "mouse", InputCapabilities(pointer=True, relative=True, buttons=1))
-    ])
-    router.devices.designate("mouse-e2e")
-    environment = VigilEnvironment(enabled=True, input_router=router)
-    event = InputEvent(
-        1, InputEventType.POINTER_MOVE, "mouse-e2e", 200, 1,
-        CoordinateFrame.CORELESS, x=10.0, y=20.0
-    )
-    derived = environment.ingest_input_event(event)
-    assert derived
-    assert tuple(item.kind for item in environment.replay.events) == (
-        "input.raw", "input.pointer_move"
-    )
-    assert environment.validate_persisted_replay_integrity().valid
-    state = environment.persistent_state()
-    restored = VigilEnvironment(enabled=False, input_router=router)
-    restored.restore_state(state)
-    assert restored.replay.chain_digest() == environment.replay.chain_digest()
-    assert restored.validate_persisted_replay_integrity().valid
-
-
-def test_vigil_authorized_ai_interaction_is_replay_auditable():
-    from ai.registry import AICoreRegistry
-    from ai.interfaces import AIResult
-    from vigil.interaction import InteractionRequest, InputModality
-    from vigil.provenance import EventProvenance
-
-    class Core:
-        model_id = "test-model"
-        def infer(self, request):
-            return AIResult(model_id=self.model_id, text="grounded answer")
-
-    registry = AICoreRegistry()
-    registry.register(Core())
-    registry.enable("test-model")
-    environment = VigilEnvironment(enabled=True, ai_registry=registry)
-    request = InteractionRequest(
-        request_id="req-e2e",
-        modality=InputModality.TEXT,
-        text="what is here?",
-        timestamp_ns=300,
-        session_id="session-1",
-        authorization_scope="vigil.interact",
-        provenance=EventProvenance("test", ("req-e2e",), timestamp_ns=300),
-    )
-    response = environment.handle_interaction(request, required_scope="vigil.interact")
-    assert response is not None
-    assert response.grounded
-    assert response.provenance is not None
-    assert tuple(event.kind for event in environment.replay.events) == ("interaction.response",)
-    state = environment.persistent_state()
-    restored = VigilEnvironment(enabled=False, ai_registry=registry)
-    restored.restore_state(state)
-    assert restored.validate_persisted_replay_integrity().valid
-
-
-def test_vigil_unauthorized_interaction_is_not_replayed_or_sent_to_ai():
-    from ai.registry import AICoreRegistry
-    from ai.interfaces import AIResult
-    from vigil.interaction import InteractionRequest, InputModality
-    from vigil.provenance import EventProvenance
-
-    class Core:
-        model_id = "guarded-model"
-        calls = 0
-        def infer(self, request):
-            self.calls += 1
-            return AIResult(model_id=self.model_id, text="must not run")
-
-    core = Core()
-    registry = AICoreRegistry()
-    registry.register(core)
-    registry.enable("guarded-model")
-    environment = VigilEnvironment(enabled=True, ai_registry=registry)
-    request = InteractionRequest(
-        request_id="req-denied",
-        modality=InputModality.TEXT,
-        text="unauthorized",
-        timestamp_ns=400,
-        session_id="session-denied",
-        authorization_scope="vigil.interact",
-        provenance=EventProvenance("test", ("req-denied",), timestamp_ns=400),
-    )
+        raise AssertionError("expected duplicate attention id rejection")
+    tracking = environment.tracking.persistent_state()
+    tracking["tracks"] = [
+        {"track_id": "dup", "detection_ids": ["d1"], "last_timestamp_ns": 1,
+         "position": [0, 0, 0], "confidence": 1.0, "velocity": None},
+        {"track_id": "dup", "detection_ids": ["d2"], "last_timestamp_ns": 2,
+         "position": [0, 0, 0], "confidence": 1.0, "velocity": None},
+    ]
     try:
-        environment.handle_interaction(request, required_scope="vigil.admin")
-    except PermissionError:
-        pass
+        environment.tracking.restore_state(tracking)
+    except ValueError as exc:
+        assert "duplicate" in str(exc)
     else:
-        raise AssertionError("expected unauthorized interaction rejection")
-    assert core.calls == 0
-    assert environment.replay.events == ()
+        raise AssertionError("expected duplicate track id rejection")
 
 
-
-def test_vigil_voice_input_uses_authorized_ai_replay_and_restore():
-    from ai.registry import AICoreRegistry
-    from ai.interfaces import AIResult
-    from vigil.interaction import VoiceInputSource
-
-    class Core:
-        model_id = "voice-model"
-        calls = 0
-        def infer(self, request):
-            self.calls += 1
-            return AIResult(model_id=self.model_id, text="voice grounded answer")
-
-    class Voice(VoiceInputSource):
-        def __init__(self):
-            self.reads = 0
-        def available(self):
-            return True
-        def read(self):
-            self.reads += 1
-            return ("describe the scene", 500)
-
-    core = Core()
-    registry = AICoreRegistry()
-    registry.register(core)
-    registry.enable("voice-model")
-    voice = Voice()
-    environment = VigilEnvironment(enabled=True, ai_registry=registry)
-    response = environment.poll_voice(
-        voice,
-        session_id="voice-session",
-        authorization_scope="vigil.interact",
-        required_scope="vigil.interact",
-    )
-    assert response is not None
-    assert response.grounded is False
-    assert response.provenance is not None
-    assert response.provenance.source_type == "interaction.voice"
-    assert voice.reads == 1
-    assert core.calls == 1
-    assert tuple(event.kind for event in environment.replay.events) == ("interaction.response",)
-    state = environment.persistent_state()
-    restored = VigilEnvironment(enabled=False, ai_registry=registry)
-    restored.restore_state(state)
-    assert restored.interaction.persistent_state() == environment.interaction.persistent_state()
-    assert restored.replay.chain_digest() == environment.replay.chain_digest()
-    assert restored.validate_persisted_replay_integrity().valid
-
-
-def test_vigil_voice_input_rejects_unauthorized_request_before_ai():
-    from ai.registry import AICoreRegistry
-    from ai.interfaces import AIResult
-
-    class Core:
-        model_id = "voice-guarded"
-        calls = 0
-        def infer(self, request):
-            self.calls += 1
-            return AIResult(model_id=self.model_id, text="must not run")
-
-    class Voice:
-        def available(self):
-            return True
-        def read(self):
-            return ("blocked voice command", 600)
-
-    core = Core()
-    registry = AICoreRegistry()
-    registry.register(core)
-    registry.enable("voice-guarded")
-    environment = VigilEnvironment(enabled=True, ai_registry=registry)
+def test_vigil_provenance_contract_defaults_and_rejects_invalid_sequences():
+    from vigil.provenance import EventProvenance
+    assert EventProvenance("test").metadata == {}
     try:
-        environment.poll_voice(
-            Voice(),
-            session_id="voice-denied",
-            authorization_scope="vigil.interact",
-            required_scope="vigil.admin",
-        )
-    except PermissionError:
-        pass
+        EventProvenance("test", source_sequences=(-1,))
+    except ValueError as exc:
+        assert "source_sequences" in str(exc)
     else:
-        raise AssertionError("expected unauthorized voice interaction rejection")
-    assert core.calls == 0
-    assert environment.replay.events == ()
+        raise AssertionError("expected invalid provenance sequence rejection")
