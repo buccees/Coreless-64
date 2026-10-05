@@ -337,12 +337,21 @@ class VigilEnvironment:
             "input": self.input.persistent_state(),
             "camera": self.camera.persistent_state() if self.camera is not None else None,
             "fast_touch_enabled": self.fast_touch is not None,
+            "replay_integrity": self.replay.integrity_record(),
         }
 
     def restore_state(self, state: Mapping[str, object]) -> None:
         if int(state.get("version", self.VERSION)) != self.VERSION:
             raise ValueError("unsupported VIGIL environment state version")
         self.enabled = bool(state.get("enabled", False))
+        replay_integrity = state.get("replay_integrity")
+        if isinstance(replay_integrity, Mapping):
+            result = self.replay.verify_integrity(replay_integrity)
+            if not result.valid:
+                raise ValueError(
+                    "VIGIL replay integrity verification failed: "
+                    + "; ".join(result.mismatches)
+                )
         input_state = state.get("input", {})
         if isinstance(input_state, Mapping):
             self.input.restore_state(input_state)
