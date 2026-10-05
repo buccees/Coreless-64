@@ -217,6 +217,35 @@ class ReplayLog:
             mismatches=tuple(mismatches),
         )
 
+    def persistent_state(self) -> dict[str, object]:
+        """Serialize the complete replay chain and its integrity record."""
+        return {
+            "version": 1,
+            "events": [event.to_record() for event in self._events],
+            "integrity": self.integrity_record(),
+        }
+
+    @classmethod
+    def from_persistent_state(cls, state: object) -> "ReplayLog":
+        """Restore a replay log and reject any integrity mismatch."""
+        if not isinstance(state, Mapping):
+            raise ValueError("replay state must be a mapping")
+        if state.get("version") != 1:
+            raise ValueError("unsupported replay state version")
+        records = state.get("events")
+        if not isinstance(records, list):
+            raise ValueError("replay state events must be a list")
+        try:
+            events = tuple(ReplayEvent.from_record(record) for record in records)
+            log = cls(events)
+        except (TypeError, ValueError, KeyError) as exc:
+            raise ValueError(f"invalid replay event record: {exc}") from exc
+        integrity = state.get("integrity")
+        result = log.verify_integrity(integrity)
+        if not result.valid:
+            raise ValueError("replay integrity verification failed: " + "; ".join(result.mismatches))
+        return log
+
     def validate_replay(
         self,
         replayed_events: tuple[ReplayEvent, ...],
