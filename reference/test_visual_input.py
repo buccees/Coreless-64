@@ -1,7 +1,7 @@
 from vigil.visual_pointer import VisualTouchIntent
 
-from .input import CorelessInputRouter, InputEventType
-from .visual_input import VisualPointingDeviceAdapter
+from input import CorelessInputRouter, InputEventType
+from visual_input import VisualPointingDeviceAdapter
 
 
 def test_visual_touch_intents_reach_coreless_input_boundary():
