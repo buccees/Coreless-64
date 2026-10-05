@@ -48,3 +48,19 @@ def test_replay_chain_digest_changes_with_provenance():
     first = ReplayLog((_event("one"),))
     changed = ReplayLog((_event("one", 9),))
     assert first.chain_digest() != changed.chain_digest()
+
+
+def test_replay_integrity_record_round_trips():
+    log = ReplayLog((_event("one"), _event("two", 2)))
+    record = log.integrity_record()
+    assert log.verify_integrity(record).valid
+
+
+def test_replay_integrity_detects_tampering():
+    log = ReplayLog((_event("one"),))
+    record = log.integrity_record()
+    tampered = dict(record)
+    tampered["chain_digest"] = "tampered"
+    result = log.verify_integrity(tampered)
+    assert not result.valid
+    assert "integrity.chain_digest" in result.mismatches[0]
