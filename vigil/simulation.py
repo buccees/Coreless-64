@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 from .model import Observation
 from .provenance import EventProvenance
 
@@ -91,6 +92,13 @@ class ReplayLog:
             if result is not None:
                 results.append(result)
         return tuple(results)
+
+    def chain_digest(self) -> str:
+        """Return a deterministic digest of the complete event/provenance chain."""
+        digest = hashlib.sha256()
+        for event in self._events:
+            digest.update(repr(event.chain_signature()).encode("utf-8"))
+        return digest.hexdigest()
 
     def validate_replay(
         self,
