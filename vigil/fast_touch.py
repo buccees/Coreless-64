@@ -7,8 +7,10 @@ Coreless input boundary remains the final authority.
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Protocol
 
+from .coordinate import CameraDisplayMapper
 from .model import Detection
 from .spatial import CameraFrame
 from .visual_pointer import VisualPointer, VisualTouchIntent
@@ -30,12 +32,18 @@ class FastCameraTouchPath:
         detector: FastTouchDetector,
         *,
         pointer: VisualPointer | None = None,
+        display_width: int | None = None,
+        display_height: int | None = None,
     ) -> None:
         if not hasattr(camera, "available") or not hasattr(camera, "read"):
             raise TypeError("camera must provide available() and read()")
+        if (display_width is None) != (display_height is None):
+            raise ValueError("display_width and display_height must be supplied together")
         self.camera = camera
         self.detector = detector
         self.pointer = pointer or VisualPointer()
+        self.display_width = display_width
+        self.display_height = display_height
         self.frames_processed = 0
         self.last_frame_sequence: int | None = None
         self.last_detection: Detection | None = None
@@ -60,7 +68,24 @@ class FastCameraTouchPath:
         detection = self.detector.detect(frame)
         if detection is None:
             if self.pointer.active and self.last_detection is not None:
-                return self.pointer.release(self.last_detection)
+                intent = self.pointer.release(self.last_detection)
+                return self._map_intent(intent, frame)
             return None
         self.last_detection = detection
-        return self.pointer.update(detection)
+        return self._map_intent(self.pointer.update(detection), frame)
+
+    def _map_intent(
+        self,
+        intent: VisualTouchIntent | None,
+        frame: CameraFrame,
+    ) -> VisualTouchIntent | None:
+        if intent is None or self.display_width is None or self.display_height is None:
+            return intent
+        mapper = CameraDisplayMapper(
+            frame.width,
+            frame.height,
+            self.display_width,
+            self.display_height,
+        )
+        x, y = mapper.map(intent.x, intent.y)
+        return replace(intent, x=x, y=y)
