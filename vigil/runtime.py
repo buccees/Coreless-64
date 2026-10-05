@@ -357,6 +357,7 @@ class VigilEnvironment:
             "tracking": self.tracking.persistent_state(),
             "attention": self.attention.persistent_state(),
             "interaction": self.interaction.persistent_state(),
+            "presentation": self.presentation.persistent_state(),
             "replay": self.replay.persistent_state(),
         }
 
@@ -391,4 +392,7 @@ class VigilEnvironment:
         interaction_state = state.get("interaction")
         if isinstance(interaction_state, Mapping):
             self.interaction.restore_state(interaction_state)
+        presentation_state = state.get("presentation")
+        if isinstance(presentation_state, Mapping):
+            self.presentation.restore_state(presentation_state)
         self.input.enable(self.enabled)
