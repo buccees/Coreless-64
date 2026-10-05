@@ -320,6 +320,10 @@ class VigilEnvironment:
         events = tuple(item for item in replayed if isinstance(item, ReplayEvent))
         return self.replay.validate_replay(events)
 
+    def validate_persisted_replay_integrity(self) -> ReplayValidation:
+        """Validate the current replay chain against its persisted integrity record."""
+        return self.replay.verify_integrity(self.replay.integrity_record())
+
     def status(self) -> VigilStatus:
         return VigilStatus(
             enabled=self.enabled,
