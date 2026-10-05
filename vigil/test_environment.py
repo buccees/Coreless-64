@@ -122,3 +122,44 @@ def test_vigil_runtime_persists_camera_and_fast_touch_configuration():
     restored.restore_state(state)
     assert restored.camera.persistent_state()["last_sequence"] == 1
     assert restored.persistent_state()["fast_touch_enabled"]
+
+
+def test_vigil_end_to_end_camera_pipeline_is_replay_auditable():
+    from vigil.camera import CameraReader
+    from vigil.spatial import CameraFrame
+    from vigil.model import Detection
+
+    class Camera:
+        def __init__(self):
+            self.reads = 0
+        def available(self):
+            return True
+        def read(self):
+            self.reads += 1
+            return CameraFrame("e2e-camera", 100, 1, 640, 480)
+
+    class Provider:
+        def detect(self, frame):
+            return (Detection(
+                detection_id="det-1", observation_id=f"camera:{frame.sequence}",
+                entity_type=EntityType.OBJECT, label="target", timestamp_ns=frame.timestamp_ns,
+                position=(1.0, 0.0, 0.0), confidence=0.95, uncertainty=Uncertainty(position_m=0.1),
+                provenance=(Provenance(frame.source_id, "camera", frame.timestamp_ns),),
+            ),)
+
+    camera = Camera()
+    environment = VigilEnvironment(enabled=True, camera=camera)
+    result = environment.run_camera_cycle(provider=Provider(), priority_context=PriorityContext(100, (0.0, 0.0, 0.0)))
+    assert result is not None
+    assert result.perception is not None
+    assert result.priority
+    assert result.attention
+    assert result.presentation is not None
+    assert camera.reads == 1
+    kinds = tuple(event.kind for event in environment.replay.events)
+    assert kinds == ("camera.frame", "camera.perception", "world.state", "vigil.priority", "vigil.attention", "vigil.presentation")
+    state = environment.persistent_state()
+    restored = VigilEnvironment(enabled=False, camera=Camera())
+    restored.restore_state(state)
+    assert restored.validate_persisted_replay_integrity().valid
+    assert restored.replay.chain_digest() == environment.replay.chain_digest()
