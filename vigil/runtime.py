@@ -23,6 +23,13 @@ from .world import WorldModel
 
 
 @dataclass(frozen=True)
+class VigilCycleResult:
+    frame_sequence: int
+    touch_event: object | None
+    perception: PerceptionResult | None
+
+
+@dataclass(frozen=True)
 class VigilStatus:
     enabled: bool
     camera_available: bool
@@ -35,7 +42,7 @@ class VigilStatus:
 class VigilEnvironment:
     """Complete optional VIGIL environment hosted by Coreless."""
 
-    VERSION = 3
+    VERSION = 4
 
     def __init__(
         self,
@@ -78,7 +85,6 @@ class VigilEnvironment:
         display_width: int | None = None,
         display_height: int | None = None,
     ) -> FastCameraTouchPath:
-        """Attach visual touch to the shared camera and Coreless input boundary."""
         if self.camera is None:
             raise RuntimeError("VIGIL fast touch requires a camera")
         router = input_router or self.input_router
@@ -96,7 +102,6 @@ class VigilEnvironment:
         return self.fast_touch
 
     def poll_fast_touch(self):
-        """Run one shared-frame touch pass and submit any intent to Coreless input."""
         if not self.enabled or self.fast_touch is None or self.visual_input is None:
             return None
         intent = self.fast_touch.poll()
@@ -105,16 +110,42 @@ class VigilEnvironment:
         return self.visual_input.submit(intent)
 
     def capture_camera_frame(self):
-        """Capture once at the Coreless-owned camera boundary."""
         if not self.enabled or self.camera is None:
             return None
         return self.camera.capture()
+
+    def run_camera_cycle(
+        self,
+        *,
+        provider: CameraPerceptionProvider | None = None,
+    ) -> VigilCycleResult | None:
+        """Capture once, then fan the same frame into fast touch and perception."""
+        if not self.enabled or self.camera is None:
+            return None
+        frame = self.camera.capture()
+        if frame is None:
+            return None
+
+        touch_event = None
+        if self.fast_touch is not None and self.visual_input is not None:
+            intent = self.fast_touch.process_frame(frame)
+            if intent is not None:
+                touch_event = self.visual_input.submit(intent)
+
+        perception_result = None
+        if provider is not None:
+            perception_result = self.perception.ingest_camera_frame(frame, provider)
+
+        return VigilCycleResult(
+            frame_sequence=frame.sequence,
+            touch_event=touch_event,
+            perception=perception_result,
+        )
 
     def ingest_camera_frame(
         self,
         provider: CameraPerceptionProvider,
     ) -> PerceptionResult | None:
-        """Run normal VIGIL perception against the shared latest camera frame."""
         if not self.enabled or self.camera is None:
             return None
         frame = self.camera.latest()
