@@ -317,8 +317,20 @@ class VigilEnvironment:
     def replay_and_validate(self, consumer) -> ReplayValidation:
         """Replay a session and validate its event/provenance chain."""
         replayed = self.replay.replay_into(consumer)
-        events = tuple(item for item in replayed if isinstance(item, ReplayEvent))
-        return self.replay.validate_replay(events)
+        invalid = tuple(
+            index for index, item in enumerate(replayed)
+            if not isinstance(item, ReplayEvent)
+        )
+        if invalid:
+            return ReplayValidation(
+                valid=False,
+                event_count=len(replayed),
+                mismatches=tuple(
+                    f"replay[{index}]: consumer returned non-ReplayEvent"
+                    for index in invalid
+                ),
+            )
+        return self.replay.validate_replay(tuple(replayed))
 
     def validate_persisted_replay_integrity(self) -> ReplayValidation:
         """Validate the current replay chain against its persisted integrity record."""
