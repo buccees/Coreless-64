@@ -100,6 +100,31 @@ class ReplayLog:
             digest.update(repr(event.chain_signature()).encode("utf-8"))
         return digest.hexdigest()
 
+    def integrity_record(self) -> dict[str, object]:
+        """Return a persistent integrity record for the current chain."""
+        return {
+            "version": 1,
+            "event_count": len(self._events),
+            "chain_digest": self.chain_digest(),
+        }
+
+    def verify_integrity(self, record) -> ReplayValidation:
+        """Verify a persisted integrity record before replay."""
+        expected_count = int(record.get("event_count", -1))
+        expected_digest = str(record.get("chain_digest", ""))
+        mismatches = []
+        if expected_count != len(self._events):
+            mismatches.append(
+                f"integrity.event_count: expected {expected_count}, got {len(self._events)}"
+            )
+        if expected_digest != self.chain_digest():
+            mismatches.append("integrity.chain_digest: replay chain integrity mismatch")
+        return ReplayValidation(
+            valid=not mismatches,
+            event_count=len(self._events),
+            mismatches=tuple(mismatches),
+        )
+
     def validate_replay(
         self,
         replayed_events: tuple[ReplayEvent, ...],
