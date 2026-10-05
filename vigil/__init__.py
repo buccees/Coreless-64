@@ -35,4 +35,4 @@ __all__ = [
 ]
 
 from .provenance import EventProvenance
-from .simulation import ReplayEvent, ReplayLog
+from .simulation import ReplayEvent, ReplayLog, ReplayValidation
