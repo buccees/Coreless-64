@@ -160,3 +160,6 @@ A persisted VIGIL runtime snapshot must restore the logical world, tracking, att
 ## Interaction and AI audit contract
 
 VIGIL human interaction is authorized before analysis and is routed exclusively through the existing Coreless AI registry/controller. A successful interaction response is an auditable replay event carrying provenance. VIGIL must not create a second AI runtime, grant authorization through AI output, or claim physical authority. Persisted interaction state and replay integrity must survive runtime restoration.
+
+
+Unauthorized interaction is a hard boundary: VIGIL must reject a request before invoking the Coreless AI registry and must not emit a successful interaction replay event for the rejected request. AI output can never grant or expand authorization.
