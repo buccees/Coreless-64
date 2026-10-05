@@ -73,64 +73,42 @@ class TrackManager:
         tracks = state.get("tracks", [])
         if not isinstance(tracks, list):
             raise ValueError("tracking tracks must be a list")
+        association_distance = float(state.get("association_distance", self.association_distance))
+        next_id = int(state.get("next_id", 1))
+        if association_distance < 0:
+            raise ValueError("association_distance must be non-negative")
+        if next_id < 1:
+            raise ValueError("next_id must be positive")
         restored: dict[str, Track] = {}
+        seen_ids: set[str] = set()
         for record in tracks:
             if not isinstance(record, Mapping):
                 raise ValueError("tracking record must be a mapping")
             position = record.get("position")
             velocity = record.get("velocity")
-            track_id = str(record["track_id"])\n            if not track_id:\n                raise ValueError("track_id must not be empty")\n            if track_id in seen_ids:\n                raise ValueError("duplicate track_id")\n            detection_ids = tuple(str(item) for item in record["detection_ids"])\n            if any(not item for item in detection_ids):\n                raise ValueError("detection_ids must not contain empty IDs")\n            position_values = None if position is None else tuple(float(item) for item in position)\n            velocity_values = None if velocity is None else tuple(float(item) for item in velocity)\n            if position_values is not None and len(position_values) != 3:\n                raise ValueError("track position must have three coordinates")\n            if velocity_values is not None and len(velocity_values) != 3:\n                raise ValueError("track velocity must have three coordinates")\n            seen_ids.add(track_id)\n            restored[track_id] = Track(
-                track_id=str(record["track_id"]),
-                detection_ids=tuple(str(item) for item in record["detection_ids"]),
+            track_id = str(record["track_id"])
+            if not track_id:
+                raise ValueError("track_id must not be empty")
+            if track_id in seen_ids:
+                raise ValueError("duplicate track_id")
+            detection_ids = tuple(str(item) for item in record["detection_ids"])
+            if any(not item for item in detection_ids):
+                raise ValueError("detection_ids must not contain empty IDs")
+            position_values = None if position is None else tuple(float(item) for item in position)
+            velocity_values = None if velocity is None else tuple(float(item) for item in velocity)
+            if position_values is not None and len(position_values) != 3:
+                raise ValueError("track position must have three coordinates")
+            if velocity_values is not None and len(velocity_values) != 3:
+                raise ValueError("track velocity must have three coordinates")
+            seen_ids.add(track_id)
+            restored[track_id] = Track(
+                track_id=track_id,
+                detection_ids=detection_ids,
                 last_timestamp_ns=int(record["last_timestamp_ns"]),
                 position=position_values,
                 confidence=float(record["confidence"]),
                 velocity=velocity_values,
             )
-        self.association_distance = float(state.get("association_distance", self.association_distance))
-        self._next_id = int(state.get("next_id", 1))
+        self.association_distance = association_distance
+        self._next_id = next_id
         self._tracks = restored
-
-
-
-def test_vigil_persistence_rejects_duplicate_attention_and_tracking_ids():
-    environment = VigilEnvironment(enabled=True)
-    attention = environment.attention.persistent_state()
-    attention["items"] = [
-        {"world_entity_id": "dup", "lifecycle": "active", "priority": {
-            "world_entity_id": "dup", "relevance": 0.5, "priority": 0.5,
-            "evaluation_time_ns": 1, "contributing_factors": [], "unavailable_factors": []}},
-        {"world_entity_id": "dup", "lifecycle": "active", "priority": {
-            "world_entity_id": "dup", "relevance": 0.4, "priority": 0.4,
-            "evaluation_time_ns": 2, "contributing_factors": [], "unavailable_factors": []}},
-    ]
-    try:
-        environment.attention.restore_state(attention)
-    except ValueError as exc:
-        assert "duplicate" in str(exc)
-    else:
-        raise AssertionError("expected duplicate attention id rejection")
-    tracking = environment.tracking.persistent_state()
-    tracking["tracks"] = [
-        {"track_id": "dup", "detection_ids": ["d1"], "last_timestamp_ns": 1,
-         "position": [0, 0, 0], "confidence": 1.0, "velocity": None},
-        {"track_id": "dup", "detection_ids": ["d2"], "last_timestamp_ns": 2,
-         "position": [0, 0, 0], "confidence": 1.0, "velocity": None},
-    ]
-    try:
-        environment.tracking.restore_state(tracking)
-    except ValueError as exc:
-        assert "duplicate" in str(exc)
-    else:
-        raise AssertionError("expected duplicate track id rejection")
-
-
-def test_vigil_provenance_contract_defaults_and_rejects_invalid_sequences():
-    from vigil.provenance import EventProvenance
-    assert EventProvenance("test").metadata == {}
-    try:
-        EventProvenance("test", source_sequences=(-1,))
-    except ValueError as exc:
-        assert "source_sequences" in str(exc)
-    else:
-        raise AssertionError("expected invalid provenance sequence rejection")
