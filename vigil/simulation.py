@@ -104,6 +104,7 @@ class ReplayLog:
         """Return a persistent integrity record for the current chain."""
         return {
             "version": 1,
+            "algorithm": "sha256",
             "event_count": len(self._events),
             "chain_digest": self.chain_digest(),
         }
