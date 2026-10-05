@@ -141,3 +141,10 @@ A persisted VIGIL environment includes the authoritative world model and its ord
 The shared camera persists only portable metadata such as source identity and the last captured sequence. Physical camera handles are not serialized and must be rebound by the Coreless device layer after restore. Likewise, an enabled fast-touch path may require a newly attached detector/device binding; persistence does not fabricate unavailable physical resources.
 
 World-model restore rejects duplicate entity identifiers, duplicate history event identifiers, malformed entity/provenance records, and non-monotonic history timestamps. Presentation state is derived but persisted so a stopped-and-restored VIGIL session can recover its last device-independent presentation without inventing new perception results.
+
+
+## Portable camera and fast-touch persistence
+
+The shared camera persists a sequence watermark rather than a physical frame or camera handle. After restore, a newly rebound camera must not be allowed to move the sequence backward. The physical camera remains owned by the Coreless device layer.
+
+The low-latency visual-touch path persists portable configuration and processing counters, but never serializes a detector object or fabricated physical camera resource. A restored fast-touch path may therefore require a new detector binding before it resumes processing frames.
