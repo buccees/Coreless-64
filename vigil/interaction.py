@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
-from typing import Mapping
+from typing import Mapping, Protocol
 
 
 class InputModality(str, Enum):
@@ -35,6 +35,28 @@ class InteractionResponse:
     timestamp_ns: int
     source_entity_ids: tuple[str, ...] = ()
     metadata: Mapping[str, object] = None
+
+
+
+
+class VoiceInputSource(Protocol):
+    """Optional Coreless-owned voice transport/transcription boundary."""
+    def available(self) -> bool:
+        ...
+    def read(self) -> tuple[str, int] | None:
+        ...
+
+
+@dataclass(frozen=True)
+class VoiceInput:
+    text: str
+    timestamp_ns: int
+
+    def __post_init__(self) -> None:
+        if not self.text.strip():
+            raise ValueError("voice input text must not be empty")
+        if self.timestamp_ns < 0:
+            raise ValueError("timestamp_ns must be non-negative")
 
 
 class HumanInteractionService:
