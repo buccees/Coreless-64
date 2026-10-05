@@ -53,8 +53,15 @@ class PresentationManager:
             return
         if not isinstance(record, Mapping):
             raise ValueError("presentation state must be a mapping")
+        raw_items = record.get("items", [])
+        if not isinstance(raw_items, list):
+            raise ValueError("presentation items must be a list")
+        timestamp_ns = int(record["timestamp_ns"])
+        if timestamp_ns < 0:
+            raise ValueError("presentation timestamp_ns must be non-negative")
         restored = []
-        for item in record.get("items", []):
+        seen = set()
+        for item in raw_items:
             if not isinstance(item, Mapping) or not isinstance(item.get("priority"), Mapping):
                 raise ValueError("presentation item is malformed")
             priority = item["priority"]
@@ -66,11 +73,17 @@ class PresentationManager:
                 contributing_factors=tuple(str(value) for value in priority.get("contributing_factors", ())),
                 unavailable_factors=tuple(str(value) for value in priority.get("unavailable_factors", ())),
             )
+            entity_id = str(item["world_entity_id"])
+            if not entity_id or entity_id in seen:
+                raise ValueError("presentation item identifiers must be unique and non-empty")
+            if result.world_entity_id != entity_id:
+                raise ValueError("presentation item and priority entity identifiers must match")
+            seen.add(entity_id)
             restored.append(
                 AttentionItem(
-                    world_entity_id=str(item["world_entity_id"]),
+                    world_entity_id=entity_id,
                     priority=result,
                     lifecycle=AttentionLifecycle(item["lifecycle"]),
                 )
             )
-        self._state = PresentationState(tuple(restored), int(record["timestamp_ns"]))
+        self._state = PresentationState(tuple(restored), timestamp_ns)
