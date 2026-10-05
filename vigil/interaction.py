@@ -1,6 +1,6 @@
 """Human interaction boundary for Coreless-native VIGIL."""
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Mapping, Protocol
 
@@ -20,7 +20,7 @@ class InteractionRequest:
     timestamp_ns: int
     session_id: str
     authorization_scope: str
-    metadata: Mapping[str, object] = None
+    metadata: Mapping[str, object] = field(default_factory=dict)
     provenance: EventProvenance | None = None
 
     def __post_init__(self) -> None:
