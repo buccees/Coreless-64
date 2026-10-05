@@ -1,5 +1,6 @@
 """Hardware-independent VIGIL simulation/replay foundation."""
 from __future__ import annotations
+
 from dataclasses import dataclass
 from .model import Observation
 from .provenance import EventProvenance
@@ -35,6 +36,21 @@ class ReplayEvent:
     payload: object
     provenance: EventProvenance | None = None
 
+    def chain_signature(self) -> tuple[object, ...]:
+        provenance = self.provenance
+        return (
+            self.event_id,
+            self.timestamp_ns,
+            self.kind,
+            None if provenance is None else (
+                provenance.source_type,
+                provenance.source_ids,
+                provenance.source_sequences,
+                provenance.timestamp_ns,
+                provenance.confidence,
+            ),
+        )
+
 
 @dataclass(frozen=True)
 class ReplayValidation:
@@ -45,6 +61,7 @@ class ReplayValidation:
 
 class ReplayLog:
     """Deterministic append-only VIGIL event log for audit and replay."""
+
     def __init__(self, events: tuple[ReplayEvent, ...] = ()) -> None:
         self._events = tuple(events)
         self._last_timestamp = self._events[-1].timestamp_ns if self._events else -1
@@ -66,3 +83,44 @@ class ReplayLog:
 
     def replay(self) -> tuple[ReplayEvent, ...]:
         return self._events
+
+    def replay_into(self, consumer) -> tuple[object, ...]:
+        results = []
+        for event in self._events:
+            result = consumer(event)
+            if result is not None:
+                results.append(result)
+        return tuple(results)
+
+    def validate_replay(
+        self,
+        replayed_events: tuple[ReplayEvent, ...],
+    ) -> ReplayValidation:
+        """Compare a replayed event chain against the original deterministically."""
+        expected = self._events
+        actual = tuple(replayed_events)
+        mismatches: list[str] = []
+
+        if len(expected) != len(actual):
+            mismatches.append(
+                f"event_count: expected {len(expected)}, got {len(actual)}"
+            )
+
+        for index in range(max(len(expected), len(actual))):
+            if index >= len(expected):
+                mismatches.append(f"event[{index}]: unexpected replay event")
+                continue
+            if index >= len(actual):
+                mismatches.append(f"event[{index}]: missing replay event")
+                continue
+            if expected[index].chain_signature() != actual[index].chain_signature():
+                mismatches.append(
+                    f"event[{index}] {expected[index].event_id}: "
+                    "event/provenance chain mismatch"
+                )
+
+        return ReplayValidation(
+            valid=not mismatches,
+            event_count=len(actual),
+            mismatches=tuple(mismatches),
+        )
