@@ -18,6 +18,7 @@ from .presentation import PresentationManager
 from .priority import RelevancePriorityEngine
 from .perception import CameraPerceptionProvider, PerceptionPipeline, PerceptionResult
 from .priority import PriorityContext
+from .provenance import EventProvenance
 from .security import AuthorizationContext, AuthorizationService
 from .tracking import TrackManager
 from .world import WorldModel
@@ -160,12 +161,19 @@ class VigilEnvironment:
         )
         if analysis is None:
             return None
+        request_provenance = request.metadata.get("provenance") if request.metadata else None
+        provenance = request_provenance if isinstance(request_provenance, EventProvenance) else EventProvenance(
+            source_type=f"interaction.{request.modality.value}",
+            source_ids=(request.request_id,),
+            timestamp_ns=request.timestamp_ns,
+        )
         return self.interaction.respond(
             request,
             analysis.text,
             grounded=bool(analysis.grounded_entity_ids),
             timestamp_ns=request.timestamp_ns,
             source_entity_ids=analysis.grounded_entity_ids,
+            provenance=provenance,
         )
 
     def capture_camera_frame(self):
