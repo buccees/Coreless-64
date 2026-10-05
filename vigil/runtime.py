@@ -20,7 +20,7 @@ from .perception import CameraPerceptionProvider, PerceptionPipeline, Perception
 from .priority import PriorityContext
 from .provenance import EventProvenance
 from .security import AuthorizationContext, AuthorizationService
-from .simulation import ReplayEvent, ReplayLog
+from .simulation import ReplayEvent, ReplayLog, ReplayValidation
 from .tracking import TrackManager
 from .world import WorldModel
 
@@ -313,6 +313,12 @@ class VigilEnvironment:
         if consumer is None:
             return self.replay.replay()
         return self.replay.replay_into(consumer)
+
+    def replay_and_validate(self, consumer) -> ReplayValidation:
+        """Replay a session and validate its event/provenance chain."""
+        replayed = self.replay.replay_into(consumer)
+        events = tuple(item for item in replayed if isinstance(item, ReplayEvent))
+        return self.replay.validate_replay(events)
 
     def status(self) -> VigilStatus:
         return VigilStatus(
