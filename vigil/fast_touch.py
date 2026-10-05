@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Protocol
+from typing import Mapping, Protocol
 
 from .coordinate import CameraDisplayMapper
 from .model import Detection
@@ -82,3 +82,32 @@ class FastCameraTouchPath:
         )
         x, y = mapper.map(intent.x, intent.y)
         return replace(intent, x=x, y=y)
+
+
+    def persistent_state(self) -> dict[str, object]:
+        return {
+            "version": 1,
+            "display_width": self.display_width,
+            "display_height": self.display_height,
+            "frames_processed": self.frames_processed,
+            "last_frame_sequence": self.last_frame_sequence,
+        }
+
+    def restore_state(self, state: Mapping[str, object]) -> None:
+        if not isinstance(state, Mapping) or int(state.get("version", 1)) != 1:
+            raise ValueError("unsupported fast-touch state version")
+        width = state.get("display_width")
+        height = state.get("display_height")
+        if (width is None) != (height is None):
+            raise ValueError("fast-touch display dimensions must be supplied together")
+        if width is not None and (int(width) <= 0 or int(height) <= 0):
+            raise ValueError("fast-touch display dimensions must be positive")
+        self.display_width = None if width is None else int(width)
+        self.display_height = None if height is None else int(height)
+        self.frames_processed = int(state.get("frames_processed", 0))
+        self.last_frame_sequence = state.get("last_frame_sequence")
+        if self.last_frame_sequence is not None:
+            self.last_frame_sequence = int(self.last_frame_sequence)
+            if self.last_frame_sequence < 0:
+                raise ValueError("fast-touch last_frame_sequence must be non-negative")
+        self.last_detection = None
