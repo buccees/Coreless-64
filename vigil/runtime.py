@@ -194,14 +194,8 @@ class VigilEnvironment:
         ))
         return response
 
-    def ingest_input_event(self, event) -> tuple[object, ...]:
-        """Record a Coreless raw input event and its VIGIL interpretations."""
-        if not self.enabled or self.input_router is None:
-            return ()
-        device = next((item for item in self.input_router.devices.devices if item.device_id == event.device_id), None)
-        if device is None:
-            raise ValueError("input event references an unknown Coreless device")
-        interpretations = self.input_router.submit(event)
+    def _record_input_replay(self, event, interpretations) -> None:
+        """Persist one Coreless input event and all VIGIL-derived interpretations."""
         self.replay.append(ReplayEvent(
             event_id=f"input-{event.sequence}",
             timestamp_ns=event.timestamp_ns,
@@ -228,6 +222,16 @@ class VigilEnvironment:
                     confidence=item.confidence,
                 ),
             ))
+
+    def ingest_input_event(self, event) -> tuple[object, ...]:
+        """Route a Coreless input event and persist its VIGIL interpretation chain."""
+        if not self.enabled or self.input_router is None:
+            return ()
+        device = next((item for item in self.input_router.devices.devices if item.device_id == event.device_id), None)
+        if device is None:
+            raise ValueError("input event references an unknown Coreless device")
+        interpretations = self.input_router.submit(event)
+        self._record_input_replay(event, interpretations)
         return interpretations
 
     def capture_camera_frame(self):
@@ -265,6 +269,11 @@ class VigilEnvironment:
             intent = self.fast_touch.process_frame(frame)
             if intent is not None:
                 touch_event = self.visual_input.submit(intent)
+                interpretations = tuple(
+                    item for item in self.input_router.interpreted_events
+                    if item.source_sequence and item.source_sequence[-1] == touch_event.sequence
+                )
+                self._record_input_replay(touch_event, interpretations)
                 self.replay.append(ReplayEvent(
                     event_id=f"visual-touch-{frame.sequence}",
                     timestamp_ns=intent.timestamp_ns,
