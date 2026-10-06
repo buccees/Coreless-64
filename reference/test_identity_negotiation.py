@@ -123,3 +123,52 @@ def test_identity_attach_exposes_only_capabilities_shared_with_host():
     assert interface.supported == frozenset(
         {"display", "input", "network", "startup"}
     )
+
+
+def test_identity_attach_detach_clears_transport_session_state():
+    interface = CorelessHostInterface(
+        CorelessIdentity("coreless-detach"),
+        supported={"display", "input"},
+    )
+    frame = interface.device_identity_frame().encode()
+
+    assert interface.attach_identity_frame(
+        frame,
+        HostCapabilities(display=True, input=True),
+    ) == frozenset({"display", "input"})
+    interface.bind_channel("display", object())
+
+    interface.detach()
+
+    assert not interface.attached
+    assert interface.negotiated == frozenset()
+    assert interface.channels == {}
+    assert interface.required_channels(set()) == frozenset()
+
+
+def test_identity_attach_rejects_wrong_transport_architecture():
+    interface = CorelessHostInterface(CorelessIdentity("coreless-architecture"))
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64 + 1,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"display"}),
+        payload=b"coreless-architecture",
+    ).encode()
+
+    with pytest.raises(ValueError, match="transport identity verification failed"):
+        interface.attach_identity_frame(frame, HostCapabilities(display=True))
+
+
+def test_identity_attach_rejects_non_utf8_identity_payload():
+    interface = CorelessHostInterface(CorelessIdentity("coreless-payload"))
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"display"}),
+        payload=b"\\xff",
+    ).encode()
+
+    with pytest.raises(ValueError, match="transport identity verification failed"):
+        interface.attach_identity_frame(frame, HostCapabilities(display=True))
