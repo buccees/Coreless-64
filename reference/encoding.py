@@ -135,6 +135,33 @@ def from_bytes(data):
 
 
 
+def encode_extended_header(cls, op=0, rd=0, rs1=0, rs2=0, fmt=0, *, length=16):
+    """Encode the fixed header shared by Coreless extended instructions."""
+    if length not in (8, 16):
+        raise IllegalEncoding("invalid extended instruction length")
+    prefix = OP_EXT64 if length == 8 else OP_EXT128
+    if not 0 <= cls <= 0x8:
+        raise IllegalEncoding("reserved extended class")
+    if not 0 <= op <= 0x3F:
+        raise IllegalEncoding("extended operation out of range")
+    for name, value, limit in (
+        ("rd", rd, 0x1F), ("rs1", rs1, 0x1F), ("rs2", rs2, 0x1F),
+    ):
+        if not 0 <= value <= limit:
+            raise IllegalEncoding(f"{name} register out of range")
+    if not 0 <= fmt <= 0x3:
+        raise IllegalEncoding("extended format out of range")
+    return (
+        (prefix << 27)
+        | (cls << 23)
+        | (op << 17)
+        | (rd << 12)
+        | (rs1 << 7)
+        | (rs2 << 2)
+        | fmt
+    ) & MASK32
+
+
 def decode_extended_header(w):
     """Decode the fixed 27-bit header of an extended instruction word."""
     w &= MASK32
