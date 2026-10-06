@@ -214,3 +214,23 @@ def test_tensor_runtime_rms_norm_heads():
     assert result.at(0, 0, 1) == 1.6
     assert result.at(1, 0, 0) == 0.6324555320336759
     assert result.at(1, 0, 1) == 1.2649110640673518
+
+
+def test_tensor_runtime_append_sequence():
+    runtime = TensorRuntime()
+    existing = runtime.create(
+        (2, 2, 2),
+        [1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0],
+        dtype="fp32",
+    )
+    update = runtime.create(
+        (2, 1, 2),
+        [5.0, 6.0, 50.0, 60.0],
+        dtype="fp32",
+    )
+    result = runtime.append_sequence(existing, update)
+    assert result.shape == (2, 3, 2)
+    assert result.data == (
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
+        10.0, 20.0, 30.0, 40.0, 50.0, 60.0,
+    )
