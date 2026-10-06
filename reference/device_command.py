@@ -115,3 +115,30 @@ class CommandPayload:
         if not operation:
             raise ValueError("command operation must not be empty")
         return cls(operation, payload[2 + length:])
+
+    
+def encode_storage_write(key: str, data: bytes = b"") -> bytes:
+    """Encode a deterministic UTF-8 storage key followed by its value bytes."""
+    encoded_key = key.encode("utf-8")
+    if not encoded_key:
+        raise ValueError("storage key must not be empty")
+    if len(encoded_key) > 0xFFFF:
+        raise ValueError("storage key is too long")
+    return struct.pack("<H", len(encoded_key)) + encoded_key + bytes(data)
+
+
+def decode_storage_write(payload: bytes) -> tuple[str, bytes]:
+    """Decode a storage-write payload into its key and value."""
+    if len(payload) < 2:
+        raise ValueError("storage write is missing key length")
+    key_length = struct.unpack("<H", payload[:2])[0]
+    key_end = 2 + key_length
+    if key_length == 0:
+        raise ValueError("storage key must not be empty")
+    if key_end > len(payload):
+        raise ValueError("storage write key is truncated")
+    try:
+        key = payload[2:key_end].decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("storage write key is not valid UTF-8") from exc
+    return key, bytes(payload[key_end:])
