@@ -69,6 +69,30 @@ def test_command_rejects_bad_payload_length():
         DeviceCommand.decode(encoded[:-1])
 
 
+def test_command_rejects_unsupported_flags_on_encode():
+    with pytest.raises(ValueError, match="unsupported Coreless command flags"):
+        DeviceCommand(OP_EXECUTE, 1, flags=0x4).encode()
+
+
+def test_command_rejects_error_flag_without_response():
+    with pytest.raises(ValueError, match="error flag requires response"):
+        DeviceCommand(OP_EXECUTE, 1, flags=FLAG_ERROR).encode()
+
+
+def test_command_rejects_unsupported_flags_on_decode():
+    encoded = bytearray(DeviceCommand(OP_EXECUTE, 1).encode())
+    encoded[-8:] = (0x4).to_bytes(8, "little")
+    with pytest.raises(ValueError, match="unsupported Coreless command flags"):
+        DeviceCommand.decode(bytes(encoded))
+
+
+def test_command_rejects_error_flag_without_response_on_decode():
+    encoded = bytearray(DeviceCommand(OP_EXECUTE, 1).encode())
+    encoded[-8:] = FLAG_ERROR.to_bytes(8, "little")
+    with pytest.raises(ValueError, match="error flag requires response"):
+        DeviceCommand.decode(bytes(encoded))
+
+
 def test_command_round_trip_helper_preserves_wire_command():
     command = DeviceCommand(OP_EXECUTE, 123, b"payload", flags=0)
     assert round_trip(command) == command
