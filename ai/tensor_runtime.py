@@ -115,11 +115,11 @@ class TensorRuntime:
         """Elementwise cosine at the Coreless tensor boundary."""
         return Tensor.from_values(value.shape, (cos(v) for v in value.data), dtype=value.dtype)
 
-    def sin(self, value: Tensor) -> Tensor:
-        return Tensor.from_values(value.shape, (sin(v) for v in value.data), dtype=value.dtype)
-
-    def cos(self, value: Tensor) -> Tensor:
-        return Tensor.from_values(value.shape, (cos(v) for v in value.data), dtype=value.dtype)
+    def argmax(self, value: Tensor) -> int:
+        """Return the deterministic flat index of the largest tensor element."""
+        if not value.data:
+            raise ValueError("argmax requires a non-empty tensor")
+        return max(range(len(value.data)), key=value.data.__getitem__)
 
     def relu(self, value: Tensor) -> Tensor:
         return relu(value)
