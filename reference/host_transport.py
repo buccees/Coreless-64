@@ -14,6 +14,12 @@ class HostEndpoint:
     identity: CorelessIdentity
     capabilities: HostCapabilities
     channels: Mapping[str, object] = ()
+
+    def identity_frame(self) -> bytes:
+        """Return the wire-format identity advertisement for this endpoint."""
+        interface = CorelessHostInterface(self.identity)
+        return interface.device_identity_frame().encode()
+
     def channel_map(self) -> dict[str, object]:
         return dict(self.channels)
 
@@ -21,7 +27,9 @@ class HostTransportAdapter:
     def enumerate(self) -> tuple[HostEndpoint, ...]:
         raise NotImplementedError
     def connect(self, endpoint: HostEndpoint, interface: CorelessHostInterface) -> frozenset[str]:
-        negotiated = interface.attach(endpoint.identity, endpoint.capabilities)
+        negotiated = interface.attach_identity_frame(
+            endpoint.identity_frame(), endpoint.capabilities
+        )
         for capability, channel in endpoint.channel_map().items():
             if capability in negotiated:
                 interface.bind_channel(capability, channel)
