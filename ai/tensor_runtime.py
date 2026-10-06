@@ -59,9 +59,22 @@ class TensorRuntime:
         return sub(left, right)
 
     def mul(self, left: Tensor, right: Tensor) -> Tensor:
+        if self.cpu is not None and left.shape == right.shape and len(left.shape) == 1:
+            return self.vector_mul(left, right)
+        if self.cpu is not None and left.shape == right.shape and len(left.shape) == 2:
+            rows, cols = left.shape
+            values = []
+            for row in range(rows):
+                values.extend(self.vector_mul(
+                    Tensor.from_values((cols,), left.data[row * cols:(row + 1) * cols], dtype=left.dtype),
+                    Tensor.from_values((cols,), right.data[row * cols:(row + 1) * cols], dtype=right.dtype),
+                ).data)
+            return Tensor.from_values(left.shape, values, dtype=left.dtype)
         return mul(left, right)
 
     def dot(self, left: Tensor, right: Tensor) -> float:
+        if self.cpu is not None and len(left.shape) == 1 and left.shape == right.shape:
+            return self.vector_dot(left, right)
         return dot(left, right)
 
     def relu(self, value: Tensor) -> Tensor:
@@ -127,16 +140,21 @@ class TensorRuntime:
             raise ValueError("native vector execution requires equal rank-1 shapes")
         if left.dtype != right.dtype:
             raise ValueError("native vector execution requires matching dtypes")
-        if left.size > 64:
-            raise ValueError("native Coreless vector length is 64 lanes")
 
-    def vector_add(self, left: Tensor, right: Tensor) -> Tensor:
-        return self._vector_binary(left, right, 0x00)
+    def _vector_binary_native(self, left: Tensor, right: Tensor, op: int) -> Tensor:
+        if left.size <= 64:
+            return self._vector_binary_tile(left, right, op)
+        values = []
+        for start in range(0, left.size, 64):
+            stop = min(start + 64, left.size)
+            values.extend(self._vector_binary_tile(
+                Tensor.from_values((stop - start,), left.data[start:stop], dtype=left.dtype),
+                Tensor.from_values((stop - start,), right.data[start:stop], dtype=right.dtype),
+                op,
+            ).data)
+        return Tensor.from_values(left.shape, values, dtype=left.dtype)
 
-    def vector_mul(self, left: Tensor, right: Tensor) -> Tensor:
-        return self._vector_binary(left, right, 0x02)
-
-    def _vector_binary(self, left: Tensor, right: Tensor, op: int) -> Tensor:
+    def _vector_binary_tile(self, left: Tensor, right: Tensor, op: int) -> Tensor:
         self._same_vector_inputs(left, right)
         cpu = self._require_cpu()
         et = self._element_type(left.dtype)
@@ -154,9 +172,21 @@ class TensorRuntime:
                 cpu.vector[r][:] = values
             cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype = old_vl, old_vstart, old_vtype
 
+    def vector_add(self, left: Tensor, right: Tensor) -> Tensor:
+        return self._vector_binary(left, right, 0x00)
+
+    def vector_mul(self, left: Tensor, right: Tensor) -> Tensor:
+        return self._vector_binary(left, right, 0x02)
+
+    def _vector_binary(self, left: Tensor, right: Tensor, op: int) -> Tensor:
+        return self._vector_binary_native(left, right, op)
+
     def vector_dot(self, left: Tensor, right: Tensor) -> float:
         """Multiply through the Coreless vector unit, then reduce deterministically."""
-        return fsum(self.vector_mul(left, right).data)
+        self._same_vector_inputs(left, right)
+        if self.cpu is None:
+            return fsum(self.vector_mul(left, right).data)
+        return fsum(self._vector_binary_native(left, right, 0x02).data)
 
     def matrix_matmul(self, left: Tensor, right: Tensor) -> Tensor:
         if len(left.shape) != 2 or len(right.shape) != 2:
