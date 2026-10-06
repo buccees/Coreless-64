@@ -131,7 +131,11 @@ class MachineScheduler:
 
     @staticmethod
     def _supports(resource, work) -> bool:
-        return not resource.capabilities or work.operation in resource.capabilities
+        if resource.capabilities and work.operation not in resource.capabilities:
+            return False
+        if work.model_id is not None and resource.kind == "ai":
+            return getattr(resource, "model_id", None) == work.model_id
+        return True
 
 
 class AIComputeSchedulerResource:
