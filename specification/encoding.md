@@ -989,3 +989,7 @@ CSR access checks occur before the instruction produces its architectural result
 Every extended instruction has exactly one length class, one common header, and a class-specific payload. Class and operation numbers are allocated from the common header without overlap with the length mechanism. Reserved class, operation, format, and reserved-field values are illegal. An implementation may decode an extended instruction into multiple internal micro-operations, but architectural retirement occurs as one instruction.
 
 The decoder must validate the complete instruction length before interpreting payload fields. A truncated instruction produces an instruction access fault; an architecturally invalid encoding produces an instruction encoding or illegal-instruction fault according to the faulting condition. No partial architectural state may retire from a malformed extended instruction.
+
+## Extended instruction header
+
+The reference encoder exposes the shared extended header fields as `class`, `operation`, `rd`, `rs1`, `rs2`, and `format`. The header occupies the first 32-bit word after selecting the 64-bit or 128-bit length prefix. Classes 0x0 through 0x8 are currently defined as implementation-available class space; class values above 0x8 are reserved. Operation is 6 bits, register fields are 5 bits, and format is 2 bits. The reference decoder validates these structural fields before the execution engine interprets extended semantics.
