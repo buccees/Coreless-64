@@ -142,3 +142,12 @@ def test_tensor_runtime_native_head_reshape_and_gqa_repeat():
     repeated = runtime.repeat_heads(heads, 2)
     assert repeated.shape == (4, 2, 2)
     assert repeated.data == heads.data[:4] + heads.data[:4] + heads.data[4:] + heads.data[4:]
+
+
+def test_tensor_runtime_batched_attention_matmul():
+    runtime = TensorRuntime()
+    q = runtime.create((2, 1, 2), [1, 2, 3, 4], dtype="fp32")
+    k = runtime.create((2, 2, 2), [5, 6, 7, 8, 1, 0, 0, 1], dtype="fp32")
+    result = runtime.batch_matmul(q, runtime.transpose_last_two(k))
+    assert result.shape == (2, 1, 2)
+    assert result.data == (19.0, 22.0, 7.0, 4.0)
