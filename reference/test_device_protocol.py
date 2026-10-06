@@ -18,7 +18,7 @@ def test_coreless_identity_frame_round_trips():
     frame = DeviceIdentityFrame(
         protocol_version=1,
         architecture=ARCHITECTURE_CORELESS64,
-        device_type=1,
+        device_type=DEVICE_TYPE_CORELESS64,
         capabilities=capability_bits({"compute", "vector", "matrix", "ai"}),
         payload=b"coreless-0",
         flags=3,
@@ -37,7 +37,7 @@ def test_coreless_identity_frame_rejects_non_coreless_magic():
         DeviceIdentityFrame(
             protocol_version=1,
             architecture=ARCHITECTURE_CORELESS64,
-            device_type=1,
+            device_type=DEVICE_TYPE_CORELESS64,
             capabilities=0,
         ).encode()
     )
@@ -51,7 +51,7 @@ def test_coreless_identity_frame_rejects_truncated_payload():
     encoded = DeviceIdentityFrame(
         protocol_version=1,
         architecture=ARCHITECTURE_CORELESS64,
-        device_type=1,
+        device_type=DEVICE_TYPE_CORELESS64,
         capabilities=0,
         payload=b"coreless",
     ).encode()
@@ -84,11 +84,12 @@ def test_coreless_identity_frame_exposes_capability_names():
     frame = DeviceIdentityFrame(
         protocol_version=1,
         architecture=ARCHITECTURE_CORELESS64,
-        device_type=1,
+        device_type=DEVICE_TYPE_CORELESS64,
         capabilities=capability_bits({"compute", "ai", "storage"}),
     )
 
     assert frame.capability_names() == frozenset({"compute", "ai", "storage"})
+
 
 def test_coreless_capability_bits_include_host_interface_services():
     bits = capability_bits(frozenset({"startup", "management", "telemetry"}))
