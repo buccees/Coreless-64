@@ -109,6 +109,26 @@ class MachineScheduler:
         with self._lock:
             return dict(self._load)
 
+    def available_capacity_snapshot(self, items, *, preference="balanced", allow_fallback=True) -> dict[str, int]:
+        """Return eligible free capacity by resource for a queued batch."""
+        items = tuple(items)
+        if not items:
+            return {}
+        with self._lock:
+            result = {}
+            for work in items:
+                for resource, _ in self._candidate_resources(
+                    work,
+                    preference=preference,
+                    allow_fallback=allow_fallback,
+                ):
+                    resource_id = resource.resource_id
+                    if resource_id not in result:
+                        result[resource_id] = max(
+                            0, resource.capacity - self._load[resource_id]
+                        )
+            return result
+
     def allocate(self, work: ComputeWork, *, preference="balanced",
                  allow_fallback=True) -> tuple[MachineComputeResource, bool]:
         if preference not in {"balanced", "conventional", "ai", "ai_only", "conventional_only"}:
