@@ -92,7 +92,7 @@ class DeviceIdentityFrame:
         )
 
 
-_CAPABILITIES = {"compute": 0, "vector": 1, "matrix": 2, "ai": 3, "storage": 4, "network": 5, "display": 6, "input": 7, "management": 8}
+_CAPABILITIES = {"compute": 0, "vector": 1, "matrix": 2, "ai": 3, "storage": 4, "network": 5, "display": 6, "input": 7, "management": 8, "startup": 9, "telemetry": 10}
 
 
 def capability_names(bits: int) -> frozenset[str]:
