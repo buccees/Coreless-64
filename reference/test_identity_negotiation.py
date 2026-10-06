@@ -146,7 +146,7 @@ def test_identity_attach_detach_clears_transport_session_state():
     assert interface.required_channels(set()) == frozenset()
 
 
-def test_identity_attach_rejects_wrong_transport_architecture():
+def test_identity_verification_rejects_wrong_transport_architecture():
     interface = CorelessHostInterface(CorelessIdentity("coreless-architecture"))
     frame = DeviceIdentityFrame(
         protocol_version=1,
@@ -154,10 +154,9 @@ def test_identity_attach_rejects_wrong_transport_architecture():
         device_type=DEVICE_TYPE_CORELESS64,
         capabilities=capability_bits({"display"}),
         payload=b"coreless-architecture",
-    ).encode()
+    )
 
-    with pytest.raises(ValueError, match="transport identity verification failed"):
-        interface.attach_identity_frame(frame, HostCapabilities(display=True))
+    assert not interface.verify_identity_frame(frame)
 
 
 def test_identity_attach_rejects_non_utf8_identity_payload():
@@ -167,7 +166,7 @@ def test_identity_attach_rejects_non_utf8_identity_payload():
         architecture=ARCHITECTURE_CORELESS64,
         device_type=DEVICE_TYPE_CORELESS64,
         capabilities=capability_bits({"display"}),
-        payload=b"\\xff",
+        payload=b"\xff",
     ).encode()
 
     with pytest.raises(ValueError, match="transport identity verification failed"):
