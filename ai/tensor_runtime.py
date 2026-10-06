@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import struct
 from dataclasses import dataclass
-from math import exp, fsum
+from math import cos, exp, fsum, sin
 from typing import Iterable
 
 from .tensor import Tensor, add, dot, matmul, mul, relu, softmax, sub
@@ -106,6 +106,14 @@ class TensorRuntime:
     def rsqrt(self, value: Tensor, *, eps: float = 0.0) -> Tensor:
         """Elementwise reciprocal square root with an explicit stability epsilon."""
         return Tensor.from_values(value.shape, (1.0 / (v + eps) ** 0.5 for v in value.data), dtype=value.dtype)
+
+    def sin(self, value: Tensor) -> Tensor:
+        """Elementwise sine at the Coreless tensor boundary."""
+        return Tensor.from_values(value.shape, (sin(v) for v in value.data), dtype=value.dtype)
+
+    def cos(self, value: Tensor) -> Tensor:
+        """Elementwise cosine at the Coreless tensor boundary."""
+        return Tensor.from_values(value.shape, (cos(v) for v in value.data), dtype=value.dtype)
 
     def relu(self, value: Tensor) -> Tensor:
         return relu(value)
