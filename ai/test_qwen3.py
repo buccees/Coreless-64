@@ -151,6 +151,34 @@ def test_qwen3_rotary_elementwise_ops_use_tensor_runtime():
     assert runtime.sub_calls == 1
 
 
+def test_qwen3_attention_scale_uses_tensor_runtime():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.mul_calls = 0
+            self.softmax_calls = 0
+
+        def mul(self, left, right):
+            self.mul_calls += 1
+            return super().mul(left, right)
+
+        def softmax(self, value):
+            self.softmax_calls += 1
+            return super().softmax(value)
+
+    runtime = RecordingRuntime()
+    from .qwen3 import _attention
+
+    q = [[[1.0, 2.0]]]
+    k = [[[2.0, 1.0]]]
+    v = [[[3.0, 4.0]]]
+    result = _attention(q, k, v, runtime=runtime)
+
+    assert result == [[3.0, 4.0]]
+    assert runtime.mul_calls == 1
+    assert runtime.softmax_calls == 1
+
+
 def test_qwen3_nonlinear_ops_cross_tensor_runtime_boundary():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
