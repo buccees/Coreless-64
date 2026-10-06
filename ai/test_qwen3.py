@@ -157,6 +157,7 @@ def test_qwen3_attention_scale_uses_tensor_runtime():
             super().__init__()
             self.mul_calls = 0
             self.softmax_calls = 0
+            self.masked_fill_calls = 0
 
         def mul(self, left, right):
             self.mul_calls += 1
@@ -165,6 +166,10 @@ def test_qwen3_attention_scale_uses_tensor_runtime():
         def softmax(self, value):
             self.softmax_calls += 1
             return super().softmax(value)
+
+        def masked_fill(self, value, mask, fill_value):
+            self.masked_fill_calls += 1
+            return super().masked_fill(value, mask, fill_value)
 
     runtime = RecordingRuntime()
     from .qwen3 import _attention
@@ -177,6 +182,7 @@ def test_qwen3_attention_scale_uses_tensor_runtime():
     assert result == [[3.0, 4.0]]
     assert runtime.mul_calls == 1
     assert runtime.softmax_calls == 1
+    assert runtime.masked_fill_calls == 1
 
 
 def test_qwen3_nonlinear_ops_cross_tensor_runtime_boundary():
