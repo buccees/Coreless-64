@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
-from device_command import DeviceCommand, is_response, round_trip
+from device_command import CommandBatch, DeviceCommand, is_response, round_trip
 
 
 @dataclass(frozen=True)
@@ -125,6 +125,74 @@ class HostTransportAdapter:
         """Exchange a wire frame through an established transport session."""
         session.validate()
         return self.exchange(session.endpoint, session.interface, frame)
+
+    def exchange_batch(
+        self,
+        endpoint: HostEndpoint,
+        interface: CorelessHostInterface,
+        payload: bytes,
+    ) -> bytes:
+        """Carry an ordered command batch across the transport boundary."""
+        if not interface.attached:
+            self.connect(endpoint, interface)
+        elif interface.identity != endpoint.identity:
+            raise ValueError("Coreless host endpoint identity mismatch")
+        batch = CommandBatch.decode(payload)
+        replies = []
+        for command in batch.commands:
+            replies.append(interface.handle_command(round_trip(command)))
+        return CommandBatch(tuple(replies)).encode()
+
+    def exchange_session_batch(
+        self,
+        session: HostTransportSession,
+        payload: bytes,
+    ) -> bytes:
+        """Exchange an ordered command batch through an established session."""
+        session.validate()
+        return self.exchange_batch(session.endpoint, session.interface, payload)
+
+    def send_batch(
+        self,
+        endpoint: HostEndpoint,
+        interface: CorelessHostInterface,
+        batch: CommandBatch,
+    ) -> CommandBatch:
+        """Send an ordered command batch and validate every correlated response."""
+        reply = CommandBatch.decode(
+            self.exchange_batch(endpoint, interface, batch.encode())
+        )
+        if len(reply.commands) != len(batch.commands):
+            raise ValueError("Coreless batch response count mismatch")
+        for request, response in zip(batch.commands, reply.commands):
+            if not is_response(response):
+                raise ValueError("Coreless batch reply is not a response frame")
+            if response.request_id != request.request_id:
+                raise ValueError("Coreless batch response request id mismatch")
+            if response.opcode != request.opcode:
+                raise ValueError("Coreless batch response opcode mismatch")
+        return reply
+
+    def send_session_batch(
+        self,
+        session: HostTransportSession,
+        batch: CommandBatch,
+    ) -> CommandBatch:
+        """Send a command batch through an established transport session."""
+        reply = CommandBatch.decode(
+            self.exchange_session_batch(session, batch.encode())
+        )
+        if len(reply.commands) != len(batch.commands):
+            raise ValueError("Coreless session batch response count mismatch")
+        for request, response in zip(batch.commands, reply.commands):
+            if not is_response(response):
+                raise ValueError("Coreless session batch reply is not a response frame")
+            if response.request_id != request.request_id:
+                raise ValueError("Coreless session batch response request id mismatch")
+            if response.opcode != request.opcode:
+                raise ValueError("Coreless session batch response opcode mismatch")
+        return reply
+
 
     def send_command(
         self,
