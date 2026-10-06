@@ -184,7 +184,7 @@ def test_qwen3_attention_scale_uses_tensor_runtime():
             return super().masked_fill(value, mask, fill_value)
 
     runtime = RecordingRuntime()
-    from .qwen3 import _attention
+    from qwen3 import _attention
 
     q = [[[1.0, 2.0]]]
     k = [[[2.0, 1.0]]]
