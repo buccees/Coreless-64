@@ -190,7 +190,7 @@ def _attention(
                     if runtime is not None
                     else Tensor.from_values(
                         score_tensor.shape,
-                        (value if mask_value else float("-inf)")
+                        (value if mask_value else float("-inf")
                         for value, mask_value in zip(score_tensor.data, mask.data)
                     )
                 )
