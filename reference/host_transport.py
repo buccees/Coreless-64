@@ -47,6 +47,10 @@ class HostTransportAdapter:
             self.connect(endpoint, interface)
         return interface.handle_command(round_trip(command))
 
+    def disconnect(self, interface: CorelessHostInterface) -> None:
+        """End the active host attachment while preserving Coreless identity."""
+        interface.detach()
+
 class MemoryHostTransportAdapter(HostTransportAdapter):
     def __init__(self, endpoints: Iterable[HostEndpoint] = ()) -> None:
         self._endpoints = {endpoint.endpoint_id: endpoint for endpoint in endpoints}
