@@ -94,19 +94,41 @@ def _rotary(
     position: int,
     theta: float,
     scaling_factor: float | None = None,
+    runtime: TensorRuntime | None = None,
 ) -> list[float]:
-    out = head[:]
     half = len(head) // 2
+    if runtime is None:
+        out = head[:]
+        for i in range(half):
+            inv = theta ** (-2.0 * i / len(head))
+            angle = position * inv
+            if scaling_factor is not None and scaling_factor > 1.0:
+                angle /= scaling_factor
+            c, s = math.cos(angle), math.sin(angle)
+            a, b = head[i], head[i + half]
+            out[i] = a * c - b * s
+            out[i + half] = a * s + b * c
+        return out
+
+    a = Tensor.from_values((half,), head[:half], dtype="fp64")
+    b = Tensor.from_values((half,), head[half:], dtype="fp64")
+    cosines, sines = [], []
     for i in range(half):
         inv = theta ** (-2.0 * i / len(head))
         angle = position * inv
         if scaling_factor is not None and scaling_factor > 1.0:
             angle /= scaling_factor
-        c, s = math.cos(angle), math.sin(angle)
-        a, b = head[i], head[i + half]
-        out[i] = a * c - b * s
-        out[i + half] = a * s + b * c
-    return out
+        cosines.append(math.cos(angle))
+        sines.append(math.sin(angle))
+    c = Tensor.from_values((half,), cosines, dtype="fp64")
+    s = Tensor.from_values((half,), sines, dtype="fp64")
+    ac = runtime.mul(a, c)
+    bs = runtime.mul(b, s)
+    as_ = runtime.mul(a, s)
+    bc = runtime.mul(b, c)
+    first = runtime.sub(ac, bs)
+    second = runtime.add(as_, bc)
+    return list(first.data) + list(second.data)
 
 
 def _repeat_kv(heads: list[list[list[float]]], repeats: int) -> list[list[list[float]]]:
@@ -249,12 +271,12 @@ def qwen3_attention(
     qh = _apply_head_norm(qh, weights.get(f"{prefix}.self_attn.q_norm.weight"), cfg.rms_norm_eps, runtime)
     kh = _apply_head_norm(kh, weights.get(f"{prefix}.self_attn.k_norm.weight"), cfg.rms_norm_eps, runtime)
     qh = [
-        [_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor)
+        [_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor, runtime)
          for p, h in enumerate(head)]
         for head in qh
     ]
     kh = [
-        [_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor)
+        [_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor, runtime)
          for p, h in enumerate(head)]
         for head in kh
     ]
