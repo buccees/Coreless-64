@@ -98,3 +98,9 @@ The remaining native-runtime work is to move Qwen3 KV-cache storage, head reshap
 Architectural capabilities are discovered rather than inferred from implementation identity. CAP_BASE points to a read-only capability table containing a versioned header followed by fixed-size device/resource records. The table describes execution contexts, vector width, supported element types, matrix tile shapes, physical address width, virtualization support, graphics/network/storage capabilities, and optional extensions.
 
 Software must query capabilities before using optional architectural resources. Unsupported operations or resource requests produce a capability/resource fault rather than silently changing semantics. The capability table is part of the machine boot contract and remains available after Supervisor handoff.
+
+## Current plug-and-play transport implementation boundary
+
+The host boundary has progressed from a specification-only interface to a transport-neutral software path consisting of Coreless identity frames, capability negotiation, correlated device commands, and reusable host transport sessions. The reference implementation can enumerate endpoints, establish an attachment, exchange encoded commands, preserve request correlation, and close/reopen the external session without making the host the computational owner.
+
+This does not yet constitute physical plug-and-play hardware. Cross-platform physical enumeration and concrete display/input/network transport adapters remain implementation targets.
