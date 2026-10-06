@@ -101,10 +101,18 @@ class ProcessManager:
                 merged[-1] = (merged[-1][0], end - merged[-1][0])
             else:
                 merged.append((start, length))
-        while merged and merged[-1][0] + merged[-1][1] == self.next_phys:
-            start, length = merged.pop()
-            self.next_phys = start
         self.free_phys = merged
+
+    def _trim_phys_tail(self):
+        changed = True
+        while changed:
+            changed = False
+            for index, (start, length) in enumerate(self.free_phys):
+                if start + length == self.next_phys:
+                    self.next_phys = start
+                    self.free_phys.pop(index)
+                    changed = True
+                    break
 
     def _release_space(self, space):
         if space is None:
@@ -112,6 +120,7 @@ class ProcessManager:
         self._release_phys(space.page_table_root, PAGE_SIZE)
         self._release_phys(space.code_phys_base, space.stack_phys_base - space.code_phys_base)
         self._release_phys(space.stack_phys_base, space.stack_size)
+        self._trim_phys_tail()
 
     def _pte(self, root, virtual_page, physical_page, read, write, execute, user=True):
         flags = 1
