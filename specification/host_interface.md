@@ -157,3 +157,12 @@ opcode and request identifier and explicitly identify response/error state.
 This protocol is deliberately transport-neutral: a physical adapter is
 responsible only for carrying command frames and providing the negotiated
 transport mechanics.
+
+
+## Transport session contract
+
+The reference transport layer now defines a reusable `HostTransportSession` for an established endpoint attachment. A session records the endpoint identity, attached Coreless host interface, and negotiated capability set. Session command exchange carries encoded `DeviceCommand` frames without coupling the command path to a particular physical bus.
+
+The reference adapter provides `open_session`, `exchange_session`, `send_session_command`, and `close_session`. Closing a session detaches external channels while preserving Coreless machine identity and state. Reopening performs discovery/attachment again rather than transferring computational ownership to the host.
+
+This session layer is transport-neutral and is the software contract immediately above the identity frame and command frame. Physical USB, PCIe, network, and other adapters may implement the same lifecycle.
