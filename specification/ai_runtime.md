@@ -41,3 +41,7 @@ or persistence semantics.
 
 ### Atomic scheduler load snapshots
 Machine resource load inspection may use a scheduler-provided atomic snapshot so telemetry and dispatch coordination can observe one consistent resource-load view without repeatedly acquiring the scheduler lock. The snapshot is observational only and does not alter allocation or reservation semantics.
+
+
+### Capacity snapshot dispatch
+Batch dispatch derives its worker bound from one scheduler-owned eligible-capacity snapshot. This keeps capability and model-affinity filtering in the scheduler while avoiding duplicate eligibility scans before worker creation.
