@@ -347,3 +347,19 @@ def test_qwen3_rms_norm_uses_tensor_runtime_boundary():
     assert result.shape == (1, 2)
     assert runtime.dot_calls == 1
     assert runtime.mul_calls == 1
+
+
+def test_qwen3_greedy_decode_uses_tensor_runtime_argmax():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.argmax_calls = 0
+
+        def argmax(self, value):
+            self.argmax_calls += 1
+            return super().argmax(value)
+
+    runtime = RecordingRuntime()
+    values = Tensor.from_values((1, 4), (0.5, 3.0, 2.0, 1.0))
+    assert runtime.argmax(Tensor.from_values((4,), values.data[-4:])) == 1
+    assert runtime.argmax_calls == 1
