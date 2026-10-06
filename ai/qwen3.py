@@ -137,25 +137,6 @@ def _reshape_heads(x: Tensor, heads: int, head_dim: int, runtime: TensorRuntime 
     )
 
 
-def _tensor_heads_to_lists(value: Tensor) -> list[list[list[float]]]:
-    if len(value.shape) != 3:
-        raise ValueError("head tensor must be rank-3")
-    heads, positions, dim = value.shape
-    return [[[value.at(head, pos, d) for d in range(dim)] for pos in range(positions)] for head in range(heads)]
-
-
-def _heads_tensor_from_lists(heads: list[list[list[float]]], dtype: str = "fp64") -> Tensor:
-    if not heads:
-        raise ValueError("head tensor requires at least one head")
-    positions = len(heads[0])
-    dim = len(heads[0][0])
-    return Tensor.from_values(
-        (len(heads), positions, dim),
-        (v for head in heads for pos in head for v in pos),
-        dtype=dtype,
-    )
-
-
 def _rotary(
     head: list[float],
     position: int,
@@ -259,15 +240,6 @@ def _attention_tensor(
         causal=causal,
         key_position_offset=key_position_offset,
     )
-
-def _heads_to_tensor(heads: list[list[list[float]]]) -> Tensor:
-    positions = len(heads[0])
-    flat = []
-    for pos in range(positions):
-        for head in heads:
-            flat.extend(head[pos])
-    return Tensor.from_values((positions, len(flat) // positions), flat)
-
 
 def _rms_norm(
     x: Tensor,
