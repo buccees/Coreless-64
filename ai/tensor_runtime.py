@@ -105,6 +105,37 @@ class TensorRuntime:
             dtype=value.dtype,
         )
 
+    def transpose_last_two(self, value: Tensor) -> Tensor:
+        """Transpose the final two axes of a rank-3 attention tensor."""
+        if len(value.shape) != 3:
+            raise ValueError("transpose_last_two requires a rank-3 tensor")
+        heads, rows, cols = value.shape
+        return Tensor.from_values(
+            (heads, cols, rows),
+            (value.at(head, r, col)
+             for head in range(heads) for col in range(cols) for r in range(rows)),
+            dtype=value.dtype,
+        )
+
+    def batch_matmul(self, left: Tensor, right: Tensor) -> Tensor:
+        """Execute independent rank-2 matrix products across an attention head axis."""
+        if len(left.shape) != 3 or len(right.shape) != 3:
+            raise ValueError("batch_matmul requires rank-3 tensors")
+        if left.shape[0] != right.shape[0] or left.shape[2] != right.shape[1]:
+            raise ValueError("batch matrix dimensions do not agree")
+        heads, rows, inner = left.shape
+        cols = right.shape[2]
+        values = []
+        for head in range(heads):
+            a = Tensor.from_values((rows, inner),
+                (left.at(head, r, k) for r in range(rows) for k in range(inner)),
+                dtype=left.dtype)
+            b = Tensor.from_values((inner, cols),
+                (right.at(head, k, col) for k in range(inner) for col in range(cols)),
+                dtype=right.dtype)
+            values.extend(self.matmul(a, b).data)
+        return Tensor.from_values((heads, rows, cols), values, dtype=left.dtype)
+
     def transpose(self, value: Tensor) -> Tensor:
         """Transpose a rank-2 tensor at the Coreless tensor boundary."""
         if len(value.shape) != 2:
