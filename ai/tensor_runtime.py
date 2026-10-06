@@ -238,7 +238,8 @@ class TensorRuntime:
             raw &= (1 << bits) - 1
             if raw & (1 << (bits - 1)):
                 raw -= 1 << bits
-            return float(raw)        if dtype == "fp16":
+            return float(raw)
+        if dtype == "fp16":
             return struct.unpack("<e", (raw & 0xFFFF).to_bytes(2, "little"))[0]
         if dtype == "bf16":
             return struct.unpack("<f", ((raw & 0xFFFF) << 16).to_bytes(4, "little"))[0]
