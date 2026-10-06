@@ -152,6 +152,8 @@ class CorelessHostInterface:
             if self._system is None and self._hub is None:
                 return response(command, b"no Coreless system is bound", error=True)
             return response(command, b"execution endpoint ready")
+        if command.opcode in (OP_READ, OP_WRITE):
+            return response(command, b"Coreless-owned data endpoint not bound", error=True)
         return response(command, b"unsupported opcode", error=True)
 
     @property
