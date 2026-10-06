@@ -494,3 +494,24 @@ def test_qwen3_rotary_tensor_path_uses_native_runtime_boundary():
 
     assert result.shape == value.shape
     assert runtime.rotary_calls == 1
+
+
+def test_qwen3_head_rms_norm_uses_native_rank3_runtime_boundary():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.calls = 0
+
+        def rms_norm_heads(self, value, weight, *, eps=0.0):
+            self.calls += 1
+            return super().rms_norm_heads(value, weight, eps=eps)
+
+    from qwen3 import _head_rms_norm
+
+    runtime = RecordingRuntime()
+    value = Tensor.from_values((2, 1, 2), [3.0, 4.0, 1.0, 2.0])
+    weight = Tensor.from_values((2,), [1.0, 1.0])
+    result = _head_rms_norm(value, weight, 1e-6, runtime)
+
+    assert result.shape == value.shape
+    assert runtime.calls == 1
