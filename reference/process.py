@@ -203,6 +203,23 @@ class ProcessManager:
         self.next_pid += 1
         return p
 
+    def replace_program(self, p, program):
+        """Replace a process image while preserving its PID and parentage."""
+        program = bytes(program)
+        entry = 0
+        if program.startswith(ProgramLoader.MAGIC):
+            program, entry, _ = ProgramLoader.parse_executable(program)
+        p.program = program
+        p.address_space = self._allocate_space(len(program))
+        p.pc = p.address_space.code_base + entry
+        p.sp = p.address_space.stack_base + p.address_space.stack_size
+        p.registers = [0] * 32
+        p.root = p.address_space.page_table_root
+        p.asid = p.pid
+        p.tlbctl = 0
+        p.privilege = 0
+        return p
+
     def _save(self, p):
         cpu = self.machine.cpu
         p.pc = cpu.pc; p.sp = cpu.sp; p.registers = cpu.r[:]; p.registers[0] = 0
