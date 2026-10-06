@@ -26,7 +26,10 @@ This document maps architectural contracts to reference implementation and tests
 | Local intelligence architecture | Foundation covered |
 | Persistent TensorRuntime | Foundation covered |
 | Transformer → TensorRuntime routing | Foundation covered |
-| **Stable native Coreless tensor/vector/matrix execution API** | **Planned** |
+| **Stable native Coreless tensor/vector/matrix execution API** | **Covered at runtime boundary; continued deepening in progress** |
+| TensorRuntime RMSNorm / broadcast / transpose primitives | Covered |
+| Qwen3 runtime routing for rotary / masking / scalar scaling / argmax | Covered |
+| Tensor-backed Qwen3 KV cache and native head data movement | In progress |
 | Live trained-model inference | Not yet validated |
 
 ## Preflight rules
