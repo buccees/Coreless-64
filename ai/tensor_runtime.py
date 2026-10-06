@@ -130,6 +130,27 @@ class TensorRuntime:
         """Elementwise cosine at the Coreless tensor boundary."""
         return Tensor.from_values(value.shape, (cos(v) for v in value.data), dtype=value.dtype)
 
+    def rope_angles(
+        self,
+        half: int,
+        position: int,
+        theta: float,
+        *,
+        scaling_factor: float | None = None,
+        dtype: str = "fp64",
+    ) -> Tensor:
+        """Generate the deterministic RoPE angle basis at the Coreless boundary."""
+        if half <= 0:
+            raise ValueError("RoPE angle basis requires a positive half dimension")
+        if theta <= 0.0:
+            raise ValueError("RoPE theta must be positive")
+        scale = scaling_factor if scaling_factor is not None and scaling_factor > 1.0 else 1.0
+        return Tensor.from_values(
+            (half,),
+            (position * theta ** (-2.0 * i / (half * 2)) / scale for i in range(half)),
+            dtype=dtype,
+        )
+
     def argmax(self, value: Tensor) -> int:
         """Return the deterministic flat index of the largest tensor element."""
         if not value.data:
