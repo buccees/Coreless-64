@@ -9,6 +9,7 @@ from typing import Iterable, Mapping
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
 from device_command import DeviceCommand, round_trip
 
+
 @dataclass(frozen=True)
 class HostEndpoint:
     endpoint_id: str
@@ -29,11 +30,29 @@ class HostEndpoint:
     def channel_map(self) -> dict[str, object]:
         return dict(self.channels)
 
+
+@dataclass(frozen=True)
+class HostTransportSession:
+    """Bound transport state for one Coreless endpoint attachment."""
+
+    endpoint_id: str
+    interface: CorelessHostInterface
+    negotiated: frozenset[str]
+
+    @property
+    def attached(self) -> bool:
+        return self.interface.attached
+
+
 class HostTransportAdapter:
     def enumerate(self) -> tuple[HostEndpoint, ...]:
         raise NotImplementedError
 
-    def connect(self, endpoint: HostEndpoint, interface: CorelessHostInterface) -> frozenset[str]:
+    def connect(
+        self,
+        endpoint: HostEndpoint,
+        interface: CorelessHostInterface,
+    ) -> frozenset[str]:
         negotiated = interface.attach_identity_frame(
             endpoint.identity_frame(), endpoint.capabilities
         )
@@ -41,6 +60,15 @@ class HostTransportAdapter:
             if capability in negotiated:
                 interface.bind_channel(capability, channel)
         return negotiated
+
+    def open_session(
+        self,
+        endpoint: HostEndpoint,
+        interface: CorelessHostInterface,
+    ) -> HostTransportSession:
+        """Attach an endpoint and retain its negotiated transport session."""
+        negotiated = self.connect(endpoint, interface)
+        return HostTransportSession(endpoint.endpoint_id, interface, negotiated)
 
     def exchange(
         self,
@@ -55,6 +83,20 @@ class HostTransportAdapter:
         reply = interface.handle_command(round_trip(command))
         return reply.encode()
 
+    def exchange_session(
+        self,
+        session: HostTransportSession,
+        frame: bytes,
+    ) -> bytes:
+        """Exchange a wire frame through an established transport session."""
+        if not session.attached:
+            raise RuntimeError("host transport session is detached")
+        return self.exchange(
+            self._endpoint_for_session(session),
+            session.interface,
+            frame,
+        )
+
     def send_command(
         self,
         endpoint: HostEndpoint,
@@ -65,9 +107,29 @@ class HostTransportAdapter:
         reply_frame = self.exchange(endpoint, interface, command.encode())
         return DeviceCommand.decode(reply_frame)
 
+    def send_session_command(
+        self,
+        session: HostTransportSession,
+        command: DeviceCommand,
+    ) -> DeviceCommand:
+        """Send a command through an established transport session."""
+        reply_frame = self.exchange_session(session, command.encode())
+        return DeviceCommand.decode(reply_frame)
+
+    def close_session(self, session: HostTransportSession) -> None:
+        """Close the session while preserving the Coreless machine state."""
+        self.disconnect(session.interface)
+
+    def _endpoint_for_session(self, session: HostTransportSession) -> HostEndpoint:
+        for endpoint in self.enumerate():
+            if endpoint.endpoint_id == session.endpoint_id:
+                return endpoint
+        raise ValueError("unknown host transport session endpoint")
+
     def disconnect(self, interface: CorelessHostInterface) -> None:
         """End the active host attachment while preserving Coreless identity."""
         interface.detach()
+
 
 class MemoryHostTransportAdapter(HostTransportAdapter):
     def __init__(self, endpoints: Iterable[HostEndpoint] = ()) -> None:
@@ -84,7 +146,11 @@ class MemoryHostTransportAdapter(HostTransportAdapter):
     def enumerate(self) -> tuple[HostEndpoint, ...]:
         return tuple(self._endpoints[key] for key in sorted(self._endpoints))
 
-    def connect(self, endpoint: HostEndpoint, interface: CorelessHostInterface) -> frozenset[str]:
+    def connect(
+        self,
+        endpoint: HostEndpoint,
+        interface: CorelessHostInterface,
+    ) -> frozenset[str]:
         current = self._endpoints.get(endpoint.endpoint_id)
         if current is None or current != endpoint:
             raise ValueError("unknown host endpoint")
