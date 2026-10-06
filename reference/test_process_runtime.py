@@ -202,10 +202,8 @@ def test_reap_releases_completed_process_address_space():
     assert pm.reap(p.pid) is p
     assert p.pid not in pm.processes
     assert pm.current is None
-    assert any(base <= space.page_table_root < base + size
-               for base, size in pm.free_phys)
-    assert any(base <= space.code_phys_base < base + size
-               for base, size in pm.free_phys)
+    assert pm.next_phys == space.page_table_root
+    assert not pm.free_phys
 
 
 def test_reap_rejects_live_process():
