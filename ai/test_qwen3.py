@@ -363,3 +363,44 @@ def test_qwen3_greedy_decode_uses_tensor_runtime_argmax():
     values = Tensor.from_values((1, 4), (0.5, 3.0, 2.0, 1.0))
     assert runtime.argmax(Tensor.from_values((4,), values.data[-4:])) == 1
     assert runtime.argmax_calls == 1
+
+
+def test_qwen3_attention_scaling_uses_scalar_runtime_boundary():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.mul_scalar_calls = 0
+
+        def mul_scalar(self, value, scalar):
+            self.mul_scalar_calls += 1
+            return super().mul_scalar(value, scalar)
+
+    runtime = RecordingRuntime()
+    from qwen3 import _attention
+
+    result = _attention([[[1.0, 2.0]]], [[[2.0, 1.0]]], [[[3.0, 4.0]]], runtime=runtime)
+
+    assert result == [[3.0, 4.0]]
+    assert runtime.mul_scalar_calls == 1
+
+
+def test_qwen3_rms_norm_scaling_uses_scalar_runtime_boundary():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.mul_scalar_calls = 0
+
+        def mul_scalar(self, value, scalar):
+            self.mul_scalar_calls += 1
+            return super().mul_scalar(value, scalar)
+
+    from qwen3 import _rms_norm
+
+    runtime = RecordingRuntime()
+    x = Tensor.from_values((1, 2), (3.0, 4.0))
+    weight = Tensor.from_values((2,), (1.0, 2.0))
+
+    result = _rms_norm(x, weight, 1e-6, runtime)
+
+    assert result.shape == (1, 2)
+    assert runtime.mul_scalar_calls == 1
