@@ -170,9 +170,13 @@ def test_process_replace_program_reclaims_old_address_space():
     pm.replace_program(p, b"\x02" * (32 * 1024))
     assert p.address_space.page_table_root != old.page_table_root
     assert pm.next_phys > old_next
-    assert (old.page_table_root, 4096) in pm.free_phys
-    assert (old.code_phys_base, old.stack_phys_base - old.code_phys_base) in pm.free_phys
-    assert (old.stack_phys_base, old.stack_size) in pm.free_phys
+    def covered(address, size):
+        return any(base <= address and address + size <= base + length
+                   for base, length in pm.free_phys)
+
+    assert covered(old.page_table_root, 4096)
+    assert covered(old.code_phys_base, old.stack_phys_base - old.code_phys_base)
+    assert covered(old.stack_phys_base, old.stack_size)
 
 
 def test_process_state_persists_reclaimed_physical_ranges():
