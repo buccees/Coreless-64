@@ -1,6 +1,8 @@
 """Coreless process manager with persistent page-table-backed address spaces."""
 from dataclasses import dataclass, field
 
+from loader import ProgramLoader
+
 PAGE_SIZE = 1 << 12
 USER_BASE = 0x10000
 STACK_SIZE = PAGE_SIZE
@@ -187,9 +189,13 @@ class ProcessManager:
             )
 
     def create(self, name, program=b"", parent=0):
-        p = Process(self.next_pid, name, bytes(program), parent=parent)
+        program = bytes(program)
+        entry = 0
+        if program.startswith(ProgramLoader.MAGIC):
+            program, entry, _ = ProgramLoader.parse_executable(program)
+        p = Process(self.next_pid, name, program, parent=parent)
         p.address_space = self._allocate_space(len(p.program))
-        p.pc = p.address_space.code_base
+        p.pc = p.address_space.code_base + entry
         p.sp = p.address_space.stack_base + p.address_space.stack_size
         p.root = p.address_space.page_table_root
         p.asid = p.pid
