@@ -197,12 +197,11 @@ def _attention(
         # Softmax remains per-row while the tensor boundary owns score storage.
         weights = runtime.softmax_last_dim(scores)
         attended = runtime.batch_matmul(weights, v_tensor)
-        output = [[0.0] * dim for _ in range(query_positions)]
-        for head in range(len(q)):
-            for row in range(query_positions):
-                for dim_index in range(dim):
-                    output[row][dim_index] += attended.at(head, row, dim_index)
-        return output
+        reduced = runtime.sum_axis(attended, 0)
+        return [
+            [reduced.at(row, dim_index) for dim_index in range(dim)]
+            for row in range(query_positions)
+        ]
     return output
 
 
