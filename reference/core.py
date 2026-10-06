@@ -617,33 +617,16 @@ class CorelessCPU:
                         z = src_value
                     z &= dst_mod - 1
             elif op == 0x1E or op == 0x1F:
-                # Strided memory is precise for the same reason as indexed
-                # memory: all active accesses are validated before commit.
+                # Strided memory uses rs1 as the base and rs2 as the
+                # architectural byte stride. Each active lane is one
+                # independent architectural memory access.
                 width = max(1, bits // 8)
-                if i == start:
-                    accesses = [
-                        (lane, (self.read_reg(rs1) + lane * self.read_reg(rs2)) & MASK64)
-                        for lane in range(start, vl) if active(lane)
-                    ]
-                    if op == 0x1E:
-                        values = []
-                        for lane, address in accesses:
-                            self.vector_vstart = lane
-                            values.append((lane, self.load_u(address, width) & (mod - 1)))
-                        for lane, value in values:
-                            self.vector[rd][lane] = value
-                    else:
-                        for lane, address in accesses:
-                            self.vector_vstart = lane
-                            phys = self._phys(address, "write")
-                            if phys + width > len(self.memory):
-                                raise CorelessTrap("data_access_fault", self.pc, address)
-                        for lane, address in accesses:
-                            self.vector_vstart = lane
-                            self.store_u(address, width, self.vector[rd][lane])
-                    self.vector_vstart = 0
-                    return
-                continue
+                addr = (self.read_reg(rs1) + i * self.read_reg(rs2)) & MASK64
+                if op == 0x1E:
+                    z = self.load_u(addr, width)
+                else:
+                    self.store_u(addr, width, self.vector[rd][i])
+                    continue
             elif op == 0x26: z = 0
             else:
                 raise CorelessTrap("vector_fault", self.pc, op)
