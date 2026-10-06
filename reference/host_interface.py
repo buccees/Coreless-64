@@ -178,8 +178,8 @@ class CorelessHostInterface:
         """Bind Coreless-owned key/value storage for device READ/WRITE commands."""
         if not self._attached:
             raise RuntimeError("host interface is not attached")
-        if "storage" not in self.supported:
-            raise PermissionError("storage capability is not supported")
+        if "storage" not in self._negotiated:
+            raise PermissionError("storage capability was not negotiated")
         self._device_storage = storage
         self._channels["storage"] = storage
 
