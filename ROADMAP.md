@@ -78,6 +78,9 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Persistent TensorRuntime
 - [x] Transformer execution through TensorRuntime
 - [x] Stable native Coreless execution boundary for Transformer tensor operations
+- [x] TensorRuntime RMSNorm, scalar broadcast, and transpose primitives
+- [x] Qwen3 rotary/masking/scalar-scale/argmax paths routed through TensorRuntime
+- [ ] Tensor-backed Qwen3 KV cache and native head reshape/repeat/data-movement boundary
 - [ ] Actual persistent-storage-hosted Coreless runtime environment
 - [ ] Live five-core inference on Coreless
 - [ ] End-to-end local AI execution on Coreless resources
@@ -102,6 +105,7 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Native Qwen3 artifact validation/loading
 - [x] Native Qwen3 tokenizer/greedy generation
 - [x] Qwen3 KV cache
+- [x] Qwen3 grouped-query attention cache layout and generation path
 - [x] Real artifact integration runner
 - [ ] Official trained Qwen3-0.6B end-to-end validation
 - [x] CPU/GPU/communication capability envelopes
@@ -192,4 +196,4 @@ The Coreless input architecture uses VIGIL as an optional interpretation layer. 
 
 ## Resume point
 
-**Next:** deepen the optional VIGIL layer with camera perception/tracking and spatial interaction while continuing concrete plug-and-play host transports → trained Qwen3-0.6B validation → persistent-storage-hosted runtime → live Coreless inference.
+**Next:** deepen the Coreless/Qwen3 execution boundary with tensor-backed KV-cache and native head data movement, while continuing concrete plug-and-play host transports → trained Qwen3-0.6B validation → persistent-storage-hosted runtime → live Coreless inference. Continue the optional VIGIL camera/spatial layer in parallel.
