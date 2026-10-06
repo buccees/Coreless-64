@@ -41,16 +41,14 @@ class MachineWorkDistributor:
                 raise ValueError("max_workers must be positive")
             worker_count = min(len(items), self.max_workers)
         else:
+            capacity = self.scheduler.available_capacity_snapshot(
+                items,
+                preference=preference,
+                allow_fallback=allow_fallback,
+            )
             worker_count = min(
                 len(items),
-                max(
-                    1,
-                    self.scheduler.parallel_capacity(
-                        items,
-                        preference=preference,
-                        allow_fallback=allow_fallback,
-                    ),
-                ),
+                max(1, sum(capacity.values())),
             )
         if len(items) == 1:
             item = items[0]
