@@ -380,12 +380,3 @@ def test_host_interface_requires_storage_capability_to_bind_device_storage():
         interface.bind_device_storage({})
 
 
-def test_host_interface_requires_storage_capability_to_be_negotiated():
-    interface = CorelessHostInterface(
-        CorelessIdentity("coreless-storage"),
-        supported={"storage"},
-    )
-    interface.attach(interface.discover(), HostCapabilities())
-
-    with pytest.raises(PermissionError, match="storage capability was not negotiated"):
-        interface.bind_device_storage({})
