@@ -544,11 +544,14 @@ class Qwen3Runtime:
         cache = Qwen3KVCache.create(self.config.num_hidden_layers)
         logits = self.forward(generated, cache)
         for _ in range(max_new_tokens):
-            row = Tensor.from_values(
-                (self.config.vocab_size,),
-                logits.data[-self.config.vocab_size:],
-                dtype=logits.dtype,
-            )
+            if self.tensor_runtime is not None:
+                row = self.tensor_runtime.last_row(logits)
+            else:
+                row = Tensor.from_values(
+                    (1, self.config.vocab_size),
+                    logits.data[-self.config.vocab_size:],
+                    dtype=logits.dtype,
+                )
             next_token = (
                 self.tensor_runtime.argmax(row)
                 if self.tensor_runtime is not None
