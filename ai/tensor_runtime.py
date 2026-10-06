@@ -117,6 +117,22 @@ class TensorRuntime:
         )
 
     def softmax(self, value: Tensor) -> Tensor:
+        if len(value.shape) == 1:
+            return softmax(value)
+        if len(value.shape) == 2:
+            rows, cols = value.shape
+            values = []
+            for row in range(rows):
+                values.extend(
+                    softmax(
+                        Tensor.from_values(
+                            (cols,),
+                            value.data[row * cols:(row + 1) * cols],
+                            dtype=value.dtype,
+                        )
+                    ).data
+                )
+            return Tensor.from_values(value.shape, values, dtype=value.dtype)
         return softmax(value)
 
     @classmethod
