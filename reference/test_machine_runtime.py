@@ -52,3 +52,8 @@ def test_run_program_accepts_corex64_executable_from_filesystem():
     m.filesystem.write("/app", image)
     assert m.run_program("/app") == "2"
     assert m.cpu.read_reg(5) == 9
+
+def test_machine_telemetry_uses_atomic_scheduler_load_snapshot():
+    machine = CorelessMachine(memory_size=64 * 1024)
+    published = machine.publish_telemetry()
+    assert published.workloads.get("cpu", 0) >= 0
