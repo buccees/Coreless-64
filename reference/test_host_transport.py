@@ -135,6 +135,7 @@ def test_host_transport_session_reuses_negotiated_attachment():
     interface = CorelessHostInterface(CorelessIdentity("coreless-session"))
     session = adapter.open_session(endpoint, interface)
     assert session.endpoint_id == "coreless-session"
+    assert session.endpoint is endpoint
     assert session.negotiated == frozenset({"display", "network"})
     reply = adapter.send_session_command(
         session, DeviceCommand(OP_CAPABILITIES, 31)
@@ -143,6 +144,25 @@ def test_host_transport_session_reuses_negotiated_attachment():
     assert reply.payload == b"display|network"
     adapter.close_session(session)
     assert not session.attached
+
+
+def test_host_transport_session_keeps_bound_endpoint_after_enumeration_change():
+    endpoint = HostEndpoint(
+        "coreless-session-stable",
+        CorelessIdentity("coreless-session-stable"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-session-stable"))
+    session = adapter.open_session(endpoint, interface)
+    adapter.unregister(endpoint.endpoint_id)
+
+    reply = adapter.send_session_command(
+        session, DeviceCommand(OP_CAPABILITIES, 32)
+    )
+    assert reply.request_id == 32
+    assert reply.payload == b"display"
 
 
 def test_host_transport_session_rejects_non_response_frame(monkeypatch):
