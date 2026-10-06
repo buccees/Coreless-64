@@ -365,3 +365,36 @@ The host interface is now a first-class architectural boundary. The host supplie
 Target lifecycle: **connect → discover → verify Coreless identity → advertise capabilities → negotiate → attach → boot/resume → operate → detach**.
 
 Normative design: `specification/host_interface.md`. Specification is complete; the software contract and cross-platform enumeration remain implementation work.
+
+
+## Documentation checkpoint — 2026-10-06
+
+The plug-and-play host boundary has advanced beyond the earlier identity/command milestone. The current reference transport layer now includes:
+
+- transport-neutral Coreless identity frames
+- capability negotiation and negotiated channel binding
+- correlated device command/response frames
+- raw encoded command exchange
+- reusable `HostTransportSession` state
+- session command exchange using the same wire command format
+- session close that detaches external channels while preserving Coreless state
+- automatic reattachment for command paths after disconnect
+
+Relevant implementation files:
+
+- `reference/device_protocol.py`
+- `reference/device_command.py`
+- `reference/host_interface.py`
+- `reference/host_transport.py`
+- `reference/test_device_command.py`
+- `reference/test_host_transport.py`
+
+The current host boundary is therefore a real transport-neutral software path, not only a written proposal. It still does **not** claim completed physical USB/PCIe/network enumeration or finished display/input/network hardware adapters.
+
+Recent transport commits include `6259e4ec5393810e9879fb0122296259330ba347` (host transport sessions), `0dce9ae09ab74dc17b0d993af809efb37656889a` (session transport coverage), and `721cb941be0fe5b286610dec4a8cb51c583cfe8f` (correlated response helper coverage).
+
+### Updated resume point
+
+Continue the implementation rather than restarting the transport layer. The next transport work is concrete cross-platform enumeration and display/input/network adapters. In parallel, continue the native Qwen3/Coreless tensor execution boundary and VIGIL integration already described above.
+
+Documentation-only status must not be used to infer a CI result; use the latest GitHub Actions run for build status.
