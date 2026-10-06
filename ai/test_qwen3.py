@@ -404,3 +404,25 @@ def test_qwen3_rms_norm_scaling_uses_scalar_runtime_boundary():
 
     assert result.shape == (1, 2)
     assert runtime.mul_scalar_calls == 1
+
+
+def test_qwen3_rms_norm_uses_coreless_rms_reduction():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.rms_calls = 0
+
+        def mean_square_rsqrt(self, value, *, eps=0.0):
+            self.rms_calls += 1
+            return super().mean_square_rsqrt(value, eps=eps)
+
+    from qwen3 import _rms_norm
+
+    runtime = RecordingRuntime()
+    x = Tensor.from_values((1, 2), (3.0, 4.0))
+    weight = Tensor.from_values((2,), (1.0, 2.0))
+
+    result = _rms_norm(x, weight, 1e-6, runtime)
+
+    assert result.shape == (1, 2)
+    assert runtime.rms_calls == 1
