@@ -174,13 +174,26 @@ def _attention(
         else:
             scores = scores.map(lambda x: x * scale)
         for row in range(query_positions):
-            row_scores = [
-                scores.at(row, col)
-                if not causal or col <= key_position_offset + row
-                else float("-inf")
-                for col in range(key_positions)
-            ]
+            row_scores = [scores.at(row, col) for col in range(key_positions)]
             score_tensor = Tensor.from_values((1, key_positions), row_scores)
+            if causal:
+                mask = Tensor.from_values(
+                    score_tensor.shape,
+                    (
+                        1.0 if col <= key_position_offset + row else 0.0
+                        for col in range(key_positions)
+                    ),
+                    dtype=score_tensor.dtype,
+                )
+                score_tensor = (
+                    runtime.masked_fill(score_tensor, mask, float("-inf"))
+                    if runtime is not None
+                    else Tensor.from_values(
+                        score_tensor.shape,
+                        (value if mask_value else float("-inf)")
+                        for value, mask_value in zip(score_tensor.data, mask.data)
+                    )
+                )
             weights = runtime.softmax(score_tensor) if runtime is not None else softmax(score_tensor)
             attended = multiply(weights, value)
             for i, item in enumerate(attended.data):
