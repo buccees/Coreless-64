@@ -325,12 +325,12 @@ def test_qwen3_rms_norm_uses_tensor_runtime_boundary():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
             super().__init__()
-            self.dot_calls = 0
+            self.rms_calls = 0
             self.mul_calls = 0
 
-        def dot(self, left, right):
-            self.dot_calls += 1
-            return super().dot(left, right)
+        def mean_square_rsqrt(self, value, *, eps=0.0):
+            self.rms_calls += 1
+            return super().mean_square_rsqrt(value, eps=eps)
 
         def mul(self, left, right):
             self.mul_calls += 1
@@ -345,7 +345,7 @@ def test_qwen3_rms_norm_uses_tensor_runtime_boundary():
     result = _rms_norm(x, weight, 1e-6, runtime)
 
     assert result.shape == (1, 2)
-    assert runtime.dot_calls == 1
+    assert runtime.rms_calls == 1
     assert runtime.mul_calls == 1
 
 
