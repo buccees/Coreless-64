@@ -92,6 +92,8 @@ class HostTransportAdapter:
         """Carry one encoded command frame across the transport boundary."""
         if not interface.attached:
             self.connect(endpoint, interface)
+        elif interface.identity != endpoint.identity:
+            raise ValueError("Coreless host endpoint identity mismatch")
         command = DeviceCommand.decode(frame)
         reply = interface.handle_command(round_trip(command))
         return reply.encode()
