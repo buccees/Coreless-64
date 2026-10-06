@@ -145,3 +145,17 @@ def test_process_load_image_clears_stale_tail():
     machine.cpu.memory[start:start + 16] = b"\xaa" * 16
     pm.load_image(p)
     assert bytes(machine.cpu.memory[start:start + 8]) == b"\x01" * 8
+
+
+def test_process_replace_program_reuses_sufficient_address_space():
+    machine = CorelessMachine(256 * 1024, 1)
+    pm = ProcessManager(machine)
+    p = pm.create("exec", b"\x01" * 8)
+    root = p.address_space.page_table_root
+    code = p.address_space.code_phys_base
+    next_phys = pm.next_phys
+    pm.replace_program(p, b"\x02" * 4)
+    assert p.address_space.page_table_root == root
+    assert p.address_space.code_phys_base == code
+    assert pm.next_phys == next_phys
+    assert p.program == b"\x02" * 4
