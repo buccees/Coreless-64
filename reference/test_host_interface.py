@@ -343,14 +343,14 @@ def test_host_interface_dispatches_coreless_owned_storage_commands():
 
     write = DeviceCommand(
         opcode=OP_WRITE,
-        sequence=1,
+        request_id=1,
         payload=(b"greeting".__len__().to_bytes(2, "little") + b"greeting" + b"hello"),
     )
     write_response = interface.handle_command(write)
     assert write_response.payload == b"ok"
     assert storage["greeting"] == b"hello"
 
-    read = DeviceCommand(opcode=OP_READ, sequence=2, payload=b"greeting")
+    read = DeviceCommand(opcode=OP_READ, request_id=2, payload=b"greeting")
     read_response = interface.handle_command(read)
     assert read_response.payload == b"hello"
 
@@ -365,7 +365,7 @@ def test_host_interface_rejects_truncated_storage_write():
     interface.attach(interface.discover(), HostCapabilities())
 
     interface.bind_device_storage({})
-    command = DeviceCommand(opcode=OP_WRITE, sequence=3, payload=b"\x05\x00ab")
+    command = DeviceCommand(opcode=OP_WRITE, request_id=3, payload=b"\x05\x00ab")
     response = interface.handle_command(command)
 
     assert response.error
