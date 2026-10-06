@@ -124,6 +124,31 @@ def test_host_transport_disconnect_then_command_reattaches():
     assert reply.payload == b"display"
 
 
+def test_host_transport_rejects_attached_interface_for_other_endpoint():
+    endpoint_a = HostEndpoint(
+        "coreless-identity-a",
+        CorelessIdentity("coreless-identity-a"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    endpoint_b = HostEndpoint(
+        "coreless-identity-b",
+        CorelessIdentity("coreless-identity-b"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint_a, endpoint_b])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-identity-a"))
+    adapter.connect(endpoint_a, interface)
+
+    with pytest.raises(ValueError, match="identity mismatch"):
+        adapter.exchange(
+            endpoint_b,
+            interface,
+            DeviceCommand(OP_CAPABILITIES, 20).encode(),
+        )
+
+
 def test_host_transport_session_reuses_negotiated_attachment():
     endpoint = HostEndpoint(
         "coreless-session",
