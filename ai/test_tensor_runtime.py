@@ -234,3 +234,13 @@ def test_tensor_runtime_append_sequence():
         1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
         10.0, 20.0, 30.0, 40.0, 50.0, 60.0,
     )
+
+
+def test_tensor_runtime_attention():
+    runtime = TensorRuntime()
+    q = runtime.create((1, 1, 2), [1.0, 2.0], dtype="fp32")
+    k = runtime.create((1, 1, 2), [2.0, 1.0], dtype="fp32")
+    v = runtime.create((1, 1, 2), [3.0, 4.0], dtype="fp32")
+    result = runtime.attention(q, k, v)
+    assert result.shape == (1, 2)
+    assert result.data == (3.0, 4.0)
