@@ -230,6 +230,8 @@ def _rms_norm(
     eps: float,
     runtime: TensorRuntime | None = None,
 ) -> Tensor:
+    if runtime is not None:
+        return runtime.rms_norm_rows(x, weight, eps=eps)
     hidden = x.shape[1]
     rows = []
     for row in range(x.shape[0]):
@@ -238,16 +240,13 @@ def _rms_norm(
             x.data[row * hidden:(row + 1) * hidden],
             dtype=x.dtype,
         )
-        if runtime is not None:
-            weighted = runtime.rms_norm(chunk, weight, eps=eps)
-        else:
-            squared = sum(v * v for v in chunk.data) / hidden
-            scale = (squared + eps) ** -0.5
-            weighted = Tensor.from_values(
-                (hidden,),
-                (v * scale * w for v, w in zip(chunk.data, weight.data)),
-                dtype=x.dtype,
-            )
+        squared = sum(v * v for v in chunk.data) / hidden
+        scale = (squared + eps) ** -0.5
+        weighted = Tensor.from_values(
+            (hidden,),
+            (v * scale * w for v, w in zip(chunk.data, weight.data)),
+            dtype=x.dtype,
+        )
         rows.extend(weighted.data)
     return Tensor.from_values(x.shape, rows, dtype=x.dtype)
 
@@ -428,17 +427,21 @@ class Qwen3Runtime:
             raise ValueError("Qwen3 KV cache layer count does not match the model")
 
         embedding = self.weights.get("model.embed_tokens.weight")
-        hidden = Tensor.from_values(
-            (len(token_ids), self.config.hidden_size),
-            (
-                v
-                for token_id in token_ids
-                for v in embedding.data[
-                    token_id * self.config.hidden_size:
-                    (token_id + 1) * self.config.hidden_size
-                ]
-            ),
-        )
+        if self.tensor_runtime is not None:
+            hidden = self.tensor_runtime.embedding_lookup(embedding, token_ids)
+        else:
+            hidden = Tensor.from_values(
+                (len(token_ids), self.config.hidden_size),
+                (
+                    v
+                    for token_id in token_ids
+                    for v in embedding.data[
+                        token_id * self.config.hidden_size:
+                        (token_id + 1) * self.config.hidden_size
+                    ]
+                ),
+                dtype=embedding.dtype,
+            )
         for layer in range(self.config.num_hidden_layers):
             prefix = f"model.layers.{layer}"
             normed = _rms_norm(
