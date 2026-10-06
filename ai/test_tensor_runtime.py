@@ -151,3 +151,12 @@ def test_tensor_runtime_batched_attention_matmul():
     result = runtime.batch_matmul(q, runtime.transpose_last_two(k))
     assert result.shape == (2, 1, 2)
     assert result.data == (19.0, 22.0, 7.0, 4.0)
+
+
+def test_tensor_runtime_softmax_last_dim():
+    runtime = TensorRuntime()
+    value = runtime.create((2, 2, 2), [1, 2, 2, 1, 0, 0, 1, 3], dtype="fp32")
+    result = runtime.softmax_last_dim(value)
+    assert result.shape == value.shape
+    assert abs(result.at(0, 0, 0) + result.at(0, 0, 1) - 1.0) < 1e-6
+    assert abs(result.at(1, 1, 0) + result.at(1, 1, 1) - 1.0) < 1e-6
