@@ -29,13 +29,19 @@ class ProgramLoader:
             raise ValueError("unsupported or malformed COREX64 executable")
         code = image[self.HEADER_SIZE:]
         self.validate(code)
+        if entry >= len(code) or entry % 4:
+            raise ValueError("COREX64 executable entry is outside or misaligned")
         load_address = address
         self.machine.load_program(code, load_address)
-        return {"entry": load_address + entry, "size": len(code), "version": version}
+        entry_address = load_address + entry
+        self.machine.cpu.pc = entry_address
+        return {"entry": entry_address, "size": len(code), "version": version}
 
     @classmethod
     def make_executable(cls, program, entry=0):
         program = bytes(program)
+        if entry < 0 or entry >= len(program) or entry % 4:
+            raise ValueError("COREX64 executable entry is outside or misaligned")
         cls_dummy = cls.__new__(cls)
         cls_dummy.validate = lambda p: decode_stream(bytes(p))
         cls_dummy.validate(program)
