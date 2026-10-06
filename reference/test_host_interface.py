@@ -336,7 +336,7 @@ def test_host_interface_dispatches_coreless_owned_storage_commands():
     )
     interface.attach(
         interface.discover(),
-        HostCapabilities(startup=True, storage=True),
+        HostCapabilities(startup=True),
     )
     storage = {}
     interface.bind_device_storage(storage)
@@ -363,8 +363,6 @@ def test_host_interface_rejects_truncated_storage_write():
         supported={"storage"},
     )
     interface.attach(interface.discover(), HostCapabilities())
-    interface.negotiate(HostCapabilities(storage=True))
-
     interface.bind_device_storage({})
     command = DeviceCommand(opcode=OP_WRITE, request_id=3, payload=b"\x05\x00ab")
     response = interface.handle_command(command)
