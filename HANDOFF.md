@@ -150,6 +150,9 @@ Implemented:
 - generic fallback for unsupported shapes/dtypes
 - FP32 vector execution coverage
 - tensor persistence across machine reopen
+- TensorRuntime scalar broadcast and transpose primitives
+- Coreless-native RMSNorm, reciprocal/rsqrt, rotary trig, masking, scalar scaling, and deterministic argmax paths
+- Qwen3 regression boundaries proving model operations cross the TensorRuntime API
 
 Important limitation: the current Tensor object still stores values as Python numeric tuples while dtype remains a semantic/storage label at the runtime boundary. Do not describe this as true hardware-format storage yet.
 
@@ -175,7 +178,7 @@ Native CPU/VM execution and Hub scheduling are now implemented; the next work is
 
 Qwen3 remains the first model being taken through the full native-runtime path because it is currently assigned to the Coreless CPU role.
 
-Implemented and green:
+Implemented and green at the software/runtime boundary:
 
 - native Qwen3 configuration/model compatibility
 - native Qwen3 tokenizer boundary
@@ -188,6 +191,9 @@ Implemented and green:
 - native KV-cache generation
 - cached causal masking
 - grouped-query-attention KV-cache layout and regression coverage
+- TensorRuntime RMSNorm
+- TensorRuntime rotary trig, masking, scalar scaling, and argmax routing
+- TensorRuntime scalar broadcast and transpose primitives used by Qwen3
 - official Qwen3-0.6B artifact validation
 - managed artifact acquisition
 - immutable artifact revision pinning
@@ -232,17 +238,22 @@ The reference software contract and transport adapter now exist. Continue with c
 
 ### 2. Native Coreless execution boundary
 
-This is the immediate next engineering target.
+The public TensorRuntime boundary is now substantially deeper and is the immediate continuation point.
 
-Continue from the green Transformer/tensor-runtime checkpoint and deepen the stable boundary between model tensor operations and Coreless architectural vector/matrix execution.
+Completed in the current batch:
 
-Priority:
+1. Coreless-native scalar broadcast and transpose primitives
+2. Qwen3 RMSNorm routing through TensorRuntime
+3. Qwen3 rotary trig, causal masking, scalar scaling, and greedy argmax routing through TensorRuntime
+4. focused regression tests for these runtime boundaries
 
-1. inspect and stabilize the public Coreless vector/matrix execution API
-2. avoid unnecessary dependence on private execution helpers
-3. route supported Transformer tensor operations through the stable native boundary
-4. add focused regression tests
-5. batch related changes before CI
+Next priority:
+
+1. move Qwen3 KV-cache storage from nested Python lists into TensorRuntime-backed state
+2. add native head reshape/repeat and GQA cache movement primitives
+3. move attention data movement away from direct host-side tensor data manipulation
+4. preserve deterministic fallbacks where the runtime cannot yet execute a shape natively
+5. add focused boundary tests before CI
 
 ### 3. Real trained Qwen3-0.6B execution
 
@@ -327,19 +338,21 @@ Perform a final cross-layer audit covering:
 
 ## Resume point
 
-Continue the **native Coreless execution boundary** and the new **autonomous component/hub architecture** in parallel.
+Continue the **deep Qwen3/Coreless tensor execution boundary** and the **autonomous component/hub architecture** in parallel.
+
+The immediate Qwen3 resume point is the KV-cache/head-data path: replace remaining nested Python cache/head structures with TensorRuntime-backed operations while keeping model semantics unchanged.
 
 **Green resume point: GitHub Actions run #423 — successful.**
 
-Latest green checkpoint: GitHub Actions run #584.
+Latest documented green checkpoint remains tracked by GitHub Actions; do not infer a new green run from documentation-only changes.
 
-Latest commits:
+Latest repository head before this documentation batch:
 
-`d68b1ca01c722bf1b751a38d2f440d7ad8164a23`
+`e3ee0676e6045963e1004940326730ed4af7a067`
 
-`37236d2f1f8c4294339ca02bf28b1d4fab18000f`
+This checkpoint includes the latest Qwen3/TensorRuntime transpose integration.
 
-**Next session:** continue concrete host transport integration and native architectural execution in parallel, then validate the real trained Qwen3-0.6B artifact.
+**Next session:** continue Qwen3 KV-cache/head data movement through TensorRuntime, then concrete host transport integration and real trained Qwen3-0.6B validation.
 
 Do not restart from the older Qwen3-only handoff. The tensor runtime and Transformer routing work described above is already in `main`.
 
