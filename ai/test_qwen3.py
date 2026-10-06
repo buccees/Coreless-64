@@ -321,6 +321,28 @@ def test_qwen3_rms_norm_routes_scaling_through_tensor_runtime():
     assert runtime.mul_calls == 1
 
 
+def test_qwen3_rms_norm_uses_fused_tensor_runtime_primitive():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.rms_norm_calls = 0
+
+        def rms_norm(self, value, weight, *, eps=0.0):
+            self.rms_norm_calls += 1
+            return super().rms_norm(value, weight, eps=eps)
+
+    from qwen3 import _rms_norm
+
+    runtime = RecordingRuntime()
+    x = Tensor.from_values((1, 2), (3.0, 4.0))
+    weight = Tensor.from_values((2,), (1.0, 2.0))
+
+    result = _rms_norm(x, weight, 1e-6, runtime)
+
+    assert result.shape == (1, 2)
+    assert runtime.rms_norm_calls == 1
+
+
 def test_qwen3_rms_norm_uses_tensor_runtime_boundary():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
