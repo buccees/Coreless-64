@@ -325,3 +325,56 @@ def test_host_interface_transport_channels_can_be_rebound_after_detach():
     replacement = object()
     interface.bind_channel("display", replacement)
     assert interface.channel("display") is replacement
+
+
+def test_host_interface_dispatches_coreless_owned_storage_commands():
+    from device_command import OP_READ, OP_WRITE, DeviceCommand
+
+    interface = CorelessHostInterface(
+        CorelessIdentity("coreless-storage"),
+        supported={"display", "input", "network", "startup", "storage"},
+    )
+    interface.attach(
+        interface.discover(),
+        HostCapabilities(startup=True),
+    )
+    storage = {}
+    interface.bind_device_storage(storage)
+
+    write = DeviceCommand(
+        opcode=OP_WRITE,
+        sequence=1,
+        payload=(b"greeting".__len__().to_bytes(2, "little") + b"greeting" + b"hello"),
+    )
+    write_response = interface.handle_command(write)
+    assert write_response.payload == b"ok"
+    assert storage["greeting"] == b"hello"
+
+    read = DeviceCommand(opcode=OP_READ, sequence=2, payload=b"greeting")
+    read_response = interface.handle_command(read)
+    assert read_response.payload == b"hello"
+
+
+def test_host_interface_rejects_truncated_storage_write():
+    from device_command import OP_WRITE, DeviceCommand
+
+    interface = CorelessHostInterface(
+        CorelessIdentity("coreless-storage"),
+        supported={"storage"},
+    )
+    interface.attach(interface.discover(), HostCapabilities())
+
+    interface.bind_device_storage({})
+    command = DeviceCommand(opcode=OP_WRITE, sequence=3, payload=b"\x05\x00ab")
+    response = interface.handle_command(command)
+
+    assert response.error
+    assert response.payload == b"invalid Coreless storage write"
+
+
+def test_host_interface_requires_storage_capability_to_bind_device_storage():
+    interface = CorelessHostInterface(CorelessIdentity("coreless-storage"))
+    interface.attach(interface.discover(), HostCapabilities())
+
+    with pytest.raises(PermissionError, match="storage capability"):
+        interface.bind_device_storage({})
