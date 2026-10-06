@@ -99,6 +99,14 @@ class TensorRuntime:
             return self.vector_dot(left, right)
         return dot(left, right)
 
+    def reciprocal(self, value: Tensor) -> Tensor:
+        """Elementwise reciprocal used by architecture-native normalization paths."""
+        return Tensor.from_values(value.shape, (1.0 / v for v in value.data), dtype=value.dtype)
+
+    def rsqrt(self, value: Tensor, *, eps: float = 0.0) -> Tensor:
+        """Elementwise reciprocal square root with an explicit stability epsilon."""
+        return Tensor.from_values(value.shape, (1.0 / (v + eps) ** 0.5 for v in value.data), dtype=value.dtype)
+
     def relu(self, value: Tensor) -> Tensor:
         return relu(value)
 
