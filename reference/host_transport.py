@@ -47,6 +47,24 @@ class HostTransportSession:
     def attached(self) -> bool:
         return self.interface.attached
 
+    def channel(self, capability: str) -> object:
+        """Return the channel bound to a negotiated session capability."""
+        self.validate()
+        return self.interface.channel(capability)
+
+    def require_channels(self, capabilities: frozenset[str] | set[str]) -> None:
+        """Require all requested session capabilities to have live channels."""
+        self.validate()
+        if not self.interface.transport_ready(capabilities):
+            missing = sorted(
+                capability
+                for capability in capabilities
+                if capability not in self.interface.channels
+            )
+            raise RuntimeError(
+                f"host transport session channels are missing: {missing}"
+            )
+
     def validate(self) -> None:
         """Ensure the session still refers to its original live attachment."""
         if not self.attached:
@@ -69,6 +87,7 @@ class HostTransportAdapter:
         negotiated = interface.attach_identity_frame(
             endpoint.identity_frame(), endpoint.capabilities
         )
+        interface.clear_channels()
         for capability, channel in endpoint.channel_map().items():
             if capability in negotiated:
                 interface.bind_channel(capability, channel)
