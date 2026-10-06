@@ -98,3 +98,21 @@ def test_coreless_capability_bits_include_host_interface_services():
 
 def test_coreless_device_type_constant_is_stable():
     assert DEVICE_TYPE_CORELESS64 == 1
+
+
+def test_coreless_identity_frame_preserves_flags_and_binary_payload():
+    payload = bytes(range(256))
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"display", "input", "network"}),
+        payload=payload,
+        flags=0xA5A5A5A5,
+    )
+
+    decoded = DeviceIdentityFrame.decode(frame.encode())
+
+    assert decoded.flags == 0xA5A5A5A5
+    assert decoded.payload == payload
+    assert decoded.capabilities == frame.capabilities
