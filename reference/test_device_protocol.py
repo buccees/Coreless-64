@@ -121,3 +121,28 @@ def test_coreless_identity_frame_preserves_flags_and_binary_payload():
 def test_coreless_identity_frame_reports_coreless64_device():
     frame = DeviceIdentityFrame(1, ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, 0)
     assert frame.is_coreless64()
+
+
+def test_identity_frame_rejects_non_coreless_device_type():
+    import struct
+    from device_protocol import (
+        DeviceIdentityFrame, MAGIC, FRAME_TYPE_IDENTITY,
+        ARCHITECTURE_CORELESS64, HEADER_SIZE, DEVICE_TYPE_CORELESS64,
+    )
+    frame = DeviceIdentityFrame(
+        1, ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, 0, b"id"
+    ).encode()
+    fields = list(struct.unpack("<8sHHIIQII", frame[:HEADER_SIZE]))
+    fields[4] = DEVICE_TYPE_CORELESS64 + 1
+    bad = struct.pack("<8sHHIIQII", *fields) + frame[HEADER_SIZE:]
+    with pytest.raises(ValueError, match="device type"):
+        DeviceIdentityFrame.decode(bad)
+
+
+def test_identity_frame_rejects_unknown_capability_bits():
+    from device_protocol import DeviceIdentityFrame, DEVICE_TYPE_CORELESS64, ARCHITECTURE_CORELESS64
+    frame = DeviceIdentityFrame(
+        1, ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, 1 << 63, b"id"
+    ).encode()
+    with pytest.raises(ValueError, match="unknown Coreless capability bits"):
+        DeviceIdentityFrame.decode(frame)
