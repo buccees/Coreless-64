@@ -29,10 +29,20 @@ class Qwen3KVCache:
         return cls([None for _ in range(num_layers)], [None for _ in range(num_layers)])
 
     @property
+    def layer_count(self) -> int:
+        return len(self.keys)
+
+    @property
     def sequence_length(self) -> int:
         if not self.keys or self.keys[0] is None:
             return 0
         return self.keys[0].shape[1]
+
+    def layer(self, layer_index: int) -> tuple[Tensor | None, Tensor | None]:
+        """Read one cache layer through the cache-owned interface."""
+        if layer_index < 0 or layer_index >= len(self.keys):
+            raise IndexError("Qwen3 KV cache layer index out of range")
+        return self.keys[layer_index], self.values[layer_index]
 
     def append(
         self,
@@ -361,28 +371,7 @@ def qwen3_attention(
 
     if cache is not None:
         layer_index = int(prefix.rsplit(".", 1)[-1])
-        if cache.keys[layer_index] is None:
-            cache.keys[layer_index] = kh
-            cache.values[layer_index] = vh
-        else:
-            old_k = cache.keys[layer_index]
-            old_v = cache.values[layer_index]
-            if runtime is not None:
-                cache.keys[layer_index] = runtime.append_sequence(old_k, kh)
-                cache.values[layer_index] = runtime.append_sequence(old_v, vh)
-            else:
-                cache.keys[layer_index] = Tensor.from_values(
-                    (old_k.shape[0], old_k.shape[1] + kh.shape[1], old_k.shape[2]),
-                    old_k.data + kh.data,
-                    dtype=old_k.dtype,
-                )
-                cache.values[layer_index] = Tensor.from_values(
-                    (old_v.shape[0], old_v.shape[1] + vh.shape[1], old_v.shape[2]),
-                    old_v.data + vh.data,
-                    dtype=old_v.dtype,
-                )
-        kh = cache.keys[layer_index]
-        vh = cache.values[layer_index]
+        kh, vh = cache.append(layer_index, kh, vh, runtime)
 
     kh = _repeat_kv(kh, cfg.kv_group_size, runtime)
     vh = _repeat_kv(vh, cfg.kv_group_size, runtime)
@@ -458,7 +447,7 @@ class Qwen3Runtime:
         position_offset = cache.sequence_length if cache is not None else 0
         if position_offset + len(token_ids) > self.config.max_position_embeddings:
             raise ValueError("token sequence exceeds Qwen3 context length")
-        if cache is not None and len(cache.keys) != self.config.num_hidden_layers:
+        if cache is not None and cache.layer_count != self.config.num_hidden_layers:
             raise ValueError("Qwen3 KV cache layer count does not match the model")
 
         embedding = self.weights.get("model.embed_tokens.weight")
