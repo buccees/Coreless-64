@@ -290,6 +290,20 @@ class TensorRuntime:
             dtype=value.dtype,
         )
 
+    def softmax_last_dim(self, value: Tensor) -> Tensor:
+        """Apply deterministic softmax independently across the final tensor axis."""
+        if len(value.shape) < 2:
+            return self.softmax(value)
+        rows = value.size // value.shape[-1]
+        width = value.shape[-1]
+        outputs = []
+        for row in range(rows):
+            start = row * width
+            outputs.extend(softmax(
+                Tensor.from_values((width,), value.data[start:start + width], dtype=value.dtype)
+            ).data)
+        return Tensor.from_values(value.shape, outputs, dtype=value.dtype)
+
     def softmax(self, value: Tensor) -> Tensor:
         if len(value.shape) == 1:
             return softmax(value)
