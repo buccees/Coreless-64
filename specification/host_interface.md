@@ -163,6 +163,6 @@ transport mechanics.
 
 The reference transport layer now defines a reusable `HostTransportSession` for an established endpoint attachment. A session records the endpoint identity, attached Coreless host interface, and negotiated capability set. Session command exchange carries encoded `DeviceCommand` frames without coupling the command path to a particular physical bus.
 
-The reference adapter provides `open_session`, `exchange_session`, `send_session_command`, and `close_session`. Closing a session detaches external channels while preserving Coreless machine identity and state. Reopening performs discovery/attachment again rather than transferring computational ownership to the host.
+The reference adapter provides `open_session`, `exchange_session`, `send_session_command`, and `close_session`. Session command replies are required to be response frames with the same request identifier and opcode as the transmitted command; mismatches are rejected at the transport boundary. Closing a session detaches external channels while preserving Coreless machine identity and state. Reopening performs discovery/attachment again rather than transferring computational ownership to the host.
 
 This session layer is transport-neutral and is the software contract immediately above the identity frame and command frame. Physical USB, PCIe, network, and other adapters may implement the same lifecycle.
