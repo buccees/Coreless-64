@@ -111,6 +111,17 @@ class CorelessHostInterface:
             payload=self.identity.computer_id.encode("utf-8"),
         )
 
+    def verify_identity_frame(self, frame: DeviceIdentityFrame) -> bool:
+        """Verify a transport identity frame before host attachment."""
+        try:
+            return (
+                frame.architecture == ARCHITECTURE_CORELESS64
+                and frame.protocol_version == self.identity.protocol_version
+                and frame.payload.decode("utf-8") == self.identity.computer_id
+            )
+        except UnicodeDecodeError:
+            return False
+
     def verify(self, identity: CorelessIdentity) -> bool:
         """Verify architecture and protocol compatibility."""
         return (
