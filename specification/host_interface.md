@@ -166,3 +166,8 @@ The reference transport layer now defines a reusable `HostTransportSession` for 
 The reference adapter provides `open_session`, `exchange_session`, `send_session_command`, and `close_session`. Session command replies are required to be response frames with the same request identifier and opcode as the transmitted command; mismatches are rejected at the transport boundary. Closing a session detaches external channels while preserving Coreless machine identity and state. Reopening performs discovery/attachment again rather than transferring computational ownership to the host.
 
 This session layer is transport-neutral and is the software contract immediately above the identity frame and command frame. Physical USB, PCIe, network, and other adapters may implement the same lifecycle.
+
+
+## Ordered command batches
+
+Version 1 of the reference command layer also supports an ordered CommandBatch. A batch carries up to 256 complete command frames, each prefixed by its encoded frame length. Commands remain individually correlated by request identifier and opcode. A transport adapter may carry the batch as one exchange to reduce per-command transport overhead; it must preserve command order and return one response for each request. Batch validation rejects truncated frames, trailing bytes, oversized batches, and correlation mismatches.
