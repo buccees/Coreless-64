@@ -63,3 +63,36 @@ def test_tensor_runtime_tiles_large_bf16_matmul_through_coreless_matrix():
     assert result.shape == (17, 17)
     assert result.dtype == "bf16"
     assert result.data == (17.0,) * (17 * 17)
+
+
+class TrackingCorelessCPU(__import__("core", fromlist=["CorelessCPU"]).CorelessCPU):
+    def __init__(self):
+        super().__init__()
+        self.vector_boundary_calls = 0
+        self.matrix_boundary_calls = 0
+
+    def execute_vector(self, op, rd, rs1, rs2, w1):
+        self.vector_boundary_calls += 1
+        return super().execute_vector(op, rd, rs1, rs2, w1)
+
+    def execute_matrix(self, op, rd, rs1, rs2, w1, w2, w3):
+        self.matrix_boundary_calls += 1
+        return super().execute_matrix(op, rd, rs1, rs2, w1, w2, w3)
+
+
+def test_tensor_runtime_crosses_only_public_coreless_execution_boundaries():
+    cpu = TrackingCorelessCPU()
+    runtime = TensorRuntime(cpu=cpu)
+
+    left = runtime.create((4,), [1.0, 2.0, 3.0, 4.0], dtype="fp32")
+    right = runtime.create((4,), [5.0, 6.0, 7.0, 8.0], dtype="fp32")
+    vector_result = runtime.vector_add(left, right)
+
+    matrix_left = runtime.create((2, 2), [1.0, 2.0, 3.0, 4.0], dtype="fp32")
+    matrix_right = runtime.create((2, 2), [5.0, 6.0, 7.0, 8.0], dtype="fp32")
+    matrix_result = runtime.matmul(matrix_left, matrix_right)
+
+    assert vector_result.data == (6.0, 8.0, 10.0, 12.0)
+    assert matrix_result.data == (19.0, 22.0, 43.0, 50.0)
+    assert cpu.vector_boundary_calls == 1
+    assert cpu.matrix_boundary_calls == 1
