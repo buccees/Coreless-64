@@ -202,6 +202,10 @@ class CorelessHostInterface:
         if command.opcode == OP_STATUS:
             return response(command, repr(self.status()).encode("utf-8"))
         if command.opcode == OP_SYNC:
+            if self._hub is not None:
+                self._hub.machine.save_state()
+            elif self._system is not None:
+                self._system.machine.save_state()
             return response(command, b"ok")
         if command.opcode == OP_EXECUTE:
             if "compute" not in self.supported:
