@@ -67,6 +67,36 @@ class PersistentAIRuntime:
         self.save()
         return result
 
+    def compute(
+        self,
+        machine: Any,
+        text: str,
+        *,
+        model_id: str,
+        actor: str = "human",
+        context: Mapping[str, object] | None = None,
+        operation: str = "ai.infer",
+    ):
+        """Execute one persistent AI request through the machine scheduler."""
+        from .compute_fabric import ComputeWork
+
+        request = self.request(text, actor=actor)
+        if context:
+            request = type(request)(
+                request_id=request.request_id,
+                prompt=request.prompt,
+                context={**request.context, **dict(context)},
+                authority=request.authority,
+            )
+        work = ComputeWork(
+            work_id=f"{self.session.session_id}:work:{request.request_id.rsplit(':', 1)[-1]}",
+            operation=operation,
+            request=request,
+        )
+        result = machine.schedule_compute(work, preference="ai", allow_fallback=False)
+        self.session.record_result(result[0].result)
+        self.save()
+        return result
     def save(self) -> None:
         self.registry.save(self.storage, self.REGISTRY_KEY)
         self.session.save(self.storage, self.SESSION_KEY)
