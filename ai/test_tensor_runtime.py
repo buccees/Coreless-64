@@ -171,3 +171,15 @@ def test_tensor_runtime_causal_mask_rank3():
         1.0, 1.0, 0.0,
         1.0, 1.0, 1.0,
     )
+
+
+def test_tensor_runtime_sum_axis_reduces_attention_heads():
+    runtime = TensorRuntime()
+    value = runtime.create(
+        (2, 2, 2),
+        [1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0],
+        dtype="fp32",
+    )
+    result = runtime.sum_axis(value, 0)
+    assert result.shape == (2, 2)
+    assert result.data == (11.0, 22.0, 33.0, 44.0)
