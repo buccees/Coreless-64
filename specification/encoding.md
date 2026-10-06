@@ -1002,3 +1002,10 @@ The reference encoding layer represents each complete extended instruction as on
 Common structural validation is performed before class-specific semantic interpretation: class must be 0x0 through 0x8, operation is 6 bits, each common register operand is 5 bits, and format is 2 bits. Reserved values are illegal encodings.
 
 The record is canonical in both directions. Encoding emits the exact architectural byte sequence represented by the record, while decoding reconstructs the same record. Payload words are never treated as independent instructions.
+
+
+### 64-bit extended FP execution baseline
+
+The reference implementation now executes the 64-bit extended envelope for the FP class (class=0x2, format=F2). Word 0 carries the common extended header and word 1 carries the complete scalar FP descriptor. The supported FP operation namespace is the same 0x00–0x0C namespace used by the scalar FP reference executor.
+
+A valid 64-bit FP instruction retires as one architectural instruction and advances the PC by exactly 8 bytes. Other classes in the 64-bit envelope remain reserved until their payload semantics are explicitly assigned.

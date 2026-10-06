@@ -1,6 +1,7 @@
 import sys
 sys.path.insert(0, ".")
 import pytest
+import struct
 from core import CorelessCPU
 from encoding import (
     OP_EXT64, OP_EXT128, OP_ESCAPE, IllegalEncoding,
@@ -9,13 +10,17 @@ from encoding import (
     extended_payload_size,
 )
 
-def ext_header(cls, op=0, fmt=2):
+def ext_header(cls, op=0, fmt=2, *, length=128):
+    prefix = OP_EXT64 if length == 64 else OP_EXT128
     return (
-        (OP_EXT128 << 27)
+        (prefix << 27)
         | (cls << 23)
         | (op << 17)
         | fmt
     )
+
+def ext64_header(cls, op=0, fmt=2):
+    return ext_header(cls, op, fmt, length=64)
 
 def test_variable_length_boundaries_and_truncation():
     assert instruction_length(0) == 4
@@ -54,11 +59,34 @@ def test_truncated_extended_instruction_traps_as_instruction_access_fault():
     cpu.step()
     assert (cpu.csrs[0x005] & 0xFFFF) == 0x002
 
-def test_unsupported_64_bit_extended_form_is_rejected():
+def test_64_bit_extended_scalar_fp_executes_and_advances_by_8():
     cpu = CorelessCPU()
-    cpu.memory[0:4] = (OP_EXT64 << 27).to_bytes(4, "little")
+    cpu.f[1] = int.from_bytes(struct.pack("<d", 1.5), "little")
+    cpu.f[2] = int.from_bytes(struct.pack("<d", 2.25), "little")
+    descriptor = (7 << 29)
+    cpu.memory[0:8] = b"".join(
+        x.to_bytes(4, "little") for x in (ext64_header(2, 0), descriptor)
+    )
     cpu.step()
-    assert (cpu.csrs[0x005] & 0xFFFF) == 0x017
+    assert struct.unpack("<d", cpu.f[0].to_bytes(8, "little"))[0] == 3.75
+    assert cpu.pc == 8
+    assert cpu.instret == 1
+
+def test_64_bit_extended_non_fp_class_is_not_silently_executed():
+    cpu = CorelessCPU()
+    cpu.memory[0:8] = b"".join(
+        x.to_bytes(4, "little") for x in (ext64_header(0, 0), 0)
+    )
+    cpu.step()
+    assert (cpu.csrs[0x005] & 0xFFFF) == 0x002
+
+def test_64_bit_extended_fp_operation_reservation_is_checked():
+    cpu = CorelessCPU()
+    cpu.memory[0:8] = b"".join(
+        x.to_bytes(4, "little") for x in (ext64_header(2, 0x3F), 0)
+    )
+    cpu.step()
+    assert (cpu.csrs[0x005] & 0xFFFF) == 0x002
 
 
 from encoding import ExtendedInstruction, encode_extended_instruction, decode_extended_instruction

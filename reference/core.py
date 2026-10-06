@@ -1092,15 +1092,22 @@ class CorelessCPU:
             first = self.load_u(self.pc, 4, execute=True)
             self._last_word = first
             length = instruction_length(first)
-            if length == 8:
-                raise CorelessTrap("instruction_encoding_fault", self.pc, first)
-            if length == 16:
+            if length in (8, 16):
                 from encoding import decode_extended_header
                 h = decode_extended_header(first)
-                words = [self.load_u(self.pc+i, 4, execute=True) for i in (4,8,12)]
+                payload_offsets = (4,) if length == 8 else (4, 8, 12)
+                words = [self.load_u(self.pc+i, 4, execute=True) for i in payload_offsets]
                 cls, op, rd, rs1, rs2, fmt = h
-                if fmt != 2: raise CorelessTrap("instruction_encoding_fault", self.pc, fmt)
-                if cls == 2:
+                if fmt != 2:
+                    raise CorelessTrap("instruction_encoding_fault", self.pc, fmt)
+                if length == 8:
+                    # The 64-bit form is the compact extended envelope. The
+                    # first implemented 64-bit family is scalar FP: its single
+                    # payload word contains the complete FP descriptor.
+                    if cls != 2 or not 0 <= op <= 12:
+                        raise CorelessTrap("illegal_instruction", self.pc, op)
+                    self._scalar_fp_op(op, rd, rs1, rs2, words[0])
+                elif cls == 2:
                     self._scalar_fp_op(op, rd, rs1, rs2, words[0])
                 elif cls == 3:
                     self._vector_op(cls, op, rd, rs1, rs2, words[0])
@@ -1108,7 +1115,7 @@ class CorelessCPU:
                     self._matrix_op(op, rd, rs1, rs2, words[0], words[1], words[2])
                 else:
                     raise CorelessTrap("illegal_instruction", self.pc, cls)
-                next_pc = (self.pc + 16) & MASK64
+                next_pc = (self.pc + length) & MASK64
             else:
                 ins = decode(first)
                 next_pc = self._execute(ins)
