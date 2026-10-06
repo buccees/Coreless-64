@@ -89,3 +89,32 @@ def is_response(command: DeviceCommand) -> bool:
 
 def is_error(command: DeviceCommand) -> bool:
     return bool(command.flags & FLAG_ERROR)
+
+
+@dataclass(frozen=True)
+class CommandPayload:
+    """Deterministic structured payload for machine-to-machine commands."""
+
+    operation: str
+    data: bytes = b""
+
+    def encode(self) -> bytes:
+        name = self.operation.encode("utf-8")
+        if not name or len(name) > 0xFFFF:
+            raise ValueError("command operation name is invalid")
+        return struct.pack("<H", len(name)) + name + self.data
+
+    @classmethod
+    def decode(cls, payload: bytes) -> "CommandPayload":
+        if len(payload) < 2:
+            raise ValueError("structured command payload is truncated")
+        length = struct.unpack("<H", payload[:2])[0]
+        if len(payload) < 2 + length:
+            raise ValueError("structured command operation is truncated")
+        try:
+            operation = payload[2:2 + length].decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError("command operation is not valid UTF-8") from exc
+        if not operation:
+            raise ValueError("command operation must not be empty")
+        return cls(operation, payload[2 + length:])
