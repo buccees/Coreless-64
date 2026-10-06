@@ -67,6 +67,9 @@ class DeviceIdentityFrame:
             raise ValueError("Coreless identity payload length mismatch")
         if architecture != ARCHITECTURE_CORELESS64:
             raise ValueError("unsupported Coreless architecture")
+        if device_type != DEVICE_TYPE_CORELESS64:
+            raise ValueError("unsupported Coreless device type")
+        capability_names(capabilities)
         return cls(protocol_version, architecture, device_type, capabilities, payload, flags)
 
 _CAPABILITIES = {"compute": 0, "vector": 1, "matrix": 2, "ai": 3, "storage": 4, "network": 5, "display": 6, "input": 7, "management": 8, "startup": 9, "telemetry": 10}
