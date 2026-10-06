@@ -178,48 +178,42 @@ def _attention(
     scale = 1.0 / math.sqrt(dim)
     multiply = runtime.matmul if runtime is not None else matmul
     for head in range(len(q)):
-        query = Tensor.from_values(
-            (query_positions, dim),
-            (value for row in q[head] for value in row),
+    if runtime is not None:
+        q_tensor = Tensor.from_values((len(q), query_positions, dim),
+            (v for head in q for row in head for v in row))
+        k_tensor = Tensor.from_values((len(k), key_positions, dim),
+            (v for head in k for row in head for v in row))
+        v_tensor = Tensor.from_values((len(v), key_positions, dim),
+            (v for head in v for row in head for v in row))
+        scores = runtime.batch_matmul(q_tensor, runtime.transpose_last_two(k_tensor))
+        scores = runtime.mul_scalar(scores, scale)
+        if causal:
+            mask = Tensor.from_values(
+                scores.shape,
+                (1.0 if col <= key_position_offset + row else 0.0
+                 for _head in range(len(q))
+                 for row in range(query_positions)
+                 for col in range(key_positions)),
+                dtype=scores.dtype,
+            )
+            scores = runtime.masked_fill(scores, mask, float("-inf"))
+        # Softmax remains per-row while the tensor boundary owns score storage.
+        weights = Tensor.from_values(
+            scores.shape,
+            (item for head in range(len(q))
+             for row in range(query_positions)
+             for item in runtime.softmax(Tensor.from_values(
+                 (key_positions,),
+                 (scores.at(head, row, col) for col in range(key_positions)),
+                 dtype=scores.dtype)).data),
+            dtype=scores.dtype,
         )
-        key = Tensor.from_values(
-            (key_positions, dim),
-            (value for row in k[head] for value in row),
-        )
-        value = Tensor.from_values(
-            (key_positions, dim),
-            (value for row in v[head] for value in row),
-        )
-        scores = multiply(query, _transpose(key, runtime))
-        if runtime is not None:
-            scores = runtime.mul_scalar(scores, scale)
-        else:
-            scores = scores.map(lambda x: x * scale)
-        for row in range(query_positions):
-            row_scores = [scores.at(row, col) for col in range(key_positions)]
-            score_tensor = Tensor.from_values((1, key_positions), row_scores)
-            if causal:
-                mask = Tensor.from_values(
-                    score_tensor.shape,
-                    (
-                        1.0 if col <= key_position_offset + row else 0.0
-                        for col in range(key_positions)
-                    ),
-                    dtype=score_tensor.dtype,
-                )
-                score_tensor = (
-                    runtime.masked_fill(score_tensor, mask, float("-inf"))
-                    if runtime is not None
-                    else Tensor.from_values(
-                        score_tensor.shape,
-                        (value if mask_value else float("-inf")
-                        for value, mask_value in zip(score_tensor.data, mask.data)
-                    )
-                )
-            weights = runtime.softmax(score_tensor) if runtime is not None else softmax(score_tensor)
-            attended = multiply(weights, value)
-            for i, item in enumerate(attended.data):
-                output[row][i] += item
+        attended = runtime.batch_matmul(weights, v_tensor)
+        return [
+            [attended.at(head, row, dim_index) for dim_index in range(dim)]
+            for row in range(query_positions)
+            for head in [0]
+        ]
     return output
 
 
