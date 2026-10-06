@@ -135,7 +135,9 @@ class CorelessHostInterface:
         try:
             decoded = DeviceIdentityFrame.decode(frame) if isinstance(frame, bytes) else frame
         except ValueError as exc:
-            raise ValueError("Coreless transport identity verification failed") from exc
+            if str(exc) == "unsupported Coreless device type":
+                raise ValueError("Coreless transport identity verification failed") from exc
+            raise
         if not self.verify_identity_frame(decoded):
             raise ValueError("Coreless transport identity verification failed")
         identity = CorelessIdentity(
