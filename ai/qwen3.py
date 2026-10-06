@@ -21,18 +21,18 @@ from .tensor_runtime import TensorRuntime
 class Qwen3KVCache:
     """Per-layer native Q/K cache used by autoregressive generation."""
 
-    keys: list[list[list[float]]]
-    values: list[list[list[float]]]
+    keys: list[Tensor | None]
+    values: list[Tensor | None]
 
     @classmethod
     def create(cls, num_layers: int) -> "Qwen3KVCache":
-        return cls([[] for _ in range(num_layers)], [[] for _ in range(num_layers)])
+        return cls([None for _ in range(num_layers)], [None for _ in range(num_layers)])
 
     @property
     def sequence_length(self) -> int:
-        if not self.keys or not self.keys[0]:
+        if not self.keys or self.keys[0] is None:
             return 0
-        return len(self.keys[0][0])
+        return self.keys[0].shape[1]
 
 
 @dataclass(frozen=True)
@@ -79,17 +79,36 @@ def _transpose(x: Tensor, runtime: TensorRuntime | None = None) -> Tensor:
     )
 
 
-def _reshape_heads(x: Tensor, heads: int, head_dim: int) -> list[list[list[float]]]:
+def _reshape_heads(x: Tensor, heads: int, head_dim: int, runtime: TensorRuntime | None = None) -> Tensor:
+    if runtime is not None:
+        return runtime.reshape_heads(x, heads, head_dim)
     if x.shape[1] != heads * head_dim:
         raise ValueError("projection shape does not match Qwen3 head dimensions")
-    return [
-        [
-            x.data[(pos * heads + head) * head_dim:
-                   (pos * heads + head + 1) * head_dim]
-            for pos in range(x.shape[0])
-        ]
-        for head in range(heads)
-    ]
+    return Tensor.from_values(
+        (heads, x.shape[0], head_dim),
+        (x.data[(pos * heads + head) * head_dim + dim]
+         for head in range(heads) for pos in range(x.shape[0]) for dim in range(head_dim)),
+        dtype=x.dtype,
+    )
+
+
+def _tensor_heads_to_lists(value: Tensor) -> list[list[list[float]]]:
+    if len(value.shape) != 3:
+        raise ValueError("head tensor must be rank-3")
+    heads, positions, dim = value.shape
+    return [[[value.at(head, pos, d) for d in range(dim)] for pos in range(positions)] for head in range(heads)]
+
+
+def _heads_tensor_from_lists(heads: list[list[list[float]]], dtype: str = "fp64") -> Tensor:
+    if not heads:
+        raise ValueError("head tensor requires at least one head")
+    positions = len(heads[0])
+    dim = len(heads[0][0])
+    return Tensor.from_values(
+        (len(heads), positions, dim),
+        (v for head in heads for pos in head for v in pos),
+        dtype=dtype,
+    )
 
 
 def _rotary(
@@ -129,8 +148,18 @@ def _rotary(
     return list(first.data) + list(second.data)
 
 
-def _repeat_kv(heads: list[list[list[float]]], repeats: int) -> list[list[list[float]]]:
-    return [head for head in heads for _ in range(repeats)]
+def _repeat_kv(heads: Tensor, repeats: int, runtime: TensorRuntime | None = None) -> Tensor:
+    if runtime is not None:
+        return runtime.repeat_heads(heads, repeats)
+    if len(heads.shape) != 3:
+        raise ValueError("KV heads must be rank-3")
+    h, positions, dim = heads.shape
+    return Tensor.from_values(
+        (h * repeats, positions, dim),
+        (heads.at(head, pos, d) for head in range(h) for _ in range(repeats)
+         for pos in range(positions) for d in range(dim)),
+        dtype=heads.dtype,
+    )
 
 
 def _attention(
@@ -275,39 +304,42 @@ def qwen3_attention(
     q = _linear(x, weights.get(f"{prefix}.self_attn.q_proj.weight"), runtime)
     k = _linear(x, weights.get(f"{prefix}.self_attn.k_proj.weight"), runtime)
     v = _linear(x, weights.get(f"{prefix}.self_attn.v_proj.weight"), runtime)
-    qh = _reshape_heads(q, cfg.num_attention_heads, cfg.resolved_head_dim)
-    kh = _reshape_heads(k, cfg.num_key_value_heads, cfg.resolved_head_dim)
-    vh = _reshape_heads(v, cfg.num_key_value_heads, cfg.resolved_head_dim)
-    qh = _apply_head_norm(qh, weights.get(f"{prefix}.self_attn.q_norm.weight"), cfg.rms_norm_eps, runtime)
-    kh = _apply_head_norm(kh, weights.get(f"{prefix}.self_attn.k_norm.weight"), cfg.rms_norm_eps, runtime)
-    qh = [
+    qh = _reshape_heads(q, cfg.num_attention_heads, cfg.resolved_head_dim, runtime)
+    kh = _reshape_heads(k, cfg.num_key_value_heads, cfg.resolved_head_dim, runtime)
+    vh = _reshape_heads(v, cfg.num_key_value_heads, cfg.resolved_head_dim, runtime)
+    qh = _heads_tensor_from_lists(_apply_head_norm(_tensor_heads_to_lists(qh), weights.get(f"{prefix}.self_attn.q_norm.weight"), cfg.rms_norm_eps, runtime), qh.dtype)
+    kh = _heads_tensor_from_lists(_apply_head_norm(_tensor_heads_to_lists(kh), weights.get(f"{prefix}.self_attn.k_norm.weight"), cfg.rms_norm_eps, runtime), kh.dtype)
+    qh = _heads_tensor_from_lists([
         [_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor, runtime)
-         for p, h in enumerate(head)]
-        for head in qh
-    ]
-    kh = [
+         for p, h in enumerate(head)] for head in _tensor_heads_to_lists(qh)
+    ], qh.dtype)
+    kh = _heads_tensor_from_lists([
         [_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor, runtime)
-         for p, h in enumerate(head)]
-        for head in kh
-    ]
+         for p, h in enumerate(head)] for head in _tensor_heads_to_lists(kh)
+    ], kh.dtype)
 
     if cache is not None:
         layer_index = int(prefix.rsplit(".", 1)[-1])
-        if not cache.keys[layer_index]:
-            cache.keys[layer_index] = [[] for _ in kh]
-            cache.values[layer_index] = [[] for _ in vh]
-        if len(cache.keys[layer_index]) != len(kh):
-            raise ValueError("Qwen3 KV cache head count does not match the model")
-        for head in range(len(kh)):
-            cache.keys[layer_index][head].extend(kh[head])
-            cache.values[layer_index][head].extend(vh[head])
+        if cache.keys[layer_index] is None:
+            cache.keys[layer_index] = kh
+            cache.values[layer_index] = vh
+        else:
+            old_k = cache.keys[layer_index]
+            old_v = cache.values[layer_index]
+            cache.keys[layer_index] = Tensor.from_values(
+                (old_k.shape[0], old_k.shape[1] + kh.shape[1], old_k.shape[2]),
+                old_k.data + kh.data, dtype=kh.dtype)
+            cache.values[layer_index] = Tensor.from_values(
+                (old_v.shape[0], old_v.shape[1] + vh.shape[1], old_v.shape[2]),
+                old_v.data + vh.data, dtype=vh.dtype)
         kh = cache.keys[layer_index]
         vh = cache.values[layer_index]
 
-    kh = _repeat_kv(kh, cfg.kv_group_size)
-    vh = _repeat_kv(vh, cfg.kv_group_size)
+    kh = _repeat_kv(kh, cfg.kv_group_size, runtime)
+    vh = _repeat_kv(vh, cfg.kv_group_size, runtime)
     attended = _heads_to_tensor(
-        _attention(qh, kh, vh, key_position_offset=position_offset, runtime=runtime)
+        _attention(_tensor_heads_to_lists(qh), _tensor_heads_to_lists(kh),
+                   _tensor_heads_to_lists(vh), key_position_offset=position_offset, runtime=runtime)
     )
     return _linear(
         attended,
