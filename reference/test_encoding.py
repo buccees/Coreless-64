@@ -5,6 +5,8 @@ from core import CorelessCPU
 from encoding import (
     OP_EXT64, OP_EXT128, OP_ESCAPE, IllegalEncoding,
     decode_extended_header, decode_stream, instruction_length,
+    ExtendedInstruction, encode_extended_instruction, decode_extended_instruction,
+    extended_payload_size,
 )
 
 def ext_header(cls, op=0, fmt=2):
@@ -79,3 +81,27 @@ def test_extended_instruction_payload_size_is_architectural():
 def test_extended_instruction_rejects_base_length():
     with pytest.raises(IllegalEncoding):
         decode_extended_instruction((0).to_bytes(4, "little"))
+
+
+def test_extended_64_instruction_round_trip_is_canonical():
+    payload = (0x12345678).to_bytes(4, "little")
+    encoded = encode_extended_instruction(0, 3, 31, 30, 29, 0, payload, length=8)
+    decoded = decode_extended_instruction(encoded)
+    assert decoded == ExtendedInstruction(8, 0, 3, 31, 30, 29, 0, payload)
+    assert decoded.encode() == encoded
+
+
+def test_extended_header_fields_are_validated_at_record_boundary():
+    with pytest.raises(IllegalEncoding):
+        ExtendedInstruction(8, 9, 0, 0, 0, 0, 0, b"\0" * 4)
+    with pytest.raises(IllegalEncoding):
+        ExtendedInstruction(8, 0, 0x20, 0, 0, 0, 0, b"\0" * 4)
+    with pytest.raises(IllegalEncoding):
+        ExtendedInstruction(8, 0, 0, 0, 0, 0, 4, b"\0" * 4)
+
+
+def test_extended_payload_size_matches_length_contract():
+    assert extended_payload_size(8) == 4
+    assert extended_payload_size(16) == 12
+    with pytest.raises(IllegalEncoding):
+        extended_payload_size(4)
