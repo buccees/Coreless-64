@@ -413,3 +413,30 @@ def test_host_interface_verifies_transport_identity_frame():
             payload=b"other-device",
         )
     )
+
+
+def test_host_interface_attaches_from_encoded_transport_identity_frame():
+    interface = CorelessHostInterface(CorelessIdentity("coreless-plug"))
+    frame = interface.device_identity_frame().encode()
+
+    negotiated = interface.attach_identity_frame(
+        frame,
+        HostCapabilities(display=True, input=True, network=True, startup=True),
+    )
+
+    assert interface.attached
+    assert {"display", "input", "network", "startup"}.issubset(negotiated)
+
+
+def test_host_interface_rejects_transport_identity_for_other_device():
+    interface = CorelessHostInterface(CorelessIdentity("coreless-plug"))
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=1,
+        capabilities=0,
+        payload=b"other-device",
+    ).encode()
+
+    with pytest.raises(ValueError, match="transport identity verification failed"):
+        interface.attach_identity_frame(frame, HostCapabilities(display=True))
