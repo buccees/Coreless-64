@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from collections import deque
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -38,26 +39,45 @@ class MachineWorkDistributor:
         if self.max_workers is not None:
             if self.max_workers < 1:
                 raise ValueError("max_workers must be positive")
-            worker_count = self.max_workers
+            worker_count = min(len(items), self.max_workers)
         else:
-            worker_count = max(
-                1,
-                min(
-                    len(items),
-                    sum(
-                        getattr(self.scheduler._resources[resource_id], "capacity", 1)
-                        for resource_id in self.scheduler.resources()
+            worker_count = min(
+                len(items),
+                max(
+                    1,
+                    self.scheduler.parallel_capacity(
+                        items,
+                        preference=preference,
+                        allow_fallback=allow_fallback,
                     ),
                 ),
             )
-        pending = list(items)
+        if len(items) == 1:
+            item = items[0]
+            try:
+                result, allocation = self.scheduler.execute(
+                    item,
+                    preference=preference,
+                    allow_fallback=allow_fallback,
+                )
+            except Exception as exc:
+                return (MachineWorkResult(item.work_id, None, error=str(exc)),)
+            return (
+                MachineWorkResult(
+                    item.work_id,
+                    result,
+                    allocation.resource_id,
+                    allocation.kind,
+                ),
+            )
+        pending = deque(items)
         completed: dict[str, MachineWorkResult] = {}
         active = {}
 
         with ThreadPoolExecutor(max_workers=worker_count) as executor:
             while pending or active:
                 while pending and len(active) < worker_count:
-                    item = pending.pop(0)
+                    item = pending.popleft()
                     future = executor.submit(
                         self.scheduler.execute,
                         item,
