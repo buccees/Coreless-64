@@ -160,3 +160,14 @@ def test_tensor_runtime_softmax_last_dim():
     assert result.shape == value.shape
     assert abs(result.at(0, 0, 0) + result.at(0, 0, 1) - 1.0) < 1e-6
     assert abs(result.at(1, 1, 0) + result.at(1, 1, 1) - 1.0) < 1e-6
+
+
+def test_tensor_runtime_causal_mask_rank3():
+    runtime = TensorRuntime()
+    mask = runtime.causal_mask((2, 2, 3), query_offset=1, dtype="fp32")
+    assert mask.data == (
+        1.0, 1.0, 0.0,
+        1.0, 1.0, 1.0,
+        1.0, 1.0, 0.0,
+        1.0, 1.0, 1.0,
+    )
