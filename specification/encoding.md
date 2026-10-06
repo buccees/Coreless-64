@@ -993,4 +993,12 @@ The decoder must validate the complete instruction length before interpreting pa
 ## Extended instruction header
 
 The reference encoder exposes the shared extended header fields as `class`, `operation`, `rd`, `rs1`, `rs2`, and `format`. The header occupies the first 32-bit word after selecting the 64-bit or 128-bit length prefix. Classes 0x0 through 0x8 are currently defined as implementation-available class space; class values above 0x8 are reserved. Operation is 6 bits, register fields are 5 bits, and format is 2 bits. The reference decoder validates these structural fields before the execution engine interprets extended semantics.
-\n\n## Canonical extended instruction record\n\nThe reference encoding layer exposes a canonical structural record for a complete extended instruction: `length`, `class`, `operation`, `rd`, `rs1`, `rs2`, `format`, and `payload`. `length` is 8 or 16 bytes, and the payload is exactly `length - 4` bytes. Encoding rejects payloads of the wrong size; decoding rejects base instructions, truncated frames, and length mismatches. The record round-trips to the identical architectural byte sequence, providing a single structural representation for later class-specific execution decoding.\n
+\n\nThe reference encoding layer exposes a canonical structural record for a complete extended instruction: `length`, `class`, `operation`, `rd`, `rs1`, `rs2`, `format`, and `payload`. `length` is 8 or 16 bytes, and the payload is exactly `length - 4` bytes. Encoding rejects payloads of the wrong size; decoding rejects base instructions, truncated frames, and length mismatches. The record round-trips to the identical architectural byte sequence, providing a single structural representation for later class-specific execution decoding.\n
+
+## Canonical extended instruction record
+
+The reference encoding layer represents each complete extended instruction as one structural record containing the architectural length, common header fields, and payload. The payload is exactly 4 bytes for the 64-bit form and 12 bytes for the 128-bit form.
+
+Common structural validation is performed before class-specific semantic interpretation: class must be 0x0 through 0x8, operation is 6 bits, each common register operand is 5 bits, and format is 2 bits. Reserved values are illegal encodings.
+
+The record is canonical in both directions. Encoding emits the exact architectural byte sequence represented by the record, while decoding reconstructs the same record. Payload words are never treated as independent instructions.
