@@ -96,3 +96,15 @@ def test_tensor_runtime_crosses_only_public_coreless_execution_boundaries():
     assert matrix_result.data == (19.0, 22.0, 43.0, 50.0)
     assert cpu.vector_boundary_calls == 1
     assert cpu.matrix_boundary_calls == 1
+
+
+def test_tensor_runtime_routes_scalar_multiplication_through_coreless_vector():
+    cpu = TrackingCorelessCPU()
+    runtime = TensorRuntime(cpu=cpu)
+
+    value = runtime.create((4,), [1.0, 2.0, 3.0, 4.0], dtype="fp32")
+
+    result = runtime.mul_scalar(value, 2.5)
+
+    assert result.data == (2.5, 5.0, 7.5, 10.0)
+    assert cpu.vector_boundary_calls == 1
