@@ -166,12 +166,7 @@ def _attention(
         )
         scores = multiply(query, _transpose(key))
         if runtime is not None:
-            scale_tensor = Tensor.from_values(
-                scores.shape,
-                (scale for _ in scores.data),
-                dtype=scores.dtype,
-            )
-            scores = runtime.mul(scores, scale_tensor)
+            scores = runtime.mul_scalar(scores, scale)
         else:
             scores = scores.map(lambda x: x * scale)
         for row in range(query_positions):
@@ -235,13 +230,8 @@ def _rms_norm(
             if runtime is not None
             else (squared + eps) ** -0.5
         )
-        scale_tensor = Tensor.from_values(
-            (hidden,),
-            (scale for _ in range(hidden)),
-            dtype=x.dtype,
-        )
         scaled = (
-            runtime.mul(chunk, scale_tensor)
+            runtime.mul_scalar(chunk, scale)
             if runtime is not None
             else Tensor.from_values(
                 (hidden,),
