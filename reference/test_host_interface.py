@@ -4,7 +4,7 @@ sys.path.insert(0, ".")
 import pytest
 
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
-from device_protocol import ARCHITECTURE_CORELESS64, DeviceIdentityFrame
+from device_protocol import ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, DeviceIdentityFrame
 
 
 def test_host_interface_discovers_and_verifies_coreless_identity():
@@ -381,7 +381,7 @@ def test_host_interface_requires_storage_capability_to_bind_device_storage():
         interface.bind_device_storage({})
 
 def test_host_interface_exports_transport_neutral_identity_frame():
-    from device_protocol import ARCHITECTURE_CORELESS64, capability_names
+    from device_protocol import capability_names
 
     interface = CorelessHostInterface(
         CorelessIdentity("coreless-plug"),
@@ -392,7 +392,7 @@ def test_host_interface_exports_transport_neutral_identity_frame():
 
     assert frame.architecture == ARCHITECTURE_CORELESS64
     assert frame.protocol_version == 1
-    assert frame.device_type == 1
+    assert frame.device_type == DEVICE_TYPE_CORELESS64
     assert frame.payload == b"coreless-plug"
     assert capability_names(frame.capabilities) == frozenset(
         {"display", "input", "network", "startup", "storage"}
@@ -408,11 +408,26 @@ def test_host_interface_verifies_transport_identity_frame():
         DeviceIdentityFrame(
             protocol_version=1,
             architecture=ARCHITECTURE_CORELESS64,
-            device_type=1,
+            device_type=DEVICE_TYPE_CORELESS64,
             capabilities=0,
             payload=b"other-device",
         )
     )
+
+
+def test_host_interface_rejects_wrong_transport_device_type():
+    interface = CorelessHostInterface(CorelessIdentity("coreless-plug"))
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64 + 1,
+        capabilities=0,
+        payload=b"coreless-plug",
+    )
+
+    assert not interface.verify_identity_frame(frame)
+    with pytest.raises(ValueError, match="transport identity verification failed"):
+        interface.attach_identity_frame(frame.encode(), HostCapabilities(display=True))
 
 
 def test_host_interface_attaches_from_encoded_transport_identity_frame():
@@ -433,7 +448,7 @@ def test_host_interface_rejects_transport_identity_for_other_device():
     frame = DeviceIdentityFrame(
         protocol_version=1,
         architecture=ARCHITECTURE_CORELESS64,
-        device_type=1,
+        device_type=DEVICE_TYPE_CORELESS64,
         capabilities=0,
         payload=b"other-device",
     ).encode()
