@@ -137,7 +137,17 @@ class CorelessHostInterface:
             computer_id=decoded.payload.decode("utf-8"),
             protocol_version=decoded.protocol_version,
         )
-        return self.attach(identity, host, system=system)
+        # The identity frame is the device-side capability advertisement.
+        # Do not negotiate a host service that the attached Coreless endpoint
+        # did not advertise on the transport.
+        advertised = decoded.capability_names()
+        negotiated_supported = self.supported & advertised
+        original_supported = self.supported
+        try:
+            self.supported = frozenset(negotiated_supported)
+            return self.attach(identity, host, system=system)
+        finally:
+            self.supported = original_supported
 
     def verify(self, identity: CorelessIdentity) -> bool:
         """Verify architecture and protocol compatibility."""
