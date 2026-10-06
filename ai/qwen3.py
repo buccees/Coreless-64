@@ -548,7 +548,7 @@ class Qwen3Runtime:
                 row = self.tensor_runtime.last_row(logits)
             else:
                 row = Tensor.from_values(
-                    (1, self.config.vocab_size),
+                    (self.config.vocab_size,),
                     logits.data[-self.config.vocab_size:],
                     dtype=logits.dtype,
                 )
