@@ -323,6 +323,21 @@ class TensorRuntime:
             return Tensor.from_values(value.shape, values, dtype=value.dtype)
         return softmax(value)
 
+    def causal_mask(self, shape: tuple[int, ...], query_offset: int = 0, dtype: str = "fp64") -> Tensor:
+        """Build a causal attention mask across the final two axes."""
+        if len(shape) < 2:
+            raise ValueError("causal_mask requires at least two dimensions")
+        rows, cols = shape[-2], shape[-1]
+        prefix_count = 1
+        for size in shape[:-2]:
+            prefix_count *= size
+        values = []
+        for _ in range(prefix_count):
+            for row in range(rows):
+                for col in range(cols):
+                    values.append(1.0 if col <= query_offset + row else 0.0)
+        return Tensor.from_values(shape, values, dtype=dtype)
+
     def masked_fill(self, value: Tensor, mask: Tensor, fill_value: float) -> Tensor:
         """Apply an elementwise mask before architecture-level normalization."""
         if value.shape != mask.shape:
