@@ -192,7 +192,7 @@ class CorelessHostInterface:
         """Dispatch a decoded device command to the attached Coreless system."""
         from device_command import (
             OP_CAPABILITIES, OP_EXECUTE, OP_READ, OP_STATUS, OP_SYNC, OP_WRITE,
-            response,
+            decode_storage_write, response,
         )
         if not self._attached:
             raise RuntimeError("host interface is not attached")
@@ -221,14 +221,8 @@ class CorelessHostInterface:
                 return response(command, b"Coreless storage key unavailable", error=True)
         if command.opcode == OP_WRITE:
             try:
-                if len(command.payload) < 2:
-                    raise ValueError("storage write is missing key length")
-                key_length = int.from_bytes(command.payload[:2], "little")
-                key_end = 2 + key_length
-                if key_end > len(command.payload):
-                    raise ValueError("storage write key is truncated")
-                key = command.payload[2:key_end].decode("utf-8")
-                self.device_write(key, command.payload[key_end:])
+                key, data = decode_storage_write(command.payload)
+                self.device_write(key, data)
                 return response(command, b"ok")
             except (UnicodeDecodeError, ValueError, IndexError):
                 return response(command, b"invalid Coreless storage write", error=True)
