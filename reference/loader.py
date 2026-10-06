@@ -18,19 +18,25 @@ class ProgramLoader:
         self.machine.load_program(program, address)
         return {"entry": address, "size": len(program)}
 
-    def load_executable(self, image, address=0):
+    @classmethod
+    def parse_executable(cls, image):
         image = bytes(image)
-        if len(image) < self.HEADER_SIZE or image[:8] != self.MAGIC:
+        if len(image) < cls.HEADER_SIZE or image[:8] != cls.MAGIC:
             raise ValueError("invalid COREX64 executable")
         version = int.from_bytes(image[8:10], "little")
         entry = int.from_bytes(image[10:14], "little")
         size = int.from_bytes(image[14:16], "little")
-        if version != self.VERSION or size != len(image) - self.HEADER_SIZE:
+        if version != cls.VERSION or size != len(image) - cls.HEADER_SIZE:
             raise ValueError("unsupported or malformed COREX64 executable")
-        code = image[self.HEADER_SIZE:]
-        self.validate(code)
+        code = image[cls.HEADER_SIZE:]
         if entry >= len(code) or entry % 4:
             raise ValueError("COREX64 executable entry is outside or misaligned")
+        decode_stream(code)
+        return code, entry, version
+
+    def load_executable(self, image, address=0):
+        code, entry, version = self.parse_executable(image)
+        self.validate(code)
         load_address = address
         self.machine.load_program(code, load_address)
         entry_address = load_address + entry
