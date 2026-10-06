@@ -191,3 +191,30 @@ def test_process_state_persists_reclaimed_physical_ranges():
     restored.restore_state(state)
     assert restored.free_phys == pm.free_phys
     assert old.page_table_root in [base for base, _ in restored.free_phys]
+
+
+def test_reap_releases_completed_process_address_space():
+    machine = CorelessMachine(256 * 1024, 1)
+    pm = ProcessManager(machine)
+    p = pm.create("reap", b"\x01" * 8)
+    p.state = "exited"
+    space = p.address_space
+    assert pm.reap(p.pid) is p
+    assert p.pid not in pm.processes
+    assert pm.current is None
+    assert any(base <= space.page_table_root < base + size
+               for base, size in pm.free_phys)
+    assert any(base <= space.code_phys_base < base + size
+               for base, size in pm.free_phys)
+
+
+def test_reap_rejects_live_process():
+    machine = CorelessMachine(256 * 1024, 1)
+    pm = ProcessManager(machine)
+    p = pm.create("live", b"\x01" * 8)
+    try:
+        pm.reap(p.pid)
+    except RuntimeError as exc:
+        assert str(exc) == "cannot reap a running process"
+    else:
+        raise AssertionError("live process was reaped")
