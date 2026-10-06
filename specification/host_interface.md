@@ -135,3 +135,25 @@ A host or peer device can therefore identify a Coreless endpoint before
 negotiating higher-level display, input, network, startup, or management
 channels. The frame is a protocol contract, not a claim that a particular
 physical bus has already been implemented.
+
+
+## Device command protocol
+
+The transport-neutral command frame in `reference/device_command.py`
+provides the next layer after device identification. Version 1 defines
+correlated commands for:
+
+- capability discovery
+- device read
+- device write
+- execution requests
+- status
+- synchronization
+
+Each request carries a request identifier so another machine can correlate
+responses without depending on the physical transport. Responses retain the
+opcode and request identifier and explicitly identify response/error state.
+
+This protocol is deliberately transport-neutral: a physical adapter is
+responsible only for carrying command frames and providing the negotiated
+transport mechanics.
