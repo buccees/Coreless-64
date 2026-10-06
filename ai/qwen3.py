@@ -207,10 +207,19 @@ def _rms_norm(
             (runtime.dot(chunk, chunk) if runtime is not None else sum(v * v for v in chunk.data))
             / hidden + eps
         ) ** -0.5
-        scaled = Tensor.from_values(
+        scale_tensor = Tensor.from_values(
             (hidden,),
-            (v * scale for v in chunk.data),
+            (scale for _ in range(hidden)),
             dtype=x.dtype,
+        )
+        scaled = (
+            runtime.mul(chunk, scale_tensor)
+            if runtime is not None
+            else Tensor.from_values(
+                (hidden,),
+                (v * scale for v in chunk.data),
+                dtype=x.dtype,
+            )
         )
         weighted = (
             runtime.mul(scaled, weight)
