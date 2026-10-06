@@ -11,6 +11,19 @@ def test_host_transport_enumerates_endpoints_deterministically():
     ])
     assert [e.endpoint_id for e in adapter.enumerate()] == ["a", "b"]
 
+def test_host_transport_identity_frame_drives_device_capability_negotiation():
+    endpoint = HostEndpoint(
+        "coreless-0",
+        CorelessIdentity("coreless-0"),
+        HostCapabilities(display=True, input=True),
+        device_capabilities={"display", "input"},
+    )
+    interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
+    assert interface.attach_identity_frame(
+        endpoint.identity_frame(), endpoint.capabilities
+    ) == frozenset({"display", "input"})
+
+
 def test_host_transport_connects_negotiated_channels():
     display = object()
     endpoint = HostEndpoint("coreless-0", CorelessIdentity("coreless-0"),
