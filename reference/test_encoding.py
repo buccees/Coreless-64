@@ -10,17 +10,20 @@ from encoding import (
     extended_payload_size,
 )
 
-def ext_header(cls, op=0, fmt=2, *, length=128):
+def ext_header(cls, op=0, rd=0, rs1=0, rs2=0, fmt=2, *, length=128):
     prefix = OP_EXT64 if length == 64 else OP_EXT128
     return (
         (prefix << 27)
         | (cls << 23)
         | (op << 17)
+        | (rd << 12)
+        | (rs1 << 7)
+        | (rs2 << 2)
         | fmt
     )
 
-def ext64_header(cls, op=0, fmt=2):
-    return ext_header(cls, op, fmt, length=64)
+def ext64_header(cls, op=0, rd=0, rs1=0, rs2=0, fmt=2):
+    return ext_header(cls, op, rd, rs1, rs2, fmt, length=64)
 
 def test_variable_length_boundaries_and_truncation():
     assert instruction_length(0) == 4
@@ -65,7 +68,7 @@ def test_64_bit_extended_scalar_fp_executes_and_advances_by_8():
     cpu.f[2] = int.from_bytes(struct.pack("<d", 2.25), "little")
     descriptor = (7 << 29)
     cpu.memory[0:8] = b"".join(
-        x.to_bytes(4, "little") for x in (ext64_header(2, 0), descriptor)
+        x.to_bytes(4, "little") for x in (ext64_header(2, 0, 0, 1, 2), descriptor)
     )
     cpu.step()
     assert struct.unpack("<d", cpu.f[0].to_bytes(8, "little"))[0] == 3.75
