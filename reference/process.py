@@ -220,6 +220,15 @@ class ProcessManager:
         p.privilege = 0
         return p
 
+    def load_image(self, p):
+        """Materialize a process image into its executable physical pages."""
+        code_start = p.address_space.code_phys_base
+        end = code_start + len(p.program)
+        if end > len(self.machine.cpu.memory):
+            raise MemoryError("process image exceeds physical memory")
+        self.machine.cpu.memory[code_start:end] = p.program
+        return p
+
     def _save(self, p):
         cpu = self.machine.cpu
         p.pc = cpu.pc; p.sp = cpu.sp; p.registers = cpu.r[:]; p.registers[0] = 0
@@ -249,8 +258,7 @@ class ProcessManager:
         p = self.processes[pid]
         if p.state in ("exited", "killed"):
             return p
-        code_start = p.address_space.code_phys_base
-        self.machine.cpu.memory[code_start:code_start + len(p.program)] = p.program
+        self.load_image(p)
         p.state = "running"; self.current = pid
         self._enter_user(p)
         self.machine.boot()
