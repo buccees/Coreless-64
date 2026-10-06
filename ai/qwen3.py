@@ -209,11 +209,12 @@ def _attention(
             dtype=scores.dtype,
         )
         attended = runtime.batch_matmul(weights, v_tensor)
-        return [
-            [attended.at(head, row, dim_index) for dim_index in range(dim)]
-            for row in range(query_positions)
-            for head in [0]
-        ]
+        output = [[0.0] * dim for _ in range(query_positions)]
+        for head in range(len(q)):
+            for row in range(query_positions):
+                for dim_index in range(dim):
+                    output[row][dim_index] += attended.at(head, row, dim_index)
+        return output
     return output
 
 
