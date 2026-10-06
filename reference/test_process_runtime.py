@@ -64,3 +64,16 @@ def test_user_code_is_execute_read_only():
         assert trap.cause == "write_permission_fault"
     else:
         raise AssertionError("user code page was writable")
+
+
+def test_process_create_accepts_corex64_entry_point():
+    machine = CorelessMachine(256 * 1024, 1)
+    pm = ProcessManager(machine)
+    program = b"".join([
+        (0x30000001).to_bytes(4, "little"),
+        (0x30000001).to_bytes(4, "little"),
+    ])
+    image = ProgramLoader.make_executable(program, entry=4)
+    p = pm.create("entry", image)
+    assert p.program == program
+    assert p.pc == p.address_space.code_base + 4
