@@ -5,12 +5,14 @@ from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabili
 from host_transport import HostEndpoint, MemoryHostTransportAdapter
 from device_command import OP_CAPABILITIES, DeviceCommand, is_response
 
+
 def test_host_transport_enumerates_endpoints_deterministically():
     adapter = MemoryHostTransportAdapter([
         HostEndpoint("b", CorelessIdentity("coreless-b"), HostCapabilities()),
         HostEndpoint("a", CorelessIdentity("coreless-a"), HostCapabilities()),
     ])
     assert [e.endpoint_id for e in adapter.enumerate()] == ["a", "b"]
+
 
 def test_host_transport_identity_frame_drives_device_capability_negotiation():
     endpoint = HostEndpoint(
@@ -27,9 +29,12 @@ def test_host_transport_identity_frame_drives_device_capability_negotiation():
 
 def test_host_transport_connects_negotiated_channels():
     display = object()
-    endpoint = HostEndpoint("coreless-0", CorelessIdentity("coreless-0"),
-                            HostCapabilities(display=True, startup=True),
-                            {"display": display})
+    endpoint = HostEndpoint(
+        "coreless-0",
+        CorelessIdentity("coreless-0"),
+        HostCapabilities(display=True, startup=True),
+        {"display": display},
+    )
     adapter = MemoryHostTransportAdapter([endpoint])
     interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
     negotiated = adapter.connect(endpoint, interface)
@@ -37,8 +42,11 @@ def test_host_transport_connects_negotiated_channels():
     assert interface.channel("display") is display
     assert interface.transport_ready({"display"})
 
+
 def test_host_transport_rejects_unknown_endpoint():
-    endpoint = HostEndpoint("coreless-0", CorelessIdentity("coreless-0"), HostCapabilities())
+    endpoint = HostEndpoint(
+        "coreless-0", CorelessIdentity("coreless-0"), HostCapabilities()
+    )
     adapter = MemoryHostTransportAdapter()
     interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
     with pytest.raises(ValueError, match="unknown host endpoint"):
@@ -54,7 +62,9 @@ def test_host_transport_routes_commands_to_attached_coreless():
     )
     adapter = MemoryHostTransportAdapter([endpoint])
     interface = CorelessHostInterface(CorelessIdentity("coreless-command"))
-    reply = adapter.send_command(endpoint, interface, DeviceCommand(OP_CAPABILITIES, 17))
+    reply = adapter.send_command(
+        endpoint, interface, DeviceCommand(OP_CAPABILITIES, 17)
+    )
     assert is_response(reply)
     assert reply.request_id == 17
     assert reply.payload == b"display"
@@ -87,7 +97,9 @@ def test_host_transport_command_path_reuses_existing_attachment():
     adapter = MemoryHostTransportAdapter([endpoint])
     interface = CorelessHostInterface(CorelessIdentity("coreless-command-2"))
     adapter.connect(endpoint, interface)
-    reply = adapter.send_command(endpoint, interface, DeviceCommand(OP_CAPABILITIES, 18))
+    reply = adapter.send_command(
+        endpoint, interface, DeviceCommand(OP_CAPABILITIES, 18)
+    )
     assert reply.request_id == 18
     assert reply.payload == b"network"
 
@@ -104,7 +116,30 @@ def test_host_transport_disconnect_then_command_reattaches():
     adapter.connect(endpoint, interface)
     adapter.disconnect(interface)
     assert not interface.attached
-    reply = adapter.send_command(endpoint, interface, DeviceCommand(OP_CAPABILITIES, 19))
+    reply = adapter.send_command(
+        endpoint, interface, DeviceCommand(OP_CAPABILITIES, 19)
+    )
     assert interface.attached
     assert reply.request_id == 19
     assert reply.payload == b"display"
+
+
+def test_host_transport_session_reuses_negotiated_attachment():
+    endpoint = HostEndpoint(
+        "coreless-session",
+        CorelessIdentity("coreless-session"),
+        HostCapabilities(display=True, network=True),
+        device_capabilities={"display", "network"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-session"))
+    session = adapter.open_session(endpoint, interface)
+    assert session.endpoint_id == "coreless-session"
+    assert session.negotiated == frozenset({"display", "network"})
+    reply = adapter.send_session_command(
+        session, DeviceCommand(OP_CAPABILITIES, 31)
+    )
+    assert reply.request_id == 31
+    assert reply.payload == b"display|network"
+    adapter.close_session(session)
+    assert not session.attached
