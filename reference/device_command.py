@@ -18,6 +18,7 @@ OP_STATUS = 5
 OP_SYNC = 6
 FLAG_RESPONSE = 1
 FLAG_ERROR = 2
+KNOWN_FLAGS = FLAG_RESPONSE | FLAG_ERROR
 _HEADER = struct.Struct("<8sHHIIQ")
 HEADER_SIZE = _HEADER.size
 
@@ -38,6 +39,10 @@ class DeviceCommand:
             raise ValueError("request id out of range")
         if not 0 <= self.flags <= 0xFFFFFFFF:
             raise ValueError("flags out of range")
+        if self.flags & ~KNOWN_FLAGS:
+            raise ValueError("unsupported Coreless command flags")
+        if self.flags & FLAG_ERROR and not self.flags & FLAG_RESPONSE:
+            raise ValueError("Coreless error flag requires response flag")
         if len(self.payload) > 0xFFFFFFFF:
             raise ValueError("command payload is too large")
         return _HEADER.pack(MAGIC, self.protocol_version, self.opcode,
@@ -52,6 +57,10 @@ class DeviceCommand:
             raise ValueError("invalid Coreless command magic")
         if version != PROTOCOL_VERSION:
             raise ValueError("unsupported Coreless command protocol version")
+        if flags & ~KNOWN_FLAGS:
+            raise ValueError("unsupported Coreless command flags")
+        if flags & FLAG_ERROR and not flags & FLAG_RESPONSE:
+            raise ValueError("Coreless error flag requires response flag")
         payload = frame[HEADER_SIZE:]
         if len(payload) != length:
             raise ValueError("Coreless command payload length mismatch")
