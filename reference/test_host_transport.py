@@ -165,6 +165,56 @@ def test_host_transport_session_keeps_bound_endpoint_after_enumeration_change():
     assert reply.payload == b"display"
 
 
+def test_host_transport_session_rejects_rebound_interface():
+    endpoint_a = HostEndpoint(
+        "coreless-session-a",
+        CorelessIdentity("coreless-session-a"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    endpoint_b = HostEndpoint(
+        "coreless-session-b",
+        CorelessIdentity("coreless-session-b"),
+        HostCapabilities(network=True),
+        device_capabilities={"network"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint_a, endpoint_b])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-session-a"))
+    session = adapter.open_session(endpoint_a, interface)
+
+    adapter.disconnect(interface)
+    adapter.connect(endpoint_b, interface)
+
+    with pytest.raises(RuntimeError, match="identity changed"):
+        adapter.send_session_command(
+            session, DeviceCommand(OP_CAPABILITIES, 33)
+        )
+
+
+def test_host_transport_session_rejects_negotiation_change():
+    endpoint = HostEndpoint(
+        "coreless-session-negotiation",
+        CorelessIdentity("coreless-session-negotiation"),
+        HostCapabilities(display=True, network=True),
+        device_capabilities={"display", "network"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-session-negotiation"))
+    session = adapter.open_session(endpoint, interface)
+
+    adapter.disconnect(interface)
+    adapter.connect(
+        endpoint,
+        interface,
+    )
+
+    assert session.negotiated == frozenset({"display", "network"})
+    reply = adapter.send_session_command(
+        session, DeviceCommand(OP_CAPABILITIES, 34)
+    )
+    assert reply.request_id == 34
+
+
 def test_host_transport_session_rejects_non_response_frame(monkeypatch):
     endpoint = HostEndpoint(
         "coreless-session-response",
