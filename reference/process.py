@@ -357,5 +357,18 @@ class ProcessManager:
                 return p
         return None
 
+    def reap(self, pid):
+        """Remove a completed process and return its reclaimed process object."""
+        p = self.processes.get(pid)
+        if p is None:
+            return None
+        if p.state not in ("exited", "killed"):
+            raise RuntimeError("cannot reap a running process")
+        self._release_space(p.address_space)
+        del self.processes[pid]
+        if self.current == pid:
+            self.current = None
+        return p
+
     def list(self):
         return list(self.processes.values())
