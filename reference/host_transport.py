@@ -14,10 +14,15 @@ class HostEndpoint:
     identity: CorelessIdentity
     capabilities: HostCapabilities
     channels: Mapping[str, object] = ()
+    device_capabilities: frozenset[str] | set[str] = frozenset(
+        {"display", "input", "network", "startup"}
+    )
 
     def identity_frame(self) -> bytes:
         """Return the wire-format identity advertisement for this endpoint."""
-        interface = CorelessHostInterface(self.identity)
+        interface = CorelessHostInterface(
+            self.identity, supported=self.device_capabilities
+        )
         return interface.device_identity_frame().encode()
 
     def channel_map(self) -> dict[str, object]:
