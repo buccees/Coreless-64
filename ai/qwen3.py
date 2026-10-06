@@ -224,10 +224,16 @@ def _rms_norm(
             x.data[row * hidden:(row + 1) * hidden],
             dtype=x.dtype,
         )
+            squared = (
+            runtime.dot(chunk, chunk)
+            if runtime is not None
+            else sum(v * v for v in chunk.data)
+        ) / hidden
         scale = (
-            (runtime.dot(chunk, chunk) if runtime is not None else sum(v * v for v in chunk.data))
-            / hidden + eps
-        ) ** -0.5
+            runtime.rsqrt(Tensor.from_values((1,), [squared], dtype=x.dtype), eps=eps).data[0]
+            if runtime is not None
+            else (squared + eps) ** -0.5
+        )
         scale_tensor = Tensor.from_values(
             (hidden,),
             (scale for _ in range(hidden)),
