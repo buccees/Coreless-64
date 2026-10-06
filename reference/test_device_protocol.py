@@ -116,3 +116,8 @@ def test_coreless_identity_frame_preserves_flags_and_binary_payload():
     assert decoded.flags == 0xA5A5A5A5
     assert decoded.payload == payload
     assert decoded.capabilities == frame.capabilities
+
+
+def test_coreless_identity_frame_reports_coreless64_device():
+    frame = DeviceIdentityFrame(1, ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, 0)
+    assert frame.is_coreless64()
