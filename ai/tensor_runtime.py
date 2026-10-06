@@ -412,6 +412,26 @@ class TensorRuntime:
             dtype=value.dtype,
         )
 
+    def attention(self, q: Tensor, k: Tensor, v: Tensor, *, causal: bool = True, key_position_offset: int = 0) -> Tensor:
+        """Execute scaled dot-product attention entirely inside TensorRuntime."""
+        if len(q.shape) != 3 or len(k.shape) != 3 or len(v.shape) != 3:
+            raise ValueError("attention tensors must be rank-3")
+        if q.shape[0] != k.shape[0] or k.shape != v.shape:
+            raise ValueError("attention head dimensions do not agree")
+        dim = q.shape[2]
+        if dim <= 0:
+            raise ValueError("attention head dimension must be positive")
+        scores = self.batch_matmul(q, self.transpose_last_two(k))
+        scores = self.mul_scalar(scores, 1.0 / (dim ** 0.5))
+        if causal:
+            scores = self.masked_fill(
+                scores,
+                self.causal_mask(scores.shape, query_offset=key_position_offset, dtype=scores.dtype),
+                float("-inf"),
+            )
+        probabilities = self.softmax_last_dim(scores)
+        return self.sum_axis(self.batch_matmul(probabilities, v), 0)
+
     def softmax_last_dim(self, value: Tensor) -> Tensor:
         """Apply deterministic softmax independently across the final tensor axis."""
         if len(value.shape) < 2:
