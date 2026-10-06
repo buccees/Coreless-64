@@ -279,26 +279,57 @@ def _linear(
     return multiply(x, _transpose(weight, runtime))
 
 
-def _apply_head_norm(
-    heads: list[list[list[float]]],
+def _head_rms_norm(
+    value: Tensor,
     weight: Tensor,
     eps: float,
     runtime: TensorRuntime | None = None,
-) -> list[list[list[float]]]:
-    return [
-        [
-            list(
-                _rms_norm(
-                    Tensor.from_values((1, len(values)), values),
-                    weight,
-                    eps,
-                    runtime,
-                ).data
+) -> Tensor:
+    """Apply RMSNorm independently to each attention head vector."""
+    if runtime is None:
+        return value
+    if len(value.shape) != 3:
+        raise ValueError("head RMSNorm requires a rank-3 tensor")
+    heads, positions, dim = value.shape
+    rows = []
+    for head in range(heads):
+        for position in range(positions):
+            chunk = Tensor.from_values(
+                (dim,),
+                (value.at(head, position, index) for index in range(dim)),
+                dtype=value.dtype,
             )
-            for values in head
-        ]
-        for head in heads
-    ]
+            rows.extend(runtime.rms_norm(chunk, weight, eps=eps).data)
+    return Tensor.from_values(value.shape, rows, dtype=value.dtype)
+
+
+def _rotary_tensor(
+    value: Tensor,
+    position_offset: int,
+    theta: float,
+    scaling_factor: float,
+    runtime: TensorRuntime | None = None,
+) -> Tensor:
+    """Apply rotary embeddings without converting the head tensor to Python lists."""
+    if runtime is None:
+        return value
+    if len(value.shape) != 3:
+        raise ValueError("rotary tensor input must be rank-3")
+    heads, positions, dim = value.shape
+    if dim % 2:
+        raise ValueError("rotary head dimension must be even")
+    values = []
+    for head in range(heads):
+        for position in range(positions):
+            rotated = _rotary(
+                [value.at(head, position, index) for index in range(dim)],
+                position_offset + position,
+                theta,
+                scaling_factor,
+                runtime,
+            )
+            values.extend(rotated)
+    return Tensor.from_values(value.shape, values, dtype=value.dtype)
 
 
 def qwen3_attention(
@@ -316,16 +347,24 @@ def qwen3_attention(
     qh = _reshape_heads(q, cfg.num_attention_heads, cfg.resolved_head_dim, runtime)
     kh = _reshape_heads(k, cfg.num_key_value_heads, cfg.resolved_head_dim, runtime)
     vh = _reshape_heads(v, cfg.num_key_value_heads, cfg.resolved_head_dim, runtime)
-    qh = _heads_tensor_from_lists(_apply_head_norm(_tensor_heads_to_lists(qh), weights.get(f"{prefix}.self_attn.q_norm.weight"), cfg.rms_norm_eps, runtime), qh.dtype)
-    kh = _heads_tensor_from_lists(_apply_head_norm(_tensor_heads_to_lists(kh), weights.get(f"{prefix}.self_attn.k_norm.weight"), cfg.rms_norm_eps, runtime), kh.dtype)
-    qh = _heads_tensor_from_lists([
-        [_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor, runtime)
-         for p, h in enumerate(head)] for head in _tensor_heads_to_lists(qh)
-    ], qh.dtype)
-    kh = _heads_tensor_from_lists([
-        [_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor, runtime)
-         for p, h in enumerate(head)] for head in _tensor_heads_to_lists(kh)
-    ], kh.dtype)
+    qh = _head_rms_norm(
+        qh,
+        weights.get(f"{prefix}.self_attn.q_norm.weight"),
+        cfg.rms_norm_eps,
+        runtime,
+    )
+    kh = _head_rms_norm(
+        kh,
+        weights.get(f"{prefix}.self_attn.k_norm.weight"),
+        cfg.rms_norm_eps,
+        runtime,
+    )
+    qh = _rotary_tensor(
+        qh, position_offset, cfg.rope_theta, cfg.rope_scaling_factor, runtime
+    )
+    kh = _rotary_tensor(
+        kh, position_offset, cfg.rope_theta, cfg.rope_scaling_factor, runtime
+    )
 
     if cache is not None:
         layer_index = int(prefix.rsplit(".", 1)[-1])
