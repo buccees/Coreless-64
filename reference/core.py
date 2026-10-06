@@ -431,22 +431,33 @@ class CorelessCPU:
                 self.vector_vstart = 0
                 return
             if op in (0x20, 0x21):
-                # Indexed memory uses rs1 as the base and each active
-                # element of rs2 as a byte offset. The current element
-                # width determines the transfer size.
+                # Indexed memory is precise: preflight every active lane
+                # before exposing any destination/store changes.
                 width = max(1, bits // 8)
-                for i in range(start, vl):
-                    self.vector_vstart = i
-                    if not active(i):
-                        if mask_zero and op == 0x20:
-                            self.vector[rd][i] = 0
-                        continue
-                    offset = self.vector[rs2][i] & MASK64
-                    addr = (self.read_reg(rs1) + offset) & MASK64
-                    if op == 0x20:
-                        self.vector[rd][i] = self.load_u(addr, width) & (mod - 1)
-                    else:
-                        self.store_u(addr, width, self.vector[rd][i])
+                accesses = [
+                    (lane, (self.read_reg(rs1) + (self.vector[rs2][lane] & MASK64)) & MASK64)
+                    for lane in range(start, vl) if active(lane)
+                ]
+                if op == 0x20:
+                    values = []
+                    for lane, address in accesses:
+                        self.vector_vstart = lane
+                        values.append((lane, self.load_u(address, width) & (mod - 1)))
+                    for lane, value in values:
+                        self.vector[rd][lane] = value
+                    if mask_zero:
+                        for lane in range(start, vl):
+                            if not active(lane):
+                                self.vector[rd][lane] = 0
+                else:
+                    for lane, address in accesses:
+                        self.vector_vstart = lane
+                        phys = self._phys(address, "write")
+                        if phys + width > len(self.memory):
+                            raise CorelessTrap("data_access_fault", self.pc, address)
+                    for lane, address in accesses:
+                        self.vector_vstart = lane
+                        self.store_u(address, width, self.vector[rd][lane])
                 self.vector_vstart = 0
                 return
             if op == 0x22:
