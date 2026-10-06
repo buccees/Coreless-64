@@ -201,6 +201,29 @@ def test_identity_failed_reattach_preserves_current_attachment_state():
     assert interface.required_channels({"input"}) == frozenset({"input"})
 
 
+def test_identity_attach_rejects_truncated_transport_frame():
+    interface = CorelessHostInterface(CorelessIdentity("coreless-truncated"))
+    frame = interface.device_identity_frame().encode()
+
+    with pytest.raises(ValueError, match="header|payload length"):
+        interface.attach_identity_frame(frame[:-1], HostCapabilities(display=True))
+
+    assert not interface.attached
+    assert interface.negotiated == frozenset()
+
+
+def test_identity_attach_rejects_invalid_transport_magic():
+    interface = CorelessHostInterface(CorelessIdentity("coreless-magic"))
+    frame = bytearray(interface.device_identity_frame().encode())
+    frame[:8] = b"BADMAGIC"
+
+    with pytest.raises(ValueError, match="magic"):
+        interface.attach_identity_frame(bytes(frame), HostCapabilities(display=True))
+
+    assert not interface.attached
+    assert interface.negotiated == frozenset()
+
+
 def test_identity_verification_rejects_wrong_transport_architecture():
     interface = CorelessHostInterface(CorelessIdentity("coreless-architecture"))
     frame = DeviceIdentityFrame(
