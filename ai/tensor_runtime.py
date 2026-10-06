@@ -217,8 +217,7 @@ class TensorRuntime:
             raw &= (1 << bits) - 1
             if raw & (1 << (bits - 1)):
                 raw -= 1 << bits
-            return float(raw)
-        if dtype == "fp16":
+            return float(raw)        if dtype == "fp16":
             return struct.unpack("<e", (raw & 0xFFFF).to_bytes(2, "little"))[0]
         if dtype == "bf16":
             return struct.unpack("<f", ((raw & 0xFFFF) << 16).to_bytes(4, "little"))[0]
@@ -385,4 +384,4 @@ class TensorRuntime:
         payload = json.loads(raw.decode("utf-8"))
         if payload.get("version") not in (1, 2):
             raise ValueError("unsupported tensor format version")
-        return Tensor.from_values(payload["shape"], payload["data"], dtype=payload.get("dtype", "fp64"))
+        return Tensor.from_values(payload["shape"], payload["data"], dtype=payload.get("dtype", "fp64")    def rope_angles(\n        self,\n        half: int,\n        position: int,\n        theta: float,\n        *,\n        scaling_factor: float | None = None,\n        dtype: str = "fp64",\n    ) -> Tensor:\n        """Generate the deterministic RoPE angle basis at the Coreless boundary."""\n        if half <= 0:\n            raise ValueError("RoPE angle basis requires a positive half dimension")\n        if theta <= 0.0:\n            raise ValueError("RoPE theta must be positive")\n        scale = scaling_factor if scaling_factor is not None and scaling_factor > 1.0 else 1.0\n        return Tensor.from_values(\n            (half,),\n            (position * theta ** (-2.0 * i / (half * 2)) / scale for i in range(half)),\n            dtype=dtype,\n        )\n\n)
