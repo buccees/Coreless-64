@@ -101,6 +101,9 @@ class ProcessManager:
                 merged[-1] = (merged[-1][0], end - merged[-1][0])
             else:
                 merged.append((start, length))
+        while merged and merged[-1][0] + merged[-1][1] == self.next_phys:
+            start, length = merged.pop()
+            self.next_phys = start
         self.free_phys = merged
 
     def _release_space(self, space):
