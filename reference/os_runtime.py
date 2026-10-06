@@ -32,6 +32,7 @@ class CorelessOS:
         self.display_handles = {}
         self.next_display_handle = 0
         self.application_state = {}
+        self._exec_transfer = False
         for cpu in self.machine.cpus:
             cpu.supervisor_trap_handler = self._supervisor_trap
         self.machine.attach_os(self)
@@ -91,6 +92,9 @@ class CorelessOS:
         if trap.cause != "syscall": return False
         self._syscall(cpu, trap.tval)
         if cpu.halted: return True
+        if self._exec_transfer:
+            self._exec_transfer = False
+            return True
         cpu.csrs[0x004] = (trap.pc + 4) & ((1 << 64) - 1)
         cpu.privilege = cpu._trap_saved_privilege
         cpu.csrs[0x000] = cpu.privilege
@@ -182,6 +186,10 @@ class CorelessOS:
                 if self.current_pid in self.processes.processes:
                     p = self.processes.processes[self.current_pid]
                     self.processes.replace_program(p, program)
+                    code_start = p.address_space.code_phys_base
+                    cpu.memory[code_start:code_start + len(p.program)] = p.program
+                    self.processes._enter_user(p)
+                    self._exec_transfer = True
                 return self._ret(cpu, 0)
             except Exception: return self._ret(cpu, -1)
         if name == "net_send":
