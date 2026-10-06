@@ -82,10 +82,15 @@ class VigilEnvironment:
     def enable(self) -> None:
         self.enabled = True
         self.input.enable(True)
+        if self.input_router is not None:
+            self.input_router.vigil = self.input
+            self.input_router.enable_vigil(True)
 
     def disable(self) -> None:
         self.enabled = False
         self.input.enable(False)
+        if self.input_router is not None:
+            self.input_router.enable_vigil(False)
 
     def configure_fast_touch(
         self,
@@ -463,3 +468,6 @@ class VigilEnvironment:
         if self.fast_touch is not None and isinstance(fast_touch_state, Mapping):
             self.fast_touch.restore_state(fast_touch_state)
         self.input.enable(self.enabled)
+        if self.input_router is not None:
+            self.input_router.vigil = self.input
+            self.input_router.enable_vigil(self.enabled)
