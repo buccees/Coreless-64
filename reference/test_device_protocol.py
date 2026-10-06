@@ -88,3 +88,7 @@ def test_coreless_identity_frame_exposes_capability_names():
     )
 
     assert frame.capability_names() == frozenset({"compute", "ai", "storage"})
+
+def test_coreless_capability_bits_include_host_interface_services():
+    bits = capability_bits(frozenset({"startup", "management", "telemetry"}))
+    assert capability_names(bits) == frozenset({"startup", "management", "telemetry"})
