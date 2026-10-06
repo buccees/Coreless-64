@@ -112,3 +112,37 @@ def test_storage_write_payload_rejects_empty_or_truncated_key():
         decode_storage_write(b"")
     with pytest.raises(ValueError, match="truncated"):
         decode_storage_write(b"\x04\x00ab")
+
+
+def test_command_batch_round_trips_in_order():
+    from device_command import CommandBatch
+    batch = CommandBatch((
+        DeviceCommand(OP_CAPABILITIES, 1),
+        DeviceCommand(OP_EXECUTE, 2, b"run"),
+    ))
+    assert batch.round_trip() == batch
+
+
+def test_command_batch_rejects_trailing_bytes():
+    from device_command import CommandBatch
+    batch = CommandBatch((DeviceCommand(OP_CAPABILITIES, 3),))
+    with pytest.raises(ValueError, match="trailing bytes"):
+        CommandBatch.decode(batch.encode() + b"x")
+
+
+def test_command_batch_rejects_truncated_frame_length():
+    from device_command import CommandBatch
+    with pytest.raises(ValueError, match="frame length"):
+        CommandBatch.decode(b"\x01\x00\x01")
+
+
+def test_command_batch_builds_correlated_responses():
+    from device_command import CommandBatch, batch_responses
+    batch = CommandBatch((
+        DeviceCommand(OP_CAPABILITIES, 4),
+        DeviceCommand(OP_EXECUTE, 5),
+    ))
+    replies = batch_responses(batch, (b"caps", b"ready"))
+    assert [command.request_id for command in replies.commands] == [4, 5]
+    assert [command.opcode for command in replies.commands] == [OP_CAPABILITIES, OP_EXECUTE]
+    assert [command.payload for command in replies.commands] == [b"caps", b"ready"]
