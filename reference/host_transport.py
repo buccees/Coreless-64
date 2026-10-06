@@ -35,9 +35,13 @@ class HostEndpoint:
 class HostTransportSession:
     """Bound transport state for one Coreless endpoint attachment."""
 
-    endpoint_id: str
+    endpoint: HostEndpoint
     interface: CorelessHostInterface
     negotiated: frozenset[str]
+
+    @property
+    def endpoint_id(self) -> str:
+        return self.endpoint.endpoint_id
 
     @property
     def attached(self) -> bool:
@@ -68,7 +72,7 @@ class HostTransportAdapter:
     ) -> HostTransportSession:
         """Attach an endpoint and retain its negotiated transport session."""
         negotiated = self.connect(endpoint, interface)
-        return HostTransportSession(endpoint.endpoint_id, interface, negotiated)
+        return HostTransportSession(endpoint, interface, negotiated)
 
     def exchange(
         self,
@@ -91,11 +95,7 @@ class HostTransportAdapter:
         """Exchange a wire frame through an established transport session."""
         if not session.attached:
             raise RuntimeError("host transport session is detached")
-        return self.exchange(
-            self._endpoint_for_session(session),
-            session.interface,
-            frame,
-        )
+        return self.exchange(session.endpoint, session.interface, frame)
 
     def send_command(
         self,
@@ -133,12 +133,6 @@ class HostTransportAdapter:
     def close_session(self, session: HostTransportSession) -> None:
         """Close the session while preserving the Coreless machine state."""
         self.disconnect(session.interface)
-
-    def _endpoint_for_session(self, session: HostTransportSession) -> HostEndpoint:
-        for endpoint in self.enumerate():
-            if endpoint.endpoint_id == session.endpoint_id:
-                return endpoint
-        raise ValueError("unknown host transport session endpoint")
 
     def disconnect(self, interface: CorelessHostInterface) -> None:
         """End the active host attachment while preserving Coreless identity."""
