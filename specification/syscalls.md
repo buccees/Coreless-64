@@ -46,6 +46,7 @@ A negative R1 value represents a reference-model error. Exact error numbers will
 26 input_read
 27 checkpoint
 28 capability
+29 reap
 
 The namespace is versioned by the Coreless ABI. Reserved numbers must not be reused without an ABI revision.
 
