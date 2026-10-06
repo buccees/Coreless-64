@@ -67,6 +67,17 @@ class TensorRuntime:
         return matmul(left, right)
 
     def sub(self, left: Tensor, right: Tensor) -> Tensor:
+        if self.cpu is not None and left.shape == right.shape and len(left.shape) == 1:
+            return self.vector_sub(left, right)
+        if self.cpu is not None and left.shape == right.shape and len(left.shape) == 2:
+            rows, cols = left.shape
+            values = []
+            for row in range(rows):
+                values.extend(self.vector_sub(
+                    Tensor.from_values((cols,), left.data[row * cols:(row + 1) * cols], dtype=left.dtype),
+                    Tensor.from_values((cols,), right.data[row * cols:(row + 1) * cols], dtype=right.dtype),
+                ).data)
+            return Tensor.from_values(left.shape, values, dtype=left.dtype)
         return sub(left, right)
 
     def mul(self, left: Tensor, right: Tensor) -> Tensor:
@@ -185,6 +196,9 @@ class TensorRuntime:
 
     def vector_add(self, left: Tensor, right: Tensor) -> Tensor:
         return self._vector_binary(left, right, 0x00)
+
+    def vector_sub(self, left: Tensor, right: Tensor) -> Tensor:
+        return self._vector_binary_native(left, right, 0x01)
 
     def vector_mul(self, left: Tensor, right: Tensor) -> Tensor:
         return self._vector_binary(left, right, 0x02)
