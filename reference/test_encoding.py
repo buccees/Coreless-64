@@ -136,3 +136,27 @@ def test_extended_payload_size_matches_length_contract():
     assert extended_payload_size(16) == 12
     with pytest.raises(IllegalEncoding):
         extended_payload_size(4)
+
+def test_decode_instruction_uses_architectural_length_contract():
+    from encoding import decode_instruction, encode_r
+    base = encode_r(0, 3, 1, 2).to_bytes(4, "little")
+    assert decode_instruction(base) == ("ADD", 3, 1, 2)
+
+    payload = bytes(range(12))
+    extended = encode_extended_instruction(4, 7, 3, 5, 6, 2, payload)
+    decoded = decode_instruction(extended)
+    assert decoded == ExtendedInstruction(16, 4, 7, 3, 5, 6, 2, payload)
+
+    with pytest.raises(IllegalEncoding):
+        decode_instruction(extended[:-1])
+    with pytest.raises(IllegalEncoding):
+        decode_instruction(extended + b"\0")
+
+def test_extended_header_decoder_validates_all_header_fields():
+    with pytest.raises(IllegalEncoding):
+        decode_extended_header((OP_EXT128 << 27) | (2 << 23) | (0x40 << 17))
+    with pytest.raises(IllegalEncoding):
+        decode_extended_header((OP_EXT128 << 27) | (2 << 23) | (0x20 << 12))
+    with pytest.raises(IllegalEncoding):
+        decode_extended_header((OP_EXT128 << 27) | (2 << 23) | 0x3)
+
