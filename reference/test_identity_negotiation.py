@@ -1,6 +1,8 @@
 import sys
 sys.path.insert(0, ".")
 
+import pytest
+
 from device_protocol import (
     ARCHITECTURE_CORELESS64,
     DEVICE_TYPE_CORELESS64,
@@ -30,3 +32,17 @@ def test_identity_attach_negotiate_is_limited_by_device_advertisement():
 
     assert negotiated == frozenset({"display", "startup"})
     assert interface.negotiated == frozenset({"display", "startup"})
+
+
+def test_identity_attach_rejects_protocol_version_mismatch():
+    interface = CorelessHostInterface(CorelessIdentity("coreless-version"))
+    frame = DeviceIdentityFrame(
+        protocol_version=2,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"display"}),
+        payload=b"coreless-version",
+    ).encode()
+
+    with pytest.raises(ValueError, match="transport identity verification failed"):
+        interface.attach_identity_frame(frame, HostCapabilities(display=True))
