@@ -57,23 +57,13 @@ class MachineScheduler:
         allow_fallback=True,
     ) -> int:
         """Return available capacity for a queued batch."""
-        items = tuple(items)
-        if not items:
-            return 0
-        with self._lock:
-            capacity = {}
-            for work in items:
-                for resource, _ in self._candidate_resources(
-                    work,
-                    preference=preference,
-                    allow_fallback=allow_fallback,
-                ):
-                    resource_id = resource.resource_id
-                    if resource_id not in capacity:
-                        capacity[resource_id] = max(
-                            0, resource.capacity - self._load[resource_id]
-                        )
-            return sum(capacity.values())
+        return sum(
+            self.available_capacity_snapshot(
+                items,
+                preference=preference,
+                allow_fallback=allow_fallback,
+            ).values()
+        )
 
     def _candidate_resources(
         self,
