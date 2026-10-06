@@ -15,7 +15,7 @@ class CorelessOS:
         12:"kill", 13:"getpid", 14:"time", 15:"memory", 16:"cpu_info",
         17:"device_info", 18:"net_send", 19:"net_recv", 20:"socket",
         21:"connect", 22:"listen", 23:"accept", 24:"display_open",
-        25:"display_present", 26:"input_read", 27:"checkpoint", 28:"capability",
+        25:"display_present", 26:"input_read", 27:"checkpoint", 28:"capability", 29:"reap",
     }
 
     def __init__(self, machine):
