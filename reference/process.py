@@ -114,12 +114,24 @@ class ProcessManager:
                     changed = True
                     break
 
+    def _trim_phys_tail(self):
+        changed = True
+        while changed:
+            changed = False
+            for index, (start, length) in enumerate(self.free_phys):
+                if start + length == self.next_phys:
+                    self.next_phys = start
+                    self.free_phys.pop(index)
+                    changed = True
+                    break
+
     def _release_space(self, space):
         if space is None:
             return
         self._release_phys(space.page_table_root, PAGE_SIZE)
         self._release_phys(space.code_phys_base, space.stack_phys_base - space.code_phys_base)
         self._release_phys(space.stack_phys_base, space.stack_size)
+        self._trim_phys_tail()
         self._trim_phys_tail()
 
     def _pte(self, root, virtual_page, physical_page, read, write, execute, user=True):
@@ -153,13 +165,23 @@ class ProcessManager:
     def _allocate_space(self, program_size):
         code_size = align_up(max(program_size, 1))
         size = max(self.REGION_SIZE, code_size + self.STACK_SIZE)
-        root = self._alloc_phys(PAGE_SIZE)
-        code_phys = self._alloc_phys(code_size)
-        stack_phys = self._alloc_phys(self.STACK_SIZE)
-        stack_base = self.USER_BASE + size - self.STACK_SIZE
-        self._build_page_table(root, code_phys, code_size, stack_phys, self.STACK_SIZE)
-        return AddressSpace(USER_BASE, size, USER_BASE, stack_base, self.STACK_SIZE,
-                            root, code_phys, stack_phys)
+        allocated = []
+        try:
+            root = self._alloc_phys(PAGE_SIZE)
+            allocated.append((root, PAGE_SIZE))
+            code_phys = self._alloc_phys(code_size)
+            allocated.append((code_phys, code_size))
+            stack_phys = self._alloc_phys(self.STACK_SIZE)
+            allocated.append((stack_phys, self.STACK_SIZE))
+            stack_base = self.USER_BASE + size - self.STACK_SIZE
+            self._build_page_table(root, code_phys, code_size, stack_phys, self.STACK_SIZE)
+            return AddressSpace(USER_BASE, size, USER_BASE, stack_base, self.STACK_SIZE,
+                                root, code_phys, stack_phys)
+        except Exception:
+            for base, amount in allocated:
+                self._release_phys(base, amount)
+            self._trim_phys_tail()
+            raise
 
     @staticmethod
     def _space_state(space):
