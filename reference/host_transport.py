@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
-from device_command import DeviceCommand, round_trip
+from device_command import DeviceCommand, is_response, round_trip
 
 
 @dataclass(frozen=True)
@@ -114,7 +114,14 @@ class HostTransportAdapter:
     ) -> DeviceCommand:
         """Send a command through an established transport session."""
         reply_frame = self.exchange_session(session, command.encode())
-        return DeviceCommand.decode(reply_frame)
+        reply = DeviceCommand.decode(reply_frame)
+        if not is_response(reply):
+            raise ValueError("Coreless session reply is not a response frame")
+        if reply.request_id != command.request_id:
+            raise ValueError("Coreless session response request id mismatch")
+        if reply.opcode != command.opcode:
+            raise ValueError("Coreless session response opcode mismatch")
+        return reply
 
     def close_session(self, session: HostTransportSession) -> None:
         """Close the session while preserving the Coreless machine state."""
