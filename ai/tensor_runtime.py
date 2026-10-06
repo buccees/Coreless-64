@@ -142,18 +142,29 @@ class TensorRuntime:
         mean_square = fsum(v * v for v in value.data) / value.size
         return Tensor.from_values((1,), (1.0 / (mean_square + eps) ** 0.5,), dtype=value.dtype)
 
+    def mul_broadcast(self, value: Tensor, scalar: Tensor) -> Tensor:
+        """Multiply a tensor by a rank-1 single-value tensor through Coreless vector execution."""
+        if scalar.shape != (1,):
+            raise ValueError("mul_broadcast currently requires a single-value tensor")
+        if not value.data:
+            return Tensor.from_values(value.shape, (), dtype=value.dtype)
+        if value.dtype != scalar.dtype:
+            raise ValueError("mul_broadcast requires matching dtypes")
+        rhs = Tensor.from_values(
+            value.shape,
+            (scalar.data[0] for _ in value.data),
+            dtype=value.dtype,
+        )
+        return self.mul(value, rhs)
+
     def rms_norm(self, value: Tensor, weight: Tensor, *, eps: float = 0.0) -> Tensor:
-        """Normalize a vector and apply its learned RMS weight without host scalar extraction."""
+        """Normalize a vector and apply its learned RMS weight through Coreless primitives."""
         if len(value.shape) != 1 or not value.data:
             raise ValueError("rms_norm requires a non-empty rank-1 tensor")
         if weight.shape != value.shape:
             raise ValueError("rms_norm weight shape must match the input")
         scale = self.mean_square_rsqrt(value, eps=eps)
-        scaled = Tensor.from_values(
-            value.shape,
-            (v * scale.data[0] for v in value.data),
-            dtype=value.dtype,
-        )
+        scaled = self.mul_broadcast(value, scale)
         return self.mul(scaled, weight)
 
     def rsqrt(self, value: Tensor, *, eps: float = 0.0) -> Tensor:
