@@ -212,4 +212,54 @@ def encode_base_i(name, rd, rs1, imm):
         raise IllegalEncoding("unknown ALUI operation")
     funct = next(k for k, v in ALUI.items() if v == name)
     return encode_i(funct, rd, rs1, imm)
-\n\nfrom dataclasses import dataclass\n\n\n@dataclass(frozen=True)\nclass ExtendedInstruction:\n    \"\"\"Canonical structural record for one extended instruction.\"\"\"\n    length: int\n    cls: int\n    op: int\n    rd: int\n    rs1: int\n    rs2: int\n    fmt: int\n    payload: bytes\n\n    def encode(self):\n        header = encode_extended_header(\n            self.cls, self.op, self.rd, self.rs1, self.rs2, self.fmt,\n            length=self.length,\n        )\n        return header.to_bytes(4, \"little\") + self.payload\n\n\ndef encode_extended_instruction(cls, op=0, rd=0, rs1=0, rs2=0, fmt=0,\n                                payload=b\"\", *, length=16):\n    \"\"\"Encode a complete 64-bit or 128-bit architectural instruction.\"\"\"\n    expected = length - 4 if length in (8, 16) else None\n    if expected is None:\n        raise IllegalEncoding(\"invalid extended instruction length\")\n    payload = bytes(payload)\n    if len(payload) != expected:\n        raise IllegalEncoding(\"extended payload length does not match instruction length\")\n    return ExtendedInstruction(\n        length, cls, op, rd, rs1, rs2, fmt, payload\n    ).encode()\n\n\ndef decode_extended_instruction(data):\n    \"\"\"Decode one complete extended instruction into its canonical record.\"\"\"\n    if len(data) < 4:\n        raise IllegalEncoding(\"truncated extended instruction header\")\n    word = from_bytes(data[:4])\n    length = instruction_length(word)\n    if length == 4:\n        raise IllegalEncoding(\"base instruction is not an extended instruction\")\n    if len(data) != length:\n        raise IllegalEncoding(\"extended instruction length mismatch\")\n    cls, op, rd, rs1, rs2, fmt = decode_extended_header(word)\n    return ExtendedInstruction(length, cls, op, rd, rs1, rs2, fmt, bytes(data[4:]))\n
+
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class ExtendedInstruction:
+    \"\"\"Canonical structural record for one extended instruction.\"\"\"
+    length: int
+    cls: int
+    op: int
+    rd: int
+    rs1: int
+    rs2: int
+    fmt: int
+    payload: bytes
+
+    def encode(self):
+        header = encode_extended_header(
+            self.cls, self.op, self.rd, self.rs1, self.rs2, self.fmt,
+            length=self.length,
+        )
+        return header.to_bytes(4, \"little\") + self.payload
+
+
+def encode_extended_instruction(cls, op=0, rd=0, rs1=0, rs2=0, fmt=0,
+                                payload=b\"\", *, length=16):
+    \"\"\"Encode a complete 64-bit or 128-bit architectural instruction.\"\"\"
+    expected = length - 4 if length in (8, 16) else None
+    if expected is None:
+        raise IllegalEncoding(\"invalid extended instruction length\")
+    payload = bytes(payload)
+    if len(payload) != expected:
+        raise IllegalEncoding(\"extended payload length does not match instruction length\")
+    return ExtendedInstruction(
+        length, cls, op, rd, rs1, rs2, fmt, payload
+    ).encode()
+
+
+def decode_extended_instruction(data):
+    \"\"\"Decode one complete extended instruction into its canonical record.\"\"\"
+    if len(data) < 4:
+        raise IllegalEncoding(\"truncated extended instruction header\")
+    word = from_bytes(data[:4])
+    length = instruction_length(word)
+    if length == 4:
+        raise IllegalEncoding(\"base instruction is not an extended instruction\")
+    if len(data) != length:
+        raise IllegalEncoding(\"extended instruction length mismatch\")
+    cls, op, rd, rs1, rs2, fmt = decode_extended_header(word)
+    return ExtendedInstruction(length, cls, op, rd, rs1, rs2, fmt, bytes(data[4:]))
