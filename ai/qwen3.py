@@ -119,27 +119,42 @@ def _attention(
     v,
     causal=True,
     key_position_offset=0,
+    runtime: TensorRuntime | None = None,
 ) -> list[list[float]]:
+    """Execute attention score/value products through the Coreless tensor boundary."""
     query_positions = len(q[0])
     key_positions = len(k[0])
     dim = len(q[0][0])
     output = [[0.0] * dim for _ in range(query_positions)]
     scale = 1.0 / math.sqrt(dim)
+    multiply = runtime.matmul if runtime is not None else matmul
     for head in range(len(q)):
+        query = Tensor.from_values(
+            (query_positions, dim),
+            (value for row in q[head] for value in row),
+        )
+        key = Tensor.from_values(
+            (key_positions, dim),
+            (value for row in k[head] for value in row),
+        )
+        value = Tensor.from_values(
+            (key_positions, dim),
+            (value for row in v[head] for value in row),
+        )
+        scores = multiply(query, _transpose(key)).map(lambda x: x * scale)
         for row in range(query_positions):
-            scores = []
-            absolute_query_position = key_position_offset + row
-            for col in range(key_positions):
-                scores.append(
-                    sum(q[head][row][i] * k[head][col][i] for i in range(dim))
-                    * scale
-                    if (not causal or col <= absolute_query_position)
-                    else float("-inf")
-                )
-            weights = softmax(Tensor.from_values((len(scores),), scores)).data
-            for col, weight in enumerate(weights):
-                for i in range(dim):
-                    output[row][i] += weight * v[head][col][i]
+            row_scores = [
+                scores.at(row, col)
+                if not causal or col <= key_position_offset + row
+                else float("-inf")
+                for col in range(key_positions)
+            ]
+            weights = softmax(
+                Tensor.from_values((1, key_positions), row_scores)
+            )
+            attended = multiply(weights, value)
+            for i, item in enumerate(attended.data):
+                output[row][i] += item
     return output
 
 
@@ -236,7 +251,7 @@ def qwen3_attention(
     kh = _repeat_kv(kh, cfg.kv_group_size)
     vh = _repeat_kv(vh, cfg.kv_group_size)
     attended = _heads_to_tensor(
-        _attention(qh, kh, vh, key_position_offset=position_offset)
+        _attention(qh, kh, vh, key_position_offset=position_offset, runtime=runtime)
     )
     return _linear(
         attended,
