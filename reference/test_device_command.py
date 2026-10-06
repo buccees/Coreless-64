@@ -14,6 +14,7 @@ from device_command import (
     is_error,
     is_response,
     response,
+    round_trip,
 )
 
 
@@ -55,3 +56,8 @@ def test_command_rejects_bad_payload_length():
     encoded = DeviceCommand(OP_EXECUTE, 1, b"payload").encode()
     with pytest.raises(ValueError, match="payload length"):
         DeviceCommand.decode(encoded[:-1])
+
+
+def test_command_round_trip_helper_preserves_wire_command():
+    command = DeviceCommand(OP_EXECUTE, 123, b"payload", flags=0)
+    assert round_trip(command) == command
