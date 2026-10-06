@@ -335,3 +335,53 @@ def test_host_transport_sync_persists_bound_system(monkeypatch):
     assert reply.request_id == 55
     assert reply.payload == b"ok"
     assert calls == ["saved"]
+
+    
+def test_host_transport_reconnect_drops_stale_channels():
+    display = object()
+    endpoint = HostEndpoint(
+        "coreless-channel-refresh",
+        CorelessIdentity("coreless-channel-refresh"),
+        HostCapabilities(display=True, network=True),
+        {"display": display, "network": object()},
+        device_capabilities={"display", "network"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-channel-refresh"))
+    adapter.connect(endpoint, interface)
+    assert interface.channel("display") is display
+
+    refreshed = HostEndpoint(
+        "coreless-channel-refresh",
+        CorelessIdentity("coreless-channel-refresh"),
+        HostCapabilities(display=True),
+        {"display": display},
+        device_capabilities={"display"},
+    )
+    adapter.register(refreshed)
+    adapter.connect(refreshed, interface)
+
+    assert interface.transport_ready({"display"})
+    with pytest.raises(KeyError, match="no channel bound: network"):
+        interface.channel("network")
+
+
+def test_host_transport_session_exposes_and_requires_live_channels():
+    display = object()
+    endpoint = HostEndpoint(
+        "coreless-session-channels",
+        CorelessIdentity("coreless-session-channels"),
+        HostCapabilities(display=True),
+        {"display": display},
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-session-channels"))
+    session = adapter.open_session(endpoint, interface)
+
+    assert session.channel("display") is display
+    session.require_channels({"display"})
+
+    adapter.disconnect(interface)
+    with pytest.raises(RuntimeError, match="session is detached"):
+        session.require_channels({"display"})
