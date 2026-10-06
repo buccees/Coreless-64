@@ -202,7 +202,7 @@ class CorelessHostInterface:
         if command.opcode == OP_SYNC:
             return response(command, b"ok")
         if command.opcode == OP_EXECUTE:
-            if "compute" not in self._negotiated:
+            if "compute" not in self.supported:
                 return response(command, b"compute capability unavailable", error=True)
             if self._system is None and self._hub is None:
                 return response(command, b"no Coreless system is bound", error=True)
