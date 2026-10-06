@@ -379,4 +379,21 @@ def test_host_interface_requires_storage_capability_to_bind_device_storage():
     with pytest.raises(PermissionError, match="storage capability"):
         interface.bind_device_storage({})
 
+def test_host_interface_exports_transport_neutral_identity_frame():
+    from device_protocol import ARCHITECTURE_CORELESS64, capability_names
 
+    interface = CorelessHostInterface(
+        CorelessIdentity("coreless-plug"),
+        supported={"display", "input", "network", "startup", "storage"},
+    )
+
+    frame = interface.device_identity_frame()
+
+    assert frame.architecture == ARCHITECTURE_CORELESS64
+    assert frame.protocol_version == 1
+    assert frame.device_type == 1
+    assert frame.payload == b"coreless-plug"
+    assert capability_names(frame.capabilities) == frozenset(
+        {"display", "input", "network", "startup", "storage"}
+    )
+    assert type(frame.decode(frame.encode())) is type(frame)
