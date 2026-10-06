@@ -112,3 +112,7 @@ def test_machine_work_distribution_uses_available_capacity_snapshot():
     scheduler = MachineScheduler()
     distributor = MachineWorkDistributor(scheduler)
     assert distributor.execute(()) == ()
+
+def test_machine_work_distribution_capacity_source_remains_scheduler_owned():
+    scheduler = MachineScheduler()
+    assert scheduler.resource_state_snapshot()
