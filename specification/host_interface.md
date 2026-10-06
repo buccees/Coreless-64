@@ -113,3 +113,25 @@ The repository implements the CorelessHostInterface software contract plus a ref
 This is not yet a claim of physical cross-platform plug-and-play. Concrete OS/device enumeration and display/input/network transport adapters remain implementation work.
 
 The next boundary is to connect concrete host transports to the existing contract without moving Coreless CPU, RAM, VM, OS, AI, or architectural authority into the host.
+
+
+## Transport-neutral identification frame
+
+Coreless-64 defines a transport-neutral identification frame in
+`reference/device_protocol.py`. A concrete USB, PCIe, network, or other
+adapter can carry this frame without changing the Coreless architectural
+identity.
+
+The frame begins with the fixed `CORELS64` magic value and advertises:
+
+- Coreless protocol version
+- Coreless-64 architecture identifier
+- device type
+- capability bitset
+- extension payload length
+- implementation flags
+
+A host or peer device can therefore identify a Coreless endpoint before
+negotiating higher-level display, input, network, startup, or management
+channels. The frame is a protocol contract, not a claim that a particular
+physical bus has already been implemented.
