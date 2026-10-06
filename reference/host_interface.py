@@ -122,6 +122,23 @@ class CorelessHostInterface:
         except UnicodeDecodeError:
             return False
 
+    def attach_identity_frame(
+        self,
+        frame: DeviceIdentityFrame | bytes,
+        host: HostCapabilities,
+        *,
+        system: CorelessSystem | None = None,
+    ) -> frozenset[str]:
+        """Decode and verify a transport identity frame, then attach the host."""
+        decoded = DeviceIdentityFrame.decode(frame) if isinstance(frame, bytes) else frame
+        if not self.verify_identity_frame(decoded):
+            raise ValueError("Coreless transport identity verification failed")
+        identity = CorelessIdentity(
+            computer_id=decoded.payload.decode("utf-8"),
+            protocol_version=decoded.protocol_version,
+        )
+        return self.attach(identity, host, system=system)
+
     def verify(self, identity: CorelessIdentity) -> bool:
         """Verify architecture and protocol compatibility."""
         return (
