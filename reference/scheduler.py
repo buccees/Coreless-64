@@ -74,12 +74,13 @@ class MachineScheduler:
         if not available:
             raise RuntimeError(f"all compute resources are at capacity for operation: {work.operation}")
 
+        snapshot = self.telemetry.snapshot() if self.telemetry is not None else None
+
         def score(item):
             resource = item[0]
             load_ratio = self._load[resource.resource_id] / resource.capacity
             external = 0.0
-            if self.telemetry is not None:
-                snapshot = self.telemetry.snapshot()
+            if snapshot is not None:
                 source = snapshot.cpu if resource.kind == "conventional" else snapshot.workloads
                 external = max(0.0, float(source.get(resource.resource_id, 0.0)))
             return (load_ratio + external, load_ratio, external, resource.resource_id)
