@@ -326,10 +326,14 @@ class CorelessMachine:
         return steps
 
     def run_program(self, path):
+        """Run a filesystem program, accepting raw code or a COREX64 image."""
         program = self.filesystem.read(path)
-        self.loader.load(program, 0)
-        self.booted = True
-        self.power_state = "on"
+        if program.startswith(self.loader.MAGIC):
+            self.boot_executable(program, 0)
+        else:
+            self.loader.load(program, 0)
+            self.booted = True
+            self.power_state = "on"
         return str(self.run())
 
     def checkpoint(self, name="machine"):
