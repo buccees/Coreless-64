@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
+from device_command import DeviceCommand, round_trip
 
 @dataclass(frozen=True)
 class HostEndpoint:
@@ -39,6 +40,12 @@ class HostTransportAdapter:
             if capability in negotiated:
                 interface.bind_channel(capability, channel)
         return negotiated
+
+    def send_command(self, endpoint: HostEndpoint, interface: CorelessHostInterface, command: DeviceCommand) -> DeviceCommand:
+        """Carry a device command across the transport boundary."""
+        if not interface.attached:
+            self.connect(endpoint, interface)
+        return interface.handle_command(round_trip(command))
 
 class MemoryHostTransportAdapter(HostTransportAdapter):
     def __init__(self, endpoints: Iterable[HostEndpoint] = ()) -> None:
