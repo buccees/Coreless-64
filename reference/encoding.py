@@ -216,10 +216,9 @@ def encode_base_i(name, rd, rs1, imm):
 
 from dataclasses import dataclass
 
-
 @dataclass(frozen=True)
 class ExtendedInstruction:
-    \"\"\"Canonical structural record for one extended instruction.\"\"\"
+    """Canonical structural record for one extended instruction."""
     length: int
     cls: int
     op: int
@@ -234,32 +233,30 @@ class ExtendedInstruction:
             self.cls, self.op, self.rd, self.rs1, self.rs2, self.fmt,
             length=self.length,
         )
-        return header.to_bytes(4, \"little\") + self.payload
+        return header.to_bytes(4, "little") + self.payload
 
 
 def encode_extended_instruction(cls, op=0, rd=0, rs1=0, rs2=0, fmt=0,
-                                payload=b\"\", *, length=16):
-    \"\"\"Encode a complete 64-bit or 128-bit architectural instruction.\"\"\"
+                                payload=b"", *, length=16):
+    """Encode a complete 64-bit or 128-bit architectural instruction."""
     expected = length - 4 if length in (8, 16) else None
     if expected is None:
-        raise IllegalEncoding(\"invalid extended instruction length\")
+        raise IllegalEncoding("invalid extended instruction length")
     payload = bytes(payload)
     if len(payload) != expected:
-        raise IllegalEncoding(\"extended payload length does not match instruction length\")
-    return ExtendedInstruction(
-        length, cls, op, rd, rs1, rs2, fmt, payload
-    ).encode()
+        raise IllegalEncoding("extended payload length does not match instruction length")
+    return ExtendedInstruction(length, cls, op, rd, rs1, rs2, fmt, payload).encode()
 
 
 def decode_extended_instruction(data):
-    \"\"\"Decode one complete extended instruction into its canonical record.\"\"\"
+    """Decode one complete extended instruction into its canonical record."""
     if len(data) < 4:
-        raise IllegalEncoding(\"truncated extended instruction header\")
+        raise IllegalEncoding("truncated extended instruction header")
     word = from_bytes(data[:4])
     length = instruction_length(word)
     if length == 4:
-        raise IllegalEncoding(\"base instruction is not an extended instruction\")
+        raise IllegalEncoding("base instruction is not an extended instruction")
     if len(data) != length:
-        raise IllegalEncoding(\"extended instruction length mismatch\")
+        raise IllegalEncoding("extended instruction length mismatch")
     cls, op, rd, rs1, rs2, fmt = decode_extended_header(word)
     return ExtendedInstruction(length, cls, op, rd, rs1, rs2, fmt, bytes(data[4:]))
