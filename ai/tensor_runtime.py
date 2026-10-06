@@ -301,6 +301,28 @@ class TensorRuntime:
                 values.extend(self.rms_norm(chunk, weight, eps=eps).data)
         return Tensor.from_values(value.shape, values, dtype=value.dtype)
 
+    def append_sequence(self, existing: Tensor, update: Tensor) -> Tensor:
+        """Append rank-3 sequence positions without leaving the TensorRuntime boundary."""
+        if len(existing.shape) != 3 or len(update.shape) != 3:
+            raise ValueError("append_sequence requires rank-3 tensors")
+        if existing.shape[0] != update.shape[0] or existing.shape[2] != update.shape[2]:
+            raise ValueError("sequence tensors must match head and feature dimensions")
+        if existing.dtype != update.dtype:
+            raise ValueError("sequence tensors must use matching dtypes")
+        heads, old_positions, dim = existing.shape
+        new_positions = update.shape[1]
+        values = []
+        for head in range(heads):
+            old_start = head * old_positions * dim
+            new_start = head * new_positions * dim
+            values.extend(existing.data[old_start:old_start + old_positions * dim])
+            values.extend(update.data[new_start:new_start + new_positions * dim])
+        return Tensor.from_values(
+            (heads, old_positions + new_positions, dim),
+            values,
+            dtype=existing.dtype,
+        )
+
     def rotary_embedding(
         self,
         value: Tensor,
