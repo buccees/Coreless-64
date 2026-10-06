@@ -110,3 +110,12 @@ In addition to the architectural discovery record rooted at `CAP_BASE`, a Corele
 The identification frame does not require a specific physical bus. USB, PCIe, network, storage-attached links, and future Coreless transports may carry the same identity contract through an appropriate adapter.
 
 Physical enumeration remains a transport implementation concern; the Coreless identity and capability semantics remain stable across transports.
+
+
+## Transport session boundary
+
+A plug-and-play device transport may maintain an explicit session after identity verification and capability negotiation. The session carries transport-neutral Coreless command frames and preserves request/response correlation independently of the physical link.
+
+Session establishment and teardown do not transfer Coreless computation to the host. Closing a host session releases negotiated external channels while Coreless architectural state, persistent storage, execution state, and identity remain owned by Coreless.
+
+The reference implementation is provided by `reference/host_transport.py` through `HostTransportSession` and the session command APIs. Concrete physical transport adapters remain implementation work.
