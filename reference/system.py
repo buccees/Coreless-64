@@ -41,6 +41,7 @@ class CorelessSystem:
         self.os = CorelessOS(self.machine)
         self.ai = PersistentAIRuntime(self.machine.storage)
         self.ai.restore()
+        self.machine.attach_ai_registry(self.ai.registry)
         self._restore_boot_manifest()
 
     def _boot_manifest(self, init_path: str) -> dict[str, object]:
@@ -121,6 +122,16 @@ class CorelessSystem:
         self.machine.save_state()
         return self.machine.checkpoint(name)
 
+    def ai_compute(self, prompt: str, *, model_id: str, actor: str = "human", context=None, operation: str = "ai.infer"):
+        """Execute one persistent AI workload through the native machine scheduler."""
+        return self.ai.compute(
+            self.machine,
+            prompt,
+            model_id=model_id,
+            actor=actor,
+            context=context,
+            operation=operation,
+        )
     def ai_analyze(self, prompt: str, *, actor: str = "human", context=None, model_ids=None):
         """Run persistent local AI analysis and retain the complete session history."""
         return self.ai.analyze(
@@ -148,4 +159,9 @@ class CorelessSystem:
         status["system_version"] = self.VERSION
         status["boot_manifest"] = self.boot_manifest
         status["ai"] = self.ai.status()
+        status["ai"]["machine_resources"] = tuple(
+            resource_id
+            for resource_id in self.machine.scheduler.resources()
+            if resource_id.startswith("ai:")
+        )
         return status
