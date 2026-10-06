@@ -103,9 +103,16 @@ class HostTransportAdapter:
         interface: CorelessHostInterface,
         command: DeviceCommand,
     ) -> DeviceCommand:
-        """Carry a command and its response across the wire boundary."""
+        """Carry a command and validate its correlated response."""
         reply_frame = self.exchange(endpoint, interface, command.encode())
-        return DeviceCommand.decode(reply_frame)
+        reply = DeviceCommand.decode(reply_frame)
+        if not is_response(reply):
+            raise ValueError("Coreless response is not a response frame")
+        if reply.request_id != command.request_id:
+            raise ValueError("Coreless response request id mismatch")
+        if reply.opcode != command.opcode:
+            raise ValueError("Coreless response opcode mismatch")
+        return reply
 
     def send_session_command(
         self,
