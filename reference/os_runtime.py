@@ -111,6 +111,17 @@ class CorelessOS:
                 self.processes.processes[self.current_pid].state = "exited"
             return self._ret(cpu, 0)
         if name == "getpid": return self._ret(cpu, self.current_pid)
+        if name == "reap":
+            try:
+                pid = self._arg(cpu, 2)
+                child = self.processes.processes.get(pid)
+                if child is None or child.parent != self.current_pid:
+                    return self._ret(cpu, -1)
+                self.processes.reap(pid)
+                self.application_state.pop(pid, None)
+                return self._ret(cpu, 0)
+            except (RuntimeError, KeyError):
+                return self._ret(cpu, -1)
         if name == "memory": return self._ret(cpu, len(cpu.memory))
         if name == "cpu_info": return self._ret(cpu, len(self.machine.cpus))
         if name == "device_info": return self._ret(cpu, len(self.machine.devices.discover()))
