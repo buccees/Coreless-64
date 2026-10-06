@@ -406,4 +406,4 @@ class TensorRuntime:
         payload = json.loads(raw.decode("utf-8"))
         if payload.get("version") not in (1, 2):
             raise ValueError("unsupported tensor format version")
-        return Tensor.from_values(payload["shape"], payload["data"], dtype=payload.get("dtype", "fp64"))\n
+        return Tensor.from_values(payload["shape"], payload["data"], dtype=payload.get("dtype", "fp64"))
