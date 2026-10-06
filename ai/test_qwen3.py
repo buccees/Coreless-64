@@ -426,4 +426,25 @@ def test_qwen3_rms_norm_uses_coreless_rms_reduction():
 
     assert result.shape == (1, 2)
     assert runtime.rms_calls == 1
-\n\n\ndef test_qwen3_rotary_angle_generation_uses_tensor_runtime():\n    class RecordingRuntime(TensorRuntime):\n        def __init__(self):\n            super().__init__()\n            self.rope_angle_calls = []\n\n        def rope_angles(self, half, position, theta, *, scaling_factor=None, dtype="fp64"):\n            self.rope_angle_calls.append((half, position, theta, scaling_factor, dtype))\n            return super().rope_angles(\n                half, position, theta, scaling_factor=scaling_factor, dtype=dtype\n            )\n\n    from qwen3 import _rotary\n\n    runtime = RecordingRuntime()\n    result = _rotary([1.0, 2.0, 3.0, 4.0], 3, 10000.0, 2.0, runtime)\n\n    assert len(result) == 4\n    assert runtime.rope_angle_calls == [(2, 3, 10000.0, 2.0, "fp64")]\n
+
+
+
+def test_qwen3_rotary_angle_generation_uses_tensor_runtime():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.rope_angle_calls = []
+
+        def rope_angles(self, half, position, theta, *, scaling_factor=None, dtype="fp64"):
+            self.rope_angle_calls.append((half, position, theta, scaling_factor, dtype))
+            return super().rope_angles(
+                half, position, theta, scaling_factor=scaling_factor, dtype=dtype
+            )
+
+    from qwen3 import _rotary
+
+    runtime = RecordingRuntime()
+    result = _rotary([1.0, 2.0, 3.0, 4.0], 3, 10000.0, 2.0, runtime)
+
+    assert len(result) == 4
+    assert runtime.rope_angle_calls == [(2, 3, 10000.0, 2.0, "fp64")]
