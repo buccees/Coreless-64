@@ -19,6 +19,7 @@ class ComputeWork:
     work_id: str
     operation: str
     request: AIRequest
+    model_id: str | None = None
 
 
 @dataclass(frozen=True)
