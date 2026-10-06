@@ -83,6 +83,16 @@ Machine firmware is responsible for establishing memory, interrupt, translation,
 A reset vector and machine configuration pointer are implementation-defined machine inputs, but their existence and handoff semantics are architectural.
 
 
+## AI and tensor execution boundary
+
+Coreless-64 exposes vector and matrix execution as architectural resources. The native AI/TensorRuntime layer builds higher-level tensor operations from those resources while preserving a deterministic boundary between model code and Coreless execution.
+
+The current reference implementation includes TensorRuntime primitives for vector/matrix arithmetic, RMS normalization, scalar broadcast, transpose, rotary trigonometric operations, masking, scalar scaling, and deterministic argmax. Qwen3 uses these paths for progressively more of its attention and normalization execution.
+
+These TensorRuntime operations are implementation/runtime contracts, not replacements for the ISA. Where an operation maps to architectural vector or matrix execution, the implementation must preserve the architectural semantics, capability checks, and deterministic error behavior of those underlying resources.
+
+The remaining native-runtime work is to move Qwen3 KV-cache storage, head reshaping/repetition, and attention data movement into TensorRuntime so that model execution does not fall back to host-side Python data structures for those boundaries.
+
 ## Capability Discovery
 
 Architectural capabilities are discovered rather than inferred from implementation identity. CAP_BASE points to a read-only capability table containing a versioned header followed by fixed-size device/resource records. The table describes execution contexts, vector width, supported element types, matrix tile shapes, physical address width, virtualization support, graphics/network/storage capabilities, and optional extensions.
