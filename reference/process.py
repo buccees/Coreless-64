@@ -47,7 +47,7 @@ class Process:
 
 
 class ProcessManager:
-    STATE_VERSION = 1
+    STATE_VERSION = 2
     PAGE_SIZE = PAGE_SIZE
     STACK_SIZE = STACK_SIZE
     REGION_SIZE = REGION_SIZE
@@ -60,15 +60,55 @@ class ProcessManager:
         self.next_pid = 1
         self.current = None
         self.next_phys = self.PHYS_RESERVED
+        self.free_phys = []
 
     def _alloc_phys(self, size):
         size = align_up(size)
+        for index, (base, available) in enumerate(self.free_phys):
+            base = align_up(base)
+            if available >= size + (base - self.free_phys[index][0]):
+                original_base = self.free_phys[index][0]
+                prefix = base - original_base
+                remaining = available - prefix - size
+                if prefix and remaining:
+                    self.free_phys[index:index + 1] = [(original_base, prefix), (base + size, remaining)]
+                elif prefix:
+                    self.free_phys[index:index + 1] = [(original_base, prefix)]
+                elif remaining:
+                    self.free_phys[index:index + 1] = [(base + size, remaining)]
+                else:
+                    self.free_phys.pop(index)
+                return base
         base = align_up(self.next_phys)
         end = base + size
         if end > len(self.machine.cpu.memory):
             raise MemoryError("no physical memory available for process")
         self.next_phys = end
         return base
+
+    def _release_phys(self, base, size):
+        size = align_up(size)
+        if size <= 0:
+            return
+        ranges = self.free_phys + [(base, size)]
+        ranges.sort()
+        merged = []
+        for start, length in ranges:
+            if not length:
+                continue
+            if merged and merged[-1][0] + merged[-1][1] >= start:
+                end = max(merged[-1][0] + merged[-1][1], start + length)
+                merged[-1] = (merged[-1][0], end - merged[-1][0])
+            else:
+                merged.append((start, length))
+        self.free_phys = merged
+
+    def _release_space(self, space):
+        if space is None:
+            return
+        self._release_phys(space.page_table_root, PAGE_SIZE)
+        self._release_phys(space.code_phys_base, space.stack_phys_base - space.code_phys_base)
+        self._release_phys(space.stack_phys_base, space.stack_size)
 
     def _pte(self, root, virtual_page, physical_page, read, write, execute, user=True):
         flags = 1
@@ -165,17 +205,20 @@ class ProcessManager:
             "next_pid": self.next_pid,
             "current": self.current,
             "next_phys": self.next_phys,
+            "free_phys": [[base, size] for base, size in self.free_phys],
             "processes": {str(pid): self._process_state(p) for pid, p in sorted(self.processes.items())},
         }
 
     def restore_state(self, state):
         if not state:
             return
-        if state.get("version") != self.STATE_VERSION:
+        version = int(state.get("version", 1))
+        if version not in (1, self.STATE_VERSION):
             raise ValueError("unsupported Coreless process-state version")
         self.next_pid = int(state.get("next_pid", 1))
         self.current = state.get("current")
         self.next_phys = int(state.get("next_phys", self.PHYS_RESERVED))
+        self.free_phys = [tuple(map(int, item)) for item in state.get("free_phys", [])]
         self.processes = {
             int(pid): self._restore_process(ps)
             for pid, ps in state.get("processes", {}).items()
@@ -229,7 +272,10 @@ class ProcessManager:
                 dict(old.permissions),
             )
         else:
-            p.address_space = self._allocate_space(len(program))
+            replacement = self._allocate_space(len(program))
+            if old is not None:
+                self._release_space(old)
+            p.address_space = replacement
 
         p.program = program
         p.pc = p.address_space.code_base + entry
