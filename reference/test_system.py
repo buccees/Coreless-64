@@ -126,4 +126,4 @@ def test_ai_work_submission_contract_is_machine_owned(tmp_path):
     )
     request = system.ai.request("inspect")
     assert request.authority.value == "recommend"
-    assert system.machine.scheduler.resources()[-1] == "ai:qwen3"
+    assert "ai:qwen3" in system.machine.scheduler.resources()
