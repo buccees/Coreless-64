@@ -39,3 +39,16 @@ def test_loader_rejects_misaligned_or_out_of_range_entry():
     for entry in (1, len(program)):
         with __import__("pytest").raises(ValueError, match="entry"):
             m.loader.make_executable(program, entry=entry)
+
+
+def test_run_program_accepts_corex64_executable_from_filesystem():
+    m = CorelessMachine(4096)
+    program = b"".join([
+        (0x30000001).to_bytes(4, "little"),
+        encode_base_i("ADDI", 5, 0, 9).to_bytes(4, "little"),
+        (0x30000001).to_bytes(4, "little"),
+    ])
+    image = m.loader.make_executable(program, entry=4)
+    m.filesystem.write("/app", image)
+    assert m.run_program("/app") == "2"
+    assert m.cpu.read_reg(5) == 9
