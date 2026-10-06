@@ -265,6 +265,25 @@ def test_tensor_runtime_last_row_rejects_non_rank2():
         raise AssertionError("last_row accepted a non-rank-2 tensor")
 
 
+def test_tensor_runtime_last_row():
+    runtime = TensorRuntime()
+    value = runtime.create((3, 2), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], dtype="fp32")
+    result = runtime.last_row(value)
+    assert result.shape == (2,)
+    assert result.data == (5.0, 6.0)
+
+
+def test_tensor_runtime_last_row_rejects_non_rank2():
+    runtime = TensorRuntime()
+    value = runtime.create((2,), [1.0, 2.0], dtype="fp32")
+    try:
+        runtime.last_row(value)
+    except ValueError as exc:
+        assert str(exc) == "last_row requires a rank-2 tensor"
+    else:
+        raise AssertionError("last_row accepted a non-rank-2 tensor")
+
+
 def test_tensor_runtime_embedding_lookup():
     runtime = TensorRuntime()
     embedding = runtime.create((3, 2), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], dtype="fp32")
