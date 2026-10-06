@@ -218,3 +218,16 @@ def test_reap_rejects_live_process():
         assert str(exc) == "cannot reap a running process"
     else:
         raise AssertionError("live process was reaped")
+
+
+def test_process_allocation_failure_rolls_back_physical_ranges():
+    machine = CorelessMachine(64 * 1024, 1)
+    pm = ProcessManager(machine)
+    before = (pm.next_phys, list(pm.free_phys))
+    try:
+        pm.create("too-large", b"\x00" * (64 * 1024))
+    except MemoryError:
+        pass
+    else:
+        raise AssertionError("oversized process allocation unexpectedly succeeded")
+    assert (pm.next_phys, pm.free_phys) == before
