@@ -112,14 +112,6 @@ def _rotary(
 
     a = Tensor.from_values((half,), head[:half], dtype="fp64")
     b = Tensor.from_values((half,), head[half:], dtype="fp64")
-    cosines, sines = [], []
-    for i in range(half):
-        inv = theta ** (-2.0 * i / len(head))
-        angle = position * inv
-        if scaling_factor is not None and scaling_factor > 1.0:
-            angle /= scaling_factor
-        cosines.append(math.cos(angle))
-        sines.append(math.sin(angle))
     angles = Tensor.from_values(
         (half,),
         (
