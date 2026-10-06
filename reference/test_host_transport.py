@@ -289,3 +289,23 @@ def test_host_transport_direct_command_rejects_opcode_mismatch(monkeypatch):
     )
     with pytest.raises(ValueError, match="opcode mismatch"):
         adapter.send_command(endpoint, interface, DeviceCommand(OP_CAPABILITIES, 7))
+
+
+def test_host_transport_sync_persists_bound_system(monkeypatch):
+    from system import CorelessSystem
+    endpoint = HostEndpoint(
+        "coreless-sync",
+        CorelessIdentity("coreless-sync"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-sync"))
+    system = CorelessSystem(memory_size=128 * 1024)
+    interface.attach_system(system)
+    calls = []
+    monkeypatch.setattr(system.machine, "save_state", lambda: calls.append("saved"))
+    reply = adapter.send_command(endpoint, interface, DeviceCommand(OP_SYNC, 55))
+    assert reply.request_id == 55
+    assert reply.payload == b"ok"
+    assert calls == ["saved"]
