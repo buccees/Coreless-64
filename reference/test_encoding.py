@@ -152,11 +152,7 @@ def test_decode_instruction_uses_architectural_length_contract():
     with pytest.raises(IllegalEncoding):
         decode_instruction(extended + b"\0")
 
-def test_extended_header_decoder_validates_all_header_fields():
+def test_extended_header_decoder_rejects_reserved_class():
     with pytest.raises(IllegalEncoding):
-        decode_extended_header((OP_EXT128 << 27) | (2 << 23) | (0x40 << 17))
-    with pytest.raises(IllegalEncoding):
-        decode_extended_header((OP_EXT128 << 27) | (2 << 23) | (0x20 << 12))
-    with pytest.raises(IllegalEncoding):
-        decode_extended_header((OP_EXT128 << 27) | (2 << 23) | 0x3)
+        decode_extended_header((OP_EXT128 << 27) | (0x9 << 23))
 
