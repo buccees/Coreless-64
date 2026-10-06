@@ -49,3 +49,10 @@ Batch dispatch derives its worker bound from one scheduler-owned eligible-capaci
 
 ### Unified capacity accounting
 Scheduler capacity queries share the same eligible-capacity snapshot path. Parallel dispatch therefore has one authoritative resource-capacity calculation while preserving the existing public capacity API.
+
+
+## Scheduler resource-state contract
+
+The scheduler owns the authoritative resource state used for dispatch and telemetry. A resource-state snapshot reports each registered resource's capacity and current load atomically. An eligible-capacity snapshot further filters resources by operation capability, AI model affinity, preference, and fallback policy.
+
+Batch dispatch uses the eligible-capacity snapshot to bound concurrency. This is an optimization contract only: it must not change allocation semantics, fallback behavior, result ordering, persistence, or the rule that AI output is never authorization.

@@ -95,3 +95,21 @@ The reference host boundary now has a reusable transport-session layer in additi
 This is transport-neutral software infrastructure. It is intended to make the eventual USB, PCIe, network, storage-attached, and other adapters interoperable without moving CPU, RAM, OS, VM, AI, or architectural authority into the host.
 
 The physical plug-and-play milestone remains open: cross-platform physical enumeration and concrete display/input/network transports are still to be implemented.
+
+
+## Documentation checkpoint — 2026-10-06: scheduler and dispatch throughput
+
+The latest green checkpoint is GitHub Actions **#1124**, commit `5df0639e70e4c7ada1143146d5121ec2731e93f5`. The preceding scheduler snapshot implementation exposed one incorrect empty-scheduler test expectation; that test was corrected to register a real resource and verify the scheduler-owned `(capacity, load)` snapshot. The implementation was unchanged by that correction.
+
+The current throughput architecture now includes:
+
+- scheduler-owned atomic resource state snapshots;
+- eligible-capacity snapshots that preserve operation capability and AI model-affinity filtering;
+- worker sizing from actual eligible capacity rather than total registered capacity;
+- unified capacity accounting across parallel dispatch paths;
+- direct single-item scheduler dispatch without thread-pool setup;
+- deque-backed pending-work queues for constant-time admission;
+- telemetry consumption from consistent scheduler resource state;
+- preserved allocation, fallback, result-ordering, persistence, and AI authorization contracts.
+
+This is an optimization layer over the existing Coreless machine architecture, not a change in computational authority. The scheduler remains the owner of resource allocation; AI remains a local machine resource and never becomes an authorization mechanism.

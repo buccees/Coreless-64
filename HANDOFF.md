@@ -398,3 +398,25 @@ Recent transport commits include `6259e4ec5393810e9879fb0122296259330ba347` (hos
 Continue the implementation rather than restarting the transport layer. The next transport work is concrete cross-platform enumeration and display/input/network adapters. In parallel, continue the native Qwen3/Coreless tensor execution boundary and VIGIL integration already described above.
 
 Documentation-only status must not be used to infer a CI result; use the latest GitHub Actions run for build status.
+
+
+## Documentation checkpoint — 2026-10-06: scheduler and dispatch throughput
+
+The latest green checkpoint is GitHub Actions **#1124**, commit `5df0639e70e4c7ada1143146d5121ec2731e93f5`. The preceding scheduler snapshot implementation exposed one incorrect empty-scheduler test expectation; that test was corrected to register a real resource and verify the scheduler-owned `(capacity, load)` snapshot. The implementation was unchanged by that correction.
+
+The current throughput architecture now includes:
+
+- scheduler-owned atomic resource state snapshots;
+- eligible-capacity snapshots that preserve operation capability and AI model-affinity filtering;
+- worker sizing from actual eligible capacity rather than total registered capacity;
+- unified capacity accounting across parallel dispatch paths;
+- direct single-item scheduler dispatch without thread-pool setup;
+- deque-backed pending-work queues for constant-time admission;
+- telemetry consumption from consistent scheduler resource state;
+- preserved allocation, fallback, result-ordering, persistence, and AI authorization contracts.
+
+This is an optimization layer over the existing Coreless machine architecture, not a change in computational authority. The scheduler remains the owner of resource allocation; AI remains a local machine resource and never becomes an authorization mechanism.
+
+### Current resume point
+
+Continue from the green throughput checkpoint. The next substantive work should improve the native Coreless execution path, tensor-backed Qwen3 KV-cache/head movement, concrete host transports, and persistent-storage-hosted execution. Preserve the scheduler throughput contracts above when extending compute distribution.
