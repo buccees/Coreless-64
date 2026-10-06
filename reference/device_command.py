@@ -96,6 +96,11 @@ def round_trip(command: DeviceCommand) -> DeviceCommand:
     return DeviceCommand.decode(command.encode())
 
 
+def response_round_trip(request: DeviceCommand, payload: bytes = b"", *, error: bool = False) -> DeviceCommand:
+    """Build and wire-round-trip a correlated device response."""
+    return round_trip(response(request, payload, error=error))
+
+
 @dataclass(frozen=True)
 class CommandPayload:
     """Deterministic structured payload for machine-to-machine commands."""
