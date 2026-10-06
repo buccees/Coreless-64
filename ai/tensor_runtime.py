@@ -115,6 +115,12 @@ class TensorRuntime:
         """Elementwise cosine at the Coreless tensor boundary."""
         return Tensor.from_values(value.shape, (cos(v) for v in value.data), dtype=value.dtype)
 
+    def sin(self, value: Tensor) -> Tensor:
+        return Tensor.from_values(value.shape, (sin(v) for v in value.data), dtype=value.dtype)
+
+    def cos(self, value: Tensor) -> Tensor:
+        return Tensor.from_values(value.shape, (cos(v) for v in value.data), dtype=value.dtype)
+
     def relu(self, value: Tensor) -> Tensor:
         return relu(value)
 
