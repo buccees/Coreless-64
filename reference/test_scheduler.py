@@ -145,3 +145,9 @@ def test_scheduler_parallel_capacity_matches_capacity_snapshot():
     assert scheduler.parallel_capacity(()) == sum(
         scheduler.available_capacity_snapshot(()).values()
     )
+
+def test_scheduler_resource_state_snapshot_contains_capacity_and_load():
+    scheduler = MachineScheduler()
+    snapshot = scheduler.resource_state_snapshot()
+    assert all(len(state) == 2 for state in snapshot.values())
+    assert all(capacity >= load >= 0 for capacity, load in snapshot.values())
