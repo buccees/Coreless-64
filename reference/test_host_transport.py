@@ -385,3 +385,68 @@ def test_host_transport_session_exposes_and_requires_live_channels():
     adapter.disconnect(interface)
     with pytest.raises(RuntimeError, match="session is detached"):
         session.require_channels({"display"})
+
+
+def test_host_transport_sends_ordered_command_batch():
+    from device_command import CommandBatch
+    endpoint = HostEndpoint(
+        "coreless-batch",
+        CorelessIdentity("coreless-batch"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-batch"))
+    batch = CommandBatch((
+        DeviceCommand(OP_CAPABILITIES, 60),
+        DeviceCommand(OP_STATUS, 61),
+    ))
+    reply = adapter.send_batch(endpoint, interface, batch)
+    assert [command.request_id for command in reply.commands] == [60, 61]
+    assert reply.commands[0].payload == b"display"
+    assert reply.commands[1].flags & 1
+
+
+def test_host_transport_session_sends_ordered_command_batch():
+    from device_command import CommandBatch
+    endpoint = HostEndpoint(
+        "coreless-session-batch",
+        CorelessIdentity("coreless-session-batch"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-session-batch"))
+    session = adapter.open_session(endpoint, interface)
+    batch = CommandBatch((
+        DeviceCommand(OP_CAPABILITIES, 62),
+        DeviceCommand(OP_STATUS, 63),
+    ))
+    reply = adapter.send_session_batch(session, batch)
+    assert [command.request_id for command in reply.commands] == [62, 63]
+    assert reply.commands[0].payload == b"display"
+
+
+def test_host_transport_batch_rejects_response_count_mismatch(monkeypatch):
+    from device_command import CommandBatch
+    endpoint = HostEndpoint(
+        "coreless-batch-count",
+        CorelessIdentity("coreless-batch-count"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-batch-count"))
+    monkeypatch.setattr(
+        adapter,
+        "exchange_batch",
+        lambda _endpoint, _interface, _payload: CommandBatch(
+            (DeviceCommand(OP_CAPABILITIES, 70, flags=1),)
+        ).encode(),
+    )
+    batch = CommandBatch((
+        DeviceCommand(OP_CAPABILITIES, 70),
+        DeviceCommand(OP_STATUS, 71),
+    ))
+    with pytest.raises(ValueError, match="response count mismatch"):
+        adapter.send_batch(endpoint, interface, batch)
