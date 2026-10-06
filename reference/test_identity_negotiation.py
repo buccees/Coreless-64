@@ -84,3 +84,17 @@ def test_identity_attach_can_refresh_negotiation_without_shrinking_device_capabi
     ) == frozenset({"input"})
     assert interface.negotiated == frozenset({"input"})
     assert interface.supported == original_supported
+
+
+def test_identity_attach_rejects_unknown_advertised_capability_bits():
+    interface = CorelessHostInterface(CorelessIdentity("coreless-invalid"))
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=1 << 63,
+        payload=b"coreless-invalid",
+    ).encode()
+
+    with pytest.raises(ValueError, match="unknown Coreless capability bits"):
+        interface.attach_identity_frame(frame, HostCapabilities(display=True))
