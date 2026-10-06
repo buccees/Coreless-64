@@ -77,4 +77,14 @@ def test_coreless_capability_bits_decode_for_discovery():
 def test_coreless_capability_bits_reject_unknown_bits():
     with pytest.raises(ValueError, match="unknown Coreless capability bits"):
         capability_names(1 << 63)
-\n\n\ndef test_coreless_identity_frame_exposes_capability_names():\n    frame = DeviceIdentityFrame(\n        protocol_version=1,\n        architecture=ARCHITECTURE_CORELESS64,\n        device_type=1,\n        capabilities=capability_bits({"compute", "ai", "storage"}),\n    )\n\n    assert frame.capability_names() == frozenset({"compute", "ai", "storage"})\n
+
+
+def test_coreless_identity_frame_exposes_capability_names():
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=1,
+        capabilities=capability_bits({"compute", "ai", "storage"}),
+    )
+
+    assert frame.capability_names() == frozenset({"compute", "ai", "storage"})
