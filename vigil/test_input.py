@@ -76,3 +76,27 @@ def test_runtime_input_uses_coreless_router_authority():
     assert len(router.raw_events) == 1
     assert len(derived) >= 1
     assert derived[0].device_id == "mouse"
+
+
+
+def test_environment_enable_disable_keeps_coreless_router_in_sync():
+    from reference.input import CorelessInputRouter, InputCapabilities, PointingDevice
+    from vigil.runtime import VigilEnvironment
+
+    router = CorelessInputRouter()
+    router.devices.discover([
+        PointingDevice("mouse", "mouse", InputCapabilities(pointer=True, relative=True, buttons=1))
+    ])
+    router.devices.designate("mouse")
+    environment = VigilEnvironment(enabled=False, input_router=router)
+
+    assert not router.vigil_enabled
+    environment.enable()
+    assert router.vigil is environment.input
+    assert router.vigil_enabled
+
+    environment.disable()
+    assert not router.vigil_enabled
+
+    environment.enable()
+    assert router.vigil_enabled
