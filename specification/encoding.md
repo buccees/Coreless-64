@@ -1009,3 +1009,12 @@ The record is canonical in both directions. Encoding emits the exact architectur
 The reference implementation now executes the 64-bit extended envelope for the FP class (class=0x2, format=F2). Word 0 carries the common extended header and word 1 carries the complete scalar FP descriptor. The supported FP operation namespace is the same 0x00–0x0C namespace used by the scalar FP reference executor.
 
 A valid 64-bit FP instruction retires as one architectural instruction and advances the PC by exactly 8 bytes. Other classes in the 64-bit envelope remain reserved until their payload semantics are explicitly assigned.
+
+
+## Canonical length-aware instruction decoding
+
+The encoding layer exposes a single-instruction decode boundary that first determines the architectural length from the first 32-bit word and then requires the supplied byte sequence to contain exactly that instruction.
+
+For a 32-bit instruction, the canonical result is the existing base decoded operation tuple. For a 64-bit or 128-bit instruction, the canonical result is the structured extended-instruction record containing length, class, operation, register fields, format, and payload.
+
+A decoder must reject both truncated and overlong byte sequences at this boundary. Extended header decoding validates the class, operation, register, and format fields before an extended record is accepted.
