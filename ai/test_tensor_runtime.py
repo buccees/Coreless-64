@@ -244,3 +244,20 @@ def test_tensor_runtime_attention():
     result = runtime.attention(q, k, v)
     assert result.shape == (1, 2)
     assert result.data == (3.0, 4.0)
+
+
+def test_tensor_runtime_embedding_lookup():
+    runtime = TensorRuntime()
+    embedding = runtime.create((3, 2), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], dtype="fp32")
+    result = runtime.embedding_lookup(embedding, [2, 0])
+    assert result.shape == (2, 2)
+    assert result.data == (5.0, 6.0, 1.0, 2.0)
+
+
+def test_tensor_runtime_rms_norm_rows():
+    runtime = TensorRuntime()
+    value = runtime.create((2, 2), [3.0, 4.0, 1.0, 2.0], dtype="fp32")
+    weight = runtime.create((2,), [1.0, 2.0], dtype="fp32")
+    result = runtime.rms_norm_rows(value, weight, eps=1e-6)
+    assert result.shape == value.shape
+    assert result.data == (0.6, 1.6, 0.6324555320336759, 1.2649110640673518)
