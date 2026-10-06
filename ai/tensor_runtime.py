@@ -276,6 +276,51 @@ class TensorRuntime:
         """Elementwise cosine at the Coreless tensor boundary."""
         return Tensor.from_values(value.shape, (cos(v) for v in value.data), dtype=value.dtype)
 
+    def rotary_embedding(
+        self,
+        value: Tensor,
+        *,
+        position_offset: int = 0,
+        theta: float = 1000000.0,
+        scaling_factor: float | None = None,
+    ) -> Tensor:
+        """Apply RoPE across a [heads, positions, head_dim] tensor."""
+        if len(value.shape) != 3:
+            raise ValueError("rotary_embedding requires a rank-3 tensor")
+        if position_offset < 0:
+            raise ValueError("RoPE position offset must be non-negative")
+        heads, positions, dim = value.shape
+        if dim <= 0 or dim % 2:
+            raise ValueError("rotary head dimension must be positive and even")
+        half = dim // 2
+        values = []
+        for head in range(heads):
+            for position in range(positions):
+                angles = self.rope_angles(
+                    half,
+                    position_offset + position,
+                    theta,
+                    scaling_factor=scaling_factor,
+                    dtype=value.dtype,
+                )
+                c = self.cos(angles)
+                s = self.sin(angles)
+                a = Tensor.from_values(
+                    (half,),
+                    (value.at(head, position, index) for index in range(half)),
+                    dtype=value.dtype,
+                )
+                b = Tensor.from_values(
+                    (half,),
+                    (value.at(head, position, half + index) for index in range(half)),
+                    dtype=value.dtype,
+                )
+                first = self.sub(self.mul(a, c), self.mul(b, s))
+                second = self.add(self.mul(a, s), self.mul(b, c))
+                values.extend(first.data)
+                values.extend(second.data)
+        return Tensor.from_values(value.shape, values, dtype=value.dtype)
+
     def rope_angles(
         self,
         half: int,
