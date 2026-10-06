@@ -92,6 +92,7 @@ class PersistentAIRuntime:
             work_id=f"{self.session.session_id}:work:{request.request_id.rsplit(':', 1)[-1]}",
             operation=operation,
             request=request,
+            model_id=model_id,
         )
         result = machine.schedule_compute(work, preference="ai", allow_fallback=False)
         self.session.record_result(result[0].result)
