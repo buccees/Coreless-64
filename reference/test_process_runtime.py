@@ -96,3 +96,28 @@ def test_process_replace_program_preserves_pid_and_uses_executable_entry():
     assert p.parent == 9
     assert p.program == image[ProgramLoader.HEADER_SIZE:]
     assert p.pc == p.address_space.code_base + 4
+
+
+def test_os_exec_transfers_to_executable_entry():
+    from os_runtime import CorelessOS
+    machine = CorelessMachine(256 * 1024, 1)
+    os = CorelessOS(machine)
+    p = os.processes.create("exec", (0x30000001).to_bytes(4, "little"))
+    os.current_pid = p.pid
+    os.processes._enter_user(p)
+    path_addr = p.address_space.stack_base
+    path = b"/new"
+    for i, value in enumerate(path):
+        machine.cpu.store_u(path_addr + i, 1, value)
+    program = b"".join([
+        (0x30000001).to_bytes(4, "little"),
+        (0x30000001).to_bytes(4, "little"),
+    ])
+    machine.filesystem.write("/new", ProgramLoader.make_executable(program, entry=4))
+    machine.cpu.write_reg(2, path_addr)
+    machine.cpu.write_reg(3, len(path))
+    os._syscall(machine.cpu, 10)
+    assert p.program == program
+    assert p.pc == p.address_space.code_base + 4
+    assert machine.cpu.pc == p.pc
+    assert os._exec_transfer is True
