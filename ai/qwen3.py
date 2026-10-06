@@ -292,12 +292,22 @@ def qwen3_mlp(
 ) -> Tensor:
     gate = _linear(x, weights.get(f"{prefix}.mlp.gate_proj.weight"), runtime)
     up = _linear(x, weights.get(f"{prefix}.mlp.up_proj.weight"), runtime)
-    gated = Tensor.from_values(
+    silu = Tensor.from_values(
         gate.shape,
         (
-            (g / (1.0 + math.exp(-g))) * u
-            for g, u in zip(gate.data, up.data)
+            g / (1.0 + math.exp(-g))
+            for g in gate.data
         ),
+        dtype=gate.dtype,
+    )
+    gated = (
+        runtime.mul(silu, up)
+        if runtime is not None
+        else Tensor.from_values(
+            gate.shape,
+            (s * u for s, u in zip(silu.data, up.data)),
+            dtype=gate.dtype,
+        )
     )
     return _linear(
         gated,
