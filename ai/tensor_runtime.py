@@ -41,6 +41,17 @@ class TensorRuntime:
         return self
 
     def add(self, left: Tensor, right: Tensor) -> Tensor:
+        if self.cpu is not None and left.shape == right.shape and len(left.shape) == 1:
+            return self.vector_add(left, right)
+        if self.cpu is not None and left.shape == right.shape and len(left.shape) == 2:
+            rows, cols = left.shape
+            values = []
+            for row in range(rows):
+                values.extend(self.vector_add(
+                    Tensor.from_values((cols,), left.data[row * cols:(row + 1) * cols], dtype=left.dtype),
+                    Tensor.from_values((cols,), right.data[row * cols:(row + 1) * cols], dtype=right.dtype),
+                ).data)
+            return Tensor.from_values(left.shape, values, dtype=left.dtype)
         return add(left, right)
 
     def matmul(self, left: Tensor, right: Tensor) -> Tensor:
