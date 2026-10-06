@@ -171,9 +171,8 @@ def _attention(
                 else float("-inf")
                 for col in range(key_positions)
             ]
-            weights = softmax(
-                Tensor.from_values((1, key_positions), row_scores)
-            )
+            score_tensor = Tensor.from_values((1, key_positions), row_scores)
+            weights = runtime.softmax(score_tensor) if runtime is not None else softmax(score_tensor)
             attended = multiply(weights, value)
             for i, item in enumerate(attended.data):
                 output[row][i] += item
@@ -323,13 +322,14 @@ def qwen3_mlp(
 ) -> Tensor:
     gate = _linear(x, weights.get(f"{prefix}.mlp.gate_proj.weight"), runtime)
     up = _linear(x, weights.get(f"{prefix}.mlp.up_proj.weight"), runtime)
-    silu = Tensor.from_values(
-        gate.shape,
-        (
-            g / (1.0 + math.exp(-g))
-            for g in gate.data
-        ),
-        dtype=gate.dtype,
+    silu = (
+        runtime.silu(gate)
+        if runtime is not None
+        else Tensor.from_values(
+            gate.shape,
+            (g / (1.0 + math.exp(-g)) for g in gate.data),
+            dtype=gate.dtype,
+        )
     )
     gated = (
         runtime.mul(silu, up)
