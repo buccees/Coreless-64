@@ -100,3 +100,26 @@ def test_environment_enable_disable_keeps_coreless_router_in_sync():
 
     environment.enable()
     assert router.vigil_enabled
+
+
+
+def test_vigil_replay_contains_raw_and_derived_input_chain():
+    from reference.input import CorelessInputRouter, InputEvent, InputEventType, CoordinateFrame, InputCapabilities, PointingDevice
+    from vigil.runtime import VigilEnvironment
+
+    router = CorelessInputRouter()
+    router.devices.discover([
+        PointingDevice("touch", "touch", InputCapabilities(touch=True, multitouch=True))
+    ])
+    router.devices.designate("touch")
+    environment = VigilEnvironment(enabled=True, input_router=router)
+
+    begin = InputEvent(1, InputEventType.TOUCH_BEGIN, "touch", 10, 1, CoordinateFrame.CORELESS, x=10, y=20, contact_id=1)
+    end = InputEvent(1, InputEventType.TOUCH_END, "touch", 20, 2, CoordinateFrame.CORELESS, x=11, y=21, contact_id=1)
+    environment.ingest_input_event(begin)
+    environment.ingest_input_event(end)
+
+    kinds = [event.kind for event in environment.replay_events()]
+    assert kinds[:2] == ["input.raw", "input.raw"]
+    assert "gesture.tap" in kinds
+    assert environment.validate_persisted_replay_integrity().valid
