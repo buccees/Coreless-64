@@ -363,6 +363,7 @@ def test_host_interface_rejects_truncated_storage_write():
         supported={"storage"},
     )
     interface.attach(interface.discover(), HostCapabilities())
+    interface.negotiate(HostCapabilities(storage=True))
 
     interface.bind_device_storage({})
     command = DeviceCommand(opcode=OP_WRITE, request_id=3, payload=b"\x05\x00ab")
