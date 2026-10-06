@@ -183,3 +183,18 @@ def test_tensor_runtime_sum_axis_reduces_attention_heads():
     result = runtime.sum_axis(value, 0)
     assert result.shape == (2, 2)
     assert result.data == (11.0, 22.0, 33.0, 44.0)
+
+
+def test_tensor_runtime_rotary_embedding_rank3():
+    runtime = TensorRuntime()
+    value = runtime.create(
+        (1, 2, 4),
+        [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+        dtype="fp32",
+    )
+    result = runtime.rotary_embedding(value, position_offset=2, theta=10000.0)
+    assert result.shape == value.shape
+    assert result.data[0:4] != value.data[0:4]
+    assert result.data[4:8] != value.data[4:8]
+
+
