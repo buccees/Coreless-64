@@ -515,3 +515,32 @@ def test_qwen3_head_rms_norm_uses_native_rank3_runtime_boundary():
 
     assert result.shape == value.shape
     assert runtime.calls == 1
+
+
+def test_qwen3_kv_cache_uses_tensor_runtime_append_boundary():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.append_calls = 0
+
+        def append_sequence(self, existing, update):
+            self.append_calls += 1
+            return super().append_sequence(existing, update)
+
+    identity = _identity(2)
+    weights = ModelWeights([
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+    ])
+    cfg = Qwen3Config(2, 4, 1, 1, 1, 8, 16, head_dim=2)
+    runtime = RecordingRuntime()
+    cache = Qwen3KVCache.create(1)
+    qwen3_attention(Tensor.from_values((1, 2), (1.0, 0.0)), weights, "model.layers.0", cfg, cache, runtime=runtime)
+    qwen3_attention(Tensor.from_values((1, 2), (0.0, 1.0)), weights, "model.layers.0", cfg, cache, position_offset=1, runtime=runtime)
+    assert runtime.append_calls == 2
+    assert cache.keys[0].shape == (1, 2, 2)
+    assert cache.values[0].shape == (1, 2, 2)
