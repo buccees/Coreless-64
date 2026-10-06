@@ -117,6 +117,36 @@ class TensorRuntime:
             dtype=value.dtype,
         )
 
+    def sum_axis(self, value: Tensor, axis: int) -> Tensor:
+        """Reduce a tensor by summing one axis using TensorRuntime storage."""
+        rank = len(value.shape)
+        if rank == 0:
+            raise ValueError("sum_axis requires a non-scalar tensor")
+        if axis < 0:
+            axis += rank
+        if axis < 0 or axis >= rank:
+            raise ValueError("sum_axis axis out of range")
+        if value.shape[axis] == 0:
+            raise ValueError("sum_axis cannot reduce an empty axis")
+        out_shape = value.shape[:axis] + value.shape[axis + 1:]
+        if not out_shape:
+            return Tensor.from_values((), (sum(value.data),), dtype=value.dtype)
+        out_count = 1
+        for size in out_shape:
+            out_count *= size
+        stride = 1
+        for size in value.shape[axis + 1:]:
+            stride *= size
+        block = stride * value.shape[axis]
+        values = []
+        for out_index in range(out_count):
+            base = (out_index // stride) * block + (out_index % stride)
+            total = 0.0
+            for item in range(value.shape[axis]):
+                total += value.data[base + item * stride]
+            values.append(total)
+        return Tensor.from_values(out_shape, values, dtype=value.dtype)
+
     def batch_matmul(self, left: Tensor, right: Tensor) -> Tensor:
         """Execute independent rank-2 matrix products across an attention head axis."""
         if len(left.shape) != 3 or len(right.shape) != 3:
