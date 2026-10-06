@@ -131,6 +131,29 @@ class CorelessHostInterface:
             self.attach_system(system)
         return negotiated
 
+    def handle_command(self, command):
+        """Dispatch a decoded device command to the attached Coreless system."""
+        from device_command import (
+            OP_CAPABILITIES, OP_EXECUTE, OP_STATUS, OP_SYNC,
+            response,
+        )
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        if command.opcode == OP_CAPABILITIES:
+            payload = "|".join(sorted(self._negotiated)).encode("utf-8")
+            return response(command, payload)
+        if command.opcode == OP_STATUS:
+            return response(command, repr(self.status()).encode("utf-8"))
+        if command.opcode == OP_SYNC:
+            return response(command, b"ok")
+        if command.opcode == OP_EXECUTE:
+            if "compute" not in self.supported:
+                return response(command, b"compute capability unavailable", error=True)
+            if self._system is None and self._hub is None:
+                return response(command, b"no Coreless system is bound", error=True)
+            return response(command, b"execution endpoint ready")
+        return response(command, b"unsupported opcode", error=True)
+
     @property
     def input_router(self) -> CorelessInputRouter | None:
         """Return the Coreless input router bound to the negotiated input channel."""
