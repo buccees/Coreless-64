@@ -25,3 +25,15 @@ persistent session before the workload returns.
 The machine therefore owns resource allocation while the AI runtime owns
 session continuity and model coordination. AI output remains data and does not
 become authorization merely because it was produced by a local core.
+
+## High-throughput machine dispatch
+
+The machine distributor derives its default worker count from scheduler-reported
+eligible capacity rather than the total registered capacity. Explicit model
+affinity and operation capability therefore constrain concurrency to resources
+that can actually execute each queued work item.
+
+A single work item takes a direct scheduler path and does not create a thread
+pool. Multi-item queues use a deque for constant-time admission of pending
+work. These optimizations do not alter allocation, fallback, result ordering,
+or persistence semantics.
