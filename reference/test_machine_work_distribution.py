@@ -62,3 +62,43 @@ def test_machine_exposes_unified_work_distribution():
     assert results[0].work_id == "machine-1"
     assert results[0].result is not None
     assert results[0].resource_id == "cpu"
+
+def test_machine_work_distribution_scales_to_resource_capacity():
+    scheduler = MachineScheduler()
+    scheduler.register(ConventionalComputeResource(
+        "cpu-a", lambda w: ComputeResult(
+            w.work_id, w.operation, "cpu", AIResult(w.request.request_id, "cpu", "done", {})
+        ), capacity=3
+    ))
+    items = [work(f"w{i}") for i in range(3)]
+    results = MachineWorkDistributor(scheduler).execute(items)
+    assert all(result.result is not None for result in results)
+
+
+def test_machine_work_distribution_single_item_fast_path():
+    scheduler = MachineScheduler()
+    scheduler.register(ConventionalComputeResource(
+        "cpu", lambda w: ComputeResult(
+            w.work_id, w.operation, "cpu", AIResult(w.request.request_id, "cpu", "done", {})
+        ), capacity=1
+    ))
+    result = MachineWorkDistributor(scheduler).execute((work("one"),))
+    assert result[0].resource_id == "cpu"
+    assert scheduler.load("cpu") == 0
+
+
+def test_machine_work_distribution_respects_ai_model_affinity_at_scale():
+    scheduler = MachineScheduler()
+    fabric = AIComputeFabric()
+    barrier = threading.Barrier(2)
+    fabric.register(FakeAI("qwen3", barrier))
+    fabric.register(FakeAI("deepseek"))
+    scheduler.register(AIComputeSchedulerResource(fabric, "qwen3", capacity=2))
+    scheduler.register(AIComputeSchedulerResource(fabric, "deepseek", capacity=4))
+    items = [
+        ComputeWork(f"q{i}", "tensor.matmul",
+                    AIRequest(f"r{i}", "compute", {}), model_id="qwen3")
+        for i in range(2)
+    ]
+    results = MachineWorkDistributor(scheduler).execute(items)
+    assert {result.resource_id for result in results} == {"ai:qwen3"}
