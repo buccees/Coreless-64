@@ -115,4 +115,10 @@ def test_machine_work_distribution_uses_available_capacity_snapshot():
 
 def test_machine_work_distribution_capacity_source_remains_scheduler_owned():
     scheduler = MachineScheduler()
-    assert scheduler.resource_state_snapshot()
+    scheduler.register(ConventionalComputeResource(
+        "cpu", lambda w: ComputeResult(
+            w.work_id, w.operation, "cpu",
+            AIResult(w.request.request_id, "cpu", "done", {})
+        ), capacity=2
+    ))
+    assert scheduler.resource_state_snapshot() == {"cpu": (2, 0)}
