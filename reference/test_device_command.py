@@ -14,6 +14,7 @@ from device_command import (
     is_error,
     is_response,
     response,
+    response_for,
     round_trip,
 )
 
@@ -43,6 +44,16 @@ def test_error_response_sets_error_flag():
     assert reply.flags == FLAG_RESPONSE | FLAG_ERROR
     assert is_response(reply)
     assert is_error(reply)
+
+
+def test_response_for_preserves_correlation_across_wire_round_trip():
+    request = DeviceCommand(OP_EXECUTE, 77, b"run")
+    reply = response_for(request, b"accepted")
+    assert is_response(reply)
+    assert not is_error(reply)
+    assert reply.request_id == 77
+    assert reply.opcode == OP_EXECUTE
+    assert reply.payload == b"accepted"
 
 
 def test_command_rejects_bad_magic():
