@@ -37,3 +37,7 @@ A single work item takes a direct scheduler path and does not create a thread
 pool. Multi-item queues use a deque for constant-time admission of pending
 work. These optimizations do not alter allocation, fallback, result ordering,
 or persistence semantics.
+
+
+### Atomic scheduler load snapshots
+Machine resource load inspection may use a scheduler-provided atomic snapshot so telemetry and dispatch coordination can observe one consistent resource-load view without repeatedly acquiring the scheduler lock. The snapshot is observational only and does not alter allocation or reservation semantics.
