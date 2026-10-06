@@ -80,6 +80,14 @@ class TensorRuntime:
             return Tensor.from_values(left.shape, values, dtype=left.dtype)
         return sub(left, right)
 
+    def mul_scalar(self, value: Tensor, scalar: float) -> Tensor:
+        """Multiply every tensor element by a scalar at the Coreless boundary."""
+        return Tensor.from_values(
+            value.shape,
+            (v * scalar for v in value.data),
+            dtype=value.dtype,
+        )
+
     def mul(self, left: Tensor, right: Tensor) -> Tensor:
         if self.cpu is not None and left.shape == right.shape and len(left.shape) == 1:
             return self.vector_mul(left, right)
