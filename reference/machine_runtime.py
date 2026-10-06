@@ -297,6 +297,14 @@ class CorelessMachine:
         self.save_state()
         return self.cpu
 
+    def boot_executable(self, image, address=0):
+        """Load a COREX64 image, honor its entry point, and power on the machine."""
+        result = self.loader.load_executable(image, address)
+        self.booted = True
+        self.power_state = "on"
+        self.save_state()
+        return result
+
     def step(self, cpu_id=0):
         if not self.booted:
             raise RuntimeError("machine not booted")
