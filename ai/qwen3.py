@@ -112,7 +112,10 @@ def _rotary(
 
     a = Tensor.from_values((half,), head[:half], dtype="fp64")
     b = Tensor.from_values((half,), head[half:], dtype="fp64")
-    angles = runtime.rope_angles(\n        half, position, theta, scaling_factor=scaling_factor, dtype="fp64"\n    )\n    c = runtime.cos(angles)
+    angles = runtime.rope_angles(
+        half, position, theta, scaling_factor=scaling_factor, dtype="fp64"
+    )
+    c = runtime.cos(angles)
     s = runtime.sin(angles)
     ac = runtime.mul(a, c)
     bs = runtime.mul(b, s)
