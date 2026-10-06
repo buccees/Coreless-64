@@ -35,7 +35,21 @@ class MachineWorkDistributor:
     ) -> tuple[MachineWorkResult, ...]:
         if not items:
             return ()
-        worker_count = self.max_workers or max(1, len(self.scheduler.resources()))
+        if self.max_workers is not None:
+            if self.max_workers < 1:
+                raise ValueError("max_workers must be positive")
+            worker_count = self.max_workers
+        else:
+            worker_count = max(
+                1,
+                min(
+                    len(items),
+                    sum(
+                        getattr(self.scheduler._resources[resource_id], "capacity", 1)
+                        for resource_id in self.scheduler.resources()
+                    ),
+                ),
+            )
         pending = list(items)
         completed: dict[str, MachineWorkResult] = {}
         active = {}
