@@ -198,16 +198,7 @@ def _attention(
             )
             scores = runtime.masked_fill(scores, mask, float("-inf"))
         # Softmax remains per-row while the tensor boundary owns score storage.
-        weights = Tensor.from_values(
-            scores.shape,
-            (item for head in range(len(q))
-             for row in range(query_positions)
-             for item in runtime.softmax(Tensor.from_values(
-                 (key_positions,),
-                 (scores.at(head, row, col) for col in range(key_positions)),
-                 dtype=scores.dtype)).data),
-            dtype=scores.dtype,
-        )
+        weights = runtime.softmax_last_dim(scores)
         attended = runtime.batch_matmul(weights, v_tensor)
         output = [[0.0] * dim for _ in range(query_positions)]
         for head in range(len(q)):
