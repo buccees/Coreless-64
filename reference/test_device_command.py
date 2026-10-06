@@ -96,3 +96,19 @@ def test_command_rejects_error_flag_without_response_on_decode():
 def test_command_round_trip_helper_preserves_wire_command():
     command = DeviceCommand(OP_EXECUTE, 123, b"payload", flags=0)
     assert round_trip(command) == command
+
+    
+def test_storage_write_payload_round_trip():
+    from device_command import decode_storage_write, encode_storage_write
+    payload = encode_storage_write("config/name", b"coreless")
+    assert decode_storage_write(payload) == ("config/name", b"coreless")
+
+
+def test_storage_write_payload_rejects_empty_or_truncated_key():
+    from device_command import decode_storage_write, encode_storage_write
+    with pytest.raises(ValueError, match="must not be empty"):
+        encode_storage_write("")
+    with pytest.raises(ValueError, match="missing key length"):
+        decode_storage_write(b"")
+    with pytest.raises(ValueError, match="truncated"):
+        decode_storage_write(b"\x04\x00ab")
