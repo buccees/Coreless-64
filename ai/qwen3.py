@@ -34,6 +34,41 @@ class Qwen3KVCache:
             return 0
         return self.keys[0].shape[1]
 
+    def append(
+        self,
+        layer_index: int,
+        key: Tensor,
+        value: Tensor,
+        runtime: TensorRuntime | None = None,
+    ) -> tuple[Tensor, Tensor]:
+        """Update one layer's cache through the Coreless tensor boundary."""
+        if layer_index < 0 or layer_index >= len(self.keys):
+            raise IndexError("Qwen3 KV cache layer index out of range")
+        if key.shape != value.shape or len(key.shape) != 3:
+            raise ValueError("Qwen3 KV cache key/value tensors must have matching rank-3 shapes")
+        if key.dtype != value.dtype:
+            raise ValueError("Qwen3 KV cache key/value dtypes must match")
+        old_key = self.keys[layer_index]
+        old_value = self.values[layer_index]
+        if old_key is None or old_value is None:
+            self.keys[layer_index] = key
+            self.values[layer_index] = value
+        elif runtime is not None:
+            self.keys[layer_index] = runtime.append_sequence(old_key, key)
+            self.values[layer_index] = runtime.append_sequence(old_value, value)
+        else:
+            self.keys[layer_index] = Tensor.from_values(
+                (old_key.shape[0], old_key.shape[1] + key.shape[1], old_key.shape[2]),
+                old_key.data + key.data,
+                dtype=old_key.dtype,
+            )
+            self.values[layer_index] = Tensor.from_values(
+                (old_value.shape[0], old_value.shape[1] + value.shape[1], old_value.shape[2]),
+                old_value.data + value.data,
+                dtype=old_value.dtype,
+            )
+        return self.keys[layer_index], self.values[layer_index]
+
 
 @dataclass(frozen=True)
 class Qwen3Config:
