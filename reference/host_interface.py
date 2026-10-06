@@ -9,6 +9,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, TYPE_CHECKING
 
+from device_protocol import (
+    ARCHITECTURE_CORELESS64,
+    DeviceIdentityFrame,
+    capability_bits,
+)
+
 if TYPE_CHECKING:
     from system import CorelessSystem
     from components import CorelessHub
@@ -94,6 +100,16 @@ class CorelessHostInterface:
     def discover(self) -> CorelessIdentity:
         """Advertise the Coreless identity before higher-level services."""
         return self.identity
+
+    def device_identity_frame(self) -> DeviceIdentityFrame:
+        """Build the transport-neutral identity frame for plug-and-play discovery."""
+        return DeviceIdentityFrame(
+            protocol_version=self.identity.protocol_version,
+            architecture=ARCHITECTURE_CORELESS64,
+            device_type=1,
+            capabilities=capability_bits(set(self.supported)),
+            payload=self.identity.computer_id.encode("utf-8"),
+        )
 
     def verify(self, identity: CorelessIdentity) -> bool:
         """Verify architecture and protocol compatibility."""
