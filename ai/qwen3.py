@@ -171,40 +171,30 @@ def _attention(
     runtime: TensorRuntime | None = None,
 ) -> list[list[float]]:
     """Execute attention score/value products through the Coreless tensor boundary."""
-    query_positions = len(q[0])
-    key_positions = len(k[0])
-    dim = len(q[0][0])
-    output = [[0.0] * dim for _ in range(query_positions)]
-    scale = 1.0 / math.sqrt(dim)
-    multiply = runtime.matmul if runtime is not None else matmul
-    for head in range(len(q)):
-    if runtime is not None:
-        q_tensor = Tensor.from_values((len(q), query_positions, dim),
-            (v for head in q for row in head for v in row))
-        k_tensor = Tensor.from_values((len(k), key_positions, dim),
-            (v for head in k for row in head for v in row))
-        v_tensor = Tensor.from_values((len(v), key_positions, dim),
-            (v for head in v for row in head for v in row))
-        scores = runtime.batch_matmul(q_tensor, runtime.transpose_last_two(k_tensor))
-        scores = runtime.mul_scalar(scores, scale)
-        if causal:
-            mask = runtime.causal_mask(
-                scores.shape,
-                query_offset=key_position_offset,
-                dtype=scores.dtype,
-            )
-            scores = runtime.masked_fill(scores, mask, float("-inf"))
-        # Softmax remains per-row while the tensor boundary owns score storage.
-        weights = runtime.softmax_last_dim(scores)
-        attended = runtime.batch_matmul(weights, v_tensor)
-        reduced = runtime.sum_axis(attended, 0)
-        return [
-            [reduced.at(row, dim_index) for dim_index in range(dim)]
-            for row in range(query_positions)
-        ]
-    return output
-
-
+    if runtime is None:
+        raise ValueError("tensor-native attention requires TensorRuntime")
+    q_tensor = Tensor.from_values(
+        (len(q), len(q[0]), len(q[0][0])),
+        (value for head in q for row in head for value in row),
+    )
+    k_tensor = Tensor.from_values(
+        (len(k), len(k[0]), len(k[0][0])),
+        (value for head in k for row in head for value in row),
+    )
+    v_tensor = Tensor.from_values(
+        (len(v), len(v[0]), len(v[0][0])),
+        (value for head in v for row in head for value in row),
+    )
+    reduced = _attention_tensor(
+        q_tensor, k_tensor, v_tensor,
+        causal=causal,
+        key_position_offset=key_position_offset,
+        runtime=runtime,
+    )
+    return [
+        [reduced.at(row, dim_index) for dim_index in range(reduced.shape[1])]
+        for row in range(reduced.shape[0])
+    ]
 
 def _attention_tensor(
     q: Tensor,
@@ -307,30 +297,18 @@ def _rotary_tensor(
     value: Tensor,
     position_offset: int,
     theta: float,
-    scaling_factor: float,
+    scaling_factor: float | None,
     runtime: TensorRuntime | None = None,
 ) -> Tensor:
-    """Apply rotary embeddings without converting the head tensor to Python lists."""
+    """Apply rotary embeddings through one native TensorRuntime operation."""
     if runtime is None:
         return value
-    if len(value.shape) != 3:
-        raise ValueError("rotary tensor input must be rank-3")
-    heads, positions, dim = value.shape
-    if dim % 2:
-        raise ValueError("rotary head dimension must be even")
-    values = []
-    for head in range(heads):
-        for position in range(positions):
-            rotated = _rotary(
-                [value.at(head, position, index) for index in range(dim)],
-                position_offset + position,
-                theta,
-                scaling_factor,
-                runtime,
-            )
-            values.extend(rotated)
-    return Tensor.from_values(value.shape, values, dtype=value.dtype)
-
+    return runtime.rotary_embedding(
+        value,
+        position_offset=position_offset,
+        theta=theta,
+        scaling_factor=scaling_factor,
+    )
 
 def qwen3_attention(
     x: Tensor,
