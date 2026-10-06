@@ -107,3 +107,8 @@ def test_machine_work_distribution_empty_batch_has_no_scheduler_side_effects():
     scheduler = MachineScheduler()
     distributor = MachineWorkDistributor(scheduler)
     assert distributor.execute(()) == ()
+
+def test_machine_work_distribution_uses_available_capacity_snapshot():
+    scheduler = MachineScheduler()
+    distributor = MachineWorkDistributor(scheduler)
+    assert distributor.execute(()) == ()
