@@ -167,14 +167,36 @@ def _heads_to_tensor(heads: list[list[list[float]]]) -> Tensor:
     return Tensor.from_values((positions, len(flat) // positions), flat)
 
 
-def _rms_norm(x: Tensor, weight: Tensor, eps: float) -> Tensor:
+def _rms_norm(
+    x: Tensor,
+    weight: Tensor,
+    eps: float,
+    runtime: TensorRuntime | None = None,
+) -> Tensor:
     hidden = x.shape[1]
     rows = []
     for row in range(x.shape[0]):
-        chunk = x.data[row * hidden:(row + 1) * hidden]
-        scale = (sum(v * v for v in chunk) / hidden + eps) ** -0.5
-        rows.extend(v * scale * weight.data[i] for i, v in enumerate(chunk))
-    return Tensor.from_values(x.shape, rows)
+        chunk = Tensor.from_values(
+            (hidden,),
+            x.data[row * hidden:(row + 1) * hidden],
+            dtype=x.dtype,
+        )
+        scale = (
+            (runtime.dot(chunk, chunk) if runtime is not None else sum(v * v for v in chunk.data))
+            / hidden + eps
+        ) ** -0.5
+        scaled = Tensor.from_values(
+            (hidden,),
+            (v * scale for v in chunk.data),
+            dtype=x.dtype,
+        )
+        weighted = (
+            runtime.mul(scaled, weight)
+            if runtime is not None
+            else Tensor.from_values(x.shape[1:], (v * w for v, w in zip(scaled.data, weight.data)), dtype=x.dtype)
+        )
+        rows.extend(weighted.data)
+    return Tensor.from_values(x.shape, rows, dtype=x.dtype)
 
 
 def _linear(
@@ -191,6 +213,7 @@ def _apply_head_norm(
     heads: list[list[list[float]]],
     weight: Tensor,
     eps: float,
+    runtime: TensorRuntime | None = None,
 ) -> list[list[list[float]]]:
     return [
         [
@@ -199,6 +222,7 @@ def _apply_head_norm(
                     Tensor.from_values((1, len(values)), values),
                     weight,
                     eps,
+                    runtime,
                 ).data
             )
             for values in head
@@ -222,8 +246,8 @@ def qwen3_attention(
     qh = _reshape_heads(q, cfg.num_attention_heads, cfg.resolved_head_dim)
     kh = _reshape_heads(k, cfg.num_key_value_heads, cfg.resolved_head_dim)
     vh = _reshape_heads(v, cfg.num_key_value_heads, cfg.resolved_head_dim)
-    qh = _apply_head_norm(qh, weights.get(f"{prefix}.self_attn.q_norm.weight"), cfg.rms_norm_eps)
-    kh = _apply_head_norm(kh, weights.get(f"{prefix}.self_attn.k_norm.weight"), cfg.rms_norm_eps)
+    qh = _apply_head_norm(qh, weights.get(f"{prefix}.self_attn.q_norm.weight"), cfg.rms_norm_eps, runtime)
+    kh = _apply_head_norm(kh, weights.get(f"{prefix}.self_attn.k_norm.weight"), cfg.rms_norm_eps, runtime)
     qh = [
         [_rotary(h, position_offset + p, cfg.rope_theta, cfg.rope_scaling_factor)
          for p, h in enumerate(head)]
@@ -328,6 +352,7 @@ class Qwen3Runtime:
                 hidden,
                 self.weights.get(f"{prefix}.input_layernorm.weight"),
                 self.config.rms_norm_eps,
+                self.tensor_runtime,
             )
             attention = qwen3_attention(
                 normed,
@@ -347,6 +372,7 @@ class Qwen3Runtime:
                 hidden,
                 self.weights.get(f"{prefix}.post_attention_layernorm.weight"),
                 self.config.rms_norm_eps,
+                self.tensor_runtime,
             )
             mlp = qwen3_mlp(
                 normed,
@@ -363,6 +389,7 @@ class Qwen3Runtime:
             hidden,
             self.weights.get("model.norm.weight"),
             self.config.rms_norm_eps,
+            self.tensor_runtime,
         )
         lm_head = (
             self.weights.get("lm_head.weight")
