@@ -73,3 +73,21 @@ def test_host_transport_command_path_reuses_existing_attachment():
     reply = adapter.send_command(endpoint, interface, DeviceCommand(OP_CAPABILITIES, 18))
     assert reply.request_id == 18
     assert reply.payload == b"network"
+
+
+def test_host_transport_disconnect_then_command_reattaches():
+    endpoint = HostEndpoint(
+        "coreless-lifecycle",
+        CorelessIdentity("coreless-lifecycle"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-lifecycle"))
+    adapter.connect(endpoint, interface)
+    adapter.disconnect(interface)
+    assert not interface.attached
+    reply = adapter.send_command(endpoint, interface, DeviceCommand(OP_CAPABILITIES, 19))
+    assert interface.attached
+    assert reply.request_id == 19
+    assert reply.payload == b"display"
