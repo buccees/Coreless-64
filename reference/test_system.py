@@ -101,3 +101,29 @@ def test_complete_system_can_persist_ai_runtime_without_network(tmp_path):
     system.ai.save()
     assert system.machine.storage.get("ai/registry")
     assert system.machine.storage.get("ai/session/default")
+
+
+def test_complete_system_registers_persistent_ai_as_machine_resources(tmp_path):
+    system = CorelessSystem(
+        memory_size=128 * 1024,
+        storage_path=tmp_path / "coreless-ai-resources.json",
+    )
+    resources = system.status()["ai"]["machine_resources"]
+    assert resources == (
+        "ai:codestral",
+        "ai:deepseek",
+        "ai:gemma",
+        "ai:gpt-oss",
+        "ai:qwen3",
+    )
+    assert system.machine.scheduler.load("ai:qwen3") == 0
+
+
+def test_ai_work_submission_contract_is_machine_owned(tmp_path):
+    system = CorelessSystem(
+        memory_size=128 * 1024,
+        storage_path=tmp_path / "coreless-ai-resources.json",
+    )
+    request = system.ai.request("inspect")
+    assert request.authority.value == "recommend"
+    assert system.machine.scheduler.resources()[-1] == "ai:qwen3"
