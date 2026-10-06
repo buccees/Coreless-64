@@ -183,9 +183,11 @@ def test_host_transport_session_rejects_rebound_interface():
     session = adapter.open_session(endpoint_a, interface)
 
     adapter.disconnect(interface)
-    adapter.connect(endpoint_b, interface)
 
-    with pytest.raises(RuntimeError, match="identity changed"):
+    with pytest.raises(ValueError, match="identity verification failed"):
+        adapter.connect(endpoint_b, interface)
+
+    with pytest.raises(RuntimeError, match="host transport session is detached"):
         adapter.send_session_command(
             session, DeviceCommand(OP_CAPABILITIES, 33)
         )
