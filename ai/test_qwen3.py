@@ -571,6 +571,17 @@ def test_qwen3_attention_uses_native_attention_boundary():
     assert runtime.attention_calls == 1
 
 
+def test_qwen3_kv_cache_layer_accessor_owns_state_boundary():
+    cache = Qwen3KVCache.create(1)
+    key = Tensor.from_values((1, 1, 2), [1.0, 2.0])
+    value = Tensor.from_values((1, 1, 2), [3.0, 4.0])
+    cache.append(0, key, value)
+    cached_key, cached_value = cache.layer(0)
+    assert cache.layer_count == 1
+    assert cached_key is key
+    assert cached_value is value
+
+
 def test_qwen3_kv_cache_append_owns_runtime_boundary():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
