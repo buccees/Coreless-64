@@ -3,7 +3,7 @@ sys.path.insert(0, ".")
 import pytest
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
 from host_transport import HostEndpoint, MemoryHostTransportAdapter
-from device_command import OP_ATTACH, OP_CAPABILITIES, DeviceCommand, is_response
+from device_command import OP_CAPABILITIES, OP_STATUS, DeviceCommand, is_response
 
 
 def test_host_transport_enumerates_endpoints_deterministically():
@@ -155,7 +155,6 @@ def test_host_transport_session_rejects_non_response_frame(monkeypatch):
     adapter = MemoryHostTransportAdapter([endpoint])
     interface = CorelessHostInterface(CorelessIdentity("coreless-session-response"))
     session = adapter.open_session(endpoint, interface)
-
     monkeypatch.setattr(
         adapter,
         "exchange_session",
@@ -175,13 +174,10 @@ def test_host_transport_session_rejects_correlation_mismatch(monkeypatch):
     adapter = MemoryHostTransportAdapter([endpoint])
     interface = CorelessHostInterface(CorelessIdentity("coreless-session-correlation"))
     session = adapter.open_session(endpoint, interface)
-
     monkeypatch.setattr(
         adapter,
         "exchange_session",
-        lambda _session, _frame: DeviceCommand(
-            OP_CAPABILITIES, 999, b"bad", flags=1
-        ).encode(),
+        lambda _session, _frame: DeviceCommand(OP_CAPABILITIES, 999, b"bad", flags=1).encode(),
     )
     with pytest.raises(ValueError, match="request id mismatch"):
         adapter.send_session_command(session, DeviceCommand(OP_CAPABILITIES, 42))
@@ -196,7 +192,6 @@ def test_host_transport_direct_command_rejects_non_response(monkeypatch):
     )
     adapter = MemoryHostTransportAdapter([endpoint])
     interface = CorelessHostInterface(CorelessIdentity("coreless-direct-response"))
-
     monkeypatch.setattr(
         adapter,
         "exchange",
@@ -215,13 +210,10 @@ def test_host_transport_direct_command_rejects_opcode_mismatch(monkeypatch):
     )
     adapter = MemoryHostTransportAdapter([endpoint])
     interface = CorelessHostInterface(CorelessIdentity("coreless-direct-opcode"))
-
     monkeypatch.setattr(
         adapter,
         "exchange",
-        lambda _endpoint, _interface, _frame: DeviceCommand(
-            OP_ATTACH, 7, flags=1
-        ).encode(),
+        lambda _endpoint, _interface, _frame: DeviceCommand(OP_STATUS, 7, flags=1).encode(),
     )
     with pytest.raises(ValueError, match="opcode mismatch"):
         adapter.send_command(endpoint, interface, DeviceCommand(OP_CAPABILITIES, 7))
