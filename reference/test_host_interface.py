@@ -336,7 +336,7 @@ def test_host_interface_dispatches_coreless_owned_storage_commands():
     )
     interface.attach(
         interface.discover(),
-        HostCapabilities(startup=True),
+        HostCapabilities(startup=True, storage=True),
     )
     storage = {}
     interface.bind_device_storage(storage)
