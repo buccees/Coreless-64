@@ -34,7 +34,7 @@ The initial software boundary is implemented in `reference/components.py` and sp
 The repository is at the current implementation checkpoint; CI status is tracked by GitHub Actions rather than frozen in this document.
 
 Latest confirmed integration commit:
-`37236d2f1f8c4294339ca02bf28b1d4fab18000f`
+`e3ee0676e6045963e1004940326730ed4af7a067`
 
 The current implementation includes:
 - Coreless-64 ISA and variable-length instruction framing
@@ -48,8 +48,10 @@ The current implementation includes:
 - persistent Coreless TensorRuntime
 - native vector add/multiply and deterministic vector dot
 - supported-shape native integer matrix execution
+- TensorRuntime scalar broadcast and transpose primitives
+- Coreless-native RMSNorm, reciprocal/rsqrt, rotary trig, masking, scalar scaling, and deterministic argmax boundaries
 - Transformer execution routed through TensorRuntime
-- native Qwen3 runtime foundations, tokenizer, KV cache, artifact validation and generation path
+- Qwen3 runtime with GQA, KV cache, rotary attention, RMSNorm, SwiGLU, generation, and progressively deeper TensorRuntime execution
 - autonomous Coreless component identity, specialization, hub discovery, connect/disconnect, composition metadata, fault isolation, capability-routed workload dispatch, and native CPU/VM execution
 
 **Important:** green CI is not proof of live trained-model inference. Official trained Qwen3-0.6B end-to-end execution remains unvalidated.
@@ -66,7 +68,7 @@ The normative target is documented in `specification/host_interface.md`. The ref
 
 1. **Autonomous component system:** complete unified Hub lifecycle and native CPU/VM execution across standalone and composed components.
 2. **Plug-and-play host interface:** extend the reference transport adapter toward concrete display/input/network transports and cross-platform enumeration.
-3. **Native Coreless execution boundary:** continue stabilizing public vector/matrix execution and Transformer routing.
+3. **Deep Qwen3/Coreless tensor boundary:** move remaining KV-cache, head reshape/repeat, masking, and attention data movement into TensorRuntime without weakening the architectural boundary.
 4. Validate a real official trained Qwen3-0.6B artifact with a minimal forward pass and short generation.
 5. Extend native model runtimes and bind validated model parts to live Coreless resources.
 6. Complete final ISA, persistence, capability, AI-control, host-interface, and end-to-end conformance audit.
