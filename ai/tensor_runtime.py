@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import struct
 from dataclasses import dataclass
-from math import fsum
+from math import exp, fsum
 from typing import Iterable
 
 from .tensor import Tensor, add, dot, matmul, mul, relu, softmax, sub
@@ -101,6 +101,20 @@ class TensorRuntime:
 
     def relu(self, value: Tensor) -> Tensor:
         return relu(value)
+
+    def exp(self, value: Tensor) -> Tensor:
+        return Tensor.from_values(
+            value.shape,
+            (exp(v) for v in value.data),
+            dtype=value.dtype,
+        )
+
+    def silu(self, value: Tensor) -> Tensor:
+        return Tensor.from_values(
+            value.shape,
+            (v / (1.0 + exp(-v)) for v in value.data),
+            dtype=value.dtype,
+        )
 
     def softmax(self, value: Tensor) -> Tensor:
         return softmax(value)
