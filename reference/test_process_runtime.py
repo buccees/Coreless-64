@@ -121,3 +121,17 @@ def test_os_exec_transfers_to_executable_entry():
     assert p.pc == p.address_space.code_base + 4
     assert machine.cpu.pc == p.pc
     assert os._exec_transfer is True
+
+
+def test_process_load_image_materializes_replaced_executable():
+    machine = CorelessMachine(256 * 1024, 1)
+    pm = ProcessManager(machine)
+    program = b"".join([
+        (0x30000001).to_bytes(4, "little"),
+        (0x30000001).to_bytes(4, "little"),
+    ])
+    image = ProgramLoader.make_executable(program, entry=4)
+    p = pm.create("image", image)
+    pm.load_image(p)
+    start = p.address_space.code_phys_base
+    assert bytes(machine.cpu.memory[start:start + len(program)]) == program
