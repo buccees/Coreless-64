@@ -60,6 +60,23 @@ def test_host_transport_routes_commands_to_attached_coreless():
     assert reply.payload == b"display"
 
 
+def test_host_transport_raw_exchange_returns_wire_response():
+    endpoint = HostEndpoint(
+        "coreless-wire",
+        CorelessIdentity("coreless-wire"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-wire"))
+    request = DeviceCommand(OP_CAPABILITIES, 21)
+    reply_frame = adapter.exchange(endpoint, interface, request.encode())
+    reply = DeviceCommand.decode(reply_frame)
+    assert is_response(reply)
+    assert reply.request_id == 21
+    assert reply.payload == b"display"
+
+
 def test_host_transport_command_path_reuses_existing_attachment():
     endpoint = HostEndpoint(
         "coreless-command-2",
