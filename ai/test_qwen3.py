@@ -144,3 +144,31 @@ def test_qwen3_attention_routes_score_and_value_products_through_tensor_runtime(
 
     # q/k/v projections + attention score product + value product + output projection.
     assert runtime.matmul_calls == 5
+
+
+def test_qwen3_rms_norm_uses_tensor_runtime_boundary():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.dot_calls = 0
+            self.mul_calls = 0
+
+        def dot(self, left, right):
+            self.dot_calls += 1
+            return super().dot(left, right)
+
+        def mul(self, left, right):
+            self.mul_calls += 1
+            return super().mul(left, right)
+
+    from qwen3 import _rms_norm
+
+    runtime = RecordingRuntime()
+    x = Tensor.from_values((1, 2), (3.0, 4.0))
+    weight = Tensor.from_values((2,), (1.0, 2.0))
+
+    result = _rms_norm(x, weight, 1e-6, runtime)
+
+    assert result.shape == (1, 2)
+    assert runtime.dot_calls == 1
+    assert runtime.mul_calls == 1
