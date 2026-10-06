@@ -135,3 +135,13 @@ def test_process_load_image_materializes_replaced_executable():
     pm.load_image(p)
     start = p.address_space.code_phys_base
     assert bytes(machine.cpu.memory[start:start + len(program)]) == program
+
+
+def test_process_load_image_clears_stale_tail():
+    machine = CorelessMachine(256 * 1024, 1)
+    pm = ProcessManager(machine)
+    p = pm.create("image", b"\x01" * 8)
+    start = p.address_space.code_phys_base
+    machine.cpu.memory[start:start + 16] = b"\xaa" * 16
+    pm.load_image(p)
+    assert bytes(machine.cpu.memory[start:start + 8]) == b"\x01" * 8
