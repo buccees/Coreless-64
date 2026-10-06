@@ -98,21 +98,21 @@ class MachineScheduler:
             except Exception:
                 if not allow_fallback:
                     raise
-                alternatives = sorted(
-                    (r for r in self._resources.values()
-                     if r.resource_id != primary_id
-                     and r.kind != resource.kind
-                     and self._supports(r, work)
-                     and self._load[r.resource_id] < r.capacity),
-                    key=lambda r: (
-                        self._load[r.resource_id] / r.capacity,
-                        self._load[r.resource_id],
-                        r.resource_id,
-                    ),
-                )
-                if not alternatives:
-                    raise
                 with self._lock:
+                    alternatives = sorted(
+                        (r for r in self._resources.values()
+                         if r.resource_id != primary_id
+                         and r.kind != resource.kind
+                         and self._supports(r, work)
+                         and self._load[r.resource_id] < r.capacity),
+                        key=lambda r: (
+                            self._load[r.resource_id] / r.capacity,
+                            self._load[r.resource_id],
+                            r.resource_id,
+                        ),
+                    )
+                    if not alternatives:
+                        raise
                     fallback_resource = alternatives[0]
                     self._load[fallback_resource.resource_id] += 1
                 try:
