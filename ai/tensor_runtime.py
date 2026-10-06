@@ -80,6 +80,31 @@ class TensorRuntime:
             return Tensor.from_values(left.shape, values, dtype=left.dtype)
         return sub(left, right)
 
+    def reshape_heads(self, value: Tensor, heads: int, head_dim: int) -> Tensor:
+        """Pack [positions, heads*head_dim] into [heads, positions, head_dim]."""
+        if len(value.shape) != 2 or value.shape[1] != heads * head_dim:
+            raise ValueError("reshape_heads requires a [positions, heads*head_dim] tensor")
+        positions = value.shape[0]
+        return Tensor.from_values(
+            (heads, positions, head_dim),
+            (value.at(pos, head * head_dim + dim)
+             for head in range(heads) for pos in range(positions) for dim in range(head_dim)),
+            dtype=value.dtype,
+        )
+
+    def repeat_heads(self, value: Tensor, repeats: int) -> Tensor:
+        """Repeat the head axis for grouped-query attention without host lists."""
+        if len(value.shape) != 3 or repeats <= 0:
+            raise ValueError("repeat_heads requires a rank-3 tensor and positive repeats")
+        heads, positions, head_dim = value.shape
+        return Tensor.from_values(
+            (heads * repeats, positions, head_dim),
+            (value.at(head, pos, dim)
+             for head in range(heads) for _ in range(repeats)
+             for pos in range(positions) for dim in range(head_dim)),
+            dtype=value.dtype,
+        )
+
     def transpose(self, value: Tensor) -> Tensor:
         """Transpose a rank-2 tensor at the Coreless tensor boundary."""
         if len(value.shape) != 2:
