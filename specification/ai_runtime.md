@@ -45,3 +45,7 @@ Machine resource load inspection may use a scheduler-provided atomic snapshot so
 
 ### Capacity snapshot dispatch
 Batch dispatch derives its worker bound from one scheduler-owned eligible-capacity snapshot. This keeps capability and model-affinity filtering in the scheduler while avoiding duplicate eligibility scans before worker creation.
+
+
+### Unified capacity accounting
+Scheduler capacity queries share the same eligible-capacity snapshot path. Parallel dispatch therefore has one authoritative resource-capacity calculation while preserving the existing public capacity API.
