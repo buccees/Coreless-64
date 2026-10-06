@@ -55,6 +55,10 @@ class DeviceIdentityFrame:
             self.flags,
         ) + self.payload
 
+    def capability_names(self) -> frozenset[str]:
+        """Return decoded capability names advertised by this identity frame."""
+        return capability_names(self.capabilities)
+
     @classmethod
     def decode(cls, frame: bytes) -> "DeviceIdentityFrame":
         if len(frame) < HEADER_SIZE:
