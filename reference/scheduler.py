@@ -119,6 +119,17 @@ class MachineScheduler:
                         )
             return result
 
+    def resource_state_snapshot(self) -> dict[str, tuple[int, int]]:
+        """Return capacity and current load for every resource atomically."""
+        with self._lock:
+            return {
+                resource_id: (
+                    resource.capacity,
+                    self._load[resource_id],
+                )
+                for resource_id, resource in self._resources.items()
+            }
+
     def allocate(self, work: ComputeWork, *, preference="balanced",
                  allow_fallback=True) -> tuple[MachineComputeResource, bool]:
         if preference not in {"balanced", "conventional", "ai", "ai_only", "conventional_only"}:
