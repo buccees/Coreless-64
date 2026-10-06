@@ -34,3 +34,22 @@ def test_result_is_recorded_as_data_not_authorization():
     result = AIResult("r1", "qwen3", "execute it")
     session.record_result(result)
     assert session.events()[-1].payload["text"] == "execute it"
+
+def test_session_round_trips_persistent_state_and_can_continue():
+    from reference.storage import PersistentMachineImage
+    storage = PersistentMachineImage()
+    session = AISession("persistent", authority=AuthorityLevel.ASK)
+    request = session.request(TerminalMessage("m1", "inspect"))
+    session.record_result(AIResult(request.request_id, "qwen3", "done"))
+    session.save(storage)
+    restored = AISession.load(storage, "persistent")
+    assert restored.session_id == "persistent"
+    assert restored.authority is AuthorityLevel.ASK
+    assert len(restored.events()) == 2
+    assert restored.request(TerminalMessage("m2", "continue")).request_id == "persistent:request:3"
+
+def test_session_state_rejects_bad_version_and_authority():
+    with __import__("pytest").raises(ValueError):
+        AISession.from_state({"version": 99})
+    with __import__("pytest").raises(ValueError):
+        AISession.from_state({"version": 1, "session_id": "s", "authority": "bad", "counter": 0, "active": True, "events": []})

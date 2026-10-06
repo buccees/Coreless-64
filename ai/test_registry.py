@@ -55,3 +55,23 @@ def test_registry_rejects_inference_from_disabled_core():
         pass
     else:
         raise AssertionError("disabled core was invoked")
+
+def test_registry_round_trips_persistent_descriptor_state():
+    from reference.storage import PersistentMachineImage
+    storage = PersistentMachineImage()
+    registry = AICoreRegistry()
+    registry.register(FakeCore("qwen3"), enabled=True)
+    registry.register(FakeCore("deepseek"), enabled=False)
+    registry.save(storage)
+    restored = AICoreRegistry()
+    restored.register(FakeCore("qwen3"), enabled=False)
+    restored.register(FakeCore("deepseek"), enabled=True)
+    restored.load(storage)
+    assert restored.enabled_cores() == ("qwen3",)
+    assert restored.descriptor("deepseek").enabled is False
+
+def test_registry_restore_rejects_unregistered_core():
+    registry = AICoreRegistry()
+    registry.register(FakeCore("qwen3"))
+    with __import__("pytest").raises(KeyError):
+        registry.restore_state({"version": 1, "cores": [{"model_id": "missing", "provider": "local", "local": True, "enabled": True}]})

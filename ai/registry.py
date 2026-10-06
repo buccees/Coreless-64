@@ -7,7 +7,8 @@ without granting models privileged Coreless authority.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
+import json
+from typing import Iterable, Mapping
 
 from .interfaces import AICore, AIRequest, AIResult
 
@@ -21,6 +22,7 @@ class AICoreDescriptor:
 
 
 class AICoreRegistry:
+    STATE_VERSION = 1
     """Register, enable, disable, and invoke AI cores through one contract."""
 
     def __init__(self) -> None:
@@ -73,6 +75,54 @@ class AICoreRegistry:
             for model_id, descriptor in self._descriptors.items()
             if descriptor.enabled
         )
+
+    def to_state(self) -> dict[str, object]:
+        return {"version": self.STATE_VERSION, "cores": [
+            {"model_id": d.model_id, "provider": d.provider, "local": d.local, "enabled": d.enabled}
+            for d in self.descriptors()
+        ]}
+
+    def restore_state(self, state: Mapping[str, object]) -> None:
+        if not isinstance(state, Mapping) or state.get("version") != self.STATE_VERSION:
+            raise ValueError("unsupported AI registry state version")
+        entries = state.get("cores", [])
+        if not isinstance(entries, list):
+            raise ValueError("AI registry state has invalid core list")
+        seen = set()
+        for entry in entries:
+            if not isinstance(entry, Mapping):
+                raise ValueError("AI registry state contains an invalid core")
+            model_id = entry.get("model_id")
+            if not isinstance(model_id, str) or model_id in seen:
+                raise ValueError("AI registry state contains duplicate or invalid model ID")
+            seen.add(model_id)
+            d = self._require_descriptor(model_id)
+            provider, local, enabled = entry.get("provider", d.provider), entry.get("local", d.local), entry.get("enabled", d.enabled)
+            if not isinstance(provider, str) or not isinstance(local, bool) or not isinstance(enabled, bool):
+                raise ValueError("AI registry state contains invalid descriptor fields")
+            self._descriptors[model_id] = AICoreDescriptor(model_id, provider, local, enabled)
+
+    def save(self, storage: object, key: str = "ai/registry") -> None:
+        writer = getattr(storage, "put", None) or getattr(storage, "write", None)
+        if not callable(writer):
+            raise TypeError("storage does not provide a write operation")
+        writer(key, json.dumps(self.to_state(), sort_keys=True, separators=(",", ":")).encode("utf-8"))
+
+    def load(self, storage: object, key: str = "ai/registry") -> None:
+        reader = getattr(storage, "get", None) or getattr(storage, "read", None)
+        if not callable(reader):
+            raise TypeError("storage does not provide a read operation")
+        try:
+            raw = reader(key)
+        except KeyError:
+            raise KeyError("AI registry state not found") from None
+        if isinstance(raw, str):
+            raw = raw.encode("utf-8")
+        try:
+            state = json.loads(bytes(raw).decode("utf-8"))
+        except (TypeError, ValueError, UnicodeDecodeError) as exc:
+            raise ValueError("AI registry state is not valid JSON") from exc
+        self.restore_state(state)
 
     def infer(self, request: AIRequest, model_ids: Iterable[str] | None = None) -> tuple[AIResult, ...]:
         selected = tuple(model_ids) if model_ids is not None else self.enabled_cores()
