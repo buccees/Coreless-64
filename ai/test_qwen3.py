@@ -230,6 +230,27 @@ def test_qwen3_residual_additions_use_tensor_runtime_boundary():
     assert runtime.add_calls == 1
 
 
+def test_qwen3_rms_norm_routes_scaling_through_tensor_runtime():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.mul_calls = 0
+
+        def mul(self, left, right):
+            self.mul_calls += 1
+            return super().mul(left, right)
+
+    from qwen3 import _rms_norm
+
+    runtime = RecordingRuntime()
+    x = Tensor.from_values((1, 2), (3.0, 4.0))
+    weight = Tensor.from_values((2,), (1.0, 2.0))
+
+    _rms_norm(x, weight, 1e-6, runtime)
+
+    assert runtime.mul_calls == 2
+
+
 def test_qwen3_rms_norm_uses_tensor_runtime_boundary():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
