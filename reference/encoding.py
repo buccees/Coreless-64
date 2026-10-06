@@ -216,6 +216,25 @@ def encode_base_i(name, rd, rs1, imm):
 
 from dataclasses import dataclass
 
+EXTENDED_CLASSES = {0: 'SCALAR', 1: 'MEMORY', 2: 'FP', 3: 'VECTOR', 4: 'MATRIX', 5: 'SYSTEM', 6: 'VM', 7: 'CRYPTO', 8: 'DEVICE'}
+EXTENDED_FORMATS = {0: 'IMMEDIATE_CONTROL', 1: 'REGISTER_OPERAND', 2: 'VECTOR_MATRIX_DESCRIPTOR', 3: 'CLASS_DEFINED'}
+
+def validate_extended_header(cls, op=0, rd=0, rs1=0, rs2=0, fmt=0):
+    if cls not in EXTENDED_CLASSES:
+        raise IllegalEncoding('reserved extended class')
+    if not 0 <= op <= 0x3F:
+        raise IllegalEncoding('extended operation out of range')
+    for name, value in (('rd', rd), ('rs1', rs1), ('rs2', rs2)):
+        if not 0 <= value <= 0x1F:
+            raise IllegalEncoding(name + ' register out of range')
+    if fmt not in EXTENDED_FORMATS:
+        raise IllegalEncoding('extended format out of range')
+
+def extended_payload_size(length):
+    if length not in (8, 16):
+        raise IllegalEncoding('invalid extended instruction length')
+    return length - 4
+
 @dataclass(frozen=True)
 class ExtendedInstruction:
     """Canonical structural record for one extended instruction."""
@@ -228,6 +247,11 @@ class ExtendedInstruction:
     fmt: int
     payload: bytes
 
+    def __post_init__(self):
+        validate_extended_header(self.cls, self.op, self.rd, self.rs1, self.rs2, self.fmt)
+        if len(self.payload) != extended_payload_size(self.length):
+            raise IllegalEncoding('extended payload length does not match instruction length')
+
     def encode(self):
         header = encode_extended_header(
             self.cls, self.op, self.rd, self.rs1, self.rs2, self.fmt,
@@ -239,9 +263,7 @@ class ExtendedInstruction:
 def encode_extended_instruction(cls, op=0, rd=0, rs1=0, rs2=0, fmt=0,
                                 payload=b"", *, length=16):
     """Encode a complete 64-bit or 128-bit architectural instruction."""
-    expected = length - 4 if length in (8, 16) else None
-    if expected is None:
-        raise IllegalEncoding("invalid extended instruction length")
+    expected = extended_payload_size(length)
     payload = bytes(payload)
     if len(payload) != expected:
         raise IllegalEncoding("extended payload length does not match instruction length")
