@@ -340,10 +340,20 @@ def qwen3_attention(
         else:
             old_k = cache.keys[layer_index]
             old_v = cache.values[layer_index]
-            if runtime is None:
-                raise ValueError("cached Qwen3 attention requires TensorRuntime")
-            cache.keys[layer_index] = runtime.append_sequence(old_k, kh)
-            cache.values[layer_index] = runtime.append_sequence(old_v, vh)
+            if runtime is not None:
+                cache.keys[layer_index] = runtime.append_sequence(old_k, kh)
+                cache.values[layer_index] = runtime.append_sequence(old_v, vh)
+            else:
+                cache.keys[layer_index] = Tensor.from_values(
+                    (old_k.shape[0], old_k.shape[1] + kh.shape[1], old_k.shape[2]),
+                    old_k.data + kh.data,
+                    dtype=old_k.dtype,
+                )
+                cache.values[layer_index] = Tensor.from_values(
+                    (old_v.shape[0], old_v.shape[1] + vh.shape[1], old_v.shape[2]),
+                    old_v.data + vh.data,
+                    dtype=old_v.dtype,
+                )
         kh = cache.keys[layer_index]
         vh = cache.values[layer_index]
 
