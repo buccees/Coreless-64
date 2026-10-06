@@ -143,3 +143,45 @@ def test_host_transport_session_reuses_negotiated_attachment():
     assert reply.payload == b"display|network"
     adapter.close_session(session)
     assert not session.attached
+
+
+def test_host_transport_session_rejects_non_response_frame(monkeypatch):
+    endpoint = HostEndpoint(
+        "coreless-session-response",
+        CorelessIdentity("coreless-session-response"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-session-response"))
+    session = adapter.open_session(endpoint, interface)
+
+    monkeypatch.setattr(
+        adapter,
+        "exchange_session",
+        lambda _session, _frame: DeviceCommand(OP_CAPABILITIES, 41).encode(),
+    )
+    with pytest.raises(ValueError, match="not a response frame"):
+        adapter.send_session_command(session, DeviceCommand(OP_CAPABILITIES, 41))
+
+
+def test_host_transport_session_rejects_correlation_mismatch(monkeypatch):
+    endpoint = HostEndpoint(
+        "coreless-session-correlation",
+        CorelessIdentity("coreless-session-correlation"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-session-correlation"))
+    session = adapter.open_session(endpoint, interface)
+
+    monkeypatch.setattr(
+        adapter,
+        "exchange_session",
+        lambda _session, _frame: DeviceCommand(
+            OP_CAPABILITIES, 999, b"bad", flags=1
+        ).encode(),
+    )
+    with pytest.raises(ValueError, match="request id mismatch"):
+        adapter.send_session_command(session, DeviceCommand(OP_CAPABILITIES, 42))
