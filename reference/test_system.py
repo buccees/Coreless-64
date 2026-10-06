@@ -53,3 +53,17 @@ def test_complete_system_shell_uses_native_os(tmp_path):
     assert "Coreless-64" in system.command("status")
     system.command("write /message hello")
     assert system.command("cat /message") == "hello"
+
+
+def test_system_boot_accepts_corex64_init_entry(tmp_path):
+    system = CorelessSystem(memory_size=256 * 1024, storage_path=tmp_path / "coreless.json")
+    program = b"".join([
+        (0x30000001).to_bytes(4, "little"),
+        (0x30000001).to_bytes(4, "little"),
+    ])
+    image = system.os.processes.machine.loader.make_executable(program, entry=4)
+    system.machine.filesystem.write("/init", image)
+    system.boot()
+    process = system.os.processes.processes[system.os.init_pid]
+    assert process.program == program
+    assert process.pc == process.address_space.code_base + 4
