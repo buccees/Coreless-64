@@ -107,7 +107,7 @@ class CorelessHostInterface:
         return DeviceIdentityFrame(
             protocol_version=self.identity.protocol_version,
             architecture=ARCHITECTURE_CORELESS64,
-            device_type=1,
+            device_type=DEVICE_TYPE_CORELESS64,
             capabilities=capability_bits(set(self.supported)),
             payload=self.identity.computer_id.encode("utf-8"),
         )
