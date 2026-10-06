@@ -77,3 +77,22 @@ def test_process_create_accepts_corex64_entry_point():
     p = pm.create("entry", image)
     assert p.program == program
     assert p.pc == p.address_space.code_base + 4
+
+
+def test_process_replace_program_preserves_pid_and_uses_executable_entry():
+    machine = CorelessMachine(256 * 1024, 1)
+    pm = ProcessManager(machine)
+    p = pm.create("exec", (0x30000001).to_bytes(4, "little"), parent=9)
+    pid = p.pid
+    image = ProgramLoader.make_executable(
+        b"".join([
+            (0x30000001).to_bytes(4, "little"),
+            (0x30000001).to_bytes(4, "little"),
+        ]),
+        entry=4,
+    )
+    pm.replace_program(p, image)
+    assert p.pid == pid
+    assert p.parent == 9
+    assert p.program == image[ProgramLoader.HEADER_SIZE:]
+    assert p.pc == p.address_space.code_base + 4
