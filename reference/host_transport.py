@@ -47,6 +47,15 @@ class HostTransportSession:
     def attached(self) -> bool:
         return self.interface.attached
 
+    def validate(self) -> None:
+        """Ensure the session still refers to its original live attachment."""
+        if not self.attached:
+            raise RuntimeError("host transport session is detached")
+        if self.interface.identity != self.endpoint.identity:
+            raise RuntimeError("host transport session identity changed")
+        if self.interface.negotiated != self.negotiated:
+            raise RuntimeError("host transport session negotiation changed")
+
 
 class HostTransportAdapter:
     def enumerate(self) -> tuple[HostEndpoint, ...]:
@@ -93,8 +102,7 @@ class HostTransportAdapter:
         frame: bytes,
     ) -> bytes:
         """Exchange a wire frame through an established transport session."""
-        if not session.attached:
-            raise RuntimeError("host transport session is detached")
+        session.validate()
         return self.exchange(session.endpoint, session.interface, frame)
 
     def send_command(
