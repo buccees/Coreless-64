@@ -86,3 +86,12 @@ Qwen3, DeepSeek, gpt-oss, Gemma and Codestral remain local model participants; G
 See `ROADMAP.md`, `TESTING.md`, `TEST_ENVIRONMENT.md`, `HANDOFF.md`, and the `specification/` directory for the current project record.
 
 Do not commit model weights, API keys or credentials.
+
+
+## Plug-and-play transport update — 2026-10-06
+
+The reference host boundary now has a reusable transport-session layer in addition to identity and command framing. Coreless can enumerate a reference endpoint, verify its Coreless-64 identity, negotiate capabilities, bind channels, establish a `HostTransportSession`, exchange correlated command frames, and close the session without destroying Coreless machine state.
+
+This is transport-neutral software infrastructure. It is intended to make the eventual USB, PCIe, network, storage-attached, and other adapters interoperable without moving CPU, RAM, OS, VM, AI, or architectural authority into the host.
+
+The physical plug-and-play milestone remains open: cross-platform physical enumeration and concrete display/input/network transports are still to be implemented.
