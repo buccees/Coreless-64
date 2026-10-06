@@ -406,6 +406,11 @@ class CorelessHostInterface:
             raise RuntimeError("no Coreless Hub is bound")
         return self._hub.shutdown()
 
+    def clear_channels(self) -> None:
+        """Remove externally bound channels without detaching the Coreless system."""
+        self._channels.clear()
+        self._input_router = None
+
     def bind_channel(self, capability: str, channel: object) -> None:
         """Bind an externally provided transport to a negotiated capability."""
         if not self._attached:
