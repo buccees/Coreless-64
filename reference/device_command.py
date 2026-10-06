@@ -66,6 +66,81 @@ class DeviceCommand:
             raise ValueError("Coreless command payload length mismatch")
         return cls(opcode, request_id, payload, flags, version)
 
+
+MAX_BATCH_COMMANDS = 256
+_BATCH_HEADER = struct.Struct("<H")
+
+
+@dataclass(frozen=True)
+class CommandBatch:
+    """Ordered collection of device commands carried as one transport unit."""
+
+    commands: tuple[DeviceCommand, ...]
+
+    def __post_init__(self) -> None:
+        if len(self.commands) > MAX_BATCH_COMMANDS:
+            raise ValueError("command batch is too large")
+        if any(not isinstance(command, DeviceCommand) for command in self.commands):
+            raise TypeError("command batch contains a non-command item")
+
+    def encode(self) -> bytes:
+        encoded = [command.encode() for command in self.commands]
+        parts = [_BATCH_HEADER.pack(len(encoded))]
+        for frame in encoded:
+            if len(frame) > 0xFFFFFFFF:
+                raise ValueError("command frame is too large")
+            parts.append(struct.pack("<I", len(frame)))
+            parts.append(frame)
+        return b"".join(parts)
+
+    @classmethod
+    def decode(cls, payload: bytes) -> "CommandBatch":
+        if len(payload) < _BATCH_HEADER.size:
+            raise ValueError("Coreless command batch is truncated")
+        count = _BATCH_HEADER.unpack(payload[:_BATCH_HEADER.size])[0]
+        if count > MAX_BATCH_COMMANDS:
+            raise ValueError("Coreless command batch is too large")
+        offset = _BATCH_HEADER.size
+        commands = []
+        for _ in range(count):
+            if len(payload) - offset < 4:
+                raise ValueError("Coreless command batch frame length is truncated")
+            length = struct.unpack("<I", payload[offset:offset + 4])[0]
+            offset += 4
+            end = offset + length
+            if end > len(payload):
+                raise ValueError("Coreless command batch frame is truncated")
+            commands.append(DeviceCommand.decode(payload[offset:end]))
+            offset = end
+        if offset != len(payload):
+            raise ValueError("Coreless command batch has trailing bytes")
+        return cls(tuple(commands))
+
+    def round_trip(self) -> "CommandBatch":
+        """Encode and decode the batch at the transport boundary."""
+        return type(self).decode(self.encode())
+
+
+def batch_responses(
+    batch: CommandBatch,
+    payloads: tuple[bytes, ...] = (),
+    *,
+    errors: tuple[bool, ...] = (),
+) -> CommandBatch:
+    """Build correlated responses for every command in an ordered batch."""
+    if payloads and len(payloads) != len(batch.commands):
+        raise ValueError("batch payload count does not match command count")
+    if errors and len(errors) != len(batch.commands):
+        raise ValueError("batch error count does not match command count")
+    values = payloads or (b"",) * len(batch.commands)
+    flags = errors or (False,) * len(batch.commands)
+    return CommandBatch(
+        tuple(
+            response(command, payload, error=error)
+            for command, payload, error in zip(batch.commands, values, flags)
+        )
+    )
+
 def response(request: DeviceCommand, payload: bytes = b"", *, error: bool = False) -> DeviceCommand:
     """Build a response retaining the request correlation identifier."""
     flags = FLAG_RESPONSE | (FLAG_ERROR if error else 0)
