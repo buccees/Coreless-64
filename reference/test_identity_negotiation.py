@@ -48,3 +48,39 @@ def test_identity_attach_rejects_protocol_version_mismatch():
 
     with pytest.raises(ValueError, match="transport identity verification failed"):
         interface.attach_identity_frame(frame, HostCapabilities(display=True))
+
+
+def test_identity_attach_can_refresh_negotiation_without_shrinking_device_capabilities():
+    interface = CorelessHostInterface(
+        CorelessIdentity("coreless-refresh"),
+        supported={"display", "input", "network", "startup"},
+    )
+    original_supported = interface.supported
+
+    display_frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"display"}),
+        payload=b"coreless-refresh",
+    ).encode()
+    input_frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"input"}),
+        payload=b"coreless-refresh",
+    ).encode()
+
+    assert interface.attach_identity_frame(
+        display_frame,
+        HostCapabilities(display=True, input=True),
+    ) == frozenset({"display"})
+    assert interface.supported == original_supported
+
+    assert interface.attach_identity_frame(
+        input_frame,
+        HostCapabilities(display=True, input=True),
+    ) == frozenset({"input"})
+    assert interface.negotiated == frozenset({"input"})
+    assert interface.supported == original_supported
