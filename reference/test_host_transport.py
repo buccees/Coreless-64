@@ -185,3 +185,43 @@ def test_host_transport_session_rejects_correlation_mismatch(monkeypatch):
     )
     with pytest.raises(ValueError, match="request id mismatch"):
         adapter.send_session_command(session, DeviceCommand(OP_CAPABILITIES, 42))
+
+
+def test_host_transport_direct_command_rejects_non_response(monkeypatch):
+    endpoint = HostEndpoint(
+        "coreless-direct-response",
+        CorelessIdentity("coreless-direct-response"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-direct-response"))
+
+    monkeypatch.setattr(
+        adapter,
+        "exchange",
+        lambda _endpoint, _interface, _frame: DeviceCommand(OP_CAPABILITIES, 7).encode(),
+    )
+    with pytest.raises(ValueError, match="not a response frame"):
+        adapter.send_command(endpoint, interface, DeviceCommand(OP_CAPABILITIES, 7))
+
+
+def test_host_transport_direct_command_rejects_opcode_mismatch(monkeypatch):
+    endpoint = HostEndpoint(
+        "coreless-direct-opcode",
+        CorelessIdentity("coreless-direct-opcode"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-direct-opcode"))
+
+    monkeypatch.setattr(
+        adapter,
+        "exchange",
+        lambda _endpoint, _interface, _frame: DeviceCommand(
+            OP_ATTACH, 7, flags=1
+        ).encode(),
+    )
+    with pytest.raises(ValueError, match="opcode mismatch"):
+        adapter.send_command(endpoint, interface, DeviceCommand(OP_CAPABILITIES, 7))
