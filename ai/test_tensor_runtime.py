@@ -121,3 +121,13 @@ def test_tensor_runtime_broadcasts_rms_scale_through_coreless_vector():
 
     assert result.data == (2.0, 4.0, 6.0, 8.0)
     assert cpu.vector_boundary_calls == 1
+
+
+def test_tensor_runtime_transposes_rank2_tensor_at_coreless_boundary():
+    runtime = TensorRuntime()
+    value = runtime.create((2, 3), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], dtype="fp32")
+
+    result = runtime.transpose(value)
+
+    assert result.shape == (3, 2)
+    assert result.data == (1.0, 4.0, 2.0, 5.0, 3.0, 6.0)
