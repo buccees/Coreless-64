@@ -159,3 +159,31 @@ def test_process_replace_program_reuses_sufficient_address_space():
     assert p.address_space.code_phys_base == code
     assert pm.next_phys == next_phys
     assert p.program == b"\x02" * 4
+
+
+def test_process_replace_program_reclaims_old_address_space():
+    machine = CorelessMachine(256 * 1024, 1)
+    pm = ProcessManager(machine)
+    p = pm.create("exec", b"\x01" * 8)
+    old = p.address_space
+    old_next = pm.next_phys
+    pm.replace_program(p, b"\x02" * (32 * 1024))
+    assert p.address_space.page_table_root != old.page_table_root
+    assert pm.next_phys > old_next
+    assert (old.page_table_root, 4096) in pm.free_phys
+    assert (old.code_phys_base, old.stack_phys_base - old.code_phys_base) in pm.free_phys
+    assert (old.stack_phys_base, old.stack_size) in pm.free_phys
+
+
+def test_process_state_persists_reclaimed_physical_ranges():
+    machine = CorelessMachine(256 * 1024, 1)
+    pm = ProcessManager(machine)
+    p = pm.create("exec", b"\x01" * 8)
+    old = p.address_space
+    pm.replace_program(p, b"\x02" * (32 * 1024))
+    state = pm.save_state()
+
+    restored = ProcessManager(machine)
+    restored.restore_state(state)
+    assert restored.free_phys == pm.free_phys
+    assert old.page_table_root in [base for base, _ in restored.free_phys]
