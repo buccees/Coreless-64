@@ -95,7 +95,7 @@ def test_extended_header_fields_are_validated_at_record_boundary():
     with pytest.raises(IllegalEncoding):
         ExtendedInstruction(8, 9, 0, 0, 0, 0, 0, b"\0" * 4)
     with pytest.raises(IllegalEncoding):
-        ExtendedInstruction(8, 0, 0x20, 0, 0, 0, 0, b"\0" * 4)
+        ExtendedInstruction(8, 0, 0, 0x20, 0, 0, 0, b"\0" * 4)
     with pytest.raises(IllegalEncoding):
         ExtendedInstruction(8, 0, 0, 0, 0, 0, 4, b"\0" * 4)
 
