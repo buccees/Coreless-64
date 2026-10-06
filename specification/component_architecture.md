@@ -147,3 +147,10 @@ The host interface handles Coreless identity discovery, verification, capability
 Target lifecycle: **connect → discover → verify → negotiate → attach → boot/resume → operate → detach**.
 
 The host-interface contract is specified in `specification/host_interface.md`.
+
+
+## External transport session integration
+
+The autonomous component/hub architecture is exposed to external equipment through the separate host transport boundary. A composed Hub may therefore be discovered and attached through a transport-neutral identity and command session while component execution remains inside Coreless.
+
+Transport sessions carry negotiated host services and correlated command frames; they do not turn autonomous components into host peripherals or move CPU, VM, AI, memory, or architectural authority into the host.
