@@ -215,24 +215,15 @@ def _rms_norm(
             dtype=x.dtype,
         )
         if runtime is not None:
-            scale = runtime.mean_square_rsqrt(chunk, eps=eps).data[0]
+            weighted = runtime.rms_norm(chunk, weight, eps=eps)
         else:
             squared = sum(v * v for v in chunk.data) / hidden
             scale = (squared + eps) ** -0.5
-        scaled = (
-            runtime.mul_scalar(chunk, scale)
-            if runtime is not None
-            else Tensor.from_values(
+            weighted = Tensor.from_values(
                 (hidden,),
-                (v * scale for v in chunk.data),
+                (v * scale * w for v, w in zip(chunk.data, weight.data)),
                 dtype=x.dtype,
             )
-        )
-        weighted = (
-            runtime.mul(scaled, weight)
-            if runtime is not None
-            else Tensor.from_values(x.shape[1:], (v * w for v, w in zip(scaled.data, weight.data)), dtype=x.dtype)
-        )
         rows.extend(weighted.data)
     return Tensor.from_values(x.shape, rows, dtype=x.dtype)
 
