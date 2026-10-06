@@ -5,6 +5,7 @@ import pytest
 
 from device_protocol import (
     ARCHITECTURE_CORELESS64,
+    DEVICE_TYPE_CORELESS64,
     HEADER_SIZE,
     MAGIC,
     DeviceIdentityFrame,
@@ -92,3 +93,7 @@ def test_coreless_identity_frame_exposes_capability_names():
 def test_coreless_capability_bits_include_host_interface_services():
     bits = capability_bits(frozenset({"startup", "management", "telemetry"}))
     assert capability_names(bits) == frozenset({"startup", "management", "telemetry"})
+
+
+def test_coreless_device_type_constant_is_stable():
+    assert DEVICE_TYPE_CORELESS64 == 1
