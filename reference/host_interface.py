@@ -202,7 +202,7 @@ class CorelessHostInterface:
         if command.opcode == OP_SYNC:
             return response(command, b"ok")
         if command.opcode == OP_EXECUTE:
-            if "compute" not in self.supported:
+            if "compute" not in self._negotiated:
                 return response(command, b"compute capability unavailable", error=True)
             if self._system is None and self._hub is None:
                 return response(command, b"no Coreless system is bound", error=True)
@@ -232,7 +232,7 @@ class CorelessHostInterface:
         """Bind Coreless-owned key/value storage for device READ/WRITE commands."""
         if not self._attached:
             raise RuntimeError("host interface is not attached")
-        if "storage" not in self.supported:
+        if "storage" not in self._negotiated:
             raise PermissionError("storage capability is not supported")
         self._device_storage = storage
         self._channels["storage"] = storage
