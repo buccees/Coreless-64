@@ -33,6 +33,20 @@ class TensorRuntime:
     def create(self, shape: Iterable[int], values: Iterable[float], dtype: str = "fp64") -> Tensor:
         return Tensor.from_values(tuple(shape), values, dtype=dtype)
 
+    def embedding_lookup(self, embedding: Tensor, token_ids: Iterable[int]) -> Tensor:
+        """Gather token rows from a [vocab, hidden] embedding tensor."""
+        if len(embedding.shape) != 2:
+            raise ValueError("embedding_lookup requires a rank-2 embedding tensor")
+        vocab, hidden = embedding.shape
+        ids = tuple(int(token_id) for token_id in token_ids)
+        if any(token_id < 0 or token_id >= vocab for token_id in ids):
+            raise ValueError("token id is outside the embedding vocabulary")
+        values = []
+        for token_id in ids:
+            start = token_id * hidden
+            values.extend(embedding.data[start:start + hidden])
+        return Tensor.from_values((len(ids), hidden), values, dtype=embedding.dtype)
+
     def bind_cpu(self, cpu: object) -> "TensorRuntime":
         """Bind tensor execution to a Coreless architectural vector/matrix unit."""
         if not hasattr(cpu, "vector") or not hasattr(cpu, "matrix"):
@@ -253,6 +267,20 @@ class TensorRuntime:
             dtype=value.dtype,
         )
         return self.mul(value, rhs)
+
+    def rms_norm_rows(self, value: Tensor, weight: Tensor, *, eps: float = 0.0) -> Tensor:
+        """Apply RMSNorm across the final axis of a rank-2 tensor."""
+        if len(value.shape) != 2:
+            raise ValueError("rms_norm_rows requires a rank-2 tensor")
+        if len(weight.shape) != 1 or weight.shape[0] != value.shape[1]:
+            raise ValueError("row RMSNorm weight must match the final dimension")
+        rows, dim = value.shape
+        values = []
+        for row in range(rows):
+            start = row * dim
+            chunk = Tensor.from_values((dim,), value.data[start:start + dim], dtype=value.dtype)
+            values.extend(self.rms_norm(chunk, weight, eps=eps).data)
+        return Tensor.from_values(value.shape, values, dtype=value.dtype)
 
     def rms_norm(self, value: Tensor, weight: Tensor, *, eps: float = 0.0) -> Tensor:
         """Normalize a vector and apply its learned RMS weight through Coreless primitives."""
