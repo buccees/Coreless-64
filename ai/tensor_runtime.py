@@ -81,7 +81,31 @@ class TensorRuntime:
         return sub(left, right)
 
     def mul_scalar(self, value: Tensor, scalar: float) -> Tensor:
-        """Multiply every tensor element by a scalar at the Coreless boundary."""
+        """Multiply every tensor element by a scalar through Coreless vector execution."""
+        if self.cpu is not None and len(value.shape) in (1, 2):
+            if len(value.shape) == 1:
+                rhs = Tensor.from_values(
+                    value.shape,
+                    (scalar for _ in value.data),
+                    dtype=value.dtype,
+                )
+                return self.vector_mul(value, rhs)
+            rows, cols = value.shape
+            values = []
+            for row in range(rows):
+                start = row * cols
+                chunk = Tensor.from_values(
+                    (cols,),
+                    value.data[start:start + cols],
+                    dtype=value.dtype,
+                )
+                rhs = Tensor.from_values(
+                    (cols,),
+                    (scalar for _ in range(cols)),
+                    dtype=value.dtype,
+                )
+                values.extend(self.vector_mul(chunk, rhs).data)
+            return Tensor.from_values(value.shape, values, dtype=value.dtype)
         return Tensor.from_values(
             value.shape,
             (v * scalar for v in value.data),
