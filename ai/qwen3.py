@@ -68,11 +68,14 @@ class Qwen3Config:
         return self.num_attention_heads // self.num_key_value_heads
 
 
-def _transpose(x: Tensor) -> Tensor:
+def _transpose(x: Tensor, runtime: TensorRuntime | None = None) -> Tensor:
+    if runtime is not None:
+        return runtime.transpose(x)
     rows, cols = x.shape
     return Tensor.from_values(
         (cols, rows),
         (x.at(r, c) for c in range(cols) for r in range(rows)),
+        dtype=x.dtype,
     )
 
 
@@ -158,7 +161,7 @@ def _attention(
             (key_positions, dim),
             (value for row in v[head] for value in row),
         )
-        scores = multiply(query, _transpose(key))
+        scores = multiply(query, _transpose(key, runtime))
         if runtime is not None:
             scores = runtime.mul_scalar(scores, scale)
         else:
@@ -235,7 +238,7 @@ def _linear(
 ) -> Tensor:
     """Apply a Hugging Face Linear weight through the Coreless tensor boundary."""
     multiply = runtime.matmul if runtime is not None else matmul
-    return multiply(x, _transpose(weight))
+    return multiply(x, _transpose(weight, runtime))
 
 
 def _apply_head_norm(
