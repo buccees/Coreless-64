@@ -128,3 +128,8 @@ def test_scheduler_uses_telemetry_to_choose_less_loaded_resource():
     result, allocation = scheduler.execute(work("cpu.step"))
     assert result.model_id == "cpu-b"
     assert allocation.resource_id == "cpu-b"
+
+def test_scheduler_load_snapshot_is_atomic_and_complete():
+    scheduler = MachineScheduler()
+    snapshot = scheduler.load_snapshot()
+    assert snapshot == {resource_id: scheduler.load(resource_id) for resource_id in scheduler.resources()}
