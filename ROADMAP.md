@@ -197,3 +197,18 @@ The Coreless input architecture uses VIGIL as an optional interpretation layer. 
 ## Resume point
 
 **Next:** deepen the Coreless/Qwen3 execution boundary with tensor-backed KV-cache and native head data movement, while continuing concrete plug-and-play host transports → trained Qwen3-0.6B validation → persistent-storage-hosted runtime → live Coreless inference. Continue the optional VIGIL camera/spatial layer in parallel.
+
+
+## Latest transport milestone
+
+The reference plug-and-play boundary now includes reusable transport sessions above identity and command framing.
+
+- [x] Transport-neutral Coreless identity frame
+- [x] Correlated device command/response frame
+- [x] Reference host endpoint enumeration
+- [x] Capability negotiation and channel binding
+- [x] Reusable host transport session
+- [x] Session command exchange and correlated responses
+- [x] Session close preserving Coreless machine state
+- [ ] Cross-platform physical host enumeration
+- [ ] Concrete display/input/network transport adapters
