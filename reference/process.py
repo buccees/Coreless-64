@@ -204,13 +204,34 @@ class ProcessManager:
         return p
 
     def replace_program(self, p, program):
-        """Replace a process image while preserving its PID and parentage."""
+        """Replace a process image while preserving its PID and reusable memory."""
         program = bytes(program)
         entry = 0
         if program.startswith(ProgramLoader.MAGIC):
             program, entry, _ = ProgramLoader.parse_executable(program)
+
+        old = p.address_space
+        new_code_size = align_up(max(len(program), 1))
+        old_code_size = old.stack_phys_base - old.code_phys_base if old else 0
+        new_size = max(self.REGION_SIZE, new_code_size + self.STACK_SIZE)
+
+        if old is not None and new_code_size <= old_code_size and new_size <= old.size:
+            self._build_page_table(
+                old.page_table_root,
+                old.code_phys_base,
+                new_code_size,
+                old.stack_phys_base,
+                old.stack_size,
+            )
+            p.address_space = AddressSpace(
+                old.base, old.size, old.code_base, old.stack_base, old.stack_size,
+                old.page_table_root, old.code_phys_base, old.stack_phys_base,
+                dict(old.permissions),
+            )
+        else:
+            p.address_space = self._allocate_space(len(program))
+
         p.program = program
-        p.address_space = self._allocate_space(len(program))
         p.pc = p.address_space.code_base + entry
         p.sp = p.address_space.stack_base + p.address_space.stack_size
         p.registers = [0] * 32
