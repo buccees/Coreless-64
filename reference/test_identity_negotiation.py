@@ -17,6 +17,7 @@ def test_identity_attach_negotiate_is_limited_by_device_advertisement():
         CorelessIdentity("coreless-filter"),
         supported={"display", "input", "network", "startup"},
     )
+    original_supported = interface.supported
     frame = DeviceIdentityFrame(
         protocol_version=1,
         architecture=ARCHITECTURE_CORELESS64,
@@ -32,6 +33,7 @@ def test_identity_attach_negotiate_is_limited_by_device_advertisement():
 
     assert negotiated == frozenset({"display", "startup"})
     assert interface.negotiated == frozenset({"display", "startup"})
+    assert interface.supported == original_supported
 
 
 def test_identity_attach_rejects_protocol_version_mismatch():
