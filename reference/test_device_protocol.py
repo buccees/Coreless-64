@@ -9,6 +9,7 @@ from device_protocol import (
     MAGIC,
     DeviceIdentityFrame,
     capability_bits,
+    capability_names,
 )
 
 
@@ -66,3 +67,13 @@ def test_coreless_capability_bits_are_stable():
 def test_coreless_capability_bits_reject_unknown_names():
     with pytest.raises(ValueError, match="unknown Coreless capability"):
         capability_bits({"compute", "not-a-capability"})
+
+
+def test_coreless_capability_bits_decode_for_discovery():
+    bits = capability_bits(frozenset({"compute", "storage", "network", "display"}))
+    assert capability_names(bits) == frozenset({"compute", "storage", "network", "display"})
+
+
+def test_coreless_capability_bits_reject_unknown_bits():
+    with pytest.raises(ValueError, match="unknown Coreless capability bits"):
+        capability_names(1 << 63)
