@@ -1,4 +1,5 @@
 from qwen3 import Qwen3Config
+from tensor_runtime import TensorRuntime
 
 
 def test_qwen3_config_supports_gqa():
@@ -107,3 +108,39 @@ def test_qwen3_attention_single_query_uses_score_length():
     hidden = Tensor.from_values((1, 2), (1.0, 0.0))
     result = qwen3_attention(hidden, weights, "model.layers.0", cfg)
     assert result.shape == (1, 2)
+
+
+class _RecordingTensorRuntime(TensorRuntime):
+    def __init__(self):
+        super().__init__()
+        self.matmul_calls = 0
+
+    def matmul(self, left, right):
+        self.matmul_calls += 1
+        return super().matmul(left, right)
+
+
+def test_qwen3_attention_routes_score_and_value_products_through_tensor_runtime():
+    identity = _identity(2)
+    weights = ModelWeights([
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", identity),
+        ModelTensor(
+            "model.layers.0.self_attn.q_norm.weight",
+            Tensor.from_values((2,), (1.0, 1.0)),
+        ),
+        ModelTensor(
+            "model.layers.0.self_attn.k_norm.weight",
+            Tensor.from_values((2,), (1.0, 1.0)),
+        ),
+    ])
+    cfg = Qwen3Config(2, 4, 1, 1, 1, 8, 16, head_dim=2)
+    runtime = _RecordingTensorRuntime()
+    hidden = Tensor.from_values((2, 2), (1.0, 0.0, 0.0, 1.0))
+
+    qwen3_attention(hidden, weights, "model.layers.0", cfg, runtime=runtime)
+
+    # q/k/v projections + attention score product + value product + output projection.
+    assert runtime.matmul_calls == 5
