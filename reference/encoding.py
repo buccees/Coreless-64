@@ -171,8 +171,7 @@ def decode_extended_header(w):
     rs1 = (w >> 7) & 0x1F
     rs2 = (w >> 2) & 0x1F
     fmt = w & 0x3
-    if cls > 0x8:
-        raise IllegalEncoding("reserved extended class")
+    validate_extended_header(cls, op, rd, rs1, rs2, fmt)
     return (cls, op, rd, rs1, rs2, fmt)
 
 
@@ -282,3 +281,16 @@ def decode_extended_instruction(data):
         raise IllegalEncoding("extended instruction length mismatch")
     cls, op, rd, rs1, rs2, fmt = decode_extended_header(word)
     return ExtendedInstruction(length, cls, op, rd, rs1, rs2, fmt, bytes(data[4:]))
+
+
+def decode_instruction(data):
+    """Decode one complete architectural instruction record."""
+    if len(data) < 4:
+        raise IllegalEncoding("truncated instruction")
+    first = from_bytes(data[:4])
+    length = instruction_length(first)
+    if len(data) != length:
+        raise IllegalEncoding("instruction length mismatch")
+    if length == 4:
+        return decode(first)
+    return decode_extended_instruction(data)
