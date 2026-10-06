@@ -397,3 +397,18 @@ def test_host_interface_exports_transport_neutral_identity_frame():
         {"display", "input", "network", "startup", "storage"}
     )
     assert type(frame.decode(frame.encode())) is type(frame)
+
+def test_host_interface_verifies_transport_identity_frame():
+    interface = CorelessHostInterface(CorelessIdentity("coreless-plug"))
+    frame = interface.device_identity_frame()
+
+    assert interface.verify_identity_frame(frame)
+    assert not interface.verify_identity_frame(
+        DeviceIdentityFrame(
+            protocol_version=1,
+            architecture=ARCHITECTURE_CORELESS64,
+            device_type=1,
+            capabilities=0,
+            payload=b"other-device",
+        )
+    )
