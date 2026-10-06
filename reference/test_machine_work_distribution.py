@@ -102,3 +102,8 @@ def test_machine_work_distribution_respects_ai_model_affinity_at_scale():
     ]
     results = MachineWorkDistributor(scheduler).execute(items)
     assert {result.resource_id for result in results} == {"ai:qwen3"}
+
+def test_machine_work_distribution_empty_batch_has_no_scheduler_side_effects():
+    scheduler = MachineScheduler()
+    distributor = MachineWorkDistributor(scheduler)
+    assert distributor.execute(()) == ()
