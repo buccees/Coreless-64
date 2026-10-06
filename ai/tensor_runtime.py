@@ -135,6 +135,16 @@ class TensorRuntime:
             return Tensor.from_values(value.shape, values, dtype=value.dtype)
         return softmax(value)
 
+    def masked_fill(self, value: Tensor, mask: Tensor, fill_value: float) -> Tensor:
+        """Apply an elementwise mask before architecture-level normalization."""
+        if value.shape != mask.shape:
+            raise ValueError("masked_fill requires matching tensor shapes")
+        return Tensor.from_values(
+            value.shape,
+            (fill_value if bool(m) else v for v, m in zip(value.data, mask.data)),
+            dtype=value.dtype,
+        )
+
     @classmethod
     def _element_type(cls, dtype: str) -> int:
         try:
