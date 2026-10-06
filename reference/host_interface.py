@@ -132,7 +132,10 @@ class CorelessHostInterface:
         system: CorelessSystem | None = None,
     ) -> frozenset[str]:
         """Decode and verify a transport identity frame, then attach the host."""
-        decoded = DeviceIdentityFrame.decode(frame) if isinstance(frame, bytes) else frame
+        try:
+            decoded = DeviceIdentityFrame.decode(frame) if isinstance(frame, bytes) else frame
+        except ValueError as exc:
+            raise ValueError("Coreless transport identity verification failed") from exc
         if not self.verify_identity_frame(decoded):
             raise ValueError("Coreless transport identity verification failed")
         identity = CorelessIdentity(
