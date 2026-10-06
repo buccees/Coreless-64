@@ -163,7 +163,16 @@ def _attention(
             (key_positions, dim),
             (value for row in v[head] for value in row),
         )
-        scores = multiply(query, _transpose(key)).map(lambda x: x * scale)
+        scores = multiply(query, _transpose(key))
+        if runtime is not None:
+            scale_tensor = Tensor.from_values(
+                scores.shape,
+                (scale for _ in scores.data),
+                dtype=scores.dtype,
+            )
+            scores = runtime.mul(scores, scale_tensor)
+        else:
+            scores = scores.map(lambda x: x * scale)
         for row in range(query_positions):
             row_scores = [
                 scores.at(row, col)
