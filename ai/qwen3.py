@@ -214,7 +214,7 @@ def _rms_norm(
             x.data[row * hidden:(row + 1) * hidden],
             dtype=x.dtype,
         )
-            if runtime is not None:
+        if runtime is not None:
             scale = runtime.mean_square_rsqrt(chunk, eps=eps).data[0]
         else:
             squared = sum(v * v for v in chunk.data) / hidden
