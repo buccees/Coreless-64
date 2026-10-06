@@ -302,6 +302,7 @@ def test_host_transport_sync_persists_bound_system(monkeypatch):
     adapter = MemoryHostTransportAdapter([endpoint])
     interface = CorelessHostInterface(CorelessIdentity("coreless-sync"))
     system = CorelessSystem(memory_size=128 * 1024)
+    adapter.connect(endpoint, interface)
     interface.attach_system(system)
     calls = []
     monkeypatch.setattr(system.machine, "save_state", lambda: calls.append("saved"))
