@@ -4,6 +4,7 @@ sys.path.insert(0, ".")
 import pytest
 
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
+from device_protocol import ARCHITECTURE_CORELESS64, DeviceIdentityFrame
 
 
 def test_host_interface_discovers_and_verifies_coreless_identity():
