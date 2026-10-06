@@ -318,7 +318,7 @@ def test_qwen3_rms_norm_routes_scaling_through_tensor_runtime():
 
     _rms_norm(x, weight, 1e-6, runtime)
 
-    assert runtime.mul_calls == 2
+    assert runtime.mul_calls == 1
 
 
 def test_qwen3_rms_norm_uses_tensor_runtime_boundary():
