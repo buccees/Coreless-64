@@ -146,6 +146,61 @@ def test_identity_attach_detach_clears_transport_session_state():
     assert interface.required_channels(set()) == frozenset()
 
 
+def test_identity_detach_allows_clean_reattach_with_fresh_negotiation():
+    interface = CorelessHostInterface(
+        CorelessIdentity("coreless-reattach"),
+        supported={"display", "input"},
+    )
+    frame = interface.device_identity_frame().encode()
+
+    assert interface.attach_identity_frame(
+        frame,
+        HostCapabilities(display=True, input=True),
+    ) == frozenset({"display", "input"})
+    interface.bind_channel("display", object())
+    interface.detach()
+
+    assert interface.attach_identity_frame(
+        frame,
+        HostCapabilities(display=True),
+    ) == frozenset({"display"})
+    assert interface.attached
+    assert interface.negotiated == frozenset({"display"})
+    assert interface.channels == {}
+    assert interface.required_channels({"display"}) == frozenset({"display"})
+
+
+def test_identity_failed_reattach_preserves_current_attachment_state():
+    interface = CorelessHostInterface(
+        CorelessIdentity("coreless-stable"),
+        supported={"display", "input"},
+    )
+    valid = interface.device_identity_frame().encode()
+    invalid = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"display"}),
+        payload=b"wrong-device",
+    ).encode()
+
+    assert interface.attach_identity_frame(
+        valid,
+        HostCapabilities(display=True, input=True),
+    ) == frozenset({"display", "input"})
+    channel = object()
+    interface.bind_channel("display", channel)
+
+    with pytest.raises(ValueError, match="transport identity verification failed"):
+        interface.attach_identity_frame(invalid, HostCapabilities(display=True))
+
+    assert interface.attached
+    assert interface.negotiated == frozenset({"display", "input"})
+    assert interface.channel("display") is channel
+    assert interface.required_channels({"display"}) == frozenset()
+    assert interface.required_channels({"input"}) == frozenset({"input"})
+
+
 def test_identity_verification_rejects_wrong_transport_architecture():
     interface = CorelessHostInterface(CorelessIdentity("coreless-architecture"))
     frame = DeviceIdentityFrame(
