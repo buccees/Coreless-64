@@ -101,3 +101,12 @@ Host-provided transport is an external interface to Coreless devices, not the de
 A host connection may transport display output, input events, network packets, startup/power control, and other explicitly negotiated device events. Coreless owns architectural device state, permissions, queues, interrupts, DMA domains, and resource semantics.
 
 The host transport MUST NOT silently substitute host computation for Coreless execution. See [Host Interface](host_interface.md).
+
+
+## Plug-and-play identity
+
+In addition to the architectural discovery record rooted at `CAP_BASE`, a Coreless endpoint may expose the transport-neutral identification frame defined by `reference/device_protocol.py`. This gives external hardware a stable recognition step before it accesses Coreless device resources.
+
+The identification frame does not require a specific physical bus. USB, PCIe, network, storage-attached links, and future Coreless transports may carry the same identity contract through an appropriate adapter.
+
+Physical enumeration remains a transport implementation concern; the Coreless identity and capability semantics remain stable across transports.
