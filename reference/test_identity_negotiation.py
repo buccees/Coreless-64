@@ -98,3 +98,28 @@ def test_identity_attach_rejects_unknown_advertised_capability_bits():
 
     with pytest.raises(ValueError, match="unknown Coreless capability bits"):
         interface.attach_identity_frame(frame, HostCapabilities(display=True))
+
+
+def test_identity_attach_exposes_only_capabilities_shared_with_host():
+    interface = CorelessHostInterface(
+        CorelessIdentity("coreless-shared"),
+        supported={"display", "input", "network", "startup"},
+    )
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"display", "input", "network"}),
+        payload=b"coreless-shared",
+    ).encode()
+
+    negotiated = interface.attach_identity_frame(
+        frame,
+        HostCapabilities(display=True, network=True),
+    )
+
+    assert negotiated == frozenset({"display", "network"})
+    assert interface.negotiated == frozenset({"display", "network"})
+    assert interface.supported == frozenset(
+        {"display", "input", "network", "startup"}
+    )
