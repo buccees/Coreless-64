@@ -120,6 +120,37 @@ class _RecordingTensorRuntime(TensorRuntime):
         return super().matmul(left, right)
 
 
+def test_qwen3_rotary_elementwise_ops_use_tensor_runtime():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.mul_calls = 0
+            self.add_calls = 0
+            self.sub_calls = 0
+
+        def mul(self, left, right):
+            self.mul_calls += 1
+            return super().mul(left, right)
+
+        def add(self, left, right):
+            self.add_calls += 1
+            return super().add(left, right)
+
+        def sub(self, left, right):
+            self.sub_calls += 1
+            return super().sub(left, right)
+
+    from qwen3 import _rotary
+
+    runtime = RecordingRuntime()
+    result = _rotary([1.0, 2.0], 1, 10000.0, 1.0, runtime)
+
+    assert len(result) == 2
+    assert runtime.mul_calls == 4
+    assert runtime.add_calls == 1
+    assert runtime.sub_calls == 1
+
+
 def test_qwen3_attention_routes_score_and_value_products_through_tensor_runtime():
     identity = _identity(2)
     weights = ModelWeights([
