@@ -118,6 +118,20 @@ class TensorRuntime:
         mean_square = fsum(v * v for v in value.data) / value.size
         return Tensor.from_values((1,), (1.0 / (mean_square + eps) ** 0.5,), dtype=value.dtype)
 
+    def rms_norm(self, value: Tensor, weight: Tensor, *, eps: float = 0.0) -> Tensor:
+        """Normalize a vector and apply its learned RMS weight without host scalar extraction."""
+        if len(value.shape) != 1 or not value.data:
+            raise ValueError("rms_norm requires a non-empty rank-1 tensor")
+        if weight.shape != value.shape:
+            raise ValueError("rms_norm weight shape must match the input")
+        scale = self.mean_square_rsqrt(value, eps=eps)
+        scaled = Tensor.from_values(
+            value.shape,
+            (v * scale.data[0] for v in value.data),
+            dtype=value.dtype,
+        )
+        return self.mul(scaled, weight)
+
     def rsqrt(self, value: Tensor, *, eps: float = 0.0) -> Tensor:
         """Elementwise reciprocal square root with an explicit stability epsilon."""
         return Tensor.from_values(value.shape, (1.0 / (v + eps) ** 0.5 for v in value.data), dtype=value.dtype)
