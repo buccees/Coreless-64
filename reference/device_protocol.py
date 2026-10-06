@@ -60,6 +60,10 @@ class DeviceIdentityFrame:
         """Return decoded capability names advertised by this identity frame."""
         return capability_names(self.capabilities)
 
+    def is_coreless64(self) -> bool:
+        """Return whether this frame identifies the Coreless-64 device type."""
+        return self.architecture == ARCHITECTURE_CORELESS64 and self.device_type == DEVICE_TYPE_CORELESS64
+
     @classmethod
     def decode(cls, frame: bytes) -> "DeviceIdentityFrame":
         if len(frame) < HEADER_SIZE:
