@@ -205,6 +205,33 @@ def _attention(
     return output
 
 
+
+def _attention_tensor(
+    q: Tensor,
+    k: Tensor,
+    v: Tensor,
+    causal: bool = True,
+    key_position_offset: int = 0,
+    runtime: TensorRuntime | None = None,
+) -> Tensor:
+    """Keep the complete attention computation tensor-native."""
+    if runtime is None:
+        raise ValueError("tensor-native attention requires TensorRuntime")
+    if len(q.shape) != 3 or len(k.shape) != 3 or len(v.shape) != 3:
+        raise ValueError("attention tensors must be rank-3")
+    if q.shape[0] != k.shape[0] or k.shape != v.shape:
+        raise ValueError("attention head dimensions do not agree")
+    dim = q.shape[2]
+    scores = runtime.batch_matmul(q, runtime.transpose_last_two(k))
+    scores = runtime.mul_scalar(scores, 1.0 / math.sqrt(dim))
+    if causal:
+        scores = runtime.masked_fill(
+            scores,
+            runtime.causal_mask(scores.shape, query_offset=key_position_offset, dtype=scores.dtype),
+            float("-inf"),
+        )
+    return runtime.sum_axis(runtime.batch_matmul(runtime.softmax_last_dim(scores), v), 0)
+
 def _heads_to_tensor(heads: list[list[list[float]]]) -> Tensor:
     positions = len(heads[0])
     flat = []
@@ -319,9 +346,12 @@ def qwen3_attention(
 
     kh = _repeat_kv(kh, cfg.kv_group_size, runtime)
     vh = _repeat_kv(vh, cfg.kv_group_size, runtime)
-    attended = _heads_to_tensor(
-        _attention(_tensor_heads_to_lists(qh), _tensor_heads_to_lists(kh),
-                   _tensor_heads_to_lists(vh), key_position_offset=position_offset, runtime=runtime)
+    attended = _attention_tensor(
+        qh,
+        kh,
+        vh,
+        key_position_offset=position_offset,
+        runtime=runtime,
     )
     return _linear(
         attended,
