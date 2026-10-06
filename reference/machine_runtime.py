@@ -64,11 +64,11 @@ class CorelessMachine:
 
     def publish_telemetry(self):
         """Publish current machine resource state for scheduler decisions."""
-        loads = self.scheduler.load_snapshot()
-        cpu_load = {"cpu": float(loads.get("cpu", 0))}
+        states = self.scheduler.resource_state_snapshot()
+        cpu_load = {"cpu": float(states.get("cpu", (0, 0))[1])}
         workloads = {
             resource_id: float(load)
-            for resource_id, load in loads.items()
+            for resource_id, (_, load) in states.items()
             if resource_id.startswith("ai:")
         }
         return self.telemetry.publish(
