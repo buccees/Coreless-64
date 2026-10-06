@@ -179,6 +179,26 @@ def test_qwen3_mlp_routes_swiglu_multiply_through_tensor_runtime():
     assert result.data == expected
 
 
+def test_qwen3_residual_additions_use_tensor_runtime_boundary():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.add_calls = 0
+
+        def add(self, left, right):
+            self.add_calls += 1
+            return super().add(left, right)
+
+    runtime = RecordingRuntime()
+    left = Tensor.from_values((1, 2), (1.0, 2.0))
+    right = Tensor.from_values((1, 2), (3.0, 4.0))
+
+    result = runtime.add(left, right)
+
+    assert result.data == (4.0, 6.0)
+    assert runtime.add_calls == 1
+
+
 def test_qwen3_rms_norm_uses_tensor_runtime_boundary():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
