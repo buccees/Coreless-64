@@ -114,17 +114,6 @@ class ProcessManager:
                     changed = True
                     break
 
-    def _trim_phys_tail(self):
-        changed = True
-        while changed:
-            changed = False
-            for index, (start, length) in enumerate(self.free_phys):
-                if start + length == self.next_phys:
-                    self.next_phys = start
-                    self.free_phys.pop(index)
-                    changed = True
-                    break
-
     def _release_space(self, space):
         if space is None:
             return
