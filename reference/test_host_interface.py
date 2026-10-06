@@ -368,7 +368,8 @@ def test_host_interface_rejects_truncated_storage_write():
     command = DeviceCommand(opcode=OP_WRITE, request_id=3, payload=b"\x05\x00ab")
     response = interface.handle_command(command)
 
-    assert response.error
+    from device_command import is_error
+    assert is_error(response)
     assert response.payload == b"invalid Coreless storage write"
 
 
