@@ -77,6 +77,7 @@ class CorelessHostInterface:
         self._system: CorelessSystem | None = None
         self._hub: CorelessHub | None = None
         self._input_router: CorelessInputRouter | None = None
+        self._device_storage: dict[str, bytes] = {}
 
     @property
     def attached(self) -> bool:
@@ -152,9 +153,40 @@ class CorelessHostInterface:
             if self._system is None and self._hub is None:
                 return response(command, b"no Coreless system is bound", error=True)
             return response(command, b"execution endpoint ready")
-        if command.opcode in (OP_READ, OP_WRITE):
-            return response(command, b"Coreless-owned data endpoint not bound", error=True)
+        if command.opcode == OP_READ:
+            try:
+                key = command.payload.decode("utf-8")
+                return response(command, self.device_read(key))
+            except (UnicodeDecodeError, KeyError):
+                return response(command, b"Coreless storage key unavailable", error=True)
+        if command.opcode == OP_WRITE:
+            try:
+                key_length = int.from_bytes(command.payload[:2], "little")
+                key = command.payload[2:2 + key_length].decode("utf-8")
+                self.device_write(key, command.payload[2 + key_length:])
+                return response(command, b"ok")
+            except (UnicodeDecodeError, ValueError, IndexError):
+                return response(command, b"invalid Coreless storage write", error=True)
         return response(command, b"unsupported opcode", error=True)
+
+    def bind_device_storage(self, storage: dict[str, bytes]) -> None:
+        """Bind Coreless-owned key/value storage for device READ/WRITE commands."""
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        if "storage" not in self.supported:
+            raise PermissionError("storage capability is not supported")
+        self._device_storage = storage
+        self._channels["storage"] = storage
+
+    def device_read(self, key: str) -> bytes:
+        if key not in self._device_storage:
+            raise KeyError(key)
+        return bytes(self._device_storage[key])
+
+    def device_write(self, key: str, data: bytes) -> None:
+        if not key:
+            raise ValueError("storage key must not be empty")
+        self._device_storage[key] = bytes(data)
 
     @property
     def input_router(self) -> CorelessInputRouter | None:
