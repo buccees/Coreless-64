@@ -101,6 +101,19 @@ def capability_names(bits: int) -> frozenset[str]:
     return frozenset(name for name, bit in _CAPABILITIES.items() if bits & (1 << bit))
 
 
+_CAPABILITIES = {"compute": 0, "vector": 1, "matrix": 2, "ai": 3, "storage": 4, "network": 5, "display": 6, "input": 7, "management": 8}
+
+
+def capability_names(bits: int) -> frozenset[str]:
+    """Decode a stable Coreless capability bitset for plug-and-play discovery."""
+    if not 0 <= bits <= 0xFFFFFFFFFFFFFFFF:
+        raise ValueError("capability bits out of range")
+    known_mask = sum(1 << bit for bit in _CAPABILITIES.values())
+    if bits & ~known_mask:
+        raise ValueError("unknown Coreless capability bits")
+    return frozenset(name for name, bit in _CAPABILITIES.items() if bits & (1 << bit))
+
+
 def capability_bits(names: set[str] | frozenset[str]) -> int:
     """Encode named Coreless capabilities into a stable bitset."""
     known = _CAPABILITIES
