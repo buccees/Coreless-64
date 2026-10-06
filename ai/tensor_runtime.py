@@ -111,6 +111,13 @@ class TensorRuntime:
         """Elementwise reciprocal used by architecture-native normalization paths."""
         return Tensor.from_values(value.shape, (1.0 / v for v in value.data), dtype=value.dtype)
 
+    def mean_square_rsqrt(self, value: Tensor, *, eps: float = 0.0) -> Tensor:
+        """Reduce a vector to its RMS inverse without returning the scalar to host code."""
+        if len(value.shape) != 1 or not value.data:
+            raise ValueError("mean_square_rsqrt requires a non-empty rank-1 tensor")
+        mean_square = fsum(v * v for v in value.data) / value.size
+        return Tensor.from_values((1,), (1.0 / (mean_square + eps) ** 0.5,), dtype=value.dtype)
+
     def rsqrt(self, value: Tensor, *, eps: float = 0.0) -> Tensor:
         """Elementwise reciprocal square root with an explicit stability epsilon."""
         return Tensor.from_values(value.shape, (1.0 / (v + eps) ** 0.5 for v in value.data), dtype=value.dtype)
