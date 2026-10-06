@@ -131,3 +131,14 @@ def test_tensor_runtime_transposes_rank2_tensor_at_coreless_boundary():
 
     assert result.shape == (3, 2)
     assert result.data == (1.0, 4.0, 2.0, 5.0, 3.0, 6.0)
+
+
+def test_tensor_runtime_native_head_reshape_and_gqa_repeat():
+    runtime = TensorRuntime()
+    value = runtime.create((2, 4), [1, 2, 3, 4, 5, 6, 7, 8], dtype="fp32")
+    heads = runtime.reshape_heads(value, 2, 2)
+    assert heads.shape == (2, 2, 2)
+    assert heads.data == (1.0, 2.0, 5.0, 6.0, 3.0, 4.0, 7.0, 8.0)
+    repeated = runtime.repeat_heads(heads, 2)
+    assert repeated.shape == (4, 2, 2)
+    assert repeated.data == heads.data[:4] + heads.data[:4] + heads.data[4:] + heads.data[4:]
