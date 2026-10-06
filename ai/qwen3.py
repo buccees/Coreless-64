@@ -188,12 +188,9 @@ def _attention(
         scores = runtime.batch_matmul(q_tensor, runtime.transpose_last_two(k_tensor))
         scores = runtime.mul_scalar(scores, scale)
         if causal:
-            mask = Tensor.from_values(
+            mask = runtime.causal_mask(
                 scores.shape,
-                (1.0 if col <= key_position_offset + row else 0.0
-                 for _head in range(len(q))
-                 for row in range(query_positions)
-                 for col in range(key_positions)),
+                query_offset=key_position_offset,
                 dtype=scores.dtype,
             )
             scores = runtime.masked_fill(scores, mask, float("-inf"))
