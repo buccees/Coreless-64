@@ -16,6 +16,8 @@ Reference/CI testing validates the software implementation. It does not by itsel
 - 314DNest coordination/policy/capabilities/telemetry/audit
 - persistent TensorRuntime
 - native vector and supported matrix routing
+- TensorRuntime RMSNorm, scalar broadcast, and transpose primitives
+- Qwen3 rotary, masking, scalar scaling, and argmax runtime boundaries
 - Transformer → TensorRuntime routing
 - autonomous component identity, lifecycle, fault isolation, hub workload dispatch, native CPU/VM execution, and multi-vCPU Hub scheduling
 - reference host enumeration, capability negotiation, channel binding, and transport readiness
@@ -23,6 +25,7 @@ Reference/CI testing validates the software implementation. It does not by itsel
 ## Not yet validated
 
 - concrete cross-platform host enumeration and physical display/input/network transports
+- tensor-backed Qwen3 KV cache and fully native head reshape/repeat/data movement
 - official trained Qwen3-0.6B end-to-end inference
 - complete persistent-storage-hosted Coreless runtime environment
 - live five-core inference on Coreless
@@ -51,7 +54,8 @@ AI output is never authorization.
 
 1. Extend concrete host transport adapters while preserving the Coreless-owned execution boundary.
 2. Continue exercising autonomous components through unified lifecycle, scheduling, detachment, and rejoin.
-3. Extend native vector/matrix execution coverage through the public architectural boundary.
-4. Perform real Qwen3-0.6B forward/generation validation.
+3. Extend the Qwen3 tensor boundary: KV cache, head reshape/repeat, and attention data movement.
+4. Extend native vector/matrix execution coverage through the public architectural boundary.
+5. Perform real Qwen3-0.6B forward/generation validation.
 
 Do not mark live inference complete from CI alone.
