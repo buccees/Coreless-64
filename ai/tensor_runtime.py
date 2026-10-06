@@ -33,6 +33,16 @@ class TensorRuntime:
     def create(self, shape: Iterable[int], values: Iterable[float], dtype: str = "fp64") -> Tensor:
         return Tensor.from_values(tuple(shape), values, dtype=dtype)
 
+    def last_row(self, value: Tensor) -> Tensor:
+        """Select the final row of a rank-2 tensor without leaving TensorRuntime."""
+        if len(value.shape) != 2:
+            raise ValueError("last_row requires a rank-2 tensor")
+        rows, width = value.shape
+        if rows <= 0 or width <= 0:
+            raise ValueError("last_row requires non-empty dimensions")
+        start = (rows - 1) * width
+        return Tensor.from_values((1, width), value.data[start:start + width], dtype=value.dtype)
+
     def embedding_lookup(self, embedding: Tensor, token_ids: Iterable[int]) -> Tensor:
         """Gather token rows from a [vocab, hidden] embedding tensor."""
         if len(embedding.shape) != 2:
