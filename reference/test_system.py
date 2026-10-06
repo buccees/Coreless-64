@@ -67,3 +67,37 @@ def test_system_boot_accepts_corex64_init_entry(tmp_path):
     process = system.os.processes.processes[system.os.init_pid]
     assert process.program == program
     assert process.pc == process.address_space.code_base + 4
+
+
+def test_complete_system_owns_persistent_local_ai_runtime(tmp_path):
+    from ai.interfaces import AIResult
+
+    system = CorelessSystem(
+        memory_size=128 * 1024,
+        storage_path=tmp_path / "coreless-ai.json",
+    )
+    assert system.ai.registry.enabled_cores() == (
+        "qwen3", "deepseek", "gpt-oss", "gemma", "codestral"
+    )
+    request = system.ai.request("inspect the machine")
+    assert request.request_id == "default:request:1"
+    system.ai.session.record_result(AIResult(request.request_id, "qwen3", "analysis"))
+    system.checkpoint("ai-state")
+
+    resumed = CorelessSystem(
+        memory_size=128 * 1024,
+        storage_path=tmp_path / "coreless-ai.json",
+    )
+    assert resumed.ai.session.session_id == "default"
+    assert len(resumed.ai.session.events()) == 2
+    assert resumed.ai.status()["event_count"] == 2
+
+
+def test_complete_system_can_persist_ai_runtime_without_network(tmp_path):
+    system = CorelessSystem(
+        memory_size=128 * 1024,
+        storage_path=tmp_path / "coreless-ai.json",
+    )
+    system.ai.save()
+    assert system.machine.storage.get("ai/registry")
+    assert system.machine.storage.get("ai/session/default")

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from machine_runtime import CorelessMachine
 from os_runtime import CorelessOS
+from ai.machine_runtime import PersistentAIRuntime
 
 
 class CorelessSystem:
@@ -38,6 +39,8 @@ class CorelessSystem:
             storage_path=storage_path,
         )
         self.os = CorelessOS(self.machine)
+        self.ai = PersistentAIRuntime(self.machine.storage)
+        self.ai.restore()
         self._restore_boot_manifest()
 
     def _boot_manifest(self, init_path: str) -> dict[str, object]:
@@ -76,6 +79,7 @@ class CorelessSystem:
         """Power on/resume the complete Coreless operating environment."""
         self._save_boot_manifest(init_path)
         self.os.boot()
+        self.ai.save()
         self.machine.save_state()
         return self
 
@@ -102,6 +106,7 @@ class CorelessSystem:
             remaining -= used
             if result.state == "ready" and used >= remaining + used:
                 break
+        self.ai.save()
         self.machine.save_state()
         return total
 
@@ -112,14 +117,25 @@ class CorelessSystem:
         return self.os.command(line)
 
     def checkpoint(self, name: str = "machine") -> str:
+        self.ai.save()
         self.machine.save_state()
         return self.machine.checkpoint(name)
+
+    def ai_analyze(self, prompt: str, *, actor: str = "human", context=None, model_ids=None):
+        """Run persistent local AI analysis and retain the complete session history."""
+        return self.ai.analyze(
+            prompt,
+            actor=actor,
+            context=context,
+            model_ids=model_ids,
+        )
 
     def restore(self, name: str = "machine"):
         self.machine.restore_checkpoint(name)
         self.os.restore_state(
             json.loads(self.machine.storage.objects["machine/os"].decode("utf-8"))
         ) if "machine/os" in self.machine.storage.objects else None
+        self.ai.restore()
         self._restore_boot_manifest()
         return self
 
@@ -131,4 +147,5 @@ class CorelessSystem:
         status = self.os.status()
         status["system_version"] = self.VERSION
         status["boot_manifest"] = self.boot_manifest
+        status["ai"] = self.ai.status()
         return status
