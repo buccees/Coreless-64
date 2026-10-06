@@ -198,3 +198,19 @@ def test_tensor_runtime_rotary_embedding_rank3():
     assert result.data[4:8] != value.data[4:8]
 
 
+
+
+def test_tensor_runtime_rms_norm_heads():
+    runtime = TensorRuntime()
+    value = runtime.create(
+        (2, 1, 2),
+        [3.0, 4.0, 1.0, 2.0],
+        dtype="fp32",
+    )
+    weight = runtime.create((2,), [1.0, 2.0], dtype="fp32")
+    result = runtime.rms_norm_heads(value, weight, eps=1e-6)
+    assert result.shape == value.shape
+    assert result.at(0, 0, 0) == 0.6
+    assert result.at(0, 0, 1) == 1.6
+    assert result.at(1, 0, 0) == 0.6324555320336759
+    assert result.at(1, 0, 1) == 1.2649110640673518
