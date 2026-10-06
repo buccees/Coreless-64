@@ -276,6 +276,31 @@ class TensorRuntime:
         """Elementwise cosine at the Coreless tensor boundary."""
         return Tensor.from_values(value.shape, (cos(v) for v in value.data), dtype=value.dtype)
 
+    def rms_norm_heads(
+        self,
+        value: Tensor,
+        weight: Tensor,
+        *,
+        eps: float = 0.0,
+    ) -> Tensor:
+        """Apply RMSNorm across the final axis of a rank-3 head tensor."""
+        if len(value.shape) != 3:
+            raise ValueError("rms_norm_heads requires a rank-3 tensor")
+        if len(weight.shape) != 1 or weight.shape[0] != value.shape[-1]:
+            raise ValueError("head RMSNorm weight must match the final dimension")
+        heads, positions, dim = value.shape
+        values = []
+        for head in range(heads):
+            for position in range(positions):
+                start = (head * positions + position) * dim
+                chunk = Tensor.from_values(
+                    (dim,),
+                    value.data[start:start + dim],
+                    dtype=value.dtype,
+                )
+                values.extend(self.rms_norm(chunk, weight, eps=eps).data)
+        return Tensor.from_values(value.shape, values, dtype=value.dtype)
+
     def rotary_embedding(
         self,
         value: Tensor,
