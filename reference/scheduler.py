@@ -49,16 +49,49 @@ class MachineScheduler:
     def load(self, resource_id: str) -> int:
         return self._load[resource_id]
 
-    def allocate(self, work: ComputeWork, *, preference="balanced",
-                 allow_fallback=True) -> tuple[MachineComputeResource, bool]:
+    def parallel_capacity(
+        self,
+        items,
+        *,
+        preference="balanced",
+        allow_fallback=True,
+    ) -> int:
+        """Return currently available capacity across eligible resources."""
+        items = tuple(items)
+        if not items:
+            return 0
+        with self._lock:
+            eligible = set()
+            for work in items:
+                for resource, _ in self._candidate_resources(
+                    work,
+                    preference=preference,
+                    allow_fallback=allow_fallback,
+                ):
+                    if self._load[resource.resource_id] < resource.capacity:
+                        eligible.add(resource.resource_id)
+            return sum(
+                self._resources[resource_id].capacity - self._load[resource_id]
+                for resource_id in eligible
+            )
+
+    def _candidate_resources(
+        self,
+        work: ComputeWork,
+        *,
+        preference="balanced",
+        allow_fallback=True,
+    ):
         if preference not in {"balanced", "conventional", "ai", "ai_only", "conventional_only"}:
             raise ValueError("invalid compute preference")
-
-        conventional = [r for r in self._resources.values()
-                        if r.kind == "conventional" and self._supports(r, work)]
-        ai = [r for r in self._resources.values()
-              if r.kind == "ai" and self._supports(r, work)]
-
+        conventional = [
+            r for r in self._resources.values()
+            if r.kind == "conventional" and self._supports(r, work)
+        ]
+        ai = [
+            r for r in self._resources.values()
+            if r.kind == "ai" and self._supports(r, work)
+        ]
         if preference in {"ai", "ai_only"}:
             ordered = [(r, False) for r in ai]
             if preference == "ai" and allow_fallback:
@@ -69,7 +102,18 @@ class MachineScheduler:
                 ordered += [(r, True) for r in ai]
         else:
             ordered = [(r, False) for r in conventional] + [(r, True) for r in ai]
+        return tuple(ordered)
 
+    def allocate(self, work: ComputeWork, *, preference="balanced",
+                 allow_fallback=True) -> tuple[MachineComputeResource, bool]:
+        if preference not in {"balanced", "conventional", "ai", "ai_only", "conventional_only"}:
+            raise ValueError("invalid compute preference")
+
+        ordered = self._candidate_resources(
+            work,
+            preference=preference,
+            allow_fallback=allow_fallback,
+        )
         available = [(r, fb) for r, fb in ordered if self._load[r.resource_id] < r.capacity]
         if not available:
             raise RuntimeError(f"all compute resources are at capacity for operation: {work.operation}")
