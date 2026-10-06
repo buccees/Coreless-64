@@ -3,7 +3,7 @@ sys.path.insert(0, ".")
 import pytest
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
 from host_transport import HostEndpoint, MemoryHostTransportAdapter
-from device_command import OP_CAPABILITIES, DeviceCommand, is_response
+from device_command import OP_ATTACH, OP_CAPABILITIES, DeviceCommand, is_response
 
 
 def test_host_transport_enumerates_endpoints_deterministically():
