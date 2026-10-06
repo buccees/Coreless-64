@@ -275,22 +275,10 @@ def _head_rms_norm(
     eps: float,
     runtime: TensorRuntime | None = None,
 ) -> Tensor:
-    """Apply RMSNorm independently to each attention head vector."""
+    """Apply RMSNorm independently to every vector in a head tensor."""
     if runtime is None:
         return value
-    if len(value.shape) != 3:
-        raise ValueError("head RMSNorm requires a rank-3 tensor")
-    heads, positions, dim = value.shape
-    rows = []
-    for head in range(heads):
-        for position in range(positions):
-            chunk = Tensor.from_values(
-                (dim,),
-                (value.at(head, position, index) for index in range(dim)),
-                dtype=value.dtype,
-            )
-            rows.extend(runtime.rms_norm(chunk, weight, eps=eps).data)
-    return Tensor.from_values(value.shape, rows, dtype=value.dtype)
+    return runtime.rms_norm_heads(value, weight, eps=eps)
 
 
 def _rotary_tensor(
