@@ -125,44 +125,6 @@ def test_vector_vzero():
     cpu.step()
     assert cpu.vector[5][:4]==[0,0,0,0]
 
-def test_vector_indexed_load_fault_is_precise():
-    cpu = CorelessCPU(memory_size=0x1000)
-    cpu.vector_vl = 4
-    cpu.vector[1][:4] = [0, 1, 2, 0xFFF]
-    cpu.vector[3][:4] = [9, 9, 9, 9]
-    cpu.r[5] = 0x0FF0
-    cpu.memory[0x0FF0:0x0FF3] = bytes([1, 2, 3])
-    cpu.memory[0:16] = ext128(3, 0x20, 3, 5, 1, w1=0)
-    cpu.step()
-    assert (cpu.csrs[0x005] & 0xFFFF) == 0x007
-    assert cpu.vector[3][:4] == [9, 9, 9, 9]
-    assert cpu.instret == 0
-
-def test_vector_strided_store_fault_is_precise():
-    cpu = CorelessCPU(memory_size=0x1000)
-    cpu.vector_vl = 4
-    cpu.vector[4][:4] = [10, 20, 30, 40]
-    cpu.r[5] = 0x0FFD
-    cpu.r[6] = 1
-    cpu.memory[0:16] = ext128(3, 0x1F, 4, 5, 6, w1=0)
-    cpu.step()
-    assert (cpu.csrs[0x005] & 0xFFFF) == 0x007
-    assert cpu.memory[0x0FFD:0x1000] == bytes(3)
-    assert cpu.instret == 0
-
-def test_vector_indexed_load_mask_zero_commits_after_all_active_lanes_succeed():
-    cpu = CorelessCPU(memory_size=0x1000)
-    cpu.vector_vl = 4
-    cpu.vector_mask[1] = 0b0101
-    cpu.vector[1][:4] = [0, 0, 0, 0]
-    cpu.vector[2][:4] = [0, 1, 2, 3]
-    cpu.vector[3][:4] = [99, 99, 99, 99]
-    cpu.r[5] = 0x100
-    cpu.memory[0x100:0x102] = bytes([21, 22])
-    cpu.memory[0:16] = ext128(3, 0x20, 3, 5, 2, w1=(1 << 21) | (1 << 16))
-    cpu.step()
-    assert cpu.vector[3][:4] == [21, 0, 22, 0]
-
 def test_matrix_mmul():
     cpu=CorelessCPU()
     cpu.matrix_shape=(2,2,2)

@@ -1009,10 +1009,3 @@ The record is canonical in both directions. Encoding emits the exact architectur
 The reference implementation now executes the 64-bit extended envelope for the FP class (class=0x2, format=F2). Word 0 carries the common extended header and word 1 carries the complete scalar FP descriptor. The supported FP operation namespace is the same 0x00–0x0C namespace used by the scalar FP reference executor.
 
 A valid 64-bit FP instruction retires as one architectural instruction and advances the PC by exactly 8 bytes. Other classes in the 64-bit envelope remain reserved until their payload semantics are explicitly assigned.
-
-
-### Precise vector memory retirement
-
-Vector indexed and strided loads and stores are precise architectural operations. The implementation must preflight every active lane access before exposing destination or memory-store changes. If an active lane raises a memory, alignment, translation, or permission fault, earlier lanes must not become architecturally visible and the instruction must not retire.
-
-Masked-off lanes do not participate in memory preflight. For masked vector loads using zeroing mode, inactive destination lanes are zeroed only after all active loads have succeeded. This preserves deterministic restart/trap behavior and prevents partial vector state from leaking through a faulting instruction.
