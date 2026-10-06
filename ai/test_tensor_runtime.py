@@ -108,3 +108,16 @@ def test_tensor_runtime_routes_scalar_multiplication_through_coreless_vector():
 
     assert result.data == (2.5, 5.0, 7.5, 10.0)
     assert cpu.vector_boundary_calls == 1
+
+
+def test_tensor_runtime_broadcasts_rms_scale_through_coreless_vector():
+    cpu = TrackingCorelessCPU()
+    runtime = TensorRuntime(cpu=cpu)
+
+    value = runtime.create((4,), [1.0, 2.0, 3.0, 4.0], dtype="fp32")
+    scale = runtime.create((1,), [2.0], dtype="fp32")
+
+    result = runtime.mul_broadcast(value, scale)
+
+    assert result.data == (2.0, 4.0, 6.0, 8.0)
+    assert cpu.vector_boundary_calls == 1
