@@ -186,8 +186,7 @@ class CorelessOS:
                 if self.current_pid in self.processes.processes:
                     p = self.processes.processes[self.current_pid]
                     self.processes.replace_program(p, program)
-                    code_start = p.address_space.code_phys_base
-                    cpu.memory[code_start:code_start + len(p.program)] = p.program
+                    self.processes.load_image(p)
                     self.processes._enter_user(p)
                     self._exec_transfer = True
                 return self._ret(cpu, 0)
