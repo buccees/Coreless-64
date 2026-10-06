@@ -86,9 +86,8 @@ def test_qwen3_kv_cache_preserves_gqa_heads():
     cfg = Qwen3Config(4, 8, 1, 4, 2, 16, 16, head_dim=2)
     cache = Qwen3KVCache.create(1)
     qwen3_attention(hidden, weights, "model.layers.0", cfg, cache)
-    assert len(cache.keys[0]) == 2
-    assert len(cache.values[0]) == 2
-    assert all(len(head) == 1 for head in cache.keys[0])
+    assert cache.keys[0].shape == (2, 1, 2)
+    assert cache.values[0].shape == (2, 1, 2)
     assert cache.sequence_length == 1
 
 
