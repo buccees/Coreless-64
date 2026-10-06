@@ -104,6 +104,11 @@ class MachineScheduler:
             ordered = [(r, False) for r in conventional] + [(r, True) for r in ai]
         return tuple(ordered)
 
+    def load_snapshot(self) -> dict[str, int]:
+        """Return one atomic snapshot of scheduler resource loads."""
+        with self._lock:
+            return dict(self._load)
+
     def allocate(self, work: ComputeWork, *, preference="balanced",
                  allow_fallback=True) -> tuple[MachineComputeResource, bool]:
         if preference not in {"balanced", "conventional", "ai", "ai_only", "conventional_only"}:
