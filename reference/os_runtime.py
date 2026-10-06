@@ -181,8 +181,7 @@ class CorelessOS:
                 program = self.machine.filesystem.read(path)
                 if self.current_pid in self.processes.processes:
                     p = self.processes.processes[self.current_pid]
-                    p.program = bytes(program); p.pc = p.address_space.code_base
-                    p.registers = [0] * 32; p.sp = p.address_space.stack_base + p.address_space.stack_size
+                    self.processes.replace_program(p, program)
                 return self._ret(cpu, 0)
             except Exception: return self._ret(cpu, -1)
         if name == "net_send":
