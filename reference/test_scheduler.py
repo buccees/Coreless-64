@@ -133,3 +133,8 @@ def test_scheduler_load_snapshot_is_atomic_and_complete():
     scheduler = MachineScheduler()
     snapshot = scheduler.load_snapshot()
     assert snapshot == {resource_id: scheduler.load(resource_id) for resource_id in scheduler.resources()}
+
+def test_scheduler_available_capacity_snapshot_respects_eligible_resources():
+    scheduler = MachineScheduler()
+    snapshot = scheduler.available_capacity_snapshot(())
+    assert snapshot == {}
