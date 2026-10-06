@@ -138,3 +138,10 @@ def test_scheduler_available_capacity_snapshot_respects_eligible_resources():
     scheduler = MachineScheduler()
     snapshot = scheduler.available_capacity_snapshot(())
     assert snapshot == {}
+
+def test_scheduler_parallel_capacity_matches_capacity_snapshot():
+    scheduler = MachineScheduler()
+    assert scheduler.parallel_capacity(()) == 0
+    assert scheduler.parallel_capacity(()) == sum(
+        scheduler.available_capacity_snapshot(()).values()
+    )
