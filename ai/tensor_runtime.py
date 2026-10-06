@@ -80,6 +80,17 @@ class TensorRuntime:
             return Tensor.from_values(left.shape, values, dtype=left.dtype)
         return sub(left, right)
 
+    def transpose(self, value: Tensor) -> Tensor:
+        """Transpose a rank-2 tensor at the Coreless tensor boundary."""
+        if len(value.shape) != 2:
+            raise ValueError("transpose requires a rank-2 tensor")
+        rows, cols = value.shape
+        return Tensor.from_values(
+            (cols, rows),
+            (value.at(r, c) for c in range(cols) for r in range(rows)),
+            dtype=value.dtype,
+        )
+
     def mul_scalar(self, value: Tensor, scalar: float) -> Tensor:
         """Multiply every tensor element by a scalar through Coreless vector execution."""
         if self.cpu is not None and len(value.shape) in (1, 2):
