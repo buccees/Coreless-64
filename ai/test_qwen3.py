@@ -127,6 +127,8 @@ def test_qwen3_rotary_elementwise_ops_use_tensor_runtime():
             self.mul_calls = 0
             self.add_calls = 0
             self.sub_calls = 0
+            self.sin_calls = 0
+            self.cos_calls = 0
 
         def mul(self, left, right):
             self.mul_calls += 1
@@ -140,6 +142,14 @@ def test_qwen3_rotary_elementwise_ops_use_tensor_runtime():
             self.sub_calls += 1
             return super().sub(left, right)
 
+        def sin(self, value):
+            self.sin_calls += 1
+            return super().sin(value)
+
+        def cos(self, value):
+            self.cos_calls += 1
+            return super().cos(value)
+
     from qwen3 import _rotary
 
     runtime = RecordingRuntime()
@@ -149,6 +159,8 @@ def test_qwen3_rotary_elementwise_ops_use_tensor_runtime():
     assert runtime.mul_calls == 4
     assert runtime.add_calls == 1
     assert runtime.sub_calls == 1
+    assert runtime.sin_calls == 1
+    assert runtime.cos_calls == 1
 
 
 def test_qwen3_attention_scale_uses_tensor_runtime():
