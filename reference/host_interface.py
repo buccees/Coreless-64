@@ -11,6 +11,7 @@ from typing import Mapping, TYPE_CHECKING
 
 from device_protocol import (
     ARCHITECTURE_CORELESS64,
+    DEVICE_TYPE_CORELESS64,
     DeviceIdentityFrame,
     capability_bits,
 )
@@ -116,6 +117,7 @@ class CorelessHostInterface:
         try:
             return (
                 frame.architecture == ARCHITECTURE_CORELESS64
+                and frame.device_type == DEVICE_TYPE_CORELESS64
                 and frame.protocol_version == self.identity.protocol_version
                 and frame.payload.decode("utf-8") == self.identity.computer_id
             )
