@@ -469,3 +469,28 @@ def test_qwen3_rotary_angle_generation_uses_tensor_runtime():
 
     assert len(result) == 4
     assert runtime.rope_angle_calls == [(2, 3, 10000.0, 2.0, "fp64")]
+
+
+def test_qwen3_rotary_tensor_path_uses_native_runtime_boundary():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.rotary_calls = 0
+
+        def rotary_embedding(self, value, *, position_offset=0, theta=1000000.0, scaling_factor=None):
+            self.rotary_calls += 1
+            return super().rotary_embedding(
+                value,
+                position_offset=position_offset,
+                theta=theta,
+                scaling_factor=scaling_factor,
+            )
+
+    from qwen3 import _rotary_tensor
+
+    runtime = RecordingRuntime()
+    value = Tensor.from_values((2, 1, 4), [1.0, 2.0, 3.0, 4.0, 4.0, 3.0, 2.0, 1.0])
+    result = _rotary_tensor(value, 5, 10000.0, None, runtime)
+
+    assert result.shape == value.shape
+    assert runtime.rotary_calls == 1
