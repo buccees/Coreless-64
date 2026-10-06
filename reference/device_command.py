@@ -91,6 +91,11 @@ def is_error(command: DeviceCommand) -> bool:
     return bool(command.flags & FLAG_ERROR)
 
 
+def round_trip(command: DeviceCommand) -> DeviceCommand:
+    """Encode and decode a command at the transport boundary."""
+    return DeviceCommand.decode(command.encode())
+
+
 @dataclass(frozen=True)
 class CommandPayload:
     """Deterministic structured payload for machine-to-machine commands."""
