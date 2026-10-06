@@ -151,6 +151,30 @@ def test_qwen3_rotary_elementwise_ops_use_tensor_runtime():
     assert runtime.sub_calls == 1
 
 
+def test_qwen3_nonlinear_ops_cross_tensor_runtime_boundary():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.silu_calls = 0
+            self.softmax_calls = 0
+
+        def silu(self, value):
+            self.silu_calls += 1
+            return super().silu(value)
+
+        def softmax(self, value):
+            self.softmax_calls += 1
+            return super().softmax(value)
+
+    runtime = RecordingRuntime()
+    gate = Tensor.from_values((1, 2), (2.0, -1.0))
+
+    assert runtime.silu(gate).shape == gate.shape
+    assert runtime.softmax(Tensor.from_values((1, 2), (1.0, 2.0))).shape == (1, 2)
+    assert runtime.silu_calls == 1
+    assert runtime.softmax_calls == 1
+
+
 def test_qwen3_attention_routes_score_and_value_products_through_tensor_runtime():
     identity = _identity(2)
     weights = ModelWeights([
