@@ -236,6 +236,43 @@ def test_tensor_runtime_append_sequence():
     )
 
 
+def test_tensor_runtime_grouped_attention_matches_repeated_kv_attention():
+    runtime = TensorRuntime()
+    q = runtime.create(
+        (4, 2, 2),
+        [1.0, 0.0, 0.0, 1.0, 2.0, 1.0, 1.0, 2.0,
+         1.0, 2.0, 2.0, 1.0, 2.0, 0.0, 0.0, 2.0],
+        dtype="fp32",
+    )
+    k = runtime.create(
+        (2, 2, 2),
+        [1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 0.0],
+        dtype="fp32",
+    )
+    v = runtime.create(
+        (2, 2, 2),
+        [3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
+        dtype="fp32",
+    )
+    grouped = runtime.grouped_attention(q, k, v, 2)
+    repeated = runtime.attention(q, runtime.repeat_heads(k, 2), runtime.repeat_heads(v, 2))
+    assert grouped.shape == repeated.shape
+    assert grouped.data == repeated.data
+
+
+def test_tensor_runtime_grouped_attention_rejects_invalid_grouping():
+    runtime = TensorRuntime()
+    q = runtime.create((3, 1, 2), [1.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype="fp32")
+    k = runtime.create((2, 1, 2), [1.0, 0.0, 0.0, 1.0], dtype="fp32")
+    v = runtime.create((2, 1, 2), [1.0, 0.0, 0.0, 1.0], dtype="fp32")
+    try:
+        runtime.grouped_attention(q, k, v, 2)
+    except ValueError as exc:
+        assert "query heads must equal key/value heads" in str(exc)
+    else:
+        raise AssertionError("invalid grouped attention head ratio was accepted")
+
+
 def test_tensor_runtime_attention():
     runtime = TensorRuntime()
     q = runtime.create((1, 1, 2), [1.0, 2.0], dtype="fp32")
