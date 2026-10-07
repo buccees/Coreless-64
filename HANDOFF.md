@@ -455,3 +455,10 @@ The host boundary now has an end-to-end reference I/O path. `reference/host_io.p
 `HostTransportAdapter.connect()` and `open_session()` can bind the host I/O bundle alongside a persistent `CorelessSystem`. Regression coverage is in `reference/test_host_io_integration.py`.
 
 Verified CI runs #1314 and #1315 are green. The next transport step is platform-specific host enumeration/adapters; the reference boundary should be preserved as the conformance target.
+
+
+## Documentation checkpoint — 2026-10-07: platform-independent host discovery
+
+Added `reference/host_discovery.py` and `reference/test_host_discovery.py`. The new `HostDeviceEnumerator` converts transport-neutral identity advertisements into validated, deterministic `HostEndpoint` objects. It derives Coreless device capabilities from the identity frame, preserves host capabilities/channels, rejects malformed advertisements and duplicate endpoint IDs, and remains independent of any physical bus.
+
+This is the conformance layer between future platform-specific OS/device enumeration and the existing `HostTransportAdapter`. Physical adapters should produce discovery candidates and preserve the transport-neutral identity/command/session contracts already implemented.
