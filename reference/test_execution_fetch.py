@@ -29,10 +29,10 @@ def test_fetch_instruction_returns_exact_128_bit_boundary():
 
 
 def test_truncated_extended_instruction_traps_before_retirement():
-    cpu = CorelessCPU(memory_size=8)
+    cpu = CorelessCPU(memory_size=16)
     cpu.csrs[0x003] = 0x100
     header = encode_extended_header(3, 0x23, 1, 0, 0, 2, length=16)
-    cpu.memory[0:4] = header.to_bytes(4, "little")
+    cpu.memory[0:4] = header.to_bytes(4, "little")\n    cpu.memory[4:16] = bytes(12)
 
     assert cpu.step()
     assert (cpu.csrs[0x005] & 0xFFFF) == 0x000
