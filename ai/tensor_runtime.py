@@ -146,6 +146,23 @@ class TensorRuntime:
                 values.extend(value.data[start:start + head_dim])
         return Tensor.from_values((positions, heads * head_dim), values, dtype=value.dtype)
 
+    def stack_head_outputs(self, outputs, heads: int, positions: int, head_dim: int) -> Tensor:
+        """Assemble per-head attention outputs through TensorRuntime storage."""
+        if heads <= 0 or positions <= 0 or head_dim <= 0:
+            raise ValueError("head output dimensions must be positive")
+        if len(outputs) != heads:
+            raise ValueError("head output count does not match heads")
+        values = []
+        expected_shape = (positions, head_dim)
+        dtype = outputs[0].dtype
+        for output in outputs:
+            if output.shape != expected_shape:
+                raise ValueError("head output dimensions do not agree")
+            if output.dtype != dtype:
+                raise ValueError("head output dtypes do not agree")
+            values.extend(output.data)
+        return Tensor.from_values((heads, positions, head_dim), values, dtype=dtype)
+
     def sum_axis(self, value: Tensor, axis: int) -> Tensor:
         """Reduce a tensor by summing one axis using TensorRuntime storage."""
         rank = len(value.shape)
