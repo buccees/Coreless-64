@@ -41,16 +41,6 @@ class TensorRuntime:
         if rows <= 0 or width <= 0:
             raise ValueError("last_row requires non-empty dimensions")
         start = (rows - 1) * width
-        return Tensor.from_values((1, width), value.data[start:start + width], dtype=value.dtype)
-
-    def last_row(self, value: Tensor) -> Tensor:
-        """Select the final row of a rank-2 tensor without leaving TensorRuntime."""
-        if len(value.shape) != 2:
-            raise ValueError("last_row requires a rank-2 tensor")
-        rows, width = value.shape
-        if rows <= 0 or width <= 0:
-            raise ValueError("last_row requires non-empty dimensions")
-        start = (rows - 1) * width
         return Tensor.from_values((width,), value.data[start:start + width], dtype=value.dtype)
 
     def embedding_lookup(self, embedding: Tensor, token_ids: Iterable[int]) -> Tensor:
@@ -499,13 +489,10 @@ class TensorRuntime:
             raise ValueError("query heads must equal key/value heads times kv_group_size")
         outputs = []
         scale = 1.0 / (dim ** 0.5)
-        for query_head in range(query_heads):
-            kv_head = query_head // kv_group_size
-            query = Tensor.from_values(
-                (query_rows, dim),
-                (q.at(query_head, row, col) for row in range(query_rows) for col in range(dim)),
-                dtype=q.dtype,
-            )
+        # Build each KV group's key/value matrices once. Query heads in the
+        # group reuse them, avoiding repeated tensor construction and transpose.
+        groups = []
+        for kv_head in range(kv_heads):
             key = Tensor.from_values(
                 (key_rows, dim),
                 (k.at(kv_head, row, col) for row in range(key_rows) for col in range(dim)),
@@ -516,7 +503,16 @@ class TensorRuntime:
                 (v.at(kv_head, row, col) for row in range(key_rows) for col in range(dim)),
                 dtype=v.dtype,
             )
-            scores = self.matmul(query, self.transpose(key))
+            groups.append((self.transpose(key), value))
+        for query_head in range(query_heads):
+            kv_head = query_head // kv_group_size
+            key_transposed, value = groups[kv_head]
+            query = Tensor.from_values(
+                (query_rows, dim),
+                (q.at(query_head, row, col) for row in range(query_rows) for col in range(dim)),
+                dtype=q.dtype,
+            )
+            scores = self.matmul(query, key_transposed)
             scores = self.mul_scalar(scores, scale)
             if causal:
                 scores = self.masked_fill(
