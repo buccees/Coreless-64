@@ -521,3 +521,46 @@ def test_tensor_runtime_rotary_embedding_reuses_position_rotations_across_heads(
     assert runtime.rope_angle_calls == 2
     assert runtime.cos_calls == 2
     assert runtime.sin_calls == 2
+
+def test_tensor_runtime_masked_softmax_matches_explicit_mask_fill():
+    runtime = TensorRuntime()
+    value = runtime.create(
+        (2, 3),
+        [1.0, 2.0, 3.0, 4.0, 1.0, 0.0],
+        dtype="fp32",
+    )
+    mask = runtime.create(
+        (2, 3),
+        [1.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+        dtype="fp32",
+    )
+
+    fused = runtime.masked_softmax_last_dim(value, mask, float("-inf"))
+    explicit = runtime.softmax_last_dim(
+        runtime.masked_fill(value, mask, float("-inf"))
+    )
+
+    assert fused.shape == explicit.shape
+    for actual, expected in zip(fused.data, explicit.data):
+        assert abs(actual - expected) < 1e-12
+
+
+def test_tensor_runtime_grouped_attention_uses_fused_masked_softmax():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.masked_softmax_calls = 0
+
+        def masked_softmax_last_dim(self, value, mask, fill_value):
+            self.masked_softmax_calls += 1
+            return super().masked_softmax_last_dim(value, mask, fill_value)
+
+    runtime = RecordingRuntime()
+    q = runtime.create((2, 2, 2), [1.0, 0.0, 0.0, 1.0] * 2, dtype="fp32")
+    k = runtime.create((1, 2, 2), [1.0, 0.0, 0.0, 1.0], dtype="fp32")
+    v = runtime.create((1, 2, 2), [3.0, 4.0, 5.0, 6.0], dtype="fp32")
+
+    result = runtime.grouped_attention(q, k, v, 2)
+
+    assert result.shape == (2, 4)
+    assert runtime.masked_softmax_calls == 2
