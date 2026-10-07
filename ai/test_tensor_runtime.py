@@ -144,6 +144,30 @@ def test_tensor_runtime_native_head_reshape_and_gqa_repeat():
     assert repeated.data == heads.data[:4] + heads.data[:4] + heads.data[4:] + heads.data[4:]
 
 
+def test_tensor_runtime_batch_matmul_uses_contiguous_head_storage():
+    class CountingTensor:
+        def __init__(self, shape, data, dtype="fp32"):
+            self.shape = shape
+            self.data = tuple(data)
+            self.dtype = dtype
+            self.at_calls = 0
+
+        def at(self, *indices):
+            self.at_calls += 1
+            raise AssertionError("batch_matmul should use contiguous head storage")
+
+    runtime = TensorRuntime()
+    left = CountingTensor((2, 1, 2), [1.0, 2.0, 3.0, 4.0])
+    right = CountingTensor((2, 2, 1), [5.0, 6.0, 7.0, 8.0])
+
+    result = runtime.batch_matmul(left, right)
+
+    assert result.shape == (2, 1, 1)
+    assert result.data == (17.0, 53.0)
+    assert left.at_calls == 0
+    assert right.at_calls == 0
+
+
 def test_tensor_runtime_batched_attention_matmul():
     runtime = TensorRuntime()
     q = runtime.create((2, 1, 2), [1, 2, 3, 4], dtype="fp32")

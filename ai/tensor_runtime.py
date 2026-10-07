@@ -194,13 +194,21 @@ class TensorRuntime:
         heads, rows, inner = left.shape
         cols = right.shape[2]
         values = []
+        left_stride = rows * inner
+        right_stride = inner * cols
         for head in range(heads):
-            a = Tensor.from_values((rows, inner),
-                (left.at(head, r, k) for r in range(rows) for k in range(inner)),
-                dtype=left.dtype)
-            b = Tensor.from_values((inner, cols),
-                (right.at(head, k, col) for k in range(inner) for col in range(cols)),
-                dtype=right.dtype)
+            left_start = head * left_stride
+            right_start = head * right_stride
+            a = Tensor.from_values(
+                (rows, inner),
+                left.data[left_start:left_start + left_stride],
+                dtype=left.dtype,
+            )
+            b = Tensor.from_values(
+                (inner, cols),
+                right.data[right_start:right_start + right_stride],
+                dtype=right.dtype,
+            )
             values.extend(self.matmul(a, b).data)
         return Tensor.from_values((heads, rows, cols), values, dtype=left.dtype)
 
