@@ -72,3 +72,28 @@ def test_execution_trap_does_not_retire_divide_by_zero():
     assert cpu.pc == 0x100
     assert cpu.instret == 0
     assert cpu.r[3] == 0
+
+
+def test_retx_restores_trap_context_and_resumes_at_epc():
+    cpu = CorelessCPU()
+    cpu.csrs[0x003] = 0x100
+    cpu.csrs[0x001] = 1
+    cpu.memory[0:4] = ((0x1F << 27)).to_bytes(4, "little")
+    cpu.memory[0x100:0x104] = ((6 << 27) | 4).to_bytes(4, "little")
+
+    assert cpu.step() is True
+    assert cpu.last_step_result["event"] == "trap"
+    assert cpu.csrs[0x004] == 0
+    assert cpu.pc == 0x100
+    assert cpu.instret == 0
+    assert cpu.privilege == 3
+    assert cpu.csrs[0x001] == 0
+
+    cpu.privilege = 1
+    cpu.csrs[0x000] = 1
+    assert cpu.step() is True
+    assert cpu.last_step_result["event"] == "retired"
+    assert cpu.pc == 0
+    assert cpu.privilege == 3
+    assert cpu.csrs[0x001] == 1
+    assert cpu.instret == 1
