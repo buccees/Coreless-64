@@ -10,11 +10,12 @@ from __future__ import annotations
 import json
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from input import CoordinateFrame, InputEvent, InputEventType
 
 
+@runtime_checkable
 class DisplayTransport(Protocol):
     """Host-side display channel contract."""
 
@@ -25,6 +26,7 @@ class DisplayTransport(Protocol):
         ...
 
 
+@runtime_checkable
 class InputTransport(Protocol):
     """Host-side input channel contract."""
 
@@ -35,6 +37,7 @@ class InputTransport(Protocol):
         ...
 
 
+@runtime_checkable
 class NetworkTransport(Protocol):
     """Host-side network channel contract."""
 
