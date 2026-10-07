@@ -121,6 +121,39 @@ def test_tensor_runtime_broadcasts_rms_scale_through_coreless_vector():
 
     assert result.data == (2.0, 4.0, 6.0, 8.0)
     assert cpu.vector_boundary_calls == 1
+def test_tensor_runtime_broadcasts_rms_scale_through_coreless_vector():
+    cpu = TrackingCorelessCPU()
+    runtime = TensorRuntime(cpu=cpu)
+
+    value = runtime.create((4,), [1.0, 2.0, 3.0, 4.0], dtype="fp32")
+    scale = runtime.create((1,), [2.0], dtype="fp32")
+
+    result = runtime.mul_broadcast(value, scale)
+
+    assert result.data == (2.0, 4.0, 6.0, 8.0)
+    assert cpu.vector_boundary_calls == 1
+
+
+def test_tensor_runtime_scalar_broadcast_avoids_materializing_rhs_tensor():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self, cpu):
+            super().__init__(cpu=cpu)
+            self.vector_mul_calls = 0
+
+        def vector_mul(self, left, right):
+            self.vector_mul_calls += 1
+            return super().vector_mul(left, right)
+
+    cpu = TrackingCorelessCPU()
+    runtime = RecordingRuntime(cpu)
+    value = runtime.create((2, 3), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], dtype="fp32")
+    scale = runtime.create((1,), [2.0], dtype="fp32")
+
+    result = runtime.mul_broadcast(value, scale)
+
+    assert result.data == (2.0, 4.0, 6.0, 8.0, 10.0, 12.0)
+    assert runtime.vector_mul_calls == 0
+    assert cpu.vector_boundary_calls == 1
 
 
 def test_tensor_runtime_transposes_rank2_tensor_at_coreless_boundary():
