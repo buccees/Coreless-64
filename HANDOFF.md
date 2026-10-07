@@ -446,3 +446,12 @@ The persistent-storage-hosted reference runtime now has a direct launcher at `sc
 This closes the reference-runtime environment milestone without claiming that physical host-independent execution hardware exists. The image remains the authoritative persistent machine-state carrier; the reference execution engine remains the digital implementation boundary.
 
 CI status must still be verified from GitHub Actions rather than inferred from this documentation.
+
+
+## Documentation checkpoint — 2026-10-07: reference host I/O integration
+
+The host boundary now has an end-to-end reference I/O path. `reference/host_io.py` provides deterministic display, input, and network transports plus Coreless input-event serialization. `CorelessHostInterface.bind_host_io()` binds those transports to negotiated capabilities, and `pump_host_io()` moves input, display, and network traffic across the boundary while Coreless remains the computational owner.
+
+`HostTransportAdapter.connect()` and `open_session()` can bind the host I/O bundle alongside a persistent `CorelessSystem`. Regression coverage is in `reference/test_host_io_integration.py`.
+
+Verified CI runs #1314 and #1315 are green. The next transport step is platform-specific host enumeration/adapters; the reference boundary should be preserved as the conformance target.
