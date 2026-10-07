@@ -280,6 +280,26 @@ def test_tensor_runtime_grouped_attention_reuses_each_kv_group_once():
     assert runtime.transpose_calls == 2
 
 
+def test_tensor_runtime_grouped_attention_reuses_causal_mask():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.mask_calls = 0
+
+        def causal_mask(self, shape, query_offset=0, dtype="fp64"):
+            self.mask_calls += 1
+            return super().causal_mask(shape, query_offset=query_offset, dtype=dtype)
+
+    runtime = RecordingRuntime()
+    q = runtime.create((4, 2, 2), [1.0, 0.0, 0.0, 1.0] * 4, dtype="fp32")
+    k = runtime.create((2, 2, 2), [1.0, 0.0, 0.0, 1.0] * 2, dtype="fp32")
+    v = runtime.create((2, 2, 2), [3.0, 4.0, 5.0, 6.0] * 2, dtype="fp32")
+
+    runtime.grouped_attention(q, k, v, 2)
+
+    assert runtime.mask_calls == 1
+
+
 def test_tensor_runtime_grouped_attention_rejects_invalid_grouping():
     runtime = TensorRuntime()
     q = runtime.create((3, 1, 2), [1.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype="fp32")
