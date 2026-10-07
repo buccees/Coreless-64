@@ -793,3 +793,10 @@ def test_tensor_runtime_grouped_attention_uses_fused_masked_softmax():
 
     assert result.shape == (2, 4)
     assert runtime.masked_softmax_calls == 2
+
+
+def test_head_slice_stays_inside_tensor_runtime():
+    runtime = TensorRuntime()
+    value = Tensor.from_values((2, 2, 2), (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0))
+    assert runtime.head_slice(value, 1).shape == (2, 2)
+    assert runtime.head_slice(value, 1).data == (5.0, 6.0, 7.0, 8.0)
