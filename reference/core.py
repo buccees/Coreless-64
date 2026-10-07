@@ -1143,13 +1143,13 @@ class CorelessCPU:
                     # payload word contains the complete FP descriptor.
                     if cls != 2 or not 0 <= op <= 12:
                         raise CorelessTrap("illegal_instruction", self.pc, op)
-                    self._scalar_fp_op(op, rd, rs1, rs2, words[0])
+                    self._scalar_fp_op(op, rd, rs1, rs2, words[1])
                 elif cls == 2:
-                    self._scalar_fp_op(op, rd, rs1, rs2, words[0])
+                    self._scalar_fp_op(op, rd, rs1, rs2, words[1])
                 elif cls == 3:
-                    self._vector_op(cls, op, rd, rs1, rs2, words[0])
+                    self._vector_op(cls, op, rd, rs1, rs2, words[1])
                 elif cls == 4:
-                    self._matrix_op(op, rd, rs1, rs2, words[0], words[1], words[2])
+                    self._matrix_op(op, rd, rs1, rs2, words[1], words[2], words[3])
                 else:
                     raise CorelessTrap("illegal_instruction", self.pc, cls)
                 next_pc = (self.pc + length) & MASK64
