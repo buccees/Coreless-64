@@ -1226,3 +1226,48 @@ def test_hub_parallel_dispatch_prioritizes_workloads_but_preserves_result_order(
     results = hub.dispatch_parallel(workloads)
     assert [result.result for result in results] == ["low", "high", "medium"]
     assert started[0] == "high"
+
+
+def test_hub_dispatch_does_not_release_load_into_rejoined_component():
+    import threading
+
+    started = threading.Event()
+    release = threading.Event()
+    results = []
+
+    def execute(payload):
+        started.set()
+        assert release.wait(1)
+        return payload
+
+    hub = CorelessHub("hub-rejoin-lease")
+    original = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"}), capacity=1),
+        workload_executor=execute,
+    )
+    hub.connect(original)
+
+    worker = threading.Thread(
+        target=lambda: results.append(
+            hub.dispatch(Workload("w1", "compute", "done"))
+        )
+    )
+    worker.start()
+    assert started.wait(1)
+
+    hub.disconnect("cpu-0")
+    replacement = CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"}), capacity=1),
+        workload_executor=lambda payload: payload,
+    )
+    hub.connect(replacement)
+
+    release.set()
+    worker.join(timeout=1)
+    assert not worker.is_alive()
+    assert results[0].result == "done"
+    assert hub._dispatch_load["cpu-0"] == 0
+
+    replacement_result = hub.dispatch(Workload("w2", "compute", "replacement"))
+    assert replacement_result.component_id == "cpu-0"
+    assert replacement_result.result == "replacement"
