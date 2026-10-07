@@ -449,3 +449,26 @@ def test_tensor_runtime_head_layout_ops_use_contiguous_storage():
         CountingTensor((2, 2, 2), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
     )
     assert transposed.data == (1.0, 3.0, 2.0, 4.0, 5.0, 7.0, 6.0, 8.0)
+
+
+def test_tensor_runtime_transpose_and_merge_use_contiguous_storage():
+    class CountingTensor:
+        def __init__(self, shape, data, dtype="fp32"):
+            self.shape = shape
+            self.data = tuple(data)
+            self.dtype = dtype
+            self.at_calls = 0
+
+        def at(self, *indices):
+            self.at_calls += 1
+            raise AssertionError("layout transforms should use contiguous storage")
+
+    runtime = TensorRuntime()
+    value = CountingTensor((2, 3), [1, 2, 3, 4, 5, 6])
+    assert runtime.transpose(value).data == (1.0, 4.0, 2.0, 5.0, 3.0, 6.0)
+    assert value.at_calls == 0
+
+    heads = CountingTensor((2, 2, 2), [1, 2, 3, 4, 10, 20, 30, 40])
+    result = runtime.merge_heads(heads)
+    assert result.data == (1.0, 2.0, 10.0, 20.0, 3.0, 4.0, 30.0, 40.0)
+    assert heads.at_calls == 0
