@@ -895,8 +895,14 @@ class CorelessHub:
             return selected.execute_workload(workload)
         finally:
             with self._dispatch_condition:
-                current = self._dispatch_load.get(selected.component_id, 0)
-                self._dispatch_load[selected.component_id] = max(0, current - 1)
+                # A component may be disconnected and a new component with the
+                # same ID may rejoin while this workload is executing.  Only
+                # release the lease if the registered object is still the one
+                # that acquired it; never decrement a replacement component.
+                registered = self._components.get(selected.component_id)
+                if registered is selected:
+                    current = self._dispatch_load.get(selected.component_id, 0)
+                    self._dispatch_load[selected.component_id] = max(0, current - 1)
                 self._dispatch_condition.notify_all()
     def dispatch_pipeline(
         self, workloads: tuple[Workload, ...] | list[Workload]
