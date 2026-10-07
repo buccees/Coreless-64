@@ -103,10 +103,9 @@ class HostTransportAdapter:
         host_io: HostIO | None = None,
         input_router=None,
     ) -> frozenset[str]:
-        """Attach an endpoint and reject an invalid host I/O bundle early."""
+        """Attach an endpoint, optionally binding its persistent system and host I/O."""
         if host_io is not None and not isinstance(host_io, HostIO):
             raise TypeError("host_io must implement the Coreless HostIO contract")
-        """Attach an endpoint, optionally binding its persistent system and host I/O."""
         negotiated = interface.attach_identity_frame(
             endpoint.identity_frame(), endpoint.capabilities, system=system
         )
@@ -124,7 +123,7 @@ class HostTransportAdapter:
         interface: CorelessHostInterface,
         *,
         system=None,
-        host_io=None,
+        host_io: HostIO | None = None,
         input_router=None,
     ) -> HostTransportSession:
         """Attach an endpoint and retain its negotiated transport session."""
