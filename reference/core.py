@@ -125,6 +125,7 @@ class CorelessCPU:
         self.syscall_handler = None  # legacy compatibility; SYSCALL no longer bypasses traps
         self.supervisor_trap_handler = None
         self.vm_handler = None
+        self._last_step_event = None
 
     def reset(self):
         """Return architectural state to the defined power-on reset state.
@@ -1083,9 +1084,14 @@ class CorelessCPU:
         return next_pc
 
     def step(self):
+        self._last_step_event = None
         if self.halted:
+            self._last_step_event = "halt"
             return False
         if self._take_interrupt_if_enabled():
+            self._last_step_event = "interrupt"
+            return True
+        
             return True
         from encoding import from_bytes, instruction_length, decode, IllegalEncoding
         try:
@@ -1119,7 +1125,12 @@ class CorelessCPU:
             else:
                 ins = decode(first)
                 next_pc = self._execute(ins)
-            if next_pc == "wait" or next_pc == "trap":
+            if next_pc == "wait":
+                self._last_step_event = "wait"
+                self.r[0] = 0
+                return True
+            if next_pc == "trap":
+                self._last_step_event = "trap"
                 self.r[0] = 0
                 return True
             if next_pc & 3:
@@ -1128,15 +1139,18 @@ class CorelessCPU:
             self.pc = next_pc & MASK64
             self.cycle += 1
             self.instret += 1
+            self._last_step_event = "halt" if self.halted else "retired"
             return True
         except IllegalEncoding:
             trap = CorelessTrap("illegal_instruction", self.pc, 0)
             self._enter_trap(trap)
+            self._last_step_event = "trap"
             return True
         except CorelessTrap as trap:
             self._enter_trap(trap)
             if trap.cause == "syscall" and self.supervisor_trap_handler is not None:
                 self.supervisor_trap_handler(self, trap)
+            self._last_step_event = "trap"
             return True
 
 
@@ -1155,15 +1169,13 @@ class CorelessCPU:
         return len(data)
 
     def run(self, max_steps=100000):
-        """Run from the current PC until HALT, trap transfer, or the step limit."""
+        """Run from the current PC until HALT, trap, wait, or the step limit."""
+        if max_steps < 0:
+            raise ValueError("max_steps must be non-negative")
         steps = 0
         while not self.halted and steps < max_steps:
-            before_pc = self.pc
-            before_trap = self.csrs[0x005]
             self.step()
             steps += 1
-            if self.halted:
-                break
-            if self.csrs[0x005] != before_trap and self.pc != before_pc:
+            if self._last_step_event in ("halt", "trap", "wait", "interrupt"):
                 break
         return steps
