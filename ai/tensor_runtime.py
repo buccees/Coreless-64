@@ -493,14 +493,16 @@ class TensorRuntime:
         # group reuse them, avoiding repeated tensor construction and transpose.
         groups = []
         for kv_head in range(kv_heads):
+            group_start = kv_head * key_rows * dim
+            group_end = group_start + key_rows * dim
             key = Tensor.from_values(
                 (key_rows, dim),
-                (k.at(kv_head, row, col) for row in range(key_rows) for col in range(dim)),
+                k.data[group_start:group_end],
                 dtype=k.dtype,
             )
             value = Tensor.from_values(
                 (key_rows, dim),
-                (v.at(kv_head, row, col) for row in range(key_rows) for col in range(dim)),
+                v.data[group_start:group_end],
                 dtype=v.dtype,
             )
             groups.append((self.transpose(key), value))
@@ -516,9 +518,11 @@ class TensorRuntime:
         for query_head in range(query_heads):
             kv_head = query_head // kv_group_size
             key_transposed, value = groups[kv_head]
+            query_start = query_head * query_rows * dim
+            query_end = query_start + query_rows * dim
             query = Tensor.from_values(
                 (query_rows, dim),
-                (q.at(query_head, row, col) for row in range(query_rows) for col in range(dim)),
+                q.data[query_start:query_end],
                 dtype=q.dtype,
             )
             scores = self.matmul(query, key_transposed)
@@ -565,9 +569,11 @@ class TensorRuntime:
         outputs = []
         for row in range(rows):
             start = row * width
-            outputs.extend(softmax(
-                Tensor.from_values((width,), value.data[start:start + width], dtype=value.dtype)
-            ).data)
+            row_values = value.data[start:start + width]
+            maximum = max(row_values)
+            exponentials = [exp(item - maximum) for item in row_values]
+            total = sum(exponentials)
+            outputs.extend(item / total for item in exponentials)
         return Tensor.from_values(value.shape, outputs, dtype=value.dtype)
 
     def softmax(self, value: Tensor) -> Tensor:

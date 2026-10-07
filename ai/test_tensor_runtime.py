@@ -280,6 +280,31 @@ def test_tensor_runtime_grouped_attention_reuses_each_kv_group_once():
     assert runtime.transpose_calls == 2
 
 
+def test_tensor_runtime_grouped_attention_uses_contiguous_head_storage():
+    class CountingTensor:
+        def __init__(self, shape, data, dtype="fp32"):
+            self.shape = shape
+            self.data = tuple(data)
+            self.dtype = dtype
+            self.at_calls = 0
+
+        def at(self, *indices):
+            self.at_calls += 1
+            raise AssertionError("grouped attention should use contiguous head storage")
+
+    runtime = TensorRuntime()
+    q = CountingTensor((2, 1, 2), [1.0, 0.0, 0.0, 1.0])
+    k = CountingTensor((1, 1, 2), [1.0, 0.0])
+    v = CountingTensor((1, 1, 2), [3.0, 4.0])
+
+    result = runtime.grouped_attention(q, k, v, 2)
+
+    assert result.shape == (1, 4)
+    assert q.at_calls == 0
+    assert k.at_calls == 0
+    assert v.at_calls == 0
+
+
 def test_tensor_runtime_grouped_attention_reuses_causal_mask():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
