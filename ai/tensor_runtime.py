@@ -313,10 +313,13 @@ class TensorRuntime:
             raise ValueError("row RMSNorm weight must match the final dimension")
         rows, dim = value.shape
         values = []
+        weight_data = weight.data
         for row in range(rows):
             start = row * dim
-            chunk = Tensor.from_values((dim,), value.data[start:start + dim], dtype=value.dtype)
-            values.extend(self.rms_norm(chunk, weight, eps=eps).data)
+            row_data = value.data[start:start + dim]
+            mean_square = fsum(v * v for v in row_data) / dim
+            scale = 1.0 / (mean_square + eps) ** 0.5
+            values.extend(v * scale * w for v, w in zip(row_data, weight_data))
         return Tensor.from_values(value.shape, values, dtype=value.dtype)
 
     def rms_norm(self, value: Tensor, weight: Tensor, *, eps: float = 0.0) -> Tensor:
@@ -355,15 +358,15 @@ class TensorRuntime:
             raise ValueError("head RMSNorm weight must match the final dimension")
         heads, positions, dim = value.shape
         values = []
+        weight_data = weight.data
         for head in range(heads):
+            head_start = head * positions * dim
             for position in range(positions):
-                start = (head * positions + position) * dim
-                chunk = Tensor.from_values(
-                    (dim,),
-                    value.data[start:start + dim],
-                    dtype=value.dtype,
-                )
-                values.extend(self.rms_norm(chunk, weight, eps=eps).data)
+                start = head_start + position * dim
+                row_data = value.data[start:start + dim]
+                mean_square = fsum(v * v for v in row_data) / dim
+                scale = 1.0 / (mean_square + eps) ** 0.5
+                values.extend(v * scale * w for v, w in zip(row_data, weight_data))
         return Tensor.from_values(value.shape, values, dtype=value.dtype)
 
     def append_sequence(self, existing: Tensor, update: Tensor) -> Tensor:

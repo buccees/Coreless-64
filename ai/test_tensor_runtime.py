@@ -297,6 +297,37 @@ def test_tensor_runtime_rms_norm_heads():
     assert result.at(1, 0, 1) == 1.2649110640673518
 
 
+
+
+def test_tensor_runtime_rms_norm_rows_and_heads_avoid_per_row_tensor_dispatch():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.rms_norm_calls = 0
+
+        def rms_norm(self, value, weight, *, eps=0.0):
+            self.rms_norm_calls += 1
+            return super().rms_norm(value, weight, eps=eps)
+
+    runtime = RecordingRuntime()
+    value = runtime.create(
+        (2, 2, 2),
+        [3.0, 4.0, 1.0, 2.0, 5.0, 12.0, 8.0, 15.0],
+        dtype="fp32",
+    )
+    weight = runtime.create((2,), [1.0, 2.0], dtype="fp32")
+
+    heads = runtime.rms_norm_heads(value, weight, eps=1e-6)
+    rows = runtime.rms_norm_rows(
+        runtime.create((2, 2), value.data[:4], dtype="fp32"),
+        weight,
+        eps=1e-6,
+    )
+
+    assert heads.shape == value.shape
+    assert rows.shape == (2, 2)
+    assert runtime.rms_norm_calls == 0
+    assert heads.data[:4] == rows.data
 def test_tensor_runtime_append_sequence():
     runtime = TensorRuntime()
     existing = runtime.create(
