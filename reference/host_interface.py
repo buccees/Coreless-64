@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, TYPE_CHECKING
 
+from host_io import HostIO
 from device_protocol import (
     ARCHITECTURE_CORELESS64,
     DEVICE_TYPE_CORELESS64,
@@ -278,8 +279,10 @@ class CorelessHostInterface:
             raise RuntimeError("no Coreless input router is bound")
         return self._input_router.submit(event)
 
-    def bind_host_io(self, host_io, *, input_router: CorelessInputRouter | None = None) -> None:
-        """Bind concrete display/input/network transports to the Coreless devices."""
+    def bind_host_io(self, host_io: HostIO, *, input_router: CorelessInputRouter | None = None) -> None:
+        """Bind a validated host I/O bundle to the Coreless devices."""
+        if not isinstance(host_io, HostIO):
+            raise TypeError("host_io must implement the Coreless HostIO contract")
         if not self._attached:
             raise RuntimeError("host interface is not attached")
         if "display" in self._negotiated:
