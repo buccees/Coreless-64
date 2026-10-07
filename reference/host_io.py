@@ -10,8 +10,39 @@ from __future__ import annotations
 import json
 from collections import deque
 from dataclasses import dataclass, field
+from typing import Protocol
 
 from input import CoordinateFrame, InputEvent, InputEventType
+
+
+class DisplayTransport(Protocol):
+    """Host-side display channel contract."""
+
+    def send_frame(self, frame: bytes) -> None:
+        ...
+
+    def receive_frame(self) -> bytes:
+        ...
+
+
+class InputTransport(Protocol):
+    """Host-side input channel contract."""
+
+    def send_event(self, event: bytes) -> None:
+        ...
+
+    def receive_event(self) -> bytes:
+        ...
+
+
+class NetworkTransport(Protocol):
+    """Host-side network channel contract."""
+
+    def send_packet(self, packet: bytes) -> None:
+        ...
+
+    def receive_packet(self) -> bytes:
+        ...
 
 
 def encode_input_event(event: InputEvent) -> bytes:
