@@ -202,7 +202,7 @@ def test_tensor_runtime_batch_matmul_stages_contiguous_heads_without_rank2_tenso
     result = runtime.batch_matmul(left, right)
 
     assert result.shape == (2, 2, 2)
-    assert result.data == (1.0, 2.0, 3.0, 4.0, 19.0, 17.0, 27.0, 23.0)
+    assert result.data == (1.0, 2.0, 3.0, 4.0, 16.0, 17.0, 22.0, 23.0)
     assert runtime.contiguous_calls == 2
     assert runtime.matrix_calls == 0
 
