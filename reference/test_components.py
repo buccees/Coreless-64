@@ -1160,3 +1160,41 @@ def test_component_can_execute_through_its_unified_hub():
     assert result.component_id == "vision-0"
     assert result.result == "FRAME"
 
+def test_hub_parallel_dispatch_respects_component_capacity_and_balances_load():
+    import threading
+    import time
+
+    active = []
+    lock = threading.Lock()
+    peak = [0]
+
+    def execute(payload):
+        with lock:
+            active.append(payload)
+            peak[0] = max(peak[0], len(active))
+        time.sleep(0.01)
+        with lock:
+            active.remove(payload)
+        return payload.upper()
+
+    hub = CorelessHub("hub-capacity")
+    for component_id in ("cpu-0", "cpu-1"):
+        hub.connect(CorelessComponent(
+            ComponentDescriptor(component_id, "cpu", frozenset({"compute"}), capacity=2),
+            workload_executor=execute,
+        ))
+    results = hub.dispatch_parallel(
+        [Workload(f"w{i}", "compute", str(i)) for i in range(8)]
+    )
+    assert [result.result for result in results] == [str(i).upper() for i in range(8)]
+    assert peak[0] == 4
+    assert all(load == 0 for load in hub._dispatch_load.values())
+
+
+def test_hub_dispatch_fails_fast_when_capability_has_no_executor():
+    hub = CorelessHub("hub-no-executor")
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"})),
+    ))
+    with pytest.raises(RuntimeError, match="no executor available"):
+        hub.dispatch(Workload("w1", "compute", 1))
