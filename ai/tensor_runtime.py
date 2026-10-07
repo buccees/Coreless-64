@@ -68,14 +68,7 @@ class TensorRuntime:
         if self.cpu is not None and left.shape == right.shape and len(left.shape) == 1:
             return self.vector_add(left, right)
         if self.cpu is not None and left.shape == right.shape and len(left.shape) == 2:
-            rows, cols = left.shape
-            values = []
-            for row in range(rows):
-                values.extend(self.vector_add(
-                    Tensor.from_values((cols,), left.data[row * cols:(row + 1) * cols], dtype=left.dtype),
-                    Tensor.from_values((cols,), right.data[row * cols:(row + 1) * cols], dtype=right.dtype),
-                ).data)
-            return Tensor.from_values(left.shape, values, dtype=left.dtype)
+            return self._vector_binary_rows(left, right, 0x01)
         return add(left, right)
 
     def matmul(self, left: Tensor, right: Tensor) -> Tensor:
@@ -94,14 +87,7 @@ class TensorRuntime:
         if self.cpu is not None and left.shape == right.shape and len(left.shape) == 1:
             return self.vector_sub(left, right)
         if self.cpu is not None and left.shape == right.shape and len(left.shape) == 2:
-            rows, cols = left.shape
-            values = []
-            for row in range(rows):
-                values.extend(self.vector_sub(
-                    Tensor.from_values((cols,), left.data[row * cols:(row + 1) * cols], dtype=left.dtype),
-                    Tensor.from_values((cols,), right.data[row * cols:(row + 1) * cols], dtype=right.dtype),
-                ).data)
-            return Tensor.from_values(left.shape, values, dtype=left.dtype)
+            return self._vector_binary_rows(left, right, 0x03)
         return sub(left, right)
 
     def reshape_heads(self, value: Tensor, heads: int, head_dim: int) -> Tensor:
@@ -242,14 +228,7 @@ class TensorRuntime:
         if self.cpu is not None and left.shape == right.shape and len(left.shape) == 1:
             return self.vector_mul(left, right)
         if self.cpu is not None and left.shape == right.shape and len(left.shape) == 2:
-            rows, cols = left.shape
-            values = []
-            for row in range(rows):
-                values.extend(self.vector_mul(
-                    Tensor.from_values((cols,), left.data[row * cols:(row + 1) * cols], dtype=left.dtype),
-                    Tensor.from_values((cols,), right.data[row * cols:(row + 1) * cols], dtype=right.dtype),
-                ).data)
-            return Tensor.from_values(left.shape, values, dtype=left.dtype)
+            return self._vector_binary_rows(left, right, 0x02)
         return mul(left, right)
 
     def dot(self, left: Tensor, right: Tensor) -> float:
@@ -734,6 +713,21 @@ class TensorRuntime:
             for r, values in saved.items():
                 cpu.vector[r][:] = values
             cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype = old_vl, old_vstart, old_vtype
+
+    def _vector_binary_rows(self, left: Tensor, right: Tensor, op: int) -> Tensor:
+        if left.shape != right.shape or len(left.shape) != 2:
+            raise ValueError("row-wise vector binary operation requires matching rank-2 tensors")
+        rows, cols = left.shape
+        values = []
+        for row in range(rows):
+            start = row * cols
+            result = self._vector_binary_native(
+                Tensor.from_values((cols,), left.data[start:start + cols], dtype=left.dtype),
+                Tensor.from_values((cols,), right.data[start:start + cols], dtype=right.dtype),
+                op,
+            )
+            values.extend(result.data)
+        return Tensor.from_values(left.shape, values, dtype=left.dtype)
 
     def vector_add(self, left: Tensor, right: Tensor) -> Tensor:
         return self._vector_binary(left, right, 0x00)
