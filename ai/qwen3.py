@@ -23,10 +23,17 @@ class Qwen3KVCache:
 
     keys: list[Tensor | None]
     values: list[Tensor | None]
+    runtime: TensorRuntime | None = None
 
     @classmethod
-    def create(cls, num_layers: int) -> "Qwen3KVCache":
-        return cls([None for _ in range(num_layers)], [None for _ in range(num_layers)])
+    def create(
+        cls, num_layers: int, runtime: TensorRuntime | None = None
+    ) -> "Qwen3KVCache":
+        return cls(
+            [None for _ in range(num_layers)],
+            [None for _ in range(num_layers)],
+            runtime,
+        )
 
     @property
     def layer_count(self) -> int:
@@ -78,7 +85,7 @@ class Qwen3KVCache:
             raise ValueError("cache name must be a non-empty local name")
         if num_layers < 1:
             raise ValueError("num_layers must be positive")
-        cache = cls.create(num_layers)
+        cache = cls.create(num_layers, runtime)
         for layer_index in range(num_layers):
             try:
                 key = runtime.load(f"{name}_layer_{layer_index}_key")
@@ -110,12 +117,15 @@ class Qwen3KVCache:
             raise ValueError("Qwen3 KV cache key/value dtypes must match")
         old_key = self.keys[layer_index]
         old_value = self.values[layer_index]
+        active_runtime = runtime or self.runtime
+        if self.runtime is not None and runtime is not None and runtime is not self.runtime:
+            raise ValueError("Qwen3 KV cache is bound to a different TensorRuntime")
         if old_key is None or old_value is None:
             self.keys[layer_index] = key
             self.values[layer_index] = value
-        elif runtime is not None:
-            self.keys[layer_index] = runtime.append_sequence(old_key, key)
-            self.values[layer_index] = runtime.append_sequence(old_value, value)
+        elif active_runtime is not None:
+            self.keys[layer_index] = active_runtime.append_sequence(old_key, key)
+            self.values[layer_index] = active_runtime.append_sequence(old_value, value)
         else:
             self.keys[layer_index] = Tensor.from_values(
                 (old_key.shape[0], old_key.shape[1] + key.shape[1], old_key.shape[2]),
@@ -561,7 +571,7 @@ class Qwen3Runtime:
         generated = list(token_ids)
         if not generated or max_new_tokens == 0:
             return generated
-        cache = Qwen3KVCache.create(self.config.num_hidden_layers)
+        cache = Qwen3KVCache.create(self.config.num_hidden_layers, self.tensor_runtime)
         logits = self.forward(generated, cache)
         for _ in range(max_new_tokens):
             if self.tensor_runtime is not None:
