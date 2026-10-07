@@ -546,7 +546,34 @@ def test_qwen3_kv_cache_uses_tensor_runtime_append_boundary():
     assert cache.values[0].shape == (1, 2, 2)
 
 
-def test_qwen3_attention_uses_native_attention_boundary():
+def test_qwen3_attention_uses_native_grouped_attention_boundary():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.grouped_attention_calls = 0
+
+        def grouped_attention(self, q, k, v, kv_group_size, *, causal=True, key_position_offset=0):
+            self.grouped_attention_calls += 1
+            assert kv_group_size == 1
+            return super().grouped_attention(
+                q, k, v, kv_group_size, causal=causal, key_position_offset=key_position_offset
+            )
+
+    identity = _identity(2)
+    weights = ModelWeights([
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+    ])
+    cfg = Qwen3Config(2, 4, 1, 1, 1, 8, 16, head_dim=2)
+    runtime = RecordingRuntime()
+    qwen3_attention(Tensor.from_values((1, 2), (1.0, 0.0)), weights, "model.layers.0", cfg, runtime=runtime)
+    assert runtime.grouped_attention_calls == 1
+
+
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
             super().__init__()
