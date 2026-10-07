@@ -472,3 +472,22 @@ def test_tensor_runtime_transpose_and_merge_use_contiguous_storage():
     result = runtime.merge_heads(heads)
     assert result.data == (1.0, 2.0, 10.0, 20.0, 3.0, 4.0, 30.0, 40.0)
     assert heads.at_calls == 0
+
+
+def test_tensor_runtime_rotary_embedding_uses_contiguous_storage():
+    class CountingTensor:
+        def __init__(self, shape, data, dtype="fp32"):
+            self.shape = shape
+            self.data = tuple(data)
+            self.dtype = dtype
+            self.at_calls = 0
+
+        def at(self, *indices):
+            self.at_calls += 1
+            raise AssertionError("rotary_embedding should use contiguous storage")
+
+    runtime = TensorRuntime()
+    value = CountingTensor((1, 1, 4), [1, 2, 3, 4])
+    result = runtime.rotary_embedding(value, 0)
+    assert result.shape == (1, 1, 4)
+    assert value.at_calls == 0
