@@ -152,14 +152,13 @@ class TensorRuntime:
         if len(value.shape) != 3:
             raise ValueError("merge_heads requires a rank-3 tensor")
         heads, positions, head_dim = value.shape
-        return Tensor.from_values(
-            (positions, heads * head_dim),
-            (value.at(head, position, dim)
-             for position in range(positions)
-             for head in range(heads)
-             for dim in range(head_dim)),
-            dtype=value.dtype,
-        )
+        values = []
+        head_stride = positions * head_dim
+        for position in range(positions):
+            for head in range(heads):
+                start = head * head_stride + position * head_dim
+                values.extend(value.data[start:start + head_dim])
+        return Tensor.from_values((positions, heads * head_dim), values, dtype=value.dtype)
 
     def sum_axis(self, value: Tensor, axis: int) -> Tensor:
         """Reduce a tensor by summing one axis using TensorRuntime storage."""
@@ -223,11 +222,11 @@ class TensorRuntime:
         if len(value.shape) != 2:
             raise ValueError("transpose requires a rank-2 tensor")
         rows, cols = value.shape
-        return Tensor.from_values(
-            (cols, rows),
-            (value.at(r, c) for c in range(cols) for r in range(rows)),
-            dtype=value.dtype,
-        )
+        values = []
+        for col in range(cols):
+            for row in range(rows):
+                values.append(value.data[row * cols + col])
+        return Tensor.from_values((cols, rows), values, dtype=value.dtype)
 
     def mul_scalar(self, value: Tensor, scalar: float) -> Tensor:
         """Multiply every tensor element by a scalar through Coreless vector execution."""
