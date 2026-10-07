@@ -23,8 +23,8 @@ class ComponentDescriptor:
     capabilities: frozenset[str]
     ai_model_id: str | None = None
     vm_id: str | None = None
-    capacity: int = 1
     version: int = 1
+    capacity: int = 1
 
     def supports(self, capability: str) -> bool:
         return capability in self.capabilities
@@ -37,6 +37,7 @@ class ComponentDescriptor:
             "ai_model_id": self.ai_model_id,
             "vm_id": self.vm_id,
             "version": self.version,
+            "capacity": self.capacity,
         }
 
 
@@ -188,6 +189,7 @@ class CorelessComponent:
             ai_model_id=descriptor.get("ai_model_id"),
             vm_id=descriptor.get("vm_id"),
             version=descriptor["version"],
+            capacity=descriptor.get("capacity", 1),
         )
 
     def boot(self, init_path: str = "/init"):
