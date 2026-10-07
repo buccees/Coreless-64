@@ -7,7 +7,7 @@ this module.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Protocol
 
 from device_protocol import DeviceIdentityFrame
 from host_interface import CorelessIdentity, HostCapabilities
@@ -21,7 +21,14 @@ class HostDiscoveryCandidate:
     endpoint_id: str
     identity_frame: bytes | DeviceIdentityFrame
     host_capabilities: HostCapabilities
-    channels: Mapping[str, object] = ()
+    channels: Mapping[str, object] | None = None
+
+
+class HostDiscoveryProvider(Protocol):
+    """Platform-neutral provider boundary for OS/device enumeration."""
+
+    def enumerate_candidates(self) -> Iterable[HostDiscoveryCandidate]:
+        ...
 
 
 class HostDeviceEnumerator:
@@ -39,6 +46,12 @@ class HostDeviceEnumerator:
                 )
             endpoints[endpoint.endpoint_id] = endpoint
         return tuple(endpoints[key] for key in sorted(endpoints))
+
+    def discover_provider(
+        self, provider: HostDiscoveryProvider
+    ) -> tuple[HostEndpoint, ...]:
+        """Enumerate candidates supplied by a platform adapter."""
+        return self.discover(provider.enumerate_candidates())
 
     def _decode(self, candidate: HostDiscoveryCandidate) -> HostEndpoint:
         if not candidate.endpoint_id:
