@@ -154,7 +154,7 @@ def test_misaligned_jump_target_traps_precisely():
     assert cpu.last_step_result == {
         "event": "trap",
         "pc": 0,
-        "cause": 0x000,
+        "cause": 0x006,
         "tval": 2,
     }
     assert cpu.csrs[0x004] == 0
