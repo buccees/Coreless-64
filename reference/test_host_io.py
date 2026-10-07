@@ -5,6 +5,7 @@ import pytest
 
 from host_io import (
     DisplayTransport,
+    HostIO,
     InputTransport,
     MemoryDisplayTransport,
     MemoryHostIO,
@@ -67,3 +68,7 @@ def test_memory_transports_conform_to_neutral_protocols():
     assert isinstance(display, DisplayTransport)
     assert isinstance(input_transport, InputTransport)
     assert isinstance(network, NetworkTransport)
+
+
+def test_memory_host_io_conforms_to_neutral_bundle_protocol():
+    assert isinstance(MemoryHostIO(), HostIO)
