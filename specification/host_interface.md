@@ -180,3 +180,8 @@ Version 1 of the reference command layer also supports an ordered CommandBatch. 
 `reference/host_transport.py` now includes `ProviderHostTransportAdapter`. It is the concrete reference bridge between a platform discovery provider and the Coreless transport adapter. The provider supplies only `HostDiscoveryCandidate` records; `HostDeviceEnumerator` performs identity and capability validation and produces deterministic `HostEndpoint` objects.
 
 This does not claim physical USB, PCIe, network, display, or input support. A future platform adapter implements the provider contract while preserving the same discovery, identity, negotiation, and session semantics.
+
+
+## Atomic HostIO validation
+
+Before binding a negotiated HostIO bundle, the reference host interface validates every negotiated display, input, and network transport and validates any supplied Coreless input router. Validation occurs before channel mutation, so an invalid bundle cannot leave a partially attached host state. This is a software conformance guarantee; physical platform adapters are not implied.
