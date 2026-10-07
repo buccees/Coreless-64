@@ -11,7 +11,11 @@ from device_protocol import (
 )
 from host_interface import CorelessIdentity, CorelessHostInterface, HostCapabilities
 from host_transport import HostEndpoint
-from host_discovery import HostDeviceEnumerator, HostDiscoveryCandidate
+from host_discovery import (
+    HostDeviceEnumerator,
+    HostDiscoveryCandidate,
+    MemoryHostDiscoveryProvider,
+)
 
 
 def identity_frame(computer_id="coreless-a", capabilities=("display", "input")):
@@ -86,8 +90,6 @@ def test_discovered_endpoint_uses_device_advertisement_for_connection():
 
 
 def test_host_device_enumerator_accepts_platform_provider():
-    from host_discovery import HostDiscoveryProvider
-
     class Provider:
         def enumerate_candidates(self):
             return [
@@ -98,3 +100,22 @@ def test_host_device_enumerator_accepts_platform_provider():
     provider = Provider()
     endpoints = HostDeviceEnumerator().discover_provider(provider)
     assert [endpoint.endpoint_id for endpoint in endpoints] == ["a", "z"]
+
+
+def test_memory_host_discovery_provider_returns_stable_snapshot():
+    candidates = [
+        HostDiscoveryCandidate("a", identity_frame("a"), HostCapabilities()),
+    ]
+    provider = MemoryHostDiscoveryProvider(candidates)
+    candidates.append(
+        HostDiscoveryCandidate("b", identity_frame("b"), HostCapabilities())
+    )
+
+    assert [candidate.endpoint_id for candidate in provider.enumerate_candidates()] == ["a"]
+    assert HostDeviceEnumerator().discover_provider(provider)[0].endpoint_id == "a"
+
+
+def test_memory_host_discovery_provider_is_empty_by_default():
+    provider = MemoryHostDiscoveryProvider()
+    assert provider.enumerate_candidates() == ()
+    assert HostDeviceEnumerator().discover_provider(provider) == ()
