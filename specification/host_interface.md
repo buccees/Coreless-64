@@ -173,3 +173,10 @@ This session layer is transport-neutral and is the software contract immediately
 ## Ordered command batches
 
 Version 1 of the reference command layer also supports an ordered CommandBatch. A batch carries up to 256 complete command frames, each prefixed by its encoded frame length. Commands remain individually correlated by request identifier and opcode. A transport adapter may carry the batch as one exchange to reduce per-command transport overhead; it must preserve command order and return one response for each request. Batch validation rejects truncated frames, trailing bytes, oversized batches, and correlation mismatches.
+
+
+## Provider-backed discovery boundary
+
+`reference/host_transport.py` now includes `ProviderHostTransportAdapter`. It is the concrete reference bridge between a platform discovery provider and the Coreless transport adapter. The provider supplies only `HostDiscoveryCandidate` records; `HostDeviceEnumerator` performs identity and capability validation and produces deterministic `HostEndpoint` objects.
+
+This does not claim physical USB, PCIe, network, display, or input support. A future platform adapter implements the provider contract while preserving the same discovery, identity, negotiation, and session semantics.
