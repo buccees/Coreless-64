@@ -645,6 +645,10 @@ def test_qwen3_kv_cache_rejects_divergent_layer_lengths():
         Tensor.from_values((1, 1, 2), [9.0, 10.0]),
         Tensor.from_values((1, 1, 2), [11.0, 12.0]),
     )
-    with pytest.raises(ValueError, match="share one sequence length"):
+    try:
         cache.validate()
+    except ValueError as exc:
+        assert "share one sequence length" in str(exc)
+    else:
+        raise AssertionError("divergent cache layer lengths were accepted")
 
