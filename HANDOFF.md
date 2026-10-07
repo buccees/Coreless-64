@@ -462,3 +462,10 @@ Verified CI runs #1314 and #1315 are green. The next transport step is platform-
 Added `reference/host_discovery.py` and `reference/test_host_discovery.py`. The new `HostDeviceEnumerator` converts transport-neutral identity advertisements into validated, deterministic `HostEndpoint` objects. It derives Coreless device capabilities from the identity frame, preserves host capabilities/channels, rejects malformed advertisements and duplicate endpoint IDs, and remains independent of any physical bus.
 
 This is the conformance layer between future platform-specific OS/device enumeration and the existing `HostTransportAdapter`. Physical adapters should produce discovery candidates and preserve the transport-neutral identity/command/session contracts already implemented.
+
+
+## Documentation checkpoint — 2026-10-07: provider-backed host transport
+
+`ProviderHostTransportAdapter` now bridges a platform discovery provider into the existing transport-neutral Coreless host boundary. Providers emit `HostDiscoveryCandidate` records; centralized discovery validation produces deterministic `HostEndpoint` objects before transport use. This keeps physical OS/device enumeration outside Coreless while giving future platform adapters a concrete integration point.
+
+This milestone does not claim physical USB/PCIe/display/input/network adapters. The next host step is implementing concrete platform providers/adapters against this boundary while preserving the existing identity, capability, HostIO, command, and session contracts.
