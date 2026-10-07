@@ -190,18 +190,17 @@ class TensorRuntime:
         for head in range(heads):
             left_start = head * left_stride
             right_start = head * right_stride
-            a = Tensor.from_values(
-                (rows, inner),
-                left.data[left_start:left_start + left_stride],
-                dtype=left.dtype,
+            values.extend(
+                self._matrix_matmul_contiguous(
+                    left.data[left_start:left_start + left_stride],
+                    (rows, inner),
+                    right.data[right_start:right_start + right_stride],
+                    (inner, cols),
+                    left.dtype,
+                )
             )
-            b = Tensor.from_values(
-                (inner, cols),
-                right.data[right_start:right_start + right_stride],
-                dtype=right.dtype,
-            )
-            values.extend(self.matmul(a, b).data)
         return Tensor.from_values((heads, rows, cols), values, dtype=left.dtype)
+
 
     def transpose(self, value: Tensor) -> Tensor:
         """Transpose a rank-2 tensor at the Coreless tensor boundary."""
@@ -807,6 +806,66 @@ class TensorRuntime:
         if self.cpu is None:
             return fsum(self.vector_mul(left, right).data)
         return fsum(self._vector_binary_native(left, right, 0x02).data)
+
+    def _matrix_matmul_contiguous(
+        self,
+        left_data: Iterable[float],
+        left_shape: tuple[int, int],
+        right_data: Iterable[float],
+        right_shape: tuple[int, int],
+        dtype: str,
+    ) -> tuple[float, ...]:
+        """Execute one matrix product directly from contiguous tensor storage."""
+        m, k = left_shape
+        rk, n = right_shape
+        if rk != k:
+            raise ValueError("matrix dimensions do not agree")
+        if m == 0 or n == 0 or k == 0:
+            raise ValueError("native matrix execution requires non-empty dimensions")
+        shape = (m, n, k)
+        left_values = tuple(left_data)
+        right_values = tuple(right_data)
+        if len(left_values) != m * k or len(right_values) != k * n:
+            raise ValueError("matrix storage does not match its shape")
+        if (
+            self.cpu is None
+            or dtype not in self._ELEMENT_TYPES
+            or max(m, k, n) > self._MATRIX_TILE
+            or shape not in self._MATRIX_SHAPES
+        ):
+            return self.matmul(
+                Tensor.from_values(left_shape, left_values, dtype=dtype),
+                Tensor.from_values(right_shape, right_values, dtype=dtype),
+            ).data
+
+        cpu = self._require_cpu()
+        et = self._element_type(dtype)
+        shape_index = self._MATRIX_SHAPES.index(shape)
+        saved = {r: [row[:] for row in cpu.matrix[r]] for r in (29, 30, 31)}
+        old_shape = cpu.matrix_shape
+        try:
+            for i in range(m):
+                row_start = i * k
+                for j in range(k):
+                    cpu.matrix[29][i][j] = self._encode_value(left_values[row_start + j], dtype)
+            for i in range(k):
+                row_start = i * n
+                for j in range(n):
+                    cpu.matrix[30][i][j] = self._encode_value(right_values[row_start + j], dtype)
+            cpu.matrix_shape = shape
+            cpu.execute_matrix(
+                0x00, 31, 29, 30,
+                (et << 29) | (et << 26) | (shape_index << 23) | (1 << 22),
+                0, 0,
+            )
+            return tuple(
+                self._decode_value(cpu.matrix[31][i][j], dtype)
+                for i in range(m) for j in range(n)
+            )
+        finally:
+            for r, rows in saved.items():
+                cpu.matrix[r][:] = rows
+            cpu.matrix_shape = old_shape
 
     def matrix_matmul(self, left: Tensor, right: Tensor) -> Tensor:
         if len(left.shape) != 2 or len(right.shape) != 2:

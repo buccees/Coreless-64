@@ -177,6 +177,35 @@ def test_tensor_runtime_native_head_reshape_and_gqa_repeat():
     assert repeated.data == heads.data[:4] + heads.data[:4] + heads.data[4:] + heads.data[4:]
 
 
+
+def test_tensor_runtime_batch_matmul_stages_contiguous_heads_without_rank2_tensors():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__(cpu=TrackingCorelessCPU())
+            self.contiguous_calls = 0
+            self.matrix_calls = 0
+
+        def _matrix_matmul_contiguous(self, left_data, left_shape, right_data, right_shape, dtype):
+            self.contiguous_calls += 1
+            return super()._matrix_matmul_contiguous(
+                left_data, left_shape, right_data, right_shape, dtype
+            )
+
+        def matrix_matmul(self, left, right):
+            self.matrix_calls += 1
+            raise AssertionError("batch_matmul should use the contiguous matrix boundary")
+
+    runtime = RecordingRuntime()
+    left = runtime.create((2, 2, 2), [1, 2, 3, 4, 5, 6, 7, 8], dtype="fp32")
+    right = runtime.create((2, 2, 2), [1, 0, 0, 1, 2, 1, 1, 2], dtype="fp32")
+
+    result = runtime.batch_matmul(left, right)
+
+    assert result.shape == (2, 2, 2)
+    assert result.data == (1.0, 2.0, 3.0, 4.0, 16.0, 17.0, 22.0, 23.0)
+    assert runtime.contiguous_calls == 2
+    assert runtime.matrix_calls == 0
+
 def test_tensor_runtime_batch_matmul_uses_contiguous_head_storage():
     class CountingTensor:
         def __init__(self, shape, data, dtype="fp32"):
