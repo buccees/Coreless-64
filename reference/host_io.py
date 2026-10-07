@@ -131,6 +131,15 @@ class MemoryNetworkTransport:
         return self.packets.popleft()
 
 
+@runtime_checkable
+class HostIO(Protocol):
+    """Bundle contract for the three negotiated external I/O channels."""
+
+    display: DisplayTransport
+    input: InputTransport
+    network: NetworkTransport
+
+
 @dataclass
 class MemoryHostIO:
     """Convenience bundle for the three primary external I/O transports."""
