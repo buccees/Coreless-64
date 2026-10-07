@@ -151,6 +151,20 @@ class TensorRuntime:
             dtype=value.dtype,
         )
 
+    def merge_heads(self, value: Tensor) -> Tensor:
+        """Merge [heads, positions, head_dim] into [positions, heads*head_dim]."""
+        if len(value.shape) != 3:
+            raise ValueError("merge_heads requires a rank-3 tensor")
+        heads, positions, head_dim = value.shape
+        return Tensor.from_values(
+            (positions, heads * head_dim),
+            (value.at(head, position, dim)
+             for position in range(positions)
+             for head in range(heads)
+             for dim in range(head_dim)),
+            dtype=value.dtype,
+        )
+
     def sum_axis(self, value: Tensor, axis: int) -> Tensor:
         """Reduce a tensor by summing one axis using TensorRuntime storage."""
         rank = len(value.shape)
@@ -478,7 +492,8 @@ class TensorRuntime:
                 float("-inf"),
             )
         probabilities = self.softmax_last_dim(scores)
-        return self.sum_axis(self.batch_matmul(probabilities, v), 0)
+        head_output = self.batch_matmul(probabilities, v)
+        return self.merge_heads(head_output)
 
     def softmax_last_dim(self, value: Tensor) -> Tensor:
         """Apply deterministic softmax independently across the final tensor axis."""
