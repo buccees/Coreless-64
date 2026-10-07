@@ -547,7 +547,7 @@ def test_direct_program_load_and_run_uses_variable_length_fetch():
     cpu=CorelessCPU()
     program = b''.join([
         imm(1,1,0,0,7).to_bytes(4,"little"),
-        ext128(3,0x26,2,0,0,w1=0),
+        ext128(3,0x23,2,0,0,w1=0),
         ((6 << 27) | 1).to_bytes(4,"little"),
     ])
     assert cpu.load_program(program) == len(program)
