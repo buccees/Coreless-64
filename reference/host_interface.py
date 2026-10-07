@@ -287,6 +287,8 @@ class CorelessHostInterface:
             raise RuntimeError("host interface is not attached")
         if "input" in self._negotiated and input_router is None and self._input_router is None:
             raise RuntimeError("input capability requires a Coreless input router")
+        if input_router is not None and not hasattr(input_router, "submit"):
+            raise TypeError("input_router must implement the Coreless input router contract")
 
         # Validate the complete negotiated bundle before mutating any channels.
         # A partially attached host I/O bundle must never be observable.
