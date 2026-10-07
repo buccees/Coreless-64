@@ -800,3 +800,20 @@ def test_head_slice_stays_inside_tensor_runtime():
     value = Tensor.from_values((2, 2, 2), (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0))
     assert runtime.head_slice(value, 1).shape == (2, 2)
     assert runtime.head_slice(value, 1).data == (5.0, 6.0, 7.0, 8.0)
+
+
+def test_grouped_attention_uses_head_slice_boundary():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.head_slice_calls = 0
+        def head_slice(self, value, head):
+            self.head_slice_calls += 1
+            return super().head_slice(value, head)
+
+    runtime = RecordingRuntime()
+    q = Tensor.from_values((2, 1, 2), (1.0, 0.0, 0.0, 1.0))
+    k = Tensor.from_values((1, 1, 2), (1.0, 0.0))
+    v = Tensor.from_values((1, 1, 2), (2.0, 3.0))
+    runtime.grouped_attention(q, k, v, 2)
+    assert runtime.head_slice_calls == 2
