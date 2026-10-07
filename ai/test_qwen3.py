@@ -622,6 +622,56 @@ def test_qwen3_kv_cache_uses_tensor_runtime_append_boundary():
     assert cache.values[0].shape == (1, 2, 2)
 
 
+def test_qwen3_attention_uses_native_head_staging_boundaries():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.reshape_calls = 0
+            self.head_norm_calls = 0
+            self.rotary_calls = 0
+
+        def reshape_heads(self, value, heads, head_dim):
+            self.reshape_calls += 1
+            return super().reshape_heads(value, heads, head_dim)
+
+        def rms_norm_heads(self, value, weight, *, eps=0.0):
+            self.head_norm_calls += 1
+            return super().rms_norm_heads(value, weight, eps=eps)
+
+        def rotary_embedding(self, value, *, position_offset=0, theta=1000000.0, scaling_factor=None):
+            self.rotary_calls += 1
+            return super().rotary_embedding(
+                value,
+                position_offset=position_offset,
+                theta=theta,
+                scaling_factor=scaling_factor,
+            )
+
+    identity = _identity(2)
+    weights = ModelWeights([
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+    ])
+    cfg = Qwen3Config(2, 4, 1, 1, 1, 8, 16, head_dim=2)
+    runtime = RecordingRuntime()
+
+    qwen3_attention(
+        Tensor.from_values((1, 2), (1.0, 0.0)),
+        weights,
+        "model.layers.0",
+        cfg,
+        runtime=runtime,
+    )
+
+    assert runtime.reshape_calls == 3
+    assert runtime.head_norm_calls == 2
+    assert runtime.rotary_calls == 2
+
+
 def test_qwen3_attention_uses_native_grouped_attention_boundary():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
