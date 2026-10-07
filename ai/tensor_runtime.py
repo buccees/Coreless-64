@@ -634,19 +634,7 @@ class TensorRuntime:
         if len(value.shape) == 1:
             return softmax(value)
         if len(value.shape) == 2:
-            rows, cols = value.shape
-            values = []
-            for row in range(rows):
-                values.extend(
-                    softmax(
-                        Tensor.from_values(
-                            (cols,),
-                            value.data[row * cols:(row + 1) * cols],
-                            dtype=value.dtype,
-                        )
-                    ).data
-                )
-            return Tensor.from_values(value.shape, values, dtype=value.dtype)
+            return self.softmax_last_dim(value)
         return softmax(value)
 
     def causal_mask(self, shape: tuple[int, ...], query_offset: int = 0, dtype: str = "fp64") -> Tensor:
