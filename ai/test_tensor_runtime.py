@@ -272,6 +272,25 @@ def test_tensor_runtime_softmax_rank2_reuses_last_dim_path():
     assert abs(sum(result.data[3:]) - 1.0) < 1e-6
 
 
+def test_tensor_runtime_softmax_reuses_exponentials_per_element():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.exp_calls = 0
+
+        def exp(self, value):
+            self.exp_calls += 1
+            return super().exp(value)
+
+    runtime = RecordingRuntime()
+    value = runtime.create((1, 3), [1.0, 2.0, 3.0], dtype="fp32")
+
+    result = runtime.softmax_last_dim(value)
+
+    assert abs(sum(result.data) - 1.0) < 1e-12
+    assert runtime.exp_calls == 0
+
+
 def test_tensor_runtime_softmax_last_dim_preserves_normalized_values():
     runtime = TensorRuntime()
     value = runtime.create((1, 3), [1.0, 2.0, 3.0], dtype="fp32")
