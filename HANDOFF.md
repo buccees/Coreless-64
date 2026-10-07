@@ -437,3 +437,12 @@ Continue from the green throughput checkpoint. The next substantive work should 
 Repository inspection confirms that the native Qwen3 path already routes KV-cache append operations through `TensorRuntime.append_sequence`, uses TensorRuntime-native head reshape/repeat and grouped-attention movement, and provides persistent cache save/restore through the TensorRuntime storage boundary. The roadmap item is therefore marked complete rather than duplicating an already-implemented layer.
 
 The next substantive work is concrete host transport adapters and persistent-storage-hosted execution, followed by the deferred official trained Qwen3-0.6B numerical validation. CI status must be read from GitHub Actions, not inferred from this note.
+
+
+## Documentation checkpoint — 2026-10-07: persistent runtime environment
+
+The persistent-storage-hosted reference runtime now has a direct launcher at `scripts/coreless-run.py`. It opens an existing Coreless machine image, resumes the persistent Coreless system, routes native shell commands, can advance the digital execution engine, and persists the resulting state. Regression coverage is in `reference/test_persistent_runtime.py`, including reopen/resume and shutdown persistence.
+
+This closes the reference-runtime environment milestone without claiming that physical host-independent execution hardware exists. The image remains the authoritative persistent machine-state carrier; the reference execution engine remains the digital implementation boundary.
+
+CI status must still be verified from GitHub Actions rather than inferred from this documentation.
