@@ -126,6 +126,7 @@ class CorelessCPU:
         self.supervisor_trap_handler = None
         self.vm_handler = None
         self._last_step_event = None
+        self._last_step_result = {"event": "reset", "pc": self.pc, "cause": None, "tval": 0}
 
     def reset(self):
         """Return architectural state to the defined power-on reset state.
@@ -1083,13 +1084,30 @@ class CorelessCPU:
             raise CorelessTrap("illegal_instruction", self.pc)
         return next_pc
 
+    def _record_step_result(self, event, pc, cause=None, tval=0):
+        """Record the architectural outcome of the most recent step."""
+        self._last_step_result = {
+            "event": event,
+            "pc": pc & MASK64,
+            "cause": cause,
+            "tval": tval,
+        }
+
+    @property
+    def last_step_result(self):
+        """Return a copy of the most recent step outcome."""
+        return dict(self._last_step_result)
+
     def step(self):
         self._last_step_event = None
+        start_pc = self.pc
         if self.halted:
             self._last_step_event = "halt"
+            self._record_step_result("halt", start_pc)
             return False
         if self._take_interrupt_if_enabled():
             self._last_step_event = "interrupt"
+            self._record_step_result("interrupt", start_pc)
             return True
         
             return True
@@ -1127,10 +1145,12 @@ class CorelessCPU:
                 next_pc = self._execute(ins)
             if next_pc == "wait":
                 self._last_step_event = "wait"
+                self._record_step_result("wait", start_pc)
                 self.r[0] = 0
                 return True
             if next_pc == "trap":
                 self._last_step_event = "trap"
+                self._record_step_result("trap", start_pc, self.csrs[0x005] & 0xFFFF, self.csrs[0x006])
                 self.r[0] = 0
                 return True
             if next_pc & 3:
@@ -1140,17 +1160,20 @@ class CorelessCPU:
             self.cycle += 1
             self.instret += 1
             self._last_step_event = "halt" if self.halted else "retired"
+            self._record_step_result(self._last_step_event, start_pc)
             return True
         except IllegalEncoding:
             trap = CorelessTrap("illegal_instruction", self.pc, 0)
             self._enter_trap(trap)
             self._last_step_event = "trap"
+            self._record_step_result("trap", start_pc, self.csrs[0x005] & 0xFFFF, self.csrs[0x006])
             return True
         except CorelessTrap as trap:
             self._enter_trap(trap)
             if trap.cause == "syscall" and self.supervisor_trap_handler is not None:
                 self.supervisor_trap_handler(self, trap)
             self._last_step_event = "trap"
+            self._record_step_result("trap", start_pc, self.csrs[0x005] & 0xFFFF, self.csrs[0x006])
             return True
 
 
@@ -1176,6 +1199,6 @@ class CorelessCPU:
         while not self.halted and steps < max_steps:
             self.step()
             steps += 1
-            if self._last_step_event in ("halt", "trap", "wait", "interrupt"):
+            if self.last_step_result["event"] in ("halt", "trap", "wait", "interrupt"):
                 break
         return steps
