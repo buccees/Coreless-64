@@ -231,29 +231,7 @@ class TensorRuntime:
     def mul_scalar(self, value: Tensor, scalar: float) -> Tensor:
         """Multiply every tensor element by a scalar through Coreless vector execution."""
         if self.cpu is not None and len(value.shape) in (1, 2):
-            if len(value.shape) == 1:
-                rhs = Tensor.from_values(
-                    value.shape,
-                    (scalar for _ in value.data),
-                    dtype=value.dtype,
-                )
-                return self.vector_mul(value, rhs)
-            rows, cols = value.shape
-            values = []
-            for row in range(rows):
-                start = row * cols
-                chunk = Tensor.from_values(
-                    (cols,),
-                    value.data[start:start + cols],
-                    dtype=value.dtype,
-                )
-                rhs = Tensor.from_values(
-                    (cols,),
-                    (scalar for _ in range(cols)),
-                    dtype=value.dtype,
-                )
-                values.extend(self.vector_mul(chunk, rhs).data)
-            return Tensor.from_values(value.shape, values, dtype=value.dtype)
+            return self.vector_mul_scalar(value, scalar)
         return Tensor.from_values(
             value.shape,
             (v * scalar for v in value.data),
@@ -298,12 +276,13 @@ class TensorRuntime:
             return Tensor.from_values(value.shape, (), dtype=value.dtype)
         if value.dtype != scalar.dtype:
             raise ValueError("mul_broadcast requires matching dtypes")
-        rhs = Tensor.from_values(
+        if self.cpu is not None:
+            return self.vector_mul_scalar(value, scalar.data[0])
+        return Tensor.from_values(
             value.shape,
-            (scalar.data[0] for _ in value.data),
+            (v * scalar.data[0] for v in value.data),
             dtype=value.dtype,
         )
-        return self.mul(value, rhs)
 
     def rms_norm_rows(self, value: Tensor, weight: Tensor, *, eps: float = 0.0) -> Tensor:
         """Apply RMSNorm across the final axis of a rank-2 tensor."""
@@ -767,6 +746,33 @@ class TensorRuntime:
 
     def _vector_binary(self, left: Tensor, right: Tensor, op: int) -> Tensor:
         return self._vector_binary_native(left, right, op)
+
+    def vector_mul_scalar(self, value: Tensor, scalar: float) -> Tensor:
+        """Multiply tensor data by one scalar without materializing a broadcast tensor."""
+        if self.cpu is None:
+            return Tensor.from_values(value.shape, (v * scalar for v in value.data), dtype=value.dtype)
+        if not value.data:
+            return Tensor.from_values(value.shape, (), dtype=value.dtype)
+        cpu = self._require_cpu()
+        et = self._element_type(value.dtype)
+        scalar_raw = self._encode_value(scalar, value.dtype)
+        saved = {r: cpu.vector[r][:] for r in (29, 30, 31)}
+        old_vl, old_vstart, old_vtype = cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype
+        try:
+            values = []
+            for start in range(0, value.size, 64):
+                stop = min(start + 64, value.size)
+                count = stop - start
+                cpu.vector[29][:count] = [self._encode_value(v, value.dtype) for v in value.data[start:stop]]
+                cpu.vector[30][:count] = [scalar_raw] * count
+                cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype = count, 0, et
+                cpu.execute_vector(0x02, 31, 29, 30, et << 29)
+                values.extend(self._decode_value(cpu.vector[31][i], value.dtype) for i in range(count))
+            return Tensor.from_values(value.shape, values, dtype=value.dtype)
+        finally:
+            for r, saved_values in saved.items():
+                cpu.vector[r][:] = saved_values
+            cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype = old_vl, old_vstart, old_vtype
 
     def vector_dot(self, left: Tensor, right: Tensor) -> float:
         """Multiply through the Coreless vector unit, then reduce deterministically."""
