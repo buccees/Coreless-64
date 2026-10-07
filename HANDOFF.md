@@ -469,3 +469,8 @@ This is the conformance layer between future platform-specific OS/device enumera
 `ProviderHostTransportAdapter` now bridges a platform discovery provider into the existing transport-neutral Coreless host boundary. Providers emit `HostDiscoveryCandidate` records; centralized discovery validation produces deterministic `HostEndpoint` objects before transport use. This keeps physical OS/device enumeration outside Coreless while giving future platform adapters a concrete integration point.
 
 This milestone does not claim physical USB/PCIe/display/input/network adapters. The next host step is implementing concrete platform providers/adapters against this boundary while preserving the existing identity, capability, HostIO, command, and session contracts.
+
+
+## Documentation checkpoint — 2026-10-07: atomic HostIO validation
+
+The negotiated HostIO boundary now validates the complete negotiated display/input/network bundle before channel mutation and validates the input-router contract before binding. Regression coverage preserves the no-partial-attachment invariant. The latest reference-test checkpoint is green. Resume with concrete platform host providers/adapters while preserving the transport-neutral discovery, HostIO, command, and session contracts. Physical device support remains unclaimed.
