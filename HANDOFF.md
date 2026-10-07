@@ -170,7 +170,7 @@ Implemented:
 - final language-model head routing through the runtime
 - explicit regression test proving matrix multiplication calls cross the TensorRuntime boundary
 
-The current green checkpoint is GitHub Actions run #1244 (commit `674ea90b251fdad141b338be880b644b21d89113`).
+The documented green checkpoint for the latest control-flow conformance batch is commit `f7b30515157c6affd73e1d3cb3027ff54017096b`; GitHub Actions remains the authoritative source for CI status.
 
 Native CPU/VM execution and Hub scheduling are now implemented; the next work is concrete host transports, deeper native architectural execution, and real trained-model validation.
 
@@ -342,7 +342,7 @@ Continue the **deep Qwen3/Coreless tensor execution boundary** and the **autonom
 
 The immediate Qwen3 resume point is the KV-cache/head-data path: replace remaining nested Python cache/head structures with TensorRuntime-backed operations while keeping model semantics unchanged.
 
-**Green resume point: GitHub Actions run #1244 — successful.**
+**Green resume point:** continue from the latest verified control-flow conformance checkpoint; do not infer CI status from documentation.**
 
 Latest verified green checkpoint: GitHub Actions run #1244 on 2026-10-07; do not infer CI status from documentation-only changes.
 
@@ -430,3 +430,10 @@ This is an optimization layer over the existing Coreless machine architecture, n
 ### Current resume point
 
 Continue from the green throughput checkpoint. The next substantive work should improve the native Coreless execution path, tensor-backed Qwen3 KV-cache/head movement, concrete host transports, and persistent-storage-hosted execution. Preserve the scheduler throughput contracts above when extending compute distribution.
+
+
+## Documentation checkpoint — 2026-10-07: Qwen3 tensor boundary completion
+
+Repository inspection confirms that the native Qwen3 path already routes KV-cache append operations through `TensorRuntime.append_sequence`, uses TensorRuntime-native head reshape/repeat and grouped-attention movement, and provides persistent cache save/restore through the TensorRuntime storage boundary. The roadmap item is therefore marked complete rather than duplicating an already-implemented layer.
+
+The next substantive work is concrete host transport adapters and persistent-storage-hosted execution, followed by the deferred official trained Qwen3-0.6B numerical validation. CI status must be read from GitHub Actions, not inferred from this note.
