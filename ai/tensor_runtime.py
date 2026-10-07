@@ -528,12 +528,8 @@ class TensorRuntime:
                 else self.softmax_last_dim(scores)
             )
             output = self.matmul(probabilities, value)
-            outputs.extend(output.data)
-        head_output = Tensor.from_values(
-            (query_heads, query_rows, dim),
-            outputs,
-            dtype=q.dtype,
-        )
+            outputs.append(output)
+        head_output = self.stack_head_outputs(outputs, query_heads, query_rows, dim)
         return self.merge_heads(head_output)
 
     def attention(self, q: Tensor, k: Tensor, v: Tensor, *, causal: bool = True, key_position_offset: int = 0) -> Tensor:
