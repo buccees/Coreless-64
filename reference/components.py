@@ -11,6 +11,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Callable, Mapping
+import threading
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,7 @@ class ComponentDescriptor:
     capabilities: frozenset[str]
     ai_model_id: str | None = None
     vm_id: str | None = None
+    capacity: int = 1
     version: int = 1
 
     def supports(self, capability: str) -> bool:
@@ -74,6 +76,8 @@ class CorelessComponent:
             raise ValueError("component_id must not be empty")
         if not descriptor.role:
             raise ValueError("role must not be empty")
+        if descriptor.capacity < 1:
+            raise ValueError("component capacity must be positive")
         self.descriptor = descriptor
         self.system = system
         self.ai_runtime = ai_runtime
@@ -402,6 +406,7 @@ class CorelessComponent:
             or self.descriptor.ai_model_id is not None,
             "vm_integrated": self.vm is not None
             or self.descriptor.vm_id is not None,
+            "capacity": self.descriptor.capacity,
         }
 
 
@@ -417,6 +422,8 @@ class CorelessHub:
         self.hypervisor = hypervisor
         self._components: dict[str, CorelessComponent] = {}
         self._ipc_channels: dict[tuple[str, str], int] = {}
+        self._dispatch_load: dict[str, int] = {}
+        self._dispatch_condition = threading.Condition()
 
     def connect(self, component: CorelessComponent) -> ComponentDescriptor:
         if not component.healthy:
@@ -428,6 +435,9 @@ class CorelessHub:
             )
         component.attach(self.hub_id)
         self._components[component.component_id] = component
+        with self._dispatch_condition:
+            self._dispatch_load.setdefault(component.component_id, 0)
+            self._dispatch_condition.notify_all()
         return component.descriptor
 
     def disconnect(self, component_id: str) -> CorelessComponent:
@@ -439,6 +449,9 @@ class CorelessHub:
         for pair in tuple(self._ipc_channels):
             if component_id in pair:
                 self.close_ipc(*pair)
+        with self._dispatch_condition:
+            self._dispatch_load.pop(component_id, None)
+            self._dispatch_condition.notify_all()
         return component
 
     def isolate(self, component_id: str, reason: str) -> CorelessComponent:
@@ -450,6 +463,9 @@ class CorelessHub:
         component.isolate(reason)
         component.detach(self.hub_id)
         self._components.pop(component_id, None)
+        with self._dispatch_condition:
+            self._dispatch_load.pop(component_id, None)
+            self._dispatch_condition.notify_all()
         return component
 
     def rejoin(self, component: CorelessComponent) -> ComponentDescriptor:
@@ -844,23 +860,41 @@ class CorelessHub:
         return executed
 
     def dispatch(self, workload: Workload) -> WorkloadResult:
-        """Dispatch work to a healthy component advertising the required capability."""
-        candidates = [
-            component
-            for component in self.components()
-            if component.healthy and component.descriptor.supports(workload.capability)
-        ]
-        if not candidates:
-            raise LookupError(
-                f"no healthy component provides capability: {workload.capability}"
-            )
-        for component in candidates:
-            if component.workload_executor is not None:
-                return component.execute_workload(workload)
-        raise RuntimeError(
-            f"no executor available for capability: {workload.capability}"
-        )
-
+        """Dispatch one workload through bounded, load-aware component capacity."""
+        while True:
+            with self._dispatch_condition:
+                candidates = [
+                    component
+                    for component in self.components()
+                    if component.healthy
+                    and component.workload_executor is not None
+                    and component.descriptor.supports(workload.capability)
+                ]
+                if not candidates:
+                    advertised = [
+                        component for component in self.components()
+                        if component.healthy and component.descriptor.supports(workload.capability)
+                    ]
+                    if advertised:
+                        raise RuntimeError(f"no executor available for capability: {workload.capability}")
+                    raise LookupError(f"no healthy component provides capability: {workload.capability}")
+                candidates.sort(key=lambda component: (
+                    self._dispatch_load.get(component.component_id, 0),
+                    component.component_id,
+                ))
+                selected = candidates[0]
+                load = self._dispatch_load.get(selected.component_id, 0)
+                if load < selected.descriptor.capacity:
+                    self._dispatch_load[selected.component_id] = load + 1
+                    break
+                self._dispatch_condition.wait()
+        try:
+            return selected.execute_workload(workload)
+        finally:
+            with self._dispatch_condition:
+                current = self._dispatch_load.get(selected.component_id, 0)
+                self._dispatch_load[selected.component_id] = max(0, current - 1)
+                self._dispatch_condition.notify_all()
     def dispatch_pipeline(
         self, workloads: tuple[Workload, ...] | list[Workload]
     ) -> tuple[WorkloadResult, ...]:
@@ -874,7 +908,13 @@ class CorelessHub:
         workload_list = tuple(workloads)
         if not workload_list:
             return ()
-        with ThreadPoolExecutor(max_workers=len(workload_list)) as executor:
+        capacity = sum(
+            component.descriptor.capacity
+            for component in self.components()
+            if component.healthy and component.workload_executor is not None
+        )
+        max_workers = max(1, min(len(workload_list), capacity))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = tuple(
                 executor.submit(self.dispatch, workload)
                 for workload in workload_list
