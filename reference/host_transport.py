@@ -85,8 +85,10 @@ class HostTransportAdapter:
         interface: CorelessHostInterface,
         *,
         system=None,
+        host_io=None,
+        input_router=None,
     ) -> frozenset[str]:
-        """Attach a host endpoint and optionally bind a persistent Coreless system."""
+        """Attach an endpoint, optionally binding its persistent system and host I/O."""
         negotiated = interface.attach_identity_frame(
             endpoint.identity_frame(), endpoint.capabilities, system=system
         )
@@ -94,6 +96,8 @@ class HostTransportAdapter:
         for capability, channel in endpoint.channel_map().items():
             if capability in negotiated:
                 interface.bind_channel(capability, channel)
+        if host_io is not None:
+            interface.bind_host_io(host_io, input_router=input_router)
         return negotiated
 
     def open_session(
@@ -102,9 +106,13 @@ class HostTransportAdapter:
         interface: CorelessHostInterface,
         *,
         system=None,
+        host_io=None,
+        input_router=None,
     ) -> HostTransportSession:
         """Attach an endpoint and retain its negotiated transport session."""
-        negotiated = self.connect(endpoint, interface, system=system)
+        negotiated = self.connect(
+            endpoint, interface, system=system, host_io=host_io, input_router=input_router
+        )
         return HostTransportSession(endpoint, interface, negotiated)
 
     def exchange(
@@ -262,8 +270,12 @@ class MemoryHostTransportAdapter(HostTransportAdapter):
         interface: CorelessHostInterface,
         *,
         system=None,
+        host_io=None,
+        input_router=None,
     ) -> frozenset[str]:
         current = self._endpoints.get(endpoint.endpoint_id)
         if current is None or current != endpoint:
             raise ValueError("unknown host endpoint")
-        return super().connect(current, interface, system=system)
+        return super().connect(
+            current, interface, system=system, host_io=host_io, input_router=input_router
+        )
