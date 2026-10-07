@@ -702,6 +702,25 @@ def test_tensor_runtime_rotary_embedding_uses_contiguous_storage():
     assert result.shape == (1, 1, 4)
     assert value.at_calls == 0
 
+def test_tensor_runtime_rotary_embedding_avoids_per_row_tensor_staging():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__(cpu=TrackingCorelessCPU())
+            self.chunk_calls = 0
+
+        def _vector_binary_chunk(self, left_data, right_data, dtype, op):
+            self.chunk_calls += 1
+            return super()._vector_binary_chunk(left_data, right_data, dtype, op)
+
+    runtime = RecordingRuntime()
+    value = runtime.create((2, 2, 4), [float(i) for i in range(16)], dtype="fp32")
+
+    result = runtime.rotary_embedding(value, position_offset=2, theta=10000.0)
+
+    assert result.shape == value.shape
+    assert runtime.chunk_calls == 24
+
+
 def test_tensor_runtime_rotary_embedding_reuses_position_rotations_across_heads():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
