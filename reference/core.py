@@ -1138,3 +1138,32 @@ class CorelessCPU:
             if trap.cause == "syscall" and self.supervisor_trap_handler is not None:
                 self.supervisor_trap_handler(self, trap)
             return True
+
+
+    def load_program(self, program, address=0):
+        """Load an architectural instruction stream into Coreless memory.
+
+        program may be bytes-like data containing variable-length Coreless-64
+        instructions. The stream is copied without decoding it; instruction
+        boundaries remain the responsibility of the architectural fetch/decode path.
+        """
+        data = bytes(program)
+        if address < 0 or address + len(data) > len(self.memory):
+            raise ValueError("program does not fit in Coreless memory")
+        self.memory[address:address + len(data)] = data
+        self.pc = address & MASK64
+        return len(data)
+
+    def run(self, max_steps=100000):
+        """Run from the current PC until HALT, trap transfer, or the step limit."""
+        steps = 0
+        while not self.halted and steps < max_steps:
+            before_pc = self.pc
+            before_trap = self.csrs[0x005]
+            self.step()
+            steps += 1
+            if self.halted:
+                break
+            if self.csrs[0x005] != before_trap and self.pc != before_pc:
+                break
+        return steps
