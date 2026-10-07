@@ -258,3 +258,10 @@ The persistent-storage-hosted reference runtime now has a direct launcher at `sc
 The host transport milestone has advanced from negotiated channels to an end-to-end reference I/O path. The Coreless host boundary can now bind a persistent Coreless system to concrete in-memory display, input, and network transports. Input events are serialized into the host channel and decoded back into the Coreless input ABI; display scanout frames can be emitted to the host display transport; and network packets can cross the host boundary in both directions.
 
 Verified CI runs include #1314 (end-to-end host I/O integration) and #1315 (clean host I/O reconnect handling), both green. The remaining host-interface work is platform-specific enumeration and transport adapters.
+
+
+## Documentation checkpoint — 2026-10-07: platform-independent host discovery
+
+The reference host boundary now has a dedicated platform-independent discovery layer in `reference/host_discovery.py`. `HostDeviceEnumerator` accepts raw transport-neutral identity advertisements from concrete adapters, validates Coreless-64 identity/protocol data, derives device capabilities from the advertisement, and returns deterministically ordered `HostEndpoint` objects. Duplicate endpoint IDs and malformed identity frames are rejected before attachment.
+
+This separates transport-neutral Coreless discovery from future OS/device-specific enumeration. Physical USB, PCIe, Ethernet, SATA, NVMe, display, input, and network adapters remain outside this layer and must continue to use the same discovery contract.
