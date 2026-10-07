@@ -38,6 +38,37 @@ class Qwen3KVCache:
             return 0
         return self.keys[0].shape[1]
 
+    def persist(self, runtime: TensorRuntime, name: str) -> tuple[str, ...]:
+        """Persist every populated KV tensor through the Coreless tensor store."""
+        if not name or "/" in name:
+            raise ValueError("cache name must be a non-empty local name")
+        keys: list[str] = []
+        for layer_index, (key, value) in enumerate(zip(self.keys, self.values)):
+            if (key is None) != (value is None):
+                raise ValueError("Qwen3 KV cache layer must contain both key and value")
+            if key is None or value is None:
+                continue
+            keys.append(runtime.save(f"{name}_layer_{layer_index}_key", key))
+            keys.append(runtime.save(f"{name}_layer_{layer_index}_value", value))
+        return tuple(keys)
+
+    @classmethod
+    def restore(cls, runtime: TensorRuntime, name: str, num_layers: int) -> "Qwen3KVCache":
+        """Restore a KV cache from Coreless tensor-backed persistent state."""
+        if not name or "/" in name:
+            raise ValueError("cache name must be a non-empty local name")
+        if num_layers < 1:
+            raise ValueError("num_layers must be positive")
+        cache = cls.create(num_layers)
+        for layer_index in range(num_layers):
+            try:
+                key = runtime.load(f"{name}_layer_{layer_index}_key")
+                value = runtime.load(f"{name}_layer_{layer_index}_value")
+            except KeyError:
+                continue
+            cache.append(layer_index, key, value)
+        return cache
+
     def layer(self, layer_index: int) -> tuple[Tensor | None, Tensor | None]:
         """Read one cache layer through the cache-owned interface."""
         if layer_index < 0 or layer_index >= len(self.keys):
