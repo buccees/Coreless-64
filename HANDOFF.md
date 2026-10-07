@@ -170,7 +170,7 @@ Implemented:
 - final language-model head routing through the runtime
 - explicit regression test proving matrix multiplication calls cross the TensorRuntime boundary
 
-The current green checkpoint is GitHub Actions run #584.
+The current green checkpoint is GitHub Actions run #1244 (commit `674ea90b251fdad141b338be880b644b21d89113`).
 
 Native CPU/VM execution and Hub scheduling are now implemented; the next work is concrete host transports, deeper native architectural execution, and real trained-model validation.
 
@@ -342,13 +342,13 @@ Continue the **deep Qwen3/Coreless tensor execution boundary** and the **autonom
 
 The immediate Qwen3 resume point is the KV-cache/head-data path: replace remaining nested Python cache/head structures with TensorRuntime-backed operations while keeping model semantics unchanged.
 
-**Green resume point: GitHub Actions run #423 — successful.**
+**Green resume point: GitHub Actions run #1244 — successful.**
 
-Latest documented green checkpoint remains tracked by GitHub Actions; do not infer a new green run from documentation-only changes.
+Latest verified green checkpoint: GitHub Actions run #1244 on 2026-10-07; do not infer CI status from documentation-only changes.
 
-Latest repository head before this documentation batch:
+Latest repository head:
 
-`e3ee0676e6045963e1004940326730ed4af7a067`
+`674ea90b251fdad141b338be880b644b21d89113`
 
 This checkpoint includes the latest Qwen3/TensorRuntime transpose integration.
 
