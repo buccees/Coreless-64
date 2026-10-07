@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
+from host_io import HostIO
 from device_command import CommandBatch, DeviceCommand, is_response, round_trip
 
 
@@ -99,7 +100,7 @@ class HostTransportAdapter:
         interface: CorelessHostInterface,
         *,
         system=None,
-        host_io=None,
+        host_io: HostIO | None = None,
         input_router=None,
     ) -> frozenset[str]:
         """Attach an endpoint, optionally binding its persistent system and host I/O."""
