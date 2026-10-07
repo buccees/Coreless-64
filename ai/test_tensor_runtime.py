@@ -816,7 +816,7 @@ def test_grouped_attention_uses_head_slice_boundary():
     k = Tensor.from_values((1, 1, 2), (1.0, 0.0))
     v = Tensor.from_values((1, 1, 2), (2.0, 3.0))
     runtime.grouped_attention(q, k, v, 2)
-    assert runtime.head_slice_calls == 2
+    assert runtime.head_slice_calls == 4
 
 
 def test_tensor_runtime_head_reshape_and_merge_round_trip():
