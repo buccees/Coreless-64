@@ -266,6 +266,27 @@ class HostTransportAdapter:
         interface.detach()
 
 
+class ProviderHostTransportAdapter(HostTransportAdapter):
+    """Reference adapter backed by a platform discovery provider.
+
+    A concrete OS/device integration only needs to implement the
+    HostDiscoveryProvider contract. Discovery and Coreless identity validation
+    remain centralized in HostDeviceEnumerator.
+    """
+
+    def __init__(self, provider) -> None:
+        self._provider = provider
+
+    def enumerate(self) -> tuple[HostEndpoint, ...]:
+        """Discover and validate the provider's current endpoint snapshot."""
+        return self.discover_provider(self._provider)
+
+    @property
+    def provider(self):
+        """Return the discovery provider without exposing adapter state."""
+        return self._provider
+
+
 class MemoryHostTransportAdapter(HostTransportAdapter):
     def __init__(self, endpoints: Iterable[HostEndpoint] = (), candidates=()) -> None:
         self._endpoints = {endpoint.endpoint_id: endpoint for endpoint in endpoints}
