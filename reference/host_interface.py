@@ -85,6 +85,8 @@ class CorelessHostInterface:
         self._hub: CorelessHub | None = None
         self._input_router: CorelessInputRouter | None = None
         self._device_storage: dict[str, bytes] = {}
+        self._host_io: object | None = None
+        self._last_host_display: bytes | None = None
 
     @property
     def attached(self) -> bool:
@@ -276,6 +278,79 @@ class CorelessHostInterface:
             raise RuntimeError("no Coreless input router is bound")
         return self._input_router.submit(event)
 
+    def bind_host_io(self, host_io, *, input_router: CorelessInputRouter | None = None) -> None:
+        """Bind concrete display/input/network transports to the Coreless devices."""
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        required = {"display", "input", "network"} & self._negotiated
+        if required - {"display", "input", "network"}:
+            raise AssertionError("invalid host I/O capability set")
+        if "display" in self._negotiated:
+            self.bind_channel("display", host_io.display)
+        if "network" in self._negotiated:
+            self.bind_channel("network", host_io.network)
+        if "input" in self._negotiated:
+            if input_router is not None:
+                self.bind_input_router(input_router)
+            elif self._input_router is None:
+                raise RuntimeError("input capability requires a Coreless input router")
+            self._channels["input_transport"] = host_io.input
+        self._host_io = host_io
+        self._last_host_display = None
+
+    @property
+    def host_io(self):
+        """Return the currently bound concrete host I/O bundle."""
+        return self._host_io
+
+    def pump_host_io(self) -> dict[str, int]:
+        """Move external I/O between host transports and Coreless devices."""
+        if not self._attached:
+            raise RuntimeError("host interface is not attached")
+        if self._host_io is None:
+            raise RuntimeError("no host I/O is bound")
+        counts = {"display": 0, "input": 0, "network_rx": 0, "network_tx": 0}
+
+        if "input" in self._negotiated:
+            from host_io import decode_input_event
+            while True:
+                try:
+                    payload = self._host_io.input.receive_event()
+                except RuntimeError:
+                    break
+                event = decode_input_event(payload)
+                self.submit_input(event)
+                if self._system is not None:
+                    self._system.machine.graphics.input(event)
+                counts["input"] += 1
+
+        if "network" in self._negotiated:
+            while True:
+                try:
+                    packet = self._host_io.network.receive_packet()
+                except RuntimeError:
+                    break
+                if self._system is not None:
+                    self._system.machine.network.receive(packet)
+                counts["network_rx"] += 1
+
+            if self._system is not None:
+                while self._system.machine.network.tx:
+                    packet = self._system.machine.network.tx.pop(0)
+                    self._host_io.network.send_packet(packet.data)
+                    counts["network_tx"] += 1
+
+        if "display" in self._negotiated and self._system is not None:
+            surface = self._system.machine.graphics.scanout
+            if surface is not None and surface.ready:
+                frame = bytes(surface.pixels)
+                if frame != self._last_host_display:
+                    self._host_io.display.send_frame(frame)
+                    self._last_host_display = frame
+                    counts["display"] += 1
+
+        return counts
+
     @property
     def system(self) -> CorelessSystem | None:
         return self._system
@@ -444,6 +519,8 @@ class CorelessHostInterface:
         """Close external channels without destroying Coreless state."""
         self._channels.clear()
         self._input_router = None
+        self._host_io = None
+        self._last_host_display = None
         self._negotiated = frozenset()
         self._host_capabilities = None
         self._attached = False
