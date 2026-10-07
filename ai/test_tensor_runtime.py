@@ -201,6 +201,27 @@ def test_tensor_runtime_batch_matmul_uses_contiguous_head_storage():
     assert right.at_calls == 0
 
 
+def test_tensor_runtime_rank2_elementwise_ops_stage_contiguous_chunks_without_row_tensors():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__(cpu=TrackingCorelessCPU())
+            self.chunk_calls = 0
+
+        def _vector_binary_chunk(self, left_data, right_data, dtype, op):
+            self.chunk_calls += 1
+            return super()._vector_binary_chunk(left_data, right_data, dtype, op)
+
+    runtime = RecordingRuntime()
+    left = runtime.create((2, 130), [float(i) for i in range(260)], dtype="fp32")
+    right = runtime.create((2, 130), [2.0] * 260, dtype="fp32")
+
+    result = runtime.add(left, right)
+
+    assert result.shape == (2, 130)
+    assert result.data == tuple(float(i) + 2.0 for i in range(260))
+    assert runtime.chunk_calls == 6
+
+
 def test_tensor_runtime_rank2_elementwise_ops_use_native_vector_dispatch():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
