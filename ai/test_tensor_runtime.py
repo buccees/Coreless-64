@@ -817,3 +817,39 @@ def test_grouped_attention_uses_head_slice_boundary():
     v = Tensor.from_values((1, 1, 2), (2.0, 3.0))
     runtime.grouped_attention(q, k, v, 2)
     assert runtime.head_slice_calls == 2
+
+
+def test_tensor_runtime_head_reshape_and_merge_round_trip():
+    runtime = TensorRuntime()
+    value = runtime.create(
+        (3, 4),
+        [float(i) for i in range(12)],
+        dtype="fp32",
+    )
+
+    heads = runtime.reshape_heads(value, 2, 2)
+    merged = runtime.merge_heads(heads)
+
+    assert merged.shape == value.shape
+    assert merged.data == value.data
+
+
+def test_grouped_attention_uses_merge_heads_boundary():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.merge_heads_calls = 0
+
+        def merge_heads(self, value):
+            self.merge_heads_calls += 1
+            return super().merge_heads(value)
+
+    runtime = RecordingRuntime()
+    q = Tensor.from_values((2, 1, 2), (1.0, 0.0, 0.0, 1.0))
+    k = Tensor.from_values((1, 1, 2), (1.0, 0.0))
+    v = Tensor.from_values((1, 1, 2), (2.0, 3.0))
+
+    result = runtime.grouped_attention(q, k, v, 2)
+
+    assert result.shape == (1, 4)
+    assert runtime.merge_heads_calls == 1
