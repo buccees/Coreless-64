@@ -1,0 +1,56 @@
+import sys
+sys.path.insert(0, ".")
+
+import pytest
+
+from host_io import (
+    MemoryDisplayTransport,
+    MemoryHostIO,
+    MemoryInputTransport,
+    MemoryNetworkTransport,
+)
+
+
+@pytest.mark.parametrize(
+    ("transport", "send", "receive", "payload"),
+    [
+        (MemoryDisplayTransport(), "send_frame", "receive_frame", b"frame"),
+        (MemoryInputTransport(), "send_event", "receive_event", b"pointer"),
+        (MemoryNetworkTransport(), "send_packet", "receive_packet", b"packet"),
+    ],
+)
+def test_memory_host_transports_preserve_order_and_bytes(
+    transport, send, receive, payload
+):
+    getattr(transport, send)(payload)
+    getattr(transport, send)(payload + b"-2")
+    assert getattr(transport, receive)() == payload
+    assert getattr(transport, receive)() == payload + b"-2"
+
+
+def test_memory_host_transports_reject_empty_receive():
+    transports = (
+        MemoryDisplayTransport(),
+        MemoryInputTransport(),
+        MemoryNetworkTransport(),
+    )
+    for transport in transports:
+        with pytest.raises(RuntimeError):
+            (
+                transport.receive_frame()
+                if isinstance(transport, MemoryDisplayTransport)
+                else transport.receive_event()
+                if isinstance(transport, MemoryInputTransport)
+                else transport.receive_packet()
+            )
+
+
+def test_memory_host_io_bundles_independent_channels():
+    io = MemoryHostIO()
+    io.display.send_frame(b"frame")
+    io.input.send_event(b"touch")
+    io.network.send_packet(b"packet")
+
+    assert io.display.receive_frame() == b"frame"
+    assert io.input.receive_event() == b"touch"
+    assert io.network.receive_packet() == b"packet"
