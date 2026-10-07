@@ -203,3 +203,37 @@ def test_reserved_base_encoding_traps_without_retirement():
     assert cpu.csrs[0x004] == 0
     assert cpu.pc == 0x100
     assert cpu.instret == 0
+
+def test_misaligned_j_traps_without_retirement():
+    cpu = CorelessCPU()
+    cpu.csrs[0x003] = 0x100
+    # J +2: direct target is not a 4-byte instruction boundary.
+    word = (5 << 27) | (0 << 12) | 2
+    cpu.memory[0:4] = word.to_bytes(4, "little")
+    assert cpu.step() is True
+    assert cpu.last_step_result == {
+        "event": "trap",
+        "pc": 0,
+        "cause": 0x006,
+        "tval": 2,
+    }
+    assert cpu.pc == 0x100
+    assert cpu.instret == 0
+
+
+def test_misaligned_ret_traps_without_retirement():
+    cpu = CorelessCPU()
+    cpu.csrs[0x003] = 0x100
+    cpu.r[1] = 2
+    # RET uses the architectural return register and must trap on misalignment.
+    word = (5 << 27) | (4 << 12)
+    cpu.memory[0:4] = word.to_bytes(4, "little")
+    assert cpu.step() is True
+    assert cpu.last_step_result == {
+        "event": "trap",
+        "pc": 0,
+        "cause": 0x006,
+        "tval": 2,
+    }
+    assert cpu.pc == 0x100
+    assert cpu.instret == 0
