@@ -110,9 +110,11 @@ Connected components continue to:
 
 The repository implements the CorelessHostInterface software contract plus a reference HostTransportAdapter. Implemented coverage includes identity discovery/verification, capability negotiation, attach/detach, Hub binding, lifecycle coordination, channel binding, enumeration, and transport-readiness checks.
 
-This is not yet a claim of physical cross-platform plug-and-play. The reference implementation now connects concrete in-memory display, input, and network transports to the Coreless boundary without moving Coreless CPU, RAM, VM, OS, AI, or architectural authority into the host.
+The platform-independent discovery layer in `reference/host_discovery.py` now validates transport-neutral identity advertisements and deterministically converts raw discovery candidates into HostEndpoint objects. This layer is deliberately independent of USB, PCIe, Ethernet, SATA, NVMe, or other physical bus enumeration; concrete adapters supply discovery candidates to it.
 
-The remaining transport work is concrete OS/device enumeration and platform adapters. The reference path already covers host transport binding, persistent-system attachment, input event serialization, display scanout delivery, and network packet ingress/egress.
+This is not yet a claim of physical cross-platform plug-and-play. The reference implementation connects concrete in-memory display, input, and network transports to the Coreless boundary without moving Coreless CPU, RAM, VM, OS, AI, or architectural authority into the host.
+
+The remaining transport work is concrete OS/device enumeration and platform adapters. The reference path already covers host transport binding, persistent-system attachment, input event serialization, display scanout delivery, network packet ingress/egress, and transport-neutral discovery validation.
 
 
 ## Transport-neutral identification frame
