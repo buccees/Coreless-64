@@ -141,3 +141,38 @@ def test_div_signed_overflow_is_defined_and_retires():
     assert cpu.r[3] == 0x8000000000000000
     assert cpu.instret == 1
     assert cpu.pc == 4
+
+
+def test_misaligned_jump_target_traps_precisely():
+    cpu = CorelessCPU()
+    cpu.csrs[0x003] = 0x100
+    cpu.r[1] = 2
+    # JR x0, x1, 0: target 0x2 is not a 4-byte instruction boundary.
+    from encoding import encode
+    cpu.load_program(encode(("JR", 0, 1, 0)))
+    assert cpu.step() is True
+    assert cpu.last_step_result == {
+        "event": "trap",
+        "pc": 0,
+        "cause": 0x000,
+        "tval": 2,
+    }
+    assert cpu.csrs[0x004] == 0
+    assert cpu.pc == 0x100
+    assert cpu.instret == 0
+
+
+def test_reserved_base_encoding_traps_without_retirement():
+    cpu = CorelessCPU()
+    cpu.csrs[0x003] = 0x100
+    cpu.memory[0:4] = ((0x1F << 27)).to_bytes(4, "little")
+    assert cpu.step() is True
+    assert cpu.last_step_result == {
+        "event": "trap",
+        "pc": 0,
+        "cause": 0x002,
+        "tval": 0,
+    }
+    assert cpu.csrs[0x004] == 0
+    assert cpu.pc == 0x100
+    assert cpu.instret == 0
