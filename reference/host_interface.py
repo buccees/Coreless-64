@@ -282,9 +282,6 @@ class CorelessHostInterface:
         """Bind concrete display/input/network transports to the Coreless devices."""
         if not self._attached:
             raise RuntimeError("host interface is not attached")
-        required = {"display", "input", "network"} & self._negotiated
-        if required - {"display", "input", "network"}:
-            raise AssertionError("invalid host I/O capability set")
         if "display" in self._negotiated:
             self.bind_channel("display", host_io.display)
         if "network" in self._negotiated:
@@ -294,7 +291,7 @@ class CorelessHostInterface:
                 self.bind_input_router(input_router)
             elif self._input_router is None:
                 raise RuntimeError("input capability requires a Coreless input router")
-            self._channels["input_transport"] = host_io.input
+            self._channels["input"] = host_io.input
         self._host_io = host_io
         self._last_host_display = None
 
