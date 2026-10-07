@@ -56,6 +56,7 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Plug-and-play host discovery and identity handshake software contract
 - [x] Host capability negotiation and attach/detach software contract
 - [x] Reference host enumeration/transport adapter
+- [x] Provider-backed host transport adapter boundary
 - [ ] Application environment
 
 ## Phase 4 — Complete digital machine
