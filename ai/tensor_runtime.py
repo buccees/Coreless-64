@@ -444,6 +444,20 @@ class TensorRuntime:
             dtype=value.dtype,
         )
 
+    def head_slice(self, value: Tensor, head: int) -> Tensor:
+        """Extract one [positions, head_dim] head without leaving TensorRuntime."""
+        if len(value.shape) != 3:
+            raise ValueError("head_slice requires a rank-3 tensor")
+        heads, positions, dim = value.shape
+        if head < 0 or head >= heads:
+            raise IndexError("head index out of range")
+        start = head * positions * dim
+        return Tensor.from_values(
+            (positions, dim),
+            value.data[start:start + positions * dim],
+            dtype=value.dtype,
+        )
+
     def grouped_attention(
         self,
         q: Tensor,
@@ -475,16 +489,8 @@ class TensorRuntime:
         for kv_head in range(kv_heads):
             group_start = kv_head * key_rows * dim
             group_end = group_start + key_rows * dim
-            key = Tensor.from_values(
-                (key_rows, dim),
-                k.data[group_start:group_end],
-                dtype=k.dtype,
-            )
-            value = Tensor.from_values(
-                (key_rows, dim),
-                v.data[group_start:group_end],
-                dtype=v.dtype,
-            )
+            key = self.head_slice(k, kv_head)
+            value = self.head_slice(v, kv_head)
             groups.append((self.transpose(key), value))
         mask = (
             self.causal_mask(
