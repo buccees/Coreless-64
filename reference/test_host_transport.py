@@ -450,3 +450,38 @@ def test_host_transport_batch_rejects_response_count_mismatch(monkeypatch):
     ))
     with pytest.raises(ValueError, match="response count mismatch"):
         adapter.send_batch(endpoint, interface, batch)
+
+
+def test_host_transport_discovery_validates_raw_candidates():
+    from device_protocol import ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, DeviceIdentityFrame, capability_bits
+    from host_discovery import HostDiscoveryCandidate
+
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"display"}),
+        payload=b"discovered",
+    )
+    adapter = MemoryHostTransportAdapter(candidates=[
+        HostDiscoveryCandidate("z", frame, HostCapabilities(display=True)),
+        HostDiscoveryCandidate("a", frame, HostCapabilities(display=True)),
+    ])
+    assert [e.endpoint_id for e in adapter.enumerate_candidates()] == ["a", "z"]
+
+
+def test_host_transport_discovery_rejects_duplicate_raw_candidates():
+    from host_discovery import HostDiscoveryCandidate
+    from device_protocol import ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, DeviceIdentityFrame
+
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=0,
+        payload=b"duplicate",
+    )
+    candidate = HostDiscoveryCandidate("same", frame, HostCapabilities())
+    adapter = MemoryHostTransportAdapter(candidates=[candidate, candidate])
+    with pytest.raises(ValueError, match="duplicate host endpoint id"):
+        adapter.enumerate_candidates()
