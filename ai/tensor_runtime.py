@@ -417,14 +417,15 @@ class TensorRuntime:
                 )
                 c = self.cos(angles)
                 s = self.sin(angles)
+                row_start = (head * positions + position) * dim
                 a = Tensor.from_values(
                     (half,),
-                    (value.at(head, position, index) for index in range(half)),
+                    value.data[row_start:row_start + half],
                     dtype=value.dtype,
                 )
                 b = Tensor.from_values(
                     (half,),
-                    (value.at(head, position, half + index) for index in range(half)),
+                    value.data[row_start + half:row_start + dim],
                     dtype=value.dtype,
                 )
                 first = self.sub(self.mul(a, c), self.mul(b, s))
@@ -763,10 +764,14 @@ class TensorRuntime:
         try:
             for i in range(left.shape[0]):
                 for j in range(left.shape[1]):
-                    cpu.matrix[29][i][j] = self._encode_value(left.at(i, j), left.dtype)
+                    cpu.matrix[29][i][j] = self._encode_value(
+                        left.data[i * left.shape[1] + j], left.dtype
+                    )
             for i in range(right.shape[0]):
                 for j in range(right.shape[1]):
-                    cpu.matrix[30][i][j] = self._encode_value(right.at(i, j), right.dtype)
+                    cpu.matrix[30][i][j] = self._encode_value(
+                        right.data[i * right.shape[1] + j], right.dtype
+                    )
             cpu.matrix_shape = shape
             cpu.execute_matrix(
                 0x00, 31, 29, 30,
@@ -797,17 +802,17 @@ class TensorRuntime:
                     b = [0.0] * (tile * tile)
                     for i in range(im):
                         for q in range(kk):
-                            a[i * tile + q] = left.at(i0 + i, k0 + q)
+                            a[i * tile + q] = left.data[(i0 + i) * k + k0 + q]
                     for q in range(kk):
                         for j in range(jn):
-                            b[q * tile + j] = right.at(k0 + q, j0 + j)
+                            b[q * tile + j] = right.data[(k0 + q) * n + j0 + j]
                     partial = self.matrix_matmul(
                         Tensor.from_values((tile, tile), a, dtype=left.dtype),
                         Tensor.from_values((tile, tile), b, dtype=right.dtype),
                     )
                     for i in range(im):
                         for j in range(jn):
-                            block[i * jn + j] += partial.at(i, j)
+                            block[i * jn + j] += partial.data[i * tile + j]
                 for i in range(im):
                     for j in range(jn):
                         out[(i0 + i) * n + j0 + j] = block[i * jn + j]
