@@ -279,3 +279,12 @@ The host transport layer now validates the transport-neutral HostIO bundle befor
 - [x] HostIO-aware reusable transport sessions
 - [ ] Cross-platform physical host enumeration
 - [ ] Platform display/input/network transport adapters
+
+
+## Documentation checkpoint — 2026-10-07: atomic HostIO validation
+
+- [x] Validate the complete negotiated HostIO bundle before attachment
+- [x] Validate the Coreless input-router contract before binding
+- [x] Preserve no-partial-attachment behavior on HostIO validation failure
+
+The reference test suite is green at this checkpoint. Next implementation work should proceed toward concrete platform host providers/adapters while preserving the transport-neutral boundary.
