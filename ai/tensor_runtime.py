@@ -109,37 +109,43 @@ class TensorRuntime:
         if len(value.shape) != 2 or value.shape[1] != heads * head_dim:
             raise ValueError("reshape_heads requires a [positions, heads*head_dim] tensor")
         positions = value.shape[0]
-        return Tensor.from_values(
-            (heads, positions, head_dim),
-            (value.at(pos, head * head_dim + dim)
-             for head in range(heads) for pos in range(positions) for dim in range(head_dim)),
-            dtype=value.dtype,
-        )
+        values = []
+        row_width = heads * head_dim
+        for head in range(heads):
+            head_offset = head * head_dim
+            for pos in range(positions):
+                row_start = pos * row_width + head_offset
+                values.extend(value.data[row_start:row_start + head_dim])
+        return Tensor.from_values((heads, positions, head_dim), values, dtype=value.dtype)
 
     def repeat_heads(self, value: Tensor, repeats: int) -> Tensor:
         """Repeat the head axis for grouped-query attention without host lists."""
         if len(value.shape) != 3 or repeats <= 0:
             raise ValueError("repeat_heads requires a rank-3 tensor and positive repeats")
         heads, positions, head_dim = value.shape
-        return Tensor.from_values(
-            (heads * repeats, positions, head_dim),
-            (value.at(head, pos, dim)
-             for head in range(heads) for _ in range(repeats)
-             for pos in range(positions) for dim in range(head_dim)),
-            dtype=value.dtype,
-        )
+        values = []
+        head_stride = positions * head_dim
+        for head in range(heads):
+            start = head * head_stride
+            block = value.data[start:start + head_stride]
+            for _ in range(repeats):
+                values.extend(block)
+        return Tensor.from_values((heads * repeats, positions, head_dim), values, dtype=value.dtype)
 
     def transpose_last_two(self, value: Tensor) -> Tensor:
         """Transpose the final two axes of a rank-3 attention tensor."""
         if len(value.shape) != 3:
             raise ValueError("transpose_last_two requires a rank-3 tensor")
         heads, rows, cols = value.shape
-        return Tensor.from_values(
-            (heads, cols, rows),
-            (value.at(head, r, col)
-             for head in range(heads) for col in range(cols) for r in range(rows)),
-            dtype=value.dtype,
-        )
+        values = []
+        stride = rows * cols
+        for head in range(heads):
+            start = head * stride
+            base = value.data[start:start + stride]
+            for col in range(cols):
+                for row in range(rows):
+                    values.append(base[row * cols + col])
+        return Tensor.from_values((heads, cols, rows), values, dtype=value.dtype)
 
     def merge_heads(self, value: Tensor) -> Tensor:
         """Merge [heads, positions, head_dim] into [positions, heads*head_dim]."""
@@ -832,3 +838,33 @@ class TensorRuntime:
         if payload.get("version") not in (1, 2):
             raise ValueError("unsupported tensor format version")
         return Tensor.from_values(payload["shape"], payload["data"], dtype=payload.get("dtype", "fp64"))
+
+
+def test_tensor_runtime_head_layout_ops_use_contiguous_storage():
+    class CountingTensor:
+        def __init__(self, shape, data, dtype="fp32"):
+            self.shape = shape
+            self.data = tuple(data)
+            self.dtype = dtype
+            self.at_calls = 0
+
+        def at(self, *indices):
+            self.at_calls += 1
+            raise AssertionError("head layout operations should use contiguous storage")
+
+    runtime = TensorRuntime()
+    value = CountingTensor((2, 2), [1.0, 2.0, 3.0, 4.0])
+    heads = runtime.reshape_heads(value, 2, 1)
+    assert heads.data == (1.0, 3.0, 2.0, 4.0)
+    assert value.at_calls == 0
+
+    repeated = runtime.repeat_heads(
+        CountingTensor((2, 2, 1), heads.data),
+        2,
+    )
+    assert repeated.data == (1.0, 3.0, 1.0, 3.0, 2.0, 4.0, 2.0, 4.0)
+
+    transposed = runtime.transpose_last_two(
+        CountingTensor((2, 2, 2), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+    )
+    assert transposed.data == (1.0, 3.0, 2.0, 4.0, 5.0, 7.0, 6.0, 8.0)
