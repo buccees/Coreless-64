@@ -601,3 +601,33 @@ def test_qwen3_kv_cache_append_owns_runtime_boundary():
     assert runtime.append_calls == 2
     assert cache.keys[0].shape == (1, 2, 2)
     assert cache.values[0].shape == (1, 2, 2)
+
+
+def test_qwen3_kv_cache_persists_through_tensor_runtime():
+    from storage import PersistentMachineImage
+
+    runtime = TensorRuntime(PersistentMachineImage())
+    cache = Qwen3KVCache.create(2)
+    cache.append(
+        0,
+        Tensor.from_values((1, 1, 2), [1.0, 2.0], dtype="fp32"),
+        Tensor.from_values((1, 1, 2), [3.0, 4.0], dtype="fp32"),
+    )
+    cache.append(
+        1,
+        Tensor.from_values((1, 1, 2), [5.0, 6.0], dtype="fp32"),
+        Tensor.from_values((1, 1, 2), [7.0, 8.0], dtype="fp32"),
+    )
+    saved = cache.persist(runtime, "session")
+    assert saved == (
+        "tensor/session_layer_0_key",
+        "tensor/session_layer_0_value",
+        "tensor/session_layer_1_key",
+        "tensor/session_layer_1_value",
+    )
+    restored = Qwen3KVCache.restore(runtime, "session", 2)
+    assert restored.layer_count == 2
+    assert restored.keys[0].data == (1.0, 2.0)
+    assert restored.values[1].data == (7.0, 8.0)
+    assert restored.sequence_length == 1
+
