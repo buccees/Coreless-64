@@ -1174,8 +1174,6 @@ class CorelessCPU:
                 self.r[0] = 0
                 return True
             if next_pc & 3:
-                if call_link is not None:
-                    self.write_reg(call_link[0], call_link[1])
                 raise CorelessTrap("alignment_fault", self.pc, next_pc)
             self.r[0] = 0
             self.pc = next_pc & MASK64
