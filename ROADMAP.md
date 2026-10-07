@@ -168,7 +168,8 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] CorelessHostInterface software contract
 - [x] Reference host enumeration/transport adapter
 - [ ] Cross-platform physical host enumeration
-- [ ] Concrete display/input/network transport adapters
+- [x] Reference display/input/network transport adapters
+- [ ] Platform display/input/network transport adapters
 - [x] User-designated pointing-device discovery and persistent assignment
 - [x] Coreless touch/pointing event transport contract
 - [x] VIGIL-aware input interpretation boundary
@@ -250,3 +251,10 @@ The existing implementation already provides TensorRuntime-backed Qwen3 KV-cache
 ## Documentation checkpoint — 2026-10-07: persistent runtime launcher
 
 The persistent-storage-hosted reference runtime now has a direct launcher at `scripts/coreless-run.py`. It opens the Coreless machine image as the authoritative state carrier, resumes the Coreless OS/runtime, accepts native Coreless shell commands, optionally advances the digital execution engine, and persists shutdown/state without moving computational authority into the host. Lifecycle regression coverage is in `reference/test_persistent_runtime.py`.
+
+
+## Documentation checkpoint — 2026-10-07: reference host I/O integration
+
+The host transport milestone has advanced from negotiated channels to an end-to-end reference I/O path. The Coreless host boundary can now bind a persistent Coreless system to concrete in-memory display, input, and network transports. Input events are serialized into the host channel and decoded back into the Coreless input ABI; display scanout frames can be emitted to the host display transport; and network packets can cross the host boundary in both directions.
+
+Verified CI runs include #1314 (end-to-end host I/O integration) and #1315 (clean host I/O reconnect handling), both green. The remaining host-interface work is platform-specific enumeration and transport adapters.
