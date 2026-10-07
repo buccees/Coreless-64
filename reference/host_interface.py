@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, TYPE_CHECKING
 
-from host_io import HostIO
+from host_io import HostIO, DisplayTransport, InputTransport, NetworkTransport
 from device_protocol import (
     ARCHITECTURE_CORELESS64,
     DEVICE_TYPE_CORELESS64,
@@ -285,6 +285,19 @@ class CorelessHostInterface:
             raise TypeError("host_io must implement the Coreless HostIO contract")
         if not self._attached:
             raise RuntimeError("host interface is not attached")
+        if "input" in self._negotiated and input_router is None and self._input_router is None:
+            raise RuntimeError("input capability requires a Coreless input router")
+
+        # Validate the complete negotiated bundle before mutating any channels.
+        # A partially attached host I/O bundle must never be observable.
+        if "display" in self._negotiated:
+            if not isinstance(host_io.display, DisplayTransport):
+                raise TypeError("host display transport does not implement the Coreless display contract")
+        if "input" in self._negotiated and not isinstance(host_io.input, InputTransport):
+            raise TypeError("host input transport does not implement the Coreless input contract")
+        if "network" in self._negotiated and not isinstance(host_io.network, NetworkTransport):
+            raise TypeError("host network transport does not implement the Coreless network contract")
+
         if "display" in self._negotiated:
             self.bind_channel("display", host_io.display)
         if "network" in self._negotiated:
@@ -292,8 +305,6 @@ class CorelessHostInterface:
         if "input" in self._negotiated:
             if input_router is not None:
                 self.bind_input_router(input_router)
-            elif self._input_router is None:
-                raise RuntimeError("input capability requires a Coreless input router")
             self._channels["input"] = host_io.input
         self._host_io = host_io
         self._last_host_display = None
