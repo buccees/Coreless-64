@@ -564,7 +564,7 @@ class TensorRuntime:
             stop = start + width
             maximum = fill_value
             for index in range(start, stop):
-                if not bool(mask.data[index]) and value.data[index] > maximum:
+                if not mask.data[index] and value.data[index] > maximum:
                     maximum = value.data[index]
             total = 0.0
             for index in range(start, stop):
