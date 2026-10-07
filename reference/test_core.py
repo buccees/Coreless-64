@@ -559,9 +559,9 @@ def test_direct_program_load_and_run_uses_variable_length_fetch():
 def test_run_stops_on_trap_even_when_cause_and_vector_repeat():
     cpu=CorelessCPU()
     cpu.csrs[0x003]=0
-    cpu.memory[0:4]=((6 << 27) | 2).to_bytes(4,"little")
+    cpu.memory[0:4]=((0x1F << 27)).to_bytes(4,"little")
     assert cpu.run(max_steps=10) == 1
-    assert (cpu.csrs[0x005] & 0xffff) == 0x002
+    assert (cpu.csrs[0x005] & 0xffff) == 0x017
     assert cpu.pc == 0
 
 def test_run_rejects_negative_step_limit():
