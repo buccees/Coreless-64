@@ -819,6 +819,27 @@ def test_grouped_attention_uses_head_slice_boundary():
     assert runtime.head_slice_calls == 4
 
 
+def test_grouped_attention_uses_runtime_head_output_assembly():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.stack_head_outputs_calls = 0
+
+        def stack_head_outputs(self, outputs, heads, positions, head_dim):
+            self.stack_head_outputs_calls += 1
+            return super().stack_head_outputs(outputs, heads, positions, head_dim)
+
+    runtime = RecordingRuntime()
+    q = Tensor.from_values((2, 1, 2), (1.0, 0.0, 0.0, 1.0))
+    k = Tensor.from_values((1, 1, 2), (1.0, 0.0))
+    v = Tensor.from_values((1, 1, 2), (2.0, 3.0))
+
+    result = runtime.grouped_attention(q, k, v, 2)
+
+    assert result.shape == (1, 4)
+    assert runtime.stack_head_outputs_calls == 1
+
+
 def test_tensor_runtime_head_reshape_and_merge_round_trip():
     runtime = TensorRuntime()
     value = runtime.create(
