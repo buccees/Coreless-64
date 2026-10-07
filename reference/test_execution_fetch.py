@@ -64,7 +64,7 @@ def test_extended_fetch_traps_when_payload_lacks_execute_permission():
 
     # The 16-byte instruction straddles two virtual pages. The first page is
     # executable; the second is mapped but deliberately lacks execute permission.
-    pte_exec = 1 | (1 << 1) | (1 << 3) | (1 << 12)
+    pte_exec = 1 | (1 << 1) | (1 << 3)
     pte_noexec = 1 | (1 << 1) | (2 << 12)
     cpu.memory[0x3000:0x3008] = pte_exec.to_bytes(8, "little")
     cpu.memory[0x3008:0x3010] = pte_noexec.to_bytes(8, "little")
