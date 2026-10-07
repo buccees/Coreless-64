@@ -491,3 +491,33 @@ def test_tensor_runtime_rotary_embedding_uses_contiguous_storage():
     result = runtime.rotary_embedding(value, 0)
     assert result.shape == (1, 1, 4)
     assert value.at_calls == 0
+
+def test_tensor_runtime_rotary_embedding_reuses_position_rotations_across_heads():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.rope_angle_calls = 0
+            self.cos_calls = 0
+            self.sin_calls = 0
+
+        def rope_angles(self, *args, **kwargs):
+            self.rope_angle_calls += 1
+            return super().rope_angles(*args, **kwargs)
+
+        def cos(self, value):
+            self.cos_calls += 1
+            return super().cos(value)
+
+        def sin(self, value):
+            self.sin_calls += 1
+            return super().sin(value)
+
+    runtime = RecordingRuntime()
+    value = runtime.create((3, 2, 4), [float(i) for i in range(24)], dtype="fp32")
+
+    result = runtime.rotary_embedding(value, position_offset=4, theta=10000.0)
+
+    assert result.shape == value.shape
+    assert runtime.rope_angle_calls == 2
+    assert runtime.cos_calls == 2
+    assert runtime.sin_calls == 2
