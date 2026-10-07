@@ -83,9 +83,12 @@ class HostTransportAdapter:
         self,
         endpoint: HostEndpoint,
         interface: CorelessHostInterface,
+        *,
+        system=None,
     ) -> frozenset[str]:
+        """Attach a host endpoint and optionally bind a persistent Coreless system."""
         negotiated = interface.attach_identity_frame(
-            endpoint.identity_frame(), endpoint.capabilities
+            endpoint.identity_frame(), endpoint.capabilities, system=system
         )
         interface.clear_channels()
         for capability, channel in endpoint.channel_map().items():
@@ -97,9 +100,11 @@ class HostTransportAdapter:
         self,
         endpoint: HostEndpoint,
         interface: CorelessHostInterface,
+        *,
+        system=None,
     ) -> HostTransportSession:
         """Attach an endpoint and retain its negotiated transport session."""
-        negotiated = self.connect(endpoint, interface)
+        negotiated = self.connect(endpoint, interface, system=system)
         return HostTransportSession(endpoint, interface, negotiated)
 
     def exchange(
@@ -255,8 +260,10 @@ class MemoryHostTransportAdapter(HostTransportAdapter):
         self,
         endpoint: HostEndpoint,
         interface: CorelessHostInterface,
+        *,
+        system=None,
     ) -> frozenset[str]:
         current = self._endpoints.get(endpoint.endpoint_id)
         if current is None or current != endpoint:
             raise ValueError("unknown host endpoint")
-        return super().connect(current, interface)
+        return super().connect(current, interface, system=system)
