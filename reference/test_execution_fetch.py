@@ -26,3 +26,29 @@ def test_fetch_instruction_returns_exact_128_bit_boundary():
     length, words = cpu._fetch_instruction()
     assert length == 16
     assert len(words) == 4
+
+
+def test_truncated_extended_instruction_traps_before_retirement():
+    cpu = CorelessCPU(memory_size=8)
+    cpu.csrs[0x003] = 0x100
+    header = encode_extended_header(3, 0x23, 1, 0, 0, 2, length=16)
+    cpu.memory[0:4] = header.to_bytes(4, "little")
+
+    assert cpu.step()
+    assert (cpu.csrs[0x005] & 0xFFFF) == 0x000
+    assert cpu.csrs[0x004] == 0
+    assert cpu.pc == 0x100
+    assert cpu.instret == 0
+
+
+def test_mixed_length_fetch_preserves_architectural_boundaries():
+    cpu = CorelessCPU()
+    base = (0).to_bytes(4, "little")
+    ext = encode_extended_header(2, 0, 1, 0, 0, 2, length=8)
+    cpu.load_program(base + ext.to_bytes(4, "little") + b"\x00\x00\x00\x00")
+
+    length, words = cpu._fetch_instruction()
+    assert length == 4 and len(words) == 1
+    cpu.pc = 4
+    length, words = cpu._fetch_instruction()
+    assert length == 8 and len(words) == 2
