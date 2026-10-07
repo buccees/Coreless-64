@@ -48,6 +48,7 @@ class Workload:
     workload_id: str
     capability: str
     payload: object
+    priority: int = 0
 
 
 @dataclass(frozen=True)
@@ -916,12 +917,16 @@ class CorelessHub:
             if component.healthy and component.workload_executor is not None
         )
         max_workers = max(1, min(len(workload_list), capacity))
+        indexed = tuple(enumerate(workload_list))
+        submission_order = tuple(
+            sorted(indexed, key=lambda item: (-item[1].priority, item[0]))
+        )
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = tuple(
-                executor.submit(self.dispatch, workload)
-                for workload in workload_list
-            )
-            return tuple(future.result() for future in futures)
+            futures = {
+                index: executor.submit(self.dispatch, workload)
+                for index, workload in submission_order
+            }
+            return tuple(futures[index].result() for index, _ in indexed)
 
     def composition(self) -> Mapping[str, object]:
         return {
