@@ -1191,6 +1191,31 @@ def test_hub_parallel_dispatch_respects_component_capacity_and_balances_load():
     assert all(load == 0 for load in hub._dispatch_load.values())
 
 
+def test_hub_dispatch_rotates_equal_load_components_for_fairness():
+    calls = []
+
+    def execute(payload):
+        calls.append(payload)
+        return payload
+
+    hub = CorelessHub("hub-fairness")
+    for component_id in ("cpu-0", "cpu-1"):
+        hub.connect(CorelessComponent(
+            ComponentDescriptor(component_id, "cpu", frozenset({"compute"})),
+            workload_executor=execute,
+        ))
+
+    results = [
+        hub.dispatch(Workload(f"w{i}", "compute", i))
+        for i in range(4)
+    ]
+
+    assert [result.component_id for result in results] == [
+        "cpu-0", "cpu-1", "cpu-0", "cpu-1"
+    ]
+    assert calls == [0, 1, 2, 3]
+
+
 def test_hub_dispatch_fails_fast_when_capability_has_no_executor():
     hub = CorelessHub("hub-no-executor")
     hub.connect(CorelessComponent(
