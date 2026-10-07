@@ -426,7 +426,6 @@ class CorelessHub:
         self._components: dict[str, CorelessComponent] = {}
         self._ipc_channels: dict[tuple[str, str], int] = {}
         self._dispatch_load: dict[str, int] = {}
-        self._dispatch_cursor = 0
         self._dispatch_condition = threading.Condition()
 
     def connect(self, component: CorelessComponent) -> ComponentDescriptor:
@@ -882,17 +881,11 @@ class CorelessHub:
                     if advertised:
                         raise RuntimeError(f"no executor available for capability: {workload.capability}")
                     raise LookupError(f"no healthy component provides capability: {workload.capability}")
-                candidates.sort(key=lambda component: component.component_id)
-                minimum_load = min(
-                    self._dispatch_load.get(component.component_id, 0)
-                    for component in candidates
-                )
-                eligible = [
-                    component for component in candidates
-                    if self._dispatch_load.get(component.component_id, 0) == minimum_load
-                ]
-                selected = eligible[self._dispatch_cursor % len(eligible)]
-                self._dispatch_cursor += 1
+                candidates.sort(key=lambda component: (
+                    self._dispatch_load.get(component.component_id, 0),
+                    component.component_id,
+                ))
+                selected = candidates[0]
                 load = self._dispatch_load.get(selected.component_id, 0)
                 if load < selected.descriptor.capacity:
                     self._dispatch_load[selected.component_id] = load + 1
