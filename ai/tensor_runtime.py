@@ -696,37 +696,64 @@ class TensorRuntime:
             ).data)
         return Tensor.from_values(left.shape, values, dtype=left.dtype)
 
-    def _vector_binary_tile(self, left: Tensor, right: Tensor, op: int) -> Tensor:
-        self._same_vector_inputs(left, right)
+    def _vector_binary_chunk(
+        self,
+        left_data: Iterable[float],
+        right_data: Iterable[float],
+        dtype: str,
+        op: int,
+    ) -> tuple[float, ...]:
+        """Execute one raw contiguous vector chunk without Tensor allocation."""
+        left_values = tuple(left_data)
+        right_values = tuple(right_data)
+        if len(left_values) != len(right_values) or len(left_values) > 64:
+            raise ValueError("native vector chunk size is invalid")
         cpu = self._require_cpu()
-        et = self._element_type(left.dtype)
+        et = self._element_type(dtype)
         saved = {r: cpu.vector[r][:] for r in (29, 30, 31)}
         old_vl, old_vstart, old_vtype = cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype
         try:
-            cpu.vector[29][:left.size] = [self._encode_value(v, left.dtype) for v in left.data]
-            cpu.vector[30][:right.size] = [self._encode_value(v, right.dtype) for v in right.data]
-            cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype = left.size, 0, et
+            cpu.vector[29][:len(left_values)] = [
+                self._encode_value(v, dtype) for v in left_values
+            ]
+            cpu.vector[30][:len(right_values)] = [
+                self._encode_value(v, dtype) for v in right_values
+            ]
+            cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype = len(left_values), 0, et
             cpu.execute_vector(op, 31, 29, 30, et << 29)
-            values = [self._decode_value(cpu.vector[31][i], left.dtype) for i in range(left.size)]
-            return Tensor.from_values(left.shape, values, dtype=left.dtype)
+            return tuple(
+                self._decode_value(cpu.vector[31][i], dtype)
+                for i in range(len(left_values))
+            )
         finally:
             for r, values in saved.items():
                 cpu.vector[r][:] = values
             cpu.vector_vl, cpu.vector_vstart, cpu.vector_vtype = old_vl, old_vstart, old_vtype
 
+    def _vector_binary_tile(self, left: Tensor, right: Tensor, op: int) -> Tensor:
+        self._same_vector_inputs(left, right)
+        values = self._vector_binary_chunk(left.data, right.data, left.dtype, op)
+        return Tensor.from_values(left.shape, values, dtype=left.dtype)
+
     def _vector_binary_rows(self, left: Tensor, right: Tensor, op: int) -> Tensor:
         if left.shape != right.shape or len(left.shape) != 2:
             raise ValueError("row-wise vector binary operation requires matching rank-2 tensors")
+        if left.dtype != right.dtype:
+            raise ValueError("row-wise vector binary operation requires matching dtypes")
         rows, cols = left.shape
         values = []
         for row in range(rows):
             start = row * cols
-            result = self._vector_binary_native(
-                Tensor.from_values((cols,), left.data[start:start + cols], dtype=left.dtype),
-                Tensor.from_values((cols,), right.data[start:start + cols], dtype=right.dtype),
-                op,
-            )
-            values.extend(result.data)
+            for offset in range(0, cols, 64):
+                stop = min(offset + 64, cols)
+                values.extend(
+                    self._vector_binary_chunk(
+                        left.data[start + offset:start + stop],
+                        right.data[start + offset:start + stop],
+                        left.dtype,
+                        op,
+                    )
+                )
         return Tensor.from_values(left.shape, values, dtype=left.dtype)
 
     def vector_add(self, left: Tensor, right: Tensor) -> Tensor:
