@@ -87,6 +87,12 @@ class HostTransportAdapter:
 
         return HostDeviceEnumerator().discover(candidates)
 
+    def discover_provider(self, provider) -> tuple[HostEndpoint, ...]:
+        """Enumerate platform candidates through the neutral discovery contract."""
+        from host_discovery import HostDeviceEnumerator
+
+        return HostDeviceEnumerator().discover_provider(provider)
+
     def connect(
         self,
         endpoint: HostEndpoint,
