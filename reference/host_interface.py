@@ -478,9 +478,11 @@ class CorelessHostInterface:
         return self._hub.shutdown()
 
     def clear_channels(self) -> None:
-        """Remove externally bound channels without detaching the Coreless system."""
+        """Remove all externally bound channels without detaching Coreless state."""
         self._channels.clear()
         self._input_router = None
+        self._host_io = None
+        self._last_host_display = None
 
     def bind_channel(self, capability: str, channel: object) -> None:
         """Bind an externally provided transport to a negotiated capability."""
