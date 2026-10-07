@@ -1098,6 +1098,21 @@ class CorelessCPU:
         """Return a copy of the most recent step outcome."""
         return dict(self._last_step_result)
 
+    def _fetch_instruction(self):
+        """Fetch exactly one architectural instruction from the current PC.
+
+        The first word determines the total length; payload words are fetched
+        only after that boundary is known. Execute permissions and bounds are
+        therefore checked for the complete instruction before execution.
+        """
+        from encoding import instruction_length
+        first = self.load_u(self.pc, 4, execute=True)
+        length = instruction_length(first)
+        words = [first]
+        for offset in range(4, length, 4):
+            words.append(self.load_u(self.pc + offset, 4, execute=True))
+        return length, words
+
     def step(self):
         self._last_step_event = None
         start_pc = self.pc
@@ -1113,14 +1128,12 @@ class CorelessCPU:
             return True
         from encoding import from_bytes, instruction_length, decode, IllegalEncoding
         try:
-            first = self.load_u(self.pc, 4, execute=True)
+            length, words = self._fetch_instruction()
+            first = words[0]
             self._last_word = first
-            length = instruction_length(first)
             if length in (8, 16):
                 from encoding import decode_extended_header
                 h = decode_extended_header(first)
-                payload_offsets = (4,) if length == 8 else (4, 8, 12)
-                words = [self.load_u(self.pc+i, 4, execute=True) for i in payload_offsets]
                 cls, op, rd, rs1, rs2, fmt = h
                 if fmt != 2:
                     raise CorelessTrap("instruction_encoding_fault", self.pc, fmt)
