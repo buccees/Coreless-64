@@ -1030,6 +1030,8 @@ class CorelessCPU:
             if name in ("J","CALL"): target=(self.pc+ins[2])&MASK64
             elif name in ("JR","CALLR"): target=(self.read_reg(ins[2])+ins[3])&MASK64
             else: target=self.read_reg(1)
+            if target & 3:
+                raise CorelessTrap("alignment_fault", self.pc, target)
             if name in ("CALL","CALLR"): self.write_reg(ins[1],self.pc+4)
             next_pc=target
         elif name=="NOP": pass
