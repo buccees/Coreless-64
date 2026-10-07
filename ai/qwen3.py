@@ -395,15 +395,24 @@ def qwen3_attention(
         layer_index = int(prefix.rsplit(".", 1)[-1])
         kh, vh = cache.append(layer_index, kh, vh, runtime)
 
-    kh = _repeat_kv(kh, cfg.kv_group_size, runtime)
-    vh = _repeat_kv(vh, cfg.kv_group_size, runtime)
-    attended = _attention_tensor(
-        qh,
-        kh,
-        vh,
-        key_position_offset=position_offset,
-        runtime=runtime,
-    )
+    if runtime is not None:
+        attended = runtime.grouped_attention(
+            qh,
+            kh,
+            vh,
+            cfg.kv_group_size,
+            key_position_offset=position_offset,
+        )
+    else:
+        kh = _repeat_kv(kh, cfg.kv_group_size, runtime)
+        vh = _repeat_kv(vh, cfg.kv_group_size, runtime)
+        attended = _attention_tensor(
+            qh,
+            kh,
+            vh,
+            key_position_offset=position_offset,
+            runtime=runtime,
+        )
     return _linear(
         attended,
         weights.get(f"{prefix}.self_attn.o_proj.weight"),
