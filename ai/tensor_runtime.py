@@ -474,6 +474,66 @@ class TensorRuntime:
             dtype=value.dtype,
         )
 
+    def grouped_attention(
+        self,
+        q: Tensor,
+        k: Tensor,
+        v: Tensor,
+        kv_group_size: int,
+        *,
+        causal: bool = True,
+        key_position_offset: int = 0,
+    ) -> Tensor:
+        """Execute grouped-query attention without materializing repeated KV heads."""
+        if len(q.shape) != 3 or len(k.shape) != 3 or len(v.shape) != 3:
+            raise ValueError("attention tensors must be rank-3")
+        if k.shape != v.shape:
+            raise ValueError("attention key/value dimensions do not agree")
+        if kv_group_size <= 0:
+            raise ValueError("kv_group_size must be positive")
+        query_heads, query_rows, dim = q.shape
+        kv_heads, key_rows, key_dim = k.shape
+        if dim <= 0 or key_dim != dim:
+            raise ValueError("attention head dimensions do not agree")
+        if query_heads != kv_heads * kv_group_size:
+            raise ValueError("query heads must equal key/value heads times kv_group_size")
+        outputs = []
+        scale = 1.0 / (dim ** 0.5)
+        for query_head in range(query_heads):
+            kv_head = query_head // kv_group_size
+            query = Tensor.from_values(
+                (query_rows, dim),
+                (q.at(query_head, row, col) for row in range(query_rows) for col in range(dim)),
+                dtype=q.dtype,
+            )
+            key = Tensor.from_values(
+                (key_rows, dim),
+                (k.at(kv_head, row, col) for row in range(key_rows) for col in range(dim)),
+                dtype=k.dtype,
+            )
+            value = Tensor.from_values(
+                (key_rows, dim),
+                (v.at(kv_head, row, col) for row in range(key_rows) for col in range(dim)),
+                dtype=v.dtype,
+            )
+            scores = self.matmul(query, self.transpose(key))
+            scores = self.mul_scalar(scores, scale)
+            if causal:
+                scores = self.masked_fill(
+                    scores,
+                    self.causal_mask(scores.shape, query_offset=key_position_offset, dtype=scores.dtype),
+                    float("-inf"),
+                )
+            probabilities = self.softmax_last_dim(scores)
+            output = self.matmul(probabilities, value)
+            outputs.extend(output.data)
+        head_output = Tensor.from_values(
+            (query_heads, query_rows, dim),
+            outputs,
+            dtype=q.dtype,
+        )
+        return self.merge_heads(head_output)
+
     def attention(self, q: Tensor, k: Tensor, v: Tensor, *, causal: bool = True, key_position_offset: int = 0) -> Tensor:
         """Execute scaled dot-product attention entirely inside TensorRuntime."""
         if len(q.shape) != 3 or len(k.shape) != 3 or len(v.shape) != 3:
