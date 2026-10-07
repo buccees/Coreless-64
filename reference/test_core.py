@@ -561,7 +561,7 @@ def test_run_stops_on_trap_even_when_cause_and_vector_repeat():
     cpu.csrs[0x003]=0
     cpu.memory[0:4]=((0x1F << 27)).to_bytes(4,"little")
     assert cpu.run(max_steps=10) == 1
-    assert (cpu.csrs[0x005] & 0xffff) == 0x017
+    assert (cpu.csrs[0x005] & 0xffff) == 0x002
     assert cpu.pc == 0
 
 def test_run_rejects_negative_step_limit():
