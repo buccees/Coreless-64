@@ -517,6 +517,32 @@ def test_qwen3_head_rms_norm_uses_native_rank3_runtime_boundary():
     assert runtime.calls == 1
 
 
+def test_qwen3_kv_cache_binds_tensor_runtime():
+    runtime = TensorRuntime()
+    cache = Qwen3KVCache.create(1, runtime)
+    key = Tensor.from_values((1, 1, 2), (1.0, 2.0))
+    value = Tensor.from_values((1, 1, 2), (3.0, 4.0))
+    cache.append(0, key, value)
+    cache.append(0, key, value)
+    assert cache.runtime is runtime
+    assert cache.sequence_length == 2
+
+
+def test_qwen3_kv_cache_rejects_runtime_rebinding():
+    runtime = TensorRuntime()
+    other = TensorRuntime()
+    cache = Qwen3KVCache.create(1, runtime)
+    key = Tensor.from_values((1, 1, 2), (1.0, 2.0))
+    value = Tensor.from_values((1, 1, 2), (3.0, 4.0))
+    cache.append(0, key, value)
+    try:
+        cache.append(0, key, value, other)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Qwen3 KV cache accepted a different TensorRuntime")
+
+
 def test_qwen3_kv_cache_uses_tensor_runtime_append_boundary():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
