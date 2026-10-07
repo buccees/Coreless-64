@@ -1198,3 +1198,31 @@ def test_hub_dispatch_fails_fast_when_capability_has_no_executor():
     ))
     with pytest.raises(RuntimeError, match="no executor available"):
         hub.dispatch(Workload("w1", "compute", 1))
+
+
+def test_hub_parallel_dispatch_prioritizes_workloads_but_preserves_result_order():
+    import threading
+    import time
+
+    started = []
+    lock = threading.Lock()
+
+    def execute(payload):
+        with lock:
+            started.append(payload)
+        time.sleep(0.01)
+        return payload
+
+    hub = CorelessHub("hub-priority")
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("cpu-0", "cpu", frozenset({"compute"}), capacity=1),
+        workload_executor=execute,
+    ))
+    workloads = [
+        Workload("low", "compute", "low", priority=0),
+        Workload("high", "compute", "high", priority=10),
+        Workload("medium", "compute", "medium", priority=5),
+    ]
+    results = hub.dispatch_parallel(workloads)
+    assert [result.result for result in results] == ["low", "high", "medium"]
+    assert started[0] == "high"
