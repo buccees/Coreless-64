@@ -568,7 +568,7 @@ class TensorRuntime:
                     maximum = value.data[index]
             total = 0.0
             for index in range(start, stop):
-                item = fill_value if bool(mask.data[index]) else value.data[index]
+                item = value.data[index] if not mask.data[index] else fill_value
                 item = exp(item - maximum)
                 outputs[index] = item
                 total += item
