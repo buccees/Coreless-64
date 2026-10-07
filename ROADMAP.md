@@ -80,7 +80,7 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Stable native Coreless execution boundary for Transformer tensor operations
 - [x] TensorRuntime RMSNorm, scalar broadcast, and transpose primitives
 - [x] Qwen3 rotary/masking/scalar-scale/argmax paths routed through TensorRuntime
-- [ ] TensorRuntime-backed Qwen3 KV-cache storage and native head reshape/repeat/data-movement boundary
+- [x] TensorRuntime-backed Qwen3 KV-cache storage and native head reshape/repeat/data-movement boundary
 - [ ] Actual persistent-storage-hosted Coreless runtime environment
 - [ ] Live five-core inference on Coreless
 - [ ] End-to-end local AI execution on Coreless resources
@@ -240,3 +240,8 @@ This is an optimization layer over the existing Coreless machine architecture, n
 - [x] Deque-backed pending dispatch queue
 - [x] Unified scheduler capacity accounting
 - [x] Telemetry/resource-state hot-path optimization
+
+
+## Documentation checkpoint — 2026-10-07: Qwen3 tensor boundary verified
+
+The existing implementation already provides TensorRuntime-backed Qwen3 KV-cache append/persistence plus native head reshape, repeat, grouped-attention movement, and regression coverage. This roadmap item is now recorded as complete. The next implementation priority is concrete host transport adapters and persistent-storage-hosted execution; official trained Qwen3-0.6B validation remains deferred until that boundary is stable.
