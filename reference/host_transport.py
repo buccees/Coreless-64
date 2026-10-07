@@ -79,6 +79,14 @@ class HostTransportAdapter:
     def enumerate(self) -> tuple[HostEndpoint, ...]:
         raise NotImplementedError
 
+    def discover(
+        self, candidates
+    ) -> tuple[HostEndpoint, ...]:
+        """Turn transport-neutral identity advertisements into endpoints."""
+        from host_discovery import HostDeviceEnumerator
+
+        return HostDeviceEnumerator().discover(candidates)
+
     def connect(
         self,
         endpoint: HostEndpoint,
@@ -250,8 +258,17 @@ class HostTransportAdapter:
 
 
 class MemoryHostTransportAdapter(HostTransportAdapter):
-    def __init__(self, endpoints: Iterable[HostEndpoint] = ()) -> None:
+    def __init__(self, endpoints: Iterable[HostEndpoint] = (), candidates=()) -> None:
         self._endpoints = {endpoint.endpoint_id: endpoint for endpoint in endpoints}
+        self._candidates = list(candidates)
+
+    def register_candidate(self, candidate) -> None:
+        """Register a raw discovery candidate for later enumeration."""
+        self._candidates.append(candidate)
+
+    def enumerate_candidates(self) -> tuple[HostEndpoint, ...]:
+        """Enumerate raw candidates through the platform-independent validator."""
+        return self.discover(tuple(self._candidates))
 
     def register(self, endpoint: HostEndpoint) -> None:
         if not endpoint.endpoint_id:
