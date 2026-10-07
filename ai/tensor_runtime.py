@@ -566,15 +566,14 @@ class TensorRuntime:
             for index in range(start, stop):
                 if not bool(mask.data[index]) and value.data[index] > maximum:
                     maximum = value.data[index]
-            exponentials = []
             total = 0.0
             for index in range(start, stop):
                 item = fill_value if bool(mask.data[index]) else value.data[index]
                 item = exp(item - maximum)
-                exponentials.append(item)
+                outputs[index] = item
                 total += item
-            for offset, index in enumerate(range(start, stop)):
-                outputs[index] = exponentials[offset] / total
+            for index in range(start, stop):
+                outputs[index] /= total
         return Tensor.from_values(value.shape, outputs, dtype=value.dtype)
 
     def softmax_last_dim(self, value: Tensor) -> Tensor:
@@ -588,14 +587,13 @@ class TensorRuntime:
             start = row * width
             stop = start + width
             maximum = max(value.data[start:stop])
-            exponentials = []
             total = 0.0
             for index in range(start, stop):
                 item = exp(value.data[index] - maximum)
-                exponentials.append(item)
+                outputs[index] = item
                 total += item
-            for offset, index in enumerate(range(start, stop)):
-                outputs[index] = exponentials[offset] / total
+            for index in range(start, stop):
+                outputs[index] /= total
         return Tensor.from_values(value.shape, outputs, dtype=value.dtype)
 
     def softmax(self, value: Tensor) -> Tensor:
