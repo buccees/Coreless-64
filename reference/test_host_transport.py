@@ -485,3 +485,27 @@ def test_host_transport_discovery_rejects_duplicate_raw_candidates():
     adapter = MemoryHostTransportAdapter(candidates=[candidate, candidate])
     with pytest.raises(ValueError, match="duplicate host endpoint id"):
         adapter.enumerate_candidates()
+
+
+def test_host_transport_discovers_from_platform_provider():
+    from host_discovery import HostDiscoveryCandidate
+
+    class Provider:
+        def enumerate_candidates(self):
+            return [
+                HostDiscoveryCandidate(
+                    "platform-a",
+                    CorelessIdentity("platform-a").protocol_version and
+                    HostEndpoint(
+                        "platform-a",
+                        CorelessIdentity("platform-a"),
+                        HostCapabilities(display=True),
+                        device_capabilities={"display"},
+                    ).identity_frame(),
+                    HostCapabilities(display=True),
+                )
+            ]
+
+    adapter = MemoryHostTransportAdapter()
+    endpoints = adapter.discover_provider(Provider())
+    assert [endpoint.endpoint_id for endpoint in endpoints] == ["platform-a"]
