@@ -405,18 +405,21 @@ class TensorRuntime:
         if dim <= 0 or dim % 2:
             raise ValueError("rotary head dimension must be positive and even")
         half = dim // 2
+        rotations = []
+        for position in range(positions):
+            angles = self.rope_angles(
+                half,
+                position_offset + position,
+                theta,
+                scaling_factor=scaling_factor,
+                dtype=value.dtype,
+            )
+            rotations.append((self.cos(angles), self.sin(angles)))
+
         values = []
         for head in range(heads):
             for position in range(positions):
-                angles = self.rope_angles(
-                    half,
-                    position_offset + position,
-                    theta,
-                    scaling_factor=scaling_factor,
-                    dtype=value.dtype,
-                )
-                c = self.cos(angles)
-                s = self.sin(angles)
+                c, s = rotations[position]
                 row_start = (head * positions + position) * dim
                 a = Tensor.from_values(
                     (half,),
