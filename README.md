@@ -113,3 +113,8 @@ The current throughput architecture now includes:
 - preserved allocation, fallback, result-ordering, persistence, and AI authorization contracts.
 
 This is an optimization layer over the existing Coreless machine architecture, not a change in computational authority. The scheduler remains the owner of resource allocation; AI remains a local machine resource and never becomes an authorization mechanism.
+
+
+## Persistent runtime launcher — 2026-10-07
+
+The repository now includes `scripts/coreless-run.py`, a direct launcher for a persistent Coreless machine image. It resumes the stored machine/OS state, accepts native Coreless shell commands, can advance the digital execution engine, and persists state or shutdown. The image remains the authoritative machine-state carrier and the host remains outside Coreless computational authority.
