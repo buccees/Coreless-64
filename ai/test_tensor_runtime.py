@@ -260,6 +260,26 @@ def test_tensor_runtime_grouped_attention_matches_repeated_kv_attention():
     assert grouped.data == repeated.data
 
 
+def test_tensor_runtime_grouped_attention_reuses_each_kv_group_once():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.transpose_calls = 0
+
+        def transpose(self, value):
+            self.transpose_calls += 1
+            return super().transpose(value)
+
+    runtime = RecordingRuntime()
+    q = runtime.create((4, 1, 2), [1.0, 0.0, 0.0, 1.0, 2.0, 1.0, 1.0, 2.0], dtype="fp32")
+    k = runtime.create((2, 1, 2), [1.0, 0.0, 0.0, 1.0], dtype="fp32")
+    v = runtime.create((2, 1, 2), [3.0, 4.0, 5.0, 6.0], dtype="fp32")
+
+    runtime.grouped_attention(q, k, v, 2)
+
+    assert runtime.transpose_calls == 2
+
+
 def test_tensor_runtime_grouped_attention_rejects_invalid_grouping():
     runtime = TensorRuntime()
     q = runtime.create((3, 1, 2), [1.0, 0.0, 0.0, 1.0, 1.0, 1.0], dtype="fp32")
@@ -281,25 +301,6 @@ def test_tensor_runtime_attention():
     result = runtime.attention(q, k, v)
     assert result.shape == (1, 2)
     assert result.data == (3.0, 4.0)
-
-
-def test_tensor_runtime_last_row():
-    runtime = TensorRuntime()
-    value = runtime.create((3, 2), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], dtype="fp32")
-    result = runtime.last_row(value)
-    assert result.shape == (1, 2)
-    assert result.data == (5.0, 6.0)
-
-
-def test_tensor_runtime_last_row_rejects_non_rank2():
-    runtime = TensorRuntime()
-    value = runtime.create((2,), [1.0, 2.0], dtype="fp32")
-    try:
-        runtime.last_row(value)
-    except ValueError as exc:
-        assert str(exc) == "last_row requires a rank-2 tensor"
-    else:
-        raise AssertionError("last_row accepted a non-rank-2 tensor")
 
 
 def test_tensor_runtime_last_row():
