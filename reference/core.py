@@ -1155,12 +1155,15 @@ class CorelessCPU:
                 next_pc = (self.pc + length) & MASK64
             else:
                 ins = decode(first)
-                if ins[0] in ("CALL", "CALLR"):
-                    if ins[0] == "CALL":
+                if ins[0] in ("J", "CALL", "JR", "CALLR", "RET"):
+                    if ins[0] in ("J", "CALL"):
                         target = (self.pc + ins[3]) & MASK64
                         exec_ins = (ins[0], ins[1], ins[3], 0)
-                    else:
+                    elif ins[0] in ("JR", "CALLR"):
                         target = (self.read_reg(ins[2]) + ins[3]) & MASK64
+                        exec_ins = ins
+                    else:
+                        target = self.read_reg(1)
                         exec_ins = ins
                     if target & 3:
                         raise CorelessTrap("alignment_fault", self.pc, target)
