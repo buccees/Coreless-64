@@ -4,10 +4,13 @@ sys.path.insert(0, ".")
 import pytest
 
 from host_io import (
+    DisplayTransport,
+    InputTransport,
     MemoryDisplayTransport,
     MemoryHostIO,
     MemoryInputTransport,
     MemoryNetworkTransport,
+    NetworkTransport,
 )
 
 
@@ -54,3 +57,13 @@ def test_memory_host_io_bundles_independent_channels():
     assert io.display.receive_frame() == b"frame"
     assert io.input.receive_event() == b"touch"
     assert io.network.receive_packet() == b"packet"
+
+
+def test_memory_transports_conform_to_neutral_protocols():
+    display = MemoryDisplayTransport()
+    input_transport = MemoryInputTransport()
+    network = MemoryNetworkTransport()
+
+    assert isinstance(display, DisplayTransport)
+    assert isinstance(input_transport, InputTransport)
+    assert isinstance(network, NetworkTransport)
