@@ -201,6 +201,26 @@ def test_tensor_runtime_batch_matmul_uses_contiguous_head_storage():
     assert right.at_calls == 0
 
 
+def test_tensor_runtime_rank2_elementwise_ops_use_native_vector_dispatch():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__(cpu=TrackingCorelessCPU())
+            self.native_calls = 0
+
+        def _vector_binary_native(self, left, right, op):
+            self.native_calls += 1
+            return super()._vector_binary_native(left, right, op)
+
+    runtime = RecordingRuntime()
+    left = runtime.create((2, 3), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0], dtype="fp32")
+    right = runtime.create((2, 3), [2.0, 3.0, 4.0, 5.0, 6.0, 7.0], dtype="fp32")
+
+    assert runtime.add(left, right).data == (3.0, 5.0, 7.0, 9.0, 11.0, 13.0)
+    assert runtime.sub(right, left).data == (1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
+    assert runtime.mul(left, right).data == (2.0, 6.0, 12.0, 20.0, 30.0, 42.0)
+    assert runtime.native_calls == 6
+
+
 def test_tensor_runtime_batched_attention_matmul():
     runtime = TensorRuntime()
     q = runtime.create((2, 1, 2), [1, 2, 3, 4], dtype="fp32")
