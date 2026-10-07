@@ -53,3 +53,18 @@ def test_mixed_length_fetch_preserves_architectural_boundaries():
     cpu.pc = 4
     length, words = cpu._fetch_instruction()
     assert length == 8 and len(words) == 2
+
+
+def test_extended_fetch_traps_when_payload_lacks_execute_permission():
+    cpu = CorelessCPU(memory_size=4096)
+    cpu.csrs[0x003] = 0x100
+    cpu.pc = 0
+    header = encode_extended_header(3, 0x23, 1, 0, 0, 2, length=16)
+    cpu.memory[0:8] = header.to_bytes(4, "little") + bytes(4)
+    cpu.execute_ranges = [(0, 4)]
+
+    assert cpu.step()
+    assert (cpu.csrs[0x005] & 0xFFFF) != 0
+    assert cpu.csrs[0x004] == 0
+    assert cpu.pc == 0x100
+    assert cpu.instret == 0
