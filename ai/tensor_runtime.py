@@ -504,6 +504,15 @@ class TensorRuntime:
                 dtype=v.dtype,
             )
             groups.append((self.transpose(key), value))
+        mask = (
+            self.causal_mask(
+                (query_rows, key_rows),
+                query_offset=key_position_offset,
+                dtype=q.dtype,
+            )
+            if causal
+            else None
+        )
         for query_head in range(query_heads):
             kv_head = query_head // kv_group_size
             key_transposed, value = groups[kv_head]
@@ -514,12 +523,8 @@ class TensorRuntime:
             )
             scores = self.matmul(query, key_transposed)
             scores = self.mul_scalar(scores, scale)
-            if causal:
-                scores = self.masked_fill(
-                    scores,
-                    self.causal_mask(scores.shape, query_offset=key_position_offset, dtype=scores.dtype),
-                    float("-inf"),
-                )
+            if mask is not None:
+                scores = self.masked_fill(scores, mask, float("-inf"))
             probabilities = self.softmax_last_dim(scores)
             output = self.matmul(probabilities, value)
             outputs.extend(output.data)
