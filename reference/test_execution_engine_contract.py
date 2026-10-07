@@ -106,8 +106,9 @@ def _assert_arithmetic_trap_preserves_destination(name):
     cpu.r[2] = 0
     cpu.r[3] = 0xA5A5A5A5A5A5A5A5
     # The encoding family maps the arithmetic mnemonic through decode().
-    from encoding import encode
-    cpu.load_program(encode((name, 3, 1, 2)))
+    opcodes = {"UDIV": 0x02, "REM": 0x03, "UREM": 0x04}
+    opcode = opcodes[name]
+    cpu.memory[0:4] = (opcode << 27 | 1 << 22 | 1 << 17 | 2 << 12 | 3).to_bytes(4, "little")
     assert cpu.step() is True
     assert cpu.last_step_result["event"] == "trap"
     assert cpu.last_step_result["cause"] == 0x00E
@@ -134,8 +135,7 @@ def test_div_signed_overflow_is_defined_and_retires():
     cpu.r[1] = 0x8000000000000000
     cpu.r[2] = 0xFFFFFFFFFFFFFFFF
     cpu.r[3] = 0
-    from encoding import encode
-    cpu.load_program(encode(("DIV", 3, 1, 2)))
+    cpu.memory[0:4] = (0x01 << 27 | 1 << 22 | 1 << 17 | 2 << 12 | 3).to_bytes(4, "little")
     assert cpu.step() is True
     assert cpu.last_step_result["event"] == "retired"
     assert cpu.r[3] == 0x8000000000000000
@@ -148,8 +148,7 @@ def test_misaligned_jump_target_traps_precisely():
     cpu.csrs[0x003] = 0x100
     cpu.r[1] = 2
     # JR x0, x1, 0: target 0x2 is not a 4-byte instruction boundary.
-    from encoding import encode
-    cpu.load_program(encode(("JR", 0, 1, 0)))
+    cpu.memory[0:4] = (0x08 << 27 | 1 << 17).to_bytes(4, "little")
     assert cpu.step() is True
     assert cpu.last_step_result == {
         "event": "trap",
