@@ -43,6 +43,20 @@ def test_host_transport_connects_negotiated_channels():
     assert interface.transport_ready({"display"})
 
 
+def test_host_transport_rejects_invalid_host_io_before_attachment():
+    endpoint = HostEndpoint(
+        "coreless-invalid-io",
+        CorelessIdentity("coreless-invalid-io"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-invalid-io"))
+    with pytest.raises(TypeError, match="HostIO contract"):
+        adapter.connect(endpoint, interface, host_io=object())
+    assert not interface.attached
+
+
 def test_host_transport_rejects_unknown_endpoint():
     endpoint = HostEndpoint(
         "coreless-0", CorelessIdentity("coreless-0"), HostCapabilities()
