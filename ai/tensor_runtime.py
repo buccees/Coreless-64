@@ -597,21 +597,21 @@ class TensorRuntime:
             raise ValueError("masked_softmax_last_dim requires a rank-2-or-higher tensor")
         rows = value.size // value.shape[-1]
         width = value.shape[-1]
-        outputs = []
+        outputs = [0.0] * value.size
         for row in range(rows):
             start = row * width
-            values = value.data[start:start + width]
-            mask_values = mask.data[start:start + width]
-            maximum = max(
-                fill_value if bool(mask_value) else item
-                for item, mask_value in zip(values, mask_values)
-            )
-            exponentials = [
-                exp((fill_value if bool(mask_value) else item) - maximum)
-                for item, mask_value in zip(values, mask_values)
-            ]
-            total = sum(exponentials)
-            outputs.extend(item / total for item in exponentials)
+            stop = start + width
+            maximum = fill_value
+            for index in range(start, stop):
+                if not bool(mask.data[index]) and value.data[index] > maximum:
+                    maximum = value.data[index]
+            total = 0.0
+            for index in range(start, stop):
+                item = fill_value if bool(mask.data[index]) else value.data[index]
+                total += exp(item - maximum)
+            for index in range(start, stop):
+                item = fill_value if bool(mask.data[index]) else value.data[index]
+                outputs[index] = exp(item - maximum) / total
         return Tensor.from_values(value.shape, outputs, dtype=value.dtype)
 
     def softmax_last_dim(self, value: Tensor) -> Tensor:
@@ -620,14 +620,16 @@ class TensorRuntime:
             return self.softmax(value)
         rows = value.size // value.shape[-1]
         width = value.shape[-1]
-        outputs = []
+        outputs = [0.0] * value.size
         for row in range(rows):
             start = row * width
-            row_values = value.data[start:start + width]
-            maximum = max(row_values)
-            exponentials = [exp(item - maximum) for item in row_values]
-            total = sum(exponentials)
-            outputs.extend(item / total for item in exponentials)
+            stop = start + width
+            maximum = max(value.data[start:stop])
+            total = 0.0
+            for index in range(start, stop):
+                total += exp(value.data[index] - maximum)
+            for index in range(start, stop):
+                outputs[index] = exp(value.data[index] - maximum) / total
         return Tensor.from_values(value.shape, outputs, dtype=value.dtype)
 
     def softmax(self, value: Tensor) -> Tensor:
