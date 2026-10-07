@@ -1155,9 +1155,13 @@ class CorelessCPU:
                 next_pc = (self.pc + length) & MASK64
             else:
                 ins = decode(first)
-                call_link = None
                 if ins[0] in ("CALL", "CALLR"):
-                    call_link = (ins[1], self.read_reg(ins[1]))
+                    if ins[0] == "CALL":
+                        target = (self.pc + ins[2]) & MASK64
+                    else:
+                        target = (self.read_reg(ins[2]) + ins[3]) & MASK64
+                    if target & 3:
+                        raise CorelessTrap("alignment_fault", self.pc, target)
                 next_pc = self._execute(ins)
             if next_pc == "wait":
                 self._last_step_event = "wait"
