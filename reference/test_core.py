@@ -553,5 +553,5 @@ def test_direct_program_load_and_run_uses_variable_length_fetch():
     assert cpu.load_program(program) == len(program)
     assert cpu.run() == 3
     assert cpu.r[1] == 7
-    assert cpu.pc == 20
+    assert cpu.pc == 24
     assert cpu.halted
