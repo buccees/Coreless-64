@@ -541,3 +541,17 @@ def test_scalar_floating_point_edge_and_illegal_rounding():
     assert u32(cpu.f[3]) == 1.0
     cpu.memory[16:32]=ext128(2,0x00,3,1,2,w1=(6<<29)|(1<<8)); cpu.step()
     assert (cpu.csrs[0x005]&0xffff)==0x002
+
+
+def test_direct_program_load_and_run_uses_variable_length_fetch():
+    cpu=CorelessCPU()
+    program = b''.join([
+        imm(1,1,0,0,7).to_bytes(4,"little"),
+        ext128(3,0x26,2,0,0,w1=0),
+        ((6 << 27) | 1).to_bytes(4,"little"),
+    ])
+    assert cpu.load_program(program) == len(program)
+    assert cpu.run() == 3
+    assert cpu.r[1] == 7
+    assert cpu.pc == 20
+    assert cpu.halted
