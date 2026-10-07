@@ -97,3 +97,47 @@ def test_retx_restores_trap_context_and_resumes_at_epc():
     assert cpu.privilege == 3
     assert cpu.csrs[0x001] == 1
     assert cpu.instret == 1
+
+
+def _assert_arithmetic_trap_preserves_destination(name):
+    cpu = CorelessCPU()
+    cpu.csrs[0x003] = 0x100
+    cpu.r[1] = 0x8000000000000000
+    cpu.r[2] = 0
+    cpu.r[3] = 0xA5A5A5A5A5A5A5A5
+    # The encoding family maps the arithmetic mnemonic through decode().
+    from encoding import encode
+    cpu.load_program(encode((name, 3, 1, 2)))
+    assert cpu.step() is True
+    assert cpu.last_step_result["event"] == "trap"
+    assert cpu.last_step_result["cause"] == 0x00E
+    assert cpu.csrs[0x004] == 0
+    assert cpu.pc == 0x100
+    assert cpu.instret == 0
+    assert cpu.r[3] == 0xA5A5A5A5A5A5A5A5
+
+
+def test_udiv_divide_by_zero_is_precise():
+    _assert_arithmetic_trap_preserves_destination("UDIV")
+
+
+def test_rem_divide_by_zero_is_precise():
+    _assert_arithmetic_trap_preserves_destination("REM")
+
+
+def test_urem_divide_by_zero_is_precise():
+    _assert_arithmetic_trap_preserves_destination("UREM")
+
+
+def test_div_signed_overflow_is_defined_and_retires():
+    cpu = CorelessCPU()
+    cpu.r[1] = 0x8000000000000000
+    cpu.r[2] = 0xFFFFFFFFFFFFFFFF
+    cpu.r[3] = 0
+    from encoding import encode
+    cpu.load_program(encode(("DIV", 3, 1, 2)))
+    assert cpu.step() is True
+    assert cpu.last_step_result["event"] == "retired"
+    assert cpu.r[3] == 0x8000000000000000
+    assert cpu.instret == 1
+    assert cpu.pc == 4
