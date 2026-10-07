@@ -466,6 +466,34 @@ def test_host_transport_batch_rejects_response_count_mismatch(monkeypatch):
         adapter.send_batch(endpoint, interface, batch)
 
 
+def test_provider_host_transport_adapter_enumerates_validated_endpoints():
+    from host_discovery import HostDiscoveryCandidate
+
+    class Provider:
+        def enumerate_candidates(self):
+            frame = DeviceIdentityFrame(
+                protocol_version=1,
+                architecture=ARCHITECTURE_CORELESS64,
+                device_type=DEVICE_TYPE_CORELESS64,
+                capabilities=capability_bits({"display"}),
+                payload=b"provider",
+            )
+            return [
+                HostDiscoveryCandidate(
+                    "provider-endpoint",
+                    frame,
+                    HostCapabilities(display=True),
+                )
+            ]
+
+    from host_transport import ProviderHostTransportAdapter
+
+    adapter = ProviderHostTransportAdapter(Provider())
+    endpoints = adapter.enumerate()
+    assert [endpoint.endpoint_id for endpoint in endpoints] == ["provider-endpoint"]
+    assert adapter.provider is not None
+
+
 def test_host_transport_discovery_validates_raw_candidates():
     from device_protocol import ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, DeviceIdentityFrame, capability_bits
     from host_discovery import HostDiscoveryCandidate
