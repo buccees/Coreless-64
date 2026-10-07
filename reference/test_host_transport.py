@@ -467,6 +467,12 @@ def test_host_transport_batch_rejects_response_count_mismatch(monkeypatch):
 
 
 def test_provider_host_transport_adapter_enumerates_validated_endpoints():
+    from device_protocol import (
+        ARCHITECTURE_CORELESS64,
+        DEVICE_TYPE_CORELESS64,
+        DeviceIdentityFrame,
+        capability_bits,
+    )
     from host_discovery import HostDiscoveryCandidate
 
     class Provider:
