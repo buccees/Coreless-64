@@ -31,6 +31,17 @@ class HostDiscoveryProvider(Protocol):
         ...
 
 
+class MemoryHostDiscoveryProvider:
+    """Deterministic reference provider for discovery conformance tests."""
+
+    def __init__(self, candidates: Iterable[HostDiscoveryCandidate] = ()) -> None:
+        self._candidates = tuple(candidates)
+
+    def enumerate_candidates(self) -> tuple[HostDiscoveryCandidate, ...]:
+        """Return the provider snapshot without exposing mutable state."""
+        return self._candidates
+
+
 class HostDeviceEnumerator:
     """Validate transport-neutral Coreless advertisements deterministically."""
 
