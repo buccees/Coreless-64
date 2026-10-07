@@ -381,20 +381,18 @@ class TensorRuntime:
             for position in range(positions):
                 c, s = rotations[position]
                 row_start = (head * positions + position) * dim
-                a = Tensor.from_values(
-                    (half,),
-                    value.data[row_start:row_start + half],
-                    dtype=value.dtype,
+                a_data = value.data[row_start:row_start + half]
+                b_data = value.data[row_start + half:row_start + dim]
+                ac = self._vector_binary_chunk(a_data, c.data, value.dtype, 0x02)
+                bs = self._vector_binary_chunk(b_data, s.data, value.dtype, 0x02)
+                as_ = self._vector_binary_chunk(a_data, s.data, value.dtype, 0x02)
+                bc = self._vector_binary_chunk(b_data, c.data, value.dtype, 0x02)
+                values.extend(
+                    self._vector_binary_chunk(ac, bs, value.dtype, 0x03)
                 )
-                b = Tensor.from_values(
-                    (half,),
-                    value.data[row_start + half:row_start + dim],
-                    dtype=value.dtype,
+                values.extend(
+                    self._vector_binary_chunk(as_, bc, value.dtype, 0x01)
                 )
-                first = self.sub(self.mul(a, c), self.mul(b, s))
-                second = self.add(self.mul(a, s), self.mul(b, c))
-                values.extend(first.data)
-                values.extend(second.data)
         return Tensor.from_values(value.shape, values, dtype=value.dtype)
 
     def rope_angles(
