@@ -209,6 +209,20 @@ def test_tensor_runtime_sum_axis_reduces_attention_heads():
     assert result.data == (11.0, 22.0, 33.0, 44.0)
 
 
+def test_tensor_runtime_rope_angles_preserve_geometric_frequency_basis():
+    runtime = TensorRuntime()
+    result = runtime.rope_angles(4, 3, 10000.0)
+    expected = (
+        3.0,
+        0.3,
+        0.03,
+        0.003,
+    )
+    assert result.shape == (4,)
+    for actual, target in zip(result.data, expected):
+        assert abs(actual - target) < 1e-12
+
+
 def test_tensor_runtime_rotary_embedding_rank3():
     runtime = TensorRuntime()
     value = runtime.create(
