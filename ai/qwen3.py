@@ -32,11 +32,30 @@ class Qwen3KVCache:
     def layer_count(self) -> int:
         return len(self.keys)
 
+    def validate(self) -> int:
+        """Validate cache layer pairing and return the shared sequence length."""
+        if len(self.keys) != len(self.values):
+            raise ValueError("Qwen3 KV cache key/value layer counts must match")
+        sequence_length: int | None = None
+        for layer_index, (key, value) in enumerate(zip(self.keys, self.values)):
+            if (key is None) != (value is None):
+                raise ValueError(f"Qwen3 KV cache layer {layer_index} is only partially populated")
+            if key is None or value is None:
+                continue
+            if len(key.shape) != 3 or key.shape != value.shape:
+                raise ValueError(f"Qwen3 KV cache layer {layer_index} has invalid key/value shape")
+            if key.dtype != value.dtype:
+                raise ValueError(f"Qwen3 KV cache layer {layer_index} has mismatched dtypes")
+            current_length = key.shape[1]
+            if sequence_length is None:
+                sequence_length = current_length
+            elif current_length != sequence_length:
+                raise ValueError("Qwen3 KV cache layers must share one sequence length")
+        return 0 if sequence_length is None else sequence_length
+
     @property
     def sequence_length(self) -> int:
-        if not self.keys or self.keys[0] is None:
-            return 0
-        return self.keys[0].shape[1]
+        return self.validate()
 
     def persist(self, runtime: TensorRuntime, name: str) -> tuple[str, ...]:
         """Persist every populated KV tensor through the Coreless tensor store."""
