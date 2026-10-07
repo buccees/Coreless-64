@@ -265,3 +265,16 @@ Verified CI runs include #1314 (end-to-end host I/O integration) and #1315 (clea
 The reference host boundary now has a dedicated platform-independent discovery layer in `reference/host_discovery.py`. `HostDeviceEnumerator` accepts raw transport-neutral identity advertisements from concrete adapters, validates Coreless-64 identity/protocol data, derives device capabilities from the advertisement, and returns deterministically ordered `HostEndpoint` objects. Duplicate endpoint IDs and malformed identity frames are rejected before attachment.
 
 This separates transport-neutral Coreless discovery from future OS/device-specific enumeration. Physical USB, PCIe, Ethernet, SATA, NVMe, display, input, and network adapters remain outside this layer and must continue to use the same discovery contract.
+
+
+## Documentation checkpoint — 2026-10-07: HostIO transport boundary
+
+The host transport layer now validates the transport-neutral HostIO bundle before endpoint attachment, and HostTransportAdapter.open_session() carries the same explicit HostIO contract. Invalid host I/O bundles are rejected before Coreless attachment state changes. This completes the reference software boundary for negotiated display/input/network I/O; physical OS/device enumeration and platform-specific transport adapters remain intentionally separate implementation work.
+
+- [x] Transport-neutral HostIO channel contracts
+- [x] Transport-neutral HostIO bundle contract
+- [x] HostIO bundle validation at the Coreless boundary
+- [x] HostIO bundle validation at the transport connection boundary
+- [x] HostIO-aware reusable transport sessions
+- [ ] Cross-platform physical host enumeration
+- [ ] Platform display/input/network transport adapters
