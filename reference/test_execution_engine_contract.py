@@ -134,7 +134,7 @@ def test_div_signed_overflow_is_defined_and_retires():
     cpu.r[1] = 0x8000000000000000
     cpu.r[2] = 0xFFFFFFFFFFFFFFFF
     cpu.r[3] = 0
-    cpu.memory[0:4] = ((1 << 22) | (1 << 17) | (2 << 12) | 3).to_bytes(4, "little")
+    cpu.memory[0:4] = ((3 << 22) | (1 << 17) | (2 << 12) | 3).to_bytes(4, "little")
     assert cpu.step() is True
     assert cpu.last_step_result["event"] == "retired"
     assert cpu.r[3] == 0x8000000000000000
