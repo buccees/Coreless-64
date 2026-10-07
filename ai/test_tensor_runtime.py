@@ -198,6 +198,28 @@ def test_tensor_runtime_softmax_rank2_reuses_last_dim_path():
     assert abs(sum(result.data[3:]) - 1.0) < 1e-6
 
 
+def test_tensor_runtime_softmax_last_dim_preserves_normalized_values():
+    runtime = TensorRuntime()
+    value = runtime.create((1, 3), [1.0, 2.0, 3.0], dtype="fp32")
+    result = runtime.softmax_last_dim(value)
+    expected = (
+        0.09003057317038046,
+        0.24472847105479764,
+        0.6652409557748218,
+    )
+    for actual, target in zip(result.data, expected):
+        assert abs(actual - target) < 1e-12
+
+
+def test_tensor_runtime_masked_softmax_last_dim_preserves_masked_normalization():
+    runtime = TensorRuntime()
+    value = runtime.create((1, 3), [1.0, 2.0, 3.0], dtype="fp32")
+    mask = runtime.create((1, 3), [1.0, 0.0, 1.0], dtype="fp32")
+    result = runtime.masked_softmax_last_dim(value, mask, float("-inf"))
+    assert result.data[1] == 0.0
+    assert abs(result.data[0] + result.data[2] - 1.0) < 1e-12
+
+
 def test_tensor_runtime_softmax_last_dim():
     runtime = TensorRuntime()
     value = runtime.create((2, 2, 2), [1, 2, 2, 1, 0, 0, 1, 3], dtype="fp32")
