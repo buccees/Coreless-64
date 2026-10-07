@@ -452,11 +452,16 @@ class TensorRuntime:
         if theta <= 0.0:
             raise ValueError("RoPE theta must be positive")
         scale = scaling_factor if scaling_factor is not None and scaling_factor > 1.0 else 1.0
-        return Tensor.from_values(
-            (half,),
-            (position * theta ** (-2.0 * i / (half * 2)) / scale for i in range(half)),
-            dtype=dtype,
-        )
+        # The exponent simplifies to -i / half. Compute the geometric
+        # progression ratio once instead of evaluating a power for every lane.
+        ratio = theta ** (-1.0 / half)
+        factor = position / scale
+        values = []
+        frequency = 1.0
+        for _ in range(half):
+            values.append(factor * frequency)
+            frequency *= ratio
+        return Tensor.from_values((half,), values, dtype=dtype)
 
     def argmax(self, value: Tensor) -> int:
         """Return the deterministic flat index of the largest tensor element."""
