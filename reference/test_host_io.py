@@ -91,7 +91,7 @@ def test_host_io_bundle_rejects_invalid_negotiated_channel():
     )
 
     with pytest.raises(TypeError, match="display transport"):
-        interface.bind_host_io(InvalidDisplayBundle(), input_router=object())
+        interface.bind_host_io(InvalidDisplayBundle())
 
     assert "display" not in interface.channels
     assert "network" not in interface.channels
