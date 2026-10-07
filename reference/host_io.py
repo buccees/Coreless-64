@@ -7,8 +7,49 @@ moving computation into the host or pretending physical buses are complete.
 
 from __future__ import annotations
 
+import json
 from collections import deque
 from dataclasses import dataclass, field
+
+from input import CoordinateFrame, InputEvent, InputEventType
+
+
+def encode_input_event(event: InputEvent) -> bytes:
+    """Encode one Coreless input event for the host input transport."""
+    payload = {
+        "abi_version": event.abi_version,
+        "event_type": event.event_type.value,
+        "device_id": event.device_id,
+        "timestamp_ns": event.timestamp_ns,
+        "sequence": event.sequence,
+        "coordinate_frame": event.coordinate_frame.value,
+        "x": event.x,
+        "y": event.y,
+        "contact_id": event.contact_id,
+        "pressure": event.pressure,
+        "button": event.button,
+        "metadata": dict(event.metadata),
+    }
+    return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def decode_input_event(payload: bytes) -> InputEvent:
+    """Decode a host input frame into a Coreless-owned input event."""
+    value = json.loads(bytes(payload).decode("utf-8"))
+    return InputEvent(
+        abi_version=int(value["abi_version"]),
+        event_type=InputEventType(value["event_type"]),
+        device_id=str(value["device_id"]),
+        timestamp_ns=int(value["timestamp_ns"]),
+        sequence=int(value["sequence"]),
+        coordinate_frame=CoordinateFrame(value["coordinate_frame"]),
+        x=value.get("x"),
+        y=value.get("y"),
+        contact_id=value.get("contact_id"),
+        pressure=value.get("pressure"),
+        button=value.get("button"),
+        metadata=value.get("metadata", {}),
+    )
 
 
 @dataclass
