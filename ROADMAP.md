@@ -80,7 +80,7 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Stable native Coreless execution boundary for Transformer tensor operations
 - [x] TensorRuntime RMSNorm, scalar broadcast, and transpose primitives
 - [x] Qwen3 rotary/masking/scalar-scale/argmax paths routed through TensorRuntime
-- [ ] Tensor-backed Qwen3 KV cache and native head reshape/repeat/data-movement boundary
+- [ ] TensorRuntime-backed Qwen3 KV-cache storage and native head reshape/repeat/data-movement boundary
 - [ ] Actual persistent-storage-hosted Coreless runtime environment
 - [ ] Live five-core inference on Coreless
 - [ ] End-to-end local AI execution on Coreless resources
@@ -104,7 +104,7 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Storage-backed safetensors
 - [x] Native Qwen3 artifact validation/loading
 - [x] Native Qwen3 tokenizer/greedy generation
-- [x] Qwen3 KV cache
+- [x] Qwen3 KV cache generation/layout
 - [x] Qwen3 grouped-query attention cache layout and generation path
 - [x] Real artifact integration runner
 - [ ] Official trained Qwen3-0.6B end-to-end validation
@@ -216,7 +216,7 @@ The reference plug-and-play boundary now includes reusable transport sessions ab
 
 ## Documentation checkpoint — 2026-10-06: scheduler and dispatch throughput
 
-The latest green checkpoint is GitHub Actions **#1124**, commit `5df0639e70e4c7ada1143146d5121ec2731e93f5`. The preceding scheduler snapshot implementation exposed one incorrect empty-scheduler test expectation; that test was corrected to register a real resource and verify the scheduler-owned `(capacity, load)` snapshot. The implementation was unchanged by that correction.
+The latest documented scheduler milestone was GitHub Actions **#1124**, commit `5df0639e70e4c7ada1143146d5121ec2731e93f5`. The current verified green repository checkpoint is GitHub Actions **#1244**, commit `674ea90b251fdad141b338be880b644b21d89113`. The preceding scheduler snapshot implementation exposed one incorrect empty-scheduler test expectation; that test was corrected to register a real resource and verify the scheduler-owned `(capacity, load)` snapshot. The implementation was unchanged by that correction.
 
 The current throughput architecture now includes:
 
