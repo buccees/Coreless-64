@@ -160,6 +160,35 @@ def test_misaligned_jump_target_traps_precisely():
     assert cpu.instret == 0
 
 
+def test_misaligned_call_does_not_write_link_before_trap():
+    cpu = CorelessCPU()
+    cpu.r[5] = 0x1234
+    # CALL x5, +2: target is misaligned and must trap before link writeback.
+    word = (5 << 27) | (5 << 22) | (1 << 12) | 2
+    cpu.memory[0:4] = word.to_bytes(4, "little")
+    assert cpu.step() is True
+    assert cpu.last_step_result["event"] == "trap"
+    assert cpu.last_step_result["cause"] == 0x006
+    assert cpu.last_step_result["tval"] == 2
+    assert cpu.r[5] == 0x1234
+    assert cpu.instret == 0
+
+
+def test_misaligned_callr_does_not_write_link_before_trap():
+    cpu = CorelessCPU()
+    cpu.r[1] = 2
+    cpu.r[5] = 0x5678
+    # CALLR x5, x1, 0: target is misaligned and must trap before link writeback.
+    word = (5 << 27) | (5 << 22) | (1 << 17) | (3 << 12)
+    cpu.memory[0:4] = word.to_bytes(4, "little")
+    assert cpu.step() is True
+    assert cpu.last_step_result["event"] == "trap"
+    assert cpu.last_step_result["cause"] == 0x006
+    assert cpu.last_step_result["tval"] == 2
+    assert cpu.r[5] == 0x5678
+    assert cpu.instret == 0
+
+
 def test_reserved_base_encoding_traps_without_retirement():
     cpu = CorelessCPU()
     cpu.csrs[0x003] = 0x100
