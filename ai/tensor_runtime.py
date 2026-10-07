@@ -586,7 +586,10 @@ class TensorRuntime:
         for row in range(rows):
             start = row * width
             stop = start + width
-            maximum = max(value.data[start:stop])
+            maximum = value.data[start]
+            for index in range(start + 1, stop):
+                if value.data[index] > maximum:
+                    maximum = value.data[index]
             total = 0.0
             for index in range(start, stop):
                 item = exp(value.data[index] - maximum)
