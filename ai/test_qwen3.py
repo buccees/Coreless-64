@@ -631,3 +631,20 @@ def test_qwen3_kv_cache_persists_through_tensor_runtime():
     assert restored.values[1].data == (7.0, 8.0)
     assert restored.sequence_length == 1
 
+
+
+def test_qwen3_kv_cache_rejects_divergent_layer_lengths():
+    cache = Qwen3KVCache.create(2)
+    cache.append(
+        0,
+        Tensor.from_values((1, 2, 2), [1.0, 2.0, 3.0, 4.0]),
+        Tensor.from_values((1, 2, 2), [5.0, 6.0, 7.0, 8.0]),
+    )
+    cache.append(
+        1,
+        Tensor.from_values((1, 1, 2), [9.0, 10.0]),
+        Tensor.from_values((1, 1, 2), [11.0, 12.0]),
+    )
+    with pytest.raises(ValueError, match="share one sequence length"):
+        cache.validate()
+
