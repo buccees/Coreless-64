@@ -87,3 +87,20 @@ def test_host_io_is_bound_to_persistent_system_and_pumps_all_channels(tmp_path):
     assert system.machine.network.poll_rx() is not None
     assert io.display.receive_frame()[:4] == b"ABCD"
     assert io.network.receive_packet() == outbound.data
+
+
+
+def test_host_io_rejects_nonconforming_bundle():
+    from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
+
+    interface = CorelessHostInterface(CorelessIdentity("invalid-bundle"))
+    interface.attach(
+        CorelessIdentity("invalid-bundle"),
+        HostCapabilities(display=True, input=True, network=True, startup=True),
+    )
+    try:
+        interface.bind_host_io(object())
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("nonconforming host I/O bundle was accepted")
