@@ -72,3 +72,26 @@ def test_memory_transports_conform_to_neutral_protocols():
 
 def test_memory_host_io_conforms_to_neutral_bundle_protocol():
     assert isinstance(MemoryHostIO(), HostIO)
+
+
+def test_host_io_bundle_rejects_invalid_negotiated_channel():
+    from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
+
+    class InvalidDisplayBundle:
+        input = MemoryInputTransport()
+        network = MemoryNetworkTransport()
+
+        def __init__(self):
+            self.display = object()
+
+    interface = CorelessHostInterface(CorelessIdentity("invalid-channel"))
+    interface.attach(
+        CorelessIdentity("invalid-channel"),
+        HostCapabilities(display=True, input=True, network=True),
+    )
+
+    with pytest.raises(TypeError, match="display transport"):
+        interface.bind_host_io(InvalidDisplayBundle(), input_router=object())
+
+    assert "display" not in interface.channels
+    assert "network" not in interface.channels
