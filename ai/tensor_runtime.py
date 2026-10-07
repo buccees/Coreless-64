@@ -544,9 +544,11 @@ class TensorRuntime:
             )
             scores = self.matmul(query, key_transposed)
             scores = self.mul_scalar(scores, scale)
-            if mask is not None:
-                scores = self.masked_fill(scores, mask, float("-inf"))
-            probabilities = self.softmax_last_dim(scores)
+            probabilities = (
+                self.masked_softmax_last_dim(scores, mask, float("-inf"))
+                if mask is not None
+                else self.softmax_last_dim(scores)
+            )
             output = self.matmul(probabilities, value)
             outputs.extend(output.data)
         head_output = Tensor.from_values(
@@ -576,6 +578,36 @@ class TensorRuntime:
         probabilities = self.softmax_last_dim(scores)
         head_output = self.batch_matmul(probabilities, v)
         return self.merge_heads(head_output)
+
+    def masked_softmax_last_dim(
+        self,
+        value: Tensor,
+        mask: Tensor,
+        fill_value: float,
+    ) -> Tensor:
+        """Apply a mask and softmax across the final axis without a temporary tensor."""
+        if value.shape != mask.shape:
+            raise ValueError("masked_softmax_last_dim requires matching tensor shapes")
+        if len(value.shape) < 2:
+            raise ValueError("masked_softmax_last_dim requires a rank-2-or-higher tensor")
+        rows = value.size // value.shape[-1]
+        width = value.shape[-1]
+        outputs = []
+        for row in range(rows):
+            start = row * width
+            values = value.data[start:start + width]
+            mask_values = mask.data[start:start + width]
+            maximum = max(
+                fill_value if bool(mask_value) else item
+                for item, mask_value in zip(values, mask_values)
+            )
+            exponentials = [
+                exp((fill_value if bool(mask_value) else item) - maximum)
+                for item, mask_value in zip(values, mask_values)
+            ]
+            total = sum(exponentials)
+            outputs.extend(item / total for item in exponentials)
+        return Tensor.from_values(value.shape, outputs, dtype=value.dtype)
 
     def softmax_last_dim(self, value: Tensor) -> Tensor:
         """Apply deterministic softmax independently across the final tensor axis."""
