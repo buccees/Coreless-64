@@ -419,3 +419,33 @@ def test_tensor_runtime_merges_attention_heads_without_reducing_them():
     assert result.shape == (2, 4)
     assert result.data == (1.0, 2.0, 10.0, 20.0, 3.0, 4.0, 30.0, 40.0)
 
+
+
+def test_tensor_runtime_head_layout_ops_use_contiguous_storage():
+    class CountingTensor:
+        def __init__(self, shape, data, dtype="fp32"):
+            self.shape = shape
+            self.data = tuple(data)
+            self.dtype = dtype
+            self.at_calls = 0
+
+        def at(self, *indices):
+            self.at_calls += 1
+            raise AssertionError("head layout operations should use contiguous storage")
+
+    runtime = TensorRuntime()
+    value = CountingTensor((2, 2), [1.0, 2.0, 3.0, 4.0])
+    heads = runtime.reshape_heads(value, 2, 1)
+    assert heads.data == (1.0, 3.0, 2.0, 4.0)
+    assert value.at_calls == 0
+
+    repeated = runtime.repeat_heads(
+        CountingTensor((2, 2, 1), heads.data),
+        2,
+    )
+    assert repeated.data == (1.0, 3.0, 1.0, 3.0, 2.0, 4.0, 2.0, 4.0)
+
+    transposed = runtime.transpose_last_two(
+        CountingTensor((2, 2, 2), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+    )
+    assert transposed.data == (1.0, 3.0, 2.0, 4.0, 5.0, 7.0, 6.0, 8.0)
