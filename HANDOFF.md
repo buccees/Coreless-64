@@ -358,6 +358,16 @@ Do not restart from the older Qwen3-only handoff. The tensor runtime and Transfo
 
 **Do not commit large model weights. Do not claim end-to-end trained-model inference until it has actually been executed and validated.**
 
+## Documentation checkpoint — 2026-10-07: precise CALL/CALLR trap boundary
+
+The Coreless-64 reference execution boundary now includes conformance coverage for misaligned CALL/CALLR targets. The step boundary validates the decoded target before executing the call, so a misaligned target raises the architectural alignment trap before link-register writeback. The existing direct `_execute()` contract remains unchanged for callers that exercise jump/call semantics directly.
+
+The related conformance batch also covers precise misaligned jumps, reserved base encodings, arithmetic divide-by-zero/overflow behavior, EPC/TVEC trap transfer, and retirement suppression. The latest implementation fix is commit `f7b30515157c6affd73e1d3cb3027ff54017096b`, and its CI result should be verified from GitHub Actions rather than inferred from this document.
+
+### Resume point
+
+Continue from the latest green CI checkpoint after this trap-boundary batch. Preserve the precise-trap rule: architectural side effects must not become visible when an instruction traps before retirement. Next substantive work remains the deep Qwen3/Coreless tensor execution boundary, autonomous component/hub architecture, and concrete host transport integration.
+
 ## Plug-and-play host interface
 
 The host interface is now a first-class architectural boundary. The host supplies only external services such as power/startup, display transport, keyboard/pointer/input transport, and network connectivity. Coreless remains responsible for CPU execution, memory, VM/OS execution, AI, persistent state, identity, policy, and component composition.
