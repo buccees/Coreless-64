@@ -83,3 +83,18 @@ def test_discovered_endpoint_uses_device_advertisement_for_connection():
         endpoint.identity_frame(), endpoint.capabilities
     )
     assert negotiated == frozenset({"display"})
+
+
+def test_host_device_enumerator_accepts_platform_provider():
+    from host_discovery import HostDiscoveryProvider
+
+    class Provider:
+        def enumerate_candidates(self):
+            return [
+                HostDiscoveryCandidate("z", identity_frame("z"), HostCapabilities()),
+                HostDiscoveryCandidate("a", identity_frame("a"), HostCapabilities()),
+            ]
+
+    provider = Provider()
+    endpoints = HostDeviceEnumerator().discover_provider(provider)
+    assert [endpoint.endpoint_id for endpoint in endpoints] == ["a", "z"]
