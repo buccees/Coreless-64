@@ -487,8 +487,6 @@ class TensorRuntime:
         # group reuse them, avoiding repeated tensor construction and transpose.
         groups = []
         for kv_head in range(kv_heads):
-            group_start = kv_head * key_rows * dim
-            group_end = group_start + key_rows * dim
             key = self.head_slice(k, kv_head)
             value = self.head_slice(v, kv_head)
             groups.append((self.transpose(key), value))
@@ -504,13 +502,7 @@ class TensorRuntime:
         for query_head in range(query_heads):
             kv_head = query_head // kv_group_size
             key_transposed, value = groups[kv_head]
-            query_start = query_head * query_rows * dim
-            query_end = query_start + query_rows * dim
-            query = Tensor.from_values(
-                (query_rows, dim),
-                q.data[query_start:query_end],
-                dtype=q.dtype,
-            )
+            query = self.head_slice(q, query_head)
             scores = self.matmul(query, key_transposed)
             scores = self.mul_scalar(scores, scale)
             probabilities = (
