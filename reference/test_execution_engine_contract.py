@@ -50,3 +50,25 @@ def test_run_uses_structured_step_result_for_termination():
     cpu.memory[0:4] = ((0x1F << 27)).to_bytes(4, "little")
     assert cpu.run(max_steps=10) == 1
     assert cpu.last_step_result["event"] == "trap"
+
+
+def test_execution_trap_does_not_retire_divide_by_zero():
+    cpu = CorelessCPU()
+    cpu.csrs[0x003] = 0x100
+    cpu.pc = 0
+    # DIV x3, x1, x2; x2 is zero, so execution raises an arithmetic trap.
+    cpu.r[1] = 123
+    cpu.r[2] = 0
+    cpu.memory[0:4] = (1 << 22 | 1 << 17 | 2 << 12 | 3).to_bytes(4, "little")
+
+    assert cpu.step() is True
+    assert cpu.last_step_result == {
+        "event": "trap",
+        "pc": 0,
+        "cause": 0x00E,
+        "tval": 0,
+    }
+    assert cpu.csrs[0x004] == 0
+    assert cpu.pc == 0x100
+    assert cpu.instret == 0
+    assert cpu.r[3] == 0
