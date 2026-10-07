@@ -299,3 +299,16 @@ def test_tensor_runtime_rms_norm_rows():
     result = runtime.rms_norm_rows(value, weight, eps=1e-6)
     assert result.shape == value.shape
     assert result.data == (0.6, 1.6, 0.6324555320336759, 1.2649110640673518)
+
+
+def test_tensor_runtime_merges_attention_heads_without_reducing_them():
+    runtime = TensorRuntime()
+    value = runtime.create(
+        (2, 2, 2),
+        [1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0],
+        dtype="fp32",
+    )
+    result = runtime.merge_heads(value)
+    assert result.shape == (2, 4)
+    assert result.data == (1.0, 2.0, 10.0, 20.0, 3.0, 4.0, 30.0, 40.0)
+
