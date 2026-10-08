@@ -1278,3 +1278,55 @@ def test_qwen3_chunked_prefill_matches_full_logits_at_every_split_point():
         for actual, wanted in zip(chunked, full_logits.data):
             assert abs(actual - wanted) < 1e-6
         assert cache.sequence_length == len(token_ids)
+
+def test_qwen3_kv_cache_persist_validates_all_layers_before_writing():
+    from storage import PersistentMachineImage
+
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    cache = Qwen3KVCache.create(2)
+    cache.append(
+        0,
+        Tensor.from_values((1, 2, 2), [1.0, 2.0, 3.0, 4.0]),
+        Tensor.from_values((1, 2, 2), [5.0, 6.0, 7.0, 8.0]),
+    )
+    cache.append(
+        1,
+        Tensor.from_values((1, 1, 2), [9.0, 10.0]),
+        Tensor.from_values((1, 1, 2), [11.0, 12.0]),
+    )
+    before = dict(image.objects)
+
+    try:
+        cache.persist(runtime, "invalid_snapshot")
+    except ValueError as exc:
+        assert "share one sequence length" in str(exc)
+    else:
+        raise AssertionError("invalid cache was persisted")
+
+    assert image.objects == before
+    assert "tensor/invalid_snapshot_layer_0_key" not in image.objects
+
+
+def test_qwen3_kv_cache_persist_rejects_runtime_rebinding_before_writing():
+    from storage import PersistentMachineImage
+
+    first_image = PersistentMachineImage()
+    second_image = PersistentMachineImage()
+    first_runtime = TensorRuntime(first_image)
+    second_runtime = TensorRuntime(second_image)
+    cache = Qwen3KVCache.create(1, first_runtime)
+    cache.append(
+        0,
+        Tensor.from_values((1, 1, 2), [1.0, 2.0]),
+        Tensor.from_values((1, 1, 2), [3.0, 4.0]),
+    )
+
+    try:
+        cache.persist(second_runtime, "wrong_runtime")
+    except ValueError as exc:
+        assert "different TensorRuntime" in str(exc)
+    else:
+        raise AssertionError("cache persistence accepted a different runtime")
+
+    assert second_image.objects == {}
