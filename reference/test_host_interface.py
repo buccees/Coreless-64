@@ -72,7 +72,7 @@ def test_host_interface_detach_preserves_identity_but_closes_channels():
 
 
 def test_host_interface_host_io_binding_rolls_back_partial_channel_failure():
-    from host_io import MemoryHostIO, MemoryInputTransport, MemoryNetworkTransport
+    from host_io import MemoryDisplayTransport, MemoryHostIO, MemoryInputTransport, MemoryNetworkTransport
     from host_interface import CorelessHostInterface
 
     class FailingDisplayInterface(CorelessHostInterface):
@@ -95,7 +95,7 @@ def test_host_interface_host_io_binding_rolls_back_partial_channel_failure():
     previous_display = interface.channel("display")
 
     replacement = MemoryHostIO(
-        display=original,
+        display=MemoryDisplayTransport(),
         input=MemoryInputTransport(),
         network=MemoryNetworkTransport(),
     )
