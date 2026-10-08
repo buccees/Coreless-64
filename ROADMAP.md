@@ -322,3 +322,14 @@ The latest transport-hardening fixes are green in GitHub Actions through runs **
 - [x] Reject closed raw sockets consistently at session validation boundaries
 
 GitHub Actions **#1569** is green on the corrective session-validation commit. The next implementation step is the next concrete socket/transport lifecycle or platform-provider contract; do not broaden `validate()` into an implicit channel-completeness check.
+
+
+## Documentation checkpoint — 2026-10-08: socket transport hardening complete
+
+The socket-backed host transport lifecycle hardening pass is complete at the reference boundary. Replacement socket construction failures now leave an existing live session intact; a later valid reconnect can recover normally. Send/receive transport failures retire the affected socket wrapper, cleanup errors do not mask the original transport failure, scoped cleanup preserves body exceptions, and disconnect detaches the Coreless interface even when socket cleanup reports an error.
+
+Regression coverage exercises failed reconnect recovery, socket ownership across reconnects, closed-channel/session validation, transport retirement, and disconnect cleanup. **GitHub Actions run #1662 is green** for the final reconnect-recovery regression.
+
+### Transport resume point
+
+The reference socket lifecycle hardening is complete. Do not continue adding socket edge cases without a concrete contract failure. The next host-interface work is concrete cross-platform enumeration and platform display/input/network adapters.
