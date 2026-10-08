@@ -495,7 +495,12 @@ class SocketHostTransportAdapter(HostTransportAdapter):
                 # newly-created transport live when it cannot be attached.
                 network_transport.close()
         if isinstance(previous, SocketNetworkTransport) and previous is not network_transport:
-            if network_transport is None or previous.socket is not network_transport.socket:
+            if network_transport is not None and previous.socket is network_transport.socket:
+                # Reconnect created a new wrapper around the same host socket.
+                # Retire the stale wrapper without closing the socket now owned
+                # by the replacement wrapper.
+                previous.retire_without_closing_socket()
+            else:
                 # The new attachment is already established. Failure to retire
                 # the superseded socket must not roll back or mask a successful
                 # reconnect; the transport's own close state records cleanup
