@@ -923,7 +923,7 @@ def test_socket_host_transport_closes_stale_network_on_reconnect():
 
 def test_socket_host_transport_preserves_host_io_non_network_channels():
     import socket
-    from host_io import MemoryHostIO, MemoryNetworkTransport
+    from host_io import MemoryDisplayTransport, MemoryHostIO, MemoryNetworkTransport
     from host_socket import SocketNetworkTransport
     from host_transport import SocketHostTransportAdapter
 
