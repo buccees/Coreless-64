@@ -966,6 +966,12 @@ def test_socket_host_transport_detaches_when_network_close_raises():
     class FailingCloseTransport:
         closed = False
 
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
         def close(self):
             self.closed = True
             raise OSError("close failed")
