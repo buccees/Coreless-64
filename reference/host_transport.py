@@ -527,13 +527,18 @@ class SocketHostTransportAdapter(HostTransportAdapter):
     def disconnect(self, interface: CorelessHostInterface) -> None:
         """Close socket transports before ending the host attachment."""
         channel = interface.channels.get("network")
+        close_error = None
         try:
             if channel is not None and hasattr(channel, "close"):
                 channel.close()
+        except Exception as exc:
+            close_error = exc
         finally:
             # Detach even if the host socket reports a close error. The
             # transport boundary must never leave a stale Coreless attachment.
             super().disconnect(interface)
+        if close_error is not None:
+            raise close_error
 
 
 class ProviderHostTransportAdapter(HostTransportAdapter):
