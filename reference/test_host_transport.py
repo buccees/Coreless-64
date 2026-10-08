@@ -1246,6 +1246,59 @@ def test_socket_host_transport_failed_reconnect_preserves_live_session():
         right.close()
 
 
+def test_socket_host_transport_failed_reconnect_network_bind_preserves_live_session():
+    import socket
+    from host_transport import SocketHostTransportAdapter
+
+    class FailingNetworkBindInterface(CorelessHostInterface):
+        fail_network_bind = False
+
+        def bind_channel(self, capability, channel):
+            if self.fail_network_bind and capability == "network":
+                raise RuntimeError("replacement network bind failed")
+            super().bind_channel(capability, channel)
+
+    left1, right1 = socket.socketpair()
+    left2, right2 = socket.socketpair()
+    identity = CorelessIdentity("socket-network-bind-reconnect-atomic")
+    first = HostEndpoint(
+        "socket-network-bind-first",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left1},
+        device_capabilities={"network"},
+    )
+    second = HostEndpoint(
+        "socket-network-bind-second",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left2},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = FailingNetworkBindInterface(identity)
+
+    try:
+        adapter.connect(first, interface)
+        previous = interface.channel("network")
+        interface.fail_network_bind = True
+
+        with pytest.raises(RuntimeError, match="replacement network bind failed"):
+            adapter.connect(second, interface)
+
+        assert interface.attached
+        assert interface.channel("network") is previous
+        assert interface.negotiated == frozenset({"network"})
+        assert not previous.closed
+        previous.send_packet(b"still-live-after-network-bind-failure")
+        assert right1.recv(1024).endswith(b"still-live-after-network-bind-failure")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right1.close()
+        right2.close()
+
+
 def test_socket_host_transport_discovers_and_binds_provider_socket():
     import socket
     from device_protocol import (
