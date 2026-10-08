@@ -1173,3 +1173,43 @@ def test_socket_host_transport_connect_rejects_negotiated_network_without_channe
 
     assert not interface.attached
     assert interface.channels == {}
+
+
+def test_socket_host_transport_closes_network_when_reconnect_drops_capability():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-reconnect-drop-network")
+    network_endpoint = HostEndpoint(
+        "socket-network",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    plain_endpoint = HostEndpoint(
+        "socket-plain",
+        identity,
+        HostCapabilities(display=True),
+        {"display": object()},
+        device_capabilities={"display"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(network_endpoint, interface)
+        previous = interface.channel("network")
+        assert isinstance(previous, SocketNetworkTransport)
+
+        adapter.connect(plain_endpoint, interface)
+
+        assert previous.closed
+        assert not interface.transport_ready({"network"})
+        assert interface.channel("display") is not None
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right.close()
