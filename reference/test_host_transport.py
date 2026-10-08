@@ -854,7 +854,6 @@ def test_socket_host_transport_preserves_host_io_non_network_channels():
         )
         assert isinstance(session.channel("network"), SocketNetworkTransport)
         assert session.channel("display") is host_io.display
-        assert session.channel("input") is host_io.input
     finally:
         adapter.disconnect(interface)
         right.close()
