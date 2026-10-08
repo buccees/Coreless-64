@@ -63,9 +63,25 @@ def test_socket_network_transport_rejects_oversized_incoming_packet():
         sender.send_packet(b"1234")
         with pytest.raises(ValueError, match="exceeds host transport limit"):
             receiver.receive_packet()
+        assert receiver.closed
+        with pytest.raises(RuntimeError, match="transport is closed"):
+            receiver.receive_packet()
     finally:
         sender.close()
         receiver.close()
+
+
+def test_socket_network_transport_retires_on_oversized_incoming_header():
+    left, right = socket.socketpair()
+    receiver = SocketNetworkTransport(right, max_packet_size=3)
+    try:
+        left.sendall((4).to_bytes(4, "big"))
+        with pytest.raises(ValueError, match="exceeds host transport limit"):
+            receiver.receive_packet()
+        assert receiver.closed
+    finally:
+        receiver.close()
+        left.close()
 
 
 def test_socket_network_transport_rejects_use_after_close():
