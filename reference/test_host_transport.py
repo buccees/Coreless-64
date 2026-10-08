@@ -843,6 +843,7 @@ def test_socket_host_transport_session_rejects_send_failure():
     with pytest.raises((BrokenPipeError, ConnectionError, OSError)):
         transport.send_packet(b"after-peer-close")
     assert transport.closed
+    assert left.fileno() < 0
 
     with pytest.raises(RuntimeError, match="channels are closed"):
         session.validate()
@@ -871,6 +872,7 @@ def test_socket_host_transport_session_rejects_peer_close():
     with pytest.raises(ConnectionError, match="socket closed"):
         transport.receive_packet()
     assert transport.closed
+    assert left.fileno() < 0
 
     with pytest.raises(RuntimeError, match="channels are closed"):
         session.validate()
