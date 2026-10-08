@@ -1383,3 +1383,32 @@ def test_qwen3_kv_cache_restore_surfaces_corrupt_persisted_tensor():
     else:
         raise AssertionError("Qwen3 cache restore accepted a corrupt key tensor")
 
+
+def test_qwen3_kv_cache_restore_rejects_divergent_persisted_layer_lengths():
+    from storage import PersistentMachineImage
+
+    runtime = TensorRuntime(PersistentMachineImage())
+    runtime.save(
+        "divergent_layer_0_key",
+        Tensor.from_values((1, 2, 2), [1.0, 2.0, 3.0, 4.0]),
+    )
+    runtime.save(
+        "divergent_layer_0_value",
+        Tensor.from_values((1, 2, 2), [5.0, 6.0, 7.0, 8.0]),
+    )
+    runtime.save(
+        "divergent_layer_1_key",
+        Tensor.from_values((1, 1, 2), [9.0, 10.0]),
+    )
+    runtime.save(
+        "divergent_layer_1_value",
+        Tensor.from_values((1, 1, 2), [11.0, 12.0]),
+    )
+
+    try:
+        Qwen3KVCache.restore(runtime, "divergent", 2)
+    except ValueError as exc:
+        assert "share one sequence length" in str(exc)
+    else:
+        raise AssertionError("restore accepted divergent persisted cache lengths")
+
