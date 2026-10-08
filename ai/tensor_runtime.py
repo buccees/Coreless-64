@@ -1018,7 +1018,7 @@ class TensorRuntime:
         if not isinstance(payload, dict):
             raise ValueError("invalid persisted tensor payload")
         version = payload.get("version")
-        if version not in (1, 2):
+        if type(version) is not int or version not in (1, 2):
             raise ValueError("unsupported tensor format version")
         shape = payload.get("shape")
         data = payload.get("data")
