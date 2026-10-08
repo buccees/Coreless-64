@@ -672,6 +672,52 @@ def test_qwen3_attention_uses_native_head_staging_boundaries():
     assert runtime.rotary_calls == 2
 
 
+def test_qwen3_attention_uses_gqa_grouping_and_cache_sequence_offset():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.group_sizes = []
+            self.offsets = []
+
+        def grouped_attention(self, q, k, v, kv_group_size, *, causal=True, key_position_offset=0):
+            self.group_sizes.append(kv_group_size)
+            self.offsets.append(key_position_offset)
+            return super().grouped_attention(
+                q, k, v, kv_group_size,
+                causal=causal,
+                key_position_offset=key_position_offset,
+            )
+
+    identity = _identity(4)
+    weights = ModelWeights([
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", Tensor.from_values((2, 4), [
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+        ])),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", Tensor.from_values((2, 4), [
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+        ])),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+    ])
+    cfg = Qwen3Config(4, 8, 1, 4, 2, 16, 16, head_dim=1)
+    runtime = RecordingRuntime()
+    cache = Qwen3KVCache.create(1)
+
+    first = Tensor.from_values((1, 4), (1.0, 0.0, 0.0, 1.0))
+    second = Tensor.from_values((1, 4), (0.0, 1.0, 1.0, 0.0))
+    qwen3_attention(first, weights, "model.layers.0", cfg, cache, runtime=runtime)
+    qwen3_attention(second, weights, "model.layers.0", cfg, cache, position_offset=1, runtime=runtime)
+
+    assert runtime.group_sizes == [2, 2]
+    assert runtime.offsets == [0, 1]
+    assert cache.sequence_length == 2
+    assert cache.keys[0].shape == (2, 2, 1)
+
+
 def test_qwen3_attention_uses_native_grouped_attention_boundary():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
