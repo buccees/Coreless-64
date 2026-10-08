@@ -298,3 +298,17 @@ The reference test suite is green at this checkpoint. Next implementation work s
 - [x] Cover reconnect HostIO atomicity with regression tests
 
 The latest transport-hardening reference tests are green. The next implementation step should address the next concrete transport lifecycle contract without regressing the transport-neutral HostIO/discovery boundaries.
+
+
+## Documentation checkpoint — 2026-10-08: transactional transport/session hardening
+
+- [x] Validate replacement HostIO before reconnect mutation
+- [x] Roll back host identity attachment state on failed reconnect
+- [x] Preserve a live session across failed transport channel rebinding
+- [x] Roll back partial HostIO channel binding
+- [x] Clean up failed replacement socket network transports
+- [x] Reject closed raw sockets at adapter and session validation boundaries
+- [x] Cover reconnect and closed-session lifecycle contracts with regression tests
+
+The latest transport-hardening fixes are green in GitHub Actions through runs **#1552** and **#1556**. The next implementation step should move to the next concrete transport lifecycle/provider contract while preserving the transport-neutral HostIO, discovery, command, and session boundaries.
+
