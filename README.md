@@ -118,3 +118,8 @@ This is an optimization layer over the existing Coreless machine architecture, n
 ## Persistent runtime launcher — 2026-10-07
 
 The repository now includes `scripts/coreless-run.py`, a direct launcher for a persistent Coreless machine image. It resumes the stored machine/OS state, accepts native Coreless shell commands, can advance the digital execution engine, and persists state or shutdown. The image remains the authoritative machine-state carrier and the host remains outside Coreless computational authority.
+
+
+## Host transport hardening — 2026-10-08
+
+The reference host transport now protects live reconnects from invalid replacement HostIO bundles and rejects closed raw socket channels before constructing a network transport. These boundaries are covered by green GitHub Actions runs through #1519. The transport layer remains transport-neutral above the socket adapter and does not claim physical display/input/network hardware implementation.
