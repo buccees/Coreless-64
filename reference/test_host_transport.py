@@ -1373,6 +1373,48 @@ def test_socket_host_transport_failed_reconnect_network_bind_preserves_live_sess
 
 
 
+
+def test_socket_host_transport_failed_reconnect_same_socket_base_failure_closes_only_replacement_wrapper():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-shared-base-failure")
+    endpoint = HostEndpoint(
+        "socket-shared-base-failure",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+
+    class FailingAdapter(SocketHostTransportAdapter):
+        def connect(self, endpoint, interface, **kwargs):
+            if interface.attached:
+                replacement = self.open_network(endpoint)
+                assert isinstance(replacement, SocketNetworkTransport)
+                assert interface.channel("network").socket is replacement.socket
+                replacement.retire_without_closing_socket()
+                raise RuntimeError("replacement base connect failed")
+            return super().connect(endpoint, interface, **kwargs)
+
+    adapter = FailingAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(endpoint, interface)
+        previous = interface.channel("network")
+        with pytest.raises(RuntimeError, match="replacement base connect failed"):
+            adapter.connect(endpoint, interface)
+        assert previous.closed is False
+        previous.send_packet(b"base-failure-still-live")
+        assert right.recv(1024).endswith(b"base-failure-still-live")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right.close()
+
 def test_socket_host_transport_failed_reconnect_same_socket_network_bind_retires_replacement_wrapper():
     import socket
     from host_socket import SocketNetworkTransport
