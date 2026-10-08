@@ -87,6 +87,18 @@ class HostDeviceEnumerator:
         if not computer_id:
             raise ValueError("Coreless discovery identity is empty")
 
+        channels = dict(candidate.channels or {})
+        advertised = candidate.host_capabilities.as_set()
+        missing_channels = sorted(
+            capability
+            for capability in advertised
+            if capability in {"display", "input", "network"} and capability not in channels
+        )
+        if missing_channels:
+            raise ValueError(
+                f"host discovery channels are missing: {missing_channels}"
+            )
+
         return HostEndpoint(
             endpoint_id=candidate.endpoint_id,
             identity=CorelessIdentity(
@@ -94,6 +106,6 @@ class HostDeviceEnumerator:
                 protocol_version=frame.protocol_version,
             ),
             capabilities=candidate.host_capabilities,
-            channels=candidate.channels,
+            channels=channels,
             device_capabilities=frame.capability_names(),
         )
