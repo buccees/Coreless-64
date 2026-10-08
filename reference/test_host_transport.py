@@ -584,10 +584,10 @@ def test_socket_host_transport_adapter_opens_network_channel():
 def test_socket_host_transport_adapter_requires_network_channel():
     from host_transport import SocketHostTransportAdapter
     endpoint = HostEndpoint(
-        "no-network",
-        CorelessIdentity("no-network"),
-        HostCapabilities(),
-        device_capabilities=set(),
+        "no-network-channel",
+        CorelessIdentity("no-network-channel"),
+        HostCapabilities(network=True),
+        device_capabilities={"network"},
     )
     with pytest.raises(RuntimeError, match="no network channel"):
         SocketHostTransportAdapter(object()).open_network(endpoint)
