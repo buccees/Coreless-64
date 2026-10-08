@@ -522,3 +522,20 @@ The closed-raw-socket lifecycle check was also hardened: stdlib sockets are reje
 ### Current transport resume point
 
 The reconnect/HostIO atomicity checkpoint is complete. Continue with the next concrete socket lifecycle or transport-boundary contract; do not revisit memory ownership or the already-closed raw-socket regression unless a new failure requires it.
+
+
+## Documentation checkpoint — 2026-10-08: transactional transport/session hardening
+
+The reference host transport now preserves an already-live attachment across failed reconnect mutations at multiple boundaries. Replacement HostIO validation occurs before attachment mutation; host identity attachment restores its prior negotiated/host/system state on failure; transport channel rebinding restores the complete live attachment snapshot if a replacement bind fails; and HostIO channel binding restores its channel/router/HostIO/display state after a partial bind failure.
+
+Socket-backed reconnect handling also closes replacement network transports when binding fails and preserves the prior live socket session until the replacement is known to be valid. Closed raw sockets are rejected consistently at adapter and reusable-session validation boundaries using both explicit closed-state properties and the standard socket `fileno() < 0` contract.
+
+Regression coverage now exercises failed reconnect HostIO validation, channel rebinding rollback, partial HostIO channel-binding rollback, socket network rebinding rollback, and closed raw socket session validation.
+
+**Verified CI:** GitHub Actions runs **#1552** and **#1556** are green for the latest transport-hardening fixes.
+
+### Current transport resume point
+
+The reconnect and session closed-channel atomicity work is complete. Continue with the next concrete socket/transport lifecycle contract or platform-provider integration. Do not revisit memory ownership or the closed-raw-socket regression unless a new failure requires it.
+
+The host boundary remains transport-neutral above the concrete socket adapter and does not claim completed physical display/input/network hardware enumeration.
