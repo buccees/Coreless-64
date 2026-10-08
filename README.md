@@ -132,3 +132,10 @@ The reference host transport now treats reconnect and HostIO channel binding as 
 Reusable transport-session validation now detects closed raw sockets through the standard socket descriptor state as well as explicit transport `closed` properties. Regression coverage protects these lifecycle contracts.
 
 Verified GitHub Actions runs **#1552** and **#1556** are green. This remains a transport-neutral host boundary; it does not claim completed physical display/input/network adapters or physical bus enumeration.
+
+
+## Host transport checkpoint — 2026-10-08: session validation contract
+
+Reusable host transport sessions distinguish session liveness from channel requirements: session validation checks attachment, identity, negotiated-state consistency, and closed channels that are present, while `require_channels()` explicitly rejects missing or closed requested channels. This keeps existing negotiated sessions compatible with partial channel binding while giving callers a deterministic completeness check when required.
+
+GitHub Actions run **#1569** is green for the corrective validation checkpoint.
