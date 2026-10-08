@@ -86,7 +86,8 @@ class HostTransportSession:
         closed = sorted(
             capability
             for capability in self.negotiated
-            if bool(getattr(self.interface.channels[capability], "closed", False))
+            if capability in self.interface.channels
+            and bool(getattr(self.interface.channels[capability], "closed", False))
         )
         if closed:
             raise RuntimeError(
