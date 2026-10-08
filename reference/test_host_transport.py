@@ -647,6 +647,42 @@ def test_host_transport_session_rejects_closed_network_channel():
         session.require_channels({"network"})
 
 
+def test_host_transport_session_rejects_missing_network_channel():
+    endpoint = HostEndpoint(
+        "missing-session-network",
+        CorelessIdentity("missing-session-network"),
+        HostCapabilities(network=True),
+        device_capabilities={"network"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("missing-session-network"))
+    session = adapter.open_session(endpoint, interface)
+
+    with pytest.raises(RuntimeError, match="channels are missing"):
+        session.require_channels({"network"})
+
+
+def test_host_transport_session_command_rejects_closed_channel():
+    class ClosedTransport:
+        closed = True
+
+    endpoint = HostEndpoint(
+        "closed-session-command",
+        CorelessIdentity("closed-session-command"),
+        HostCapabilities(network=True),
+        {"network": ClosedTransport()},
+        device_capabilities={"network"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("closed-session-command"))
+    session = adapter.open_session(endpoint, interface)
+
+    with pytest.raises(RuntimeError, match="channels are closed"):
+        adapter.send_session_command(
+            session, DeviceCommand(OP_CAPABILITIES, 90)
+        )
+
+
 def test_socket_host_transport_session_binds_typed_network_transport():
     import socket
     from host_socket import SocketNetworkTransport
