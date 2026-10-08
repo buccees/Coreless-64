@@ -101,6 +101,9 @@ class SocketNetworkTransport:
             chunk = self._socket.recv(size - len(chunks))
             if not chunk:
                 raise ConnectionError("host network socket closed")
+            if not isinstance(chunk, (bytes, bytearray, memoryview)):
+                self._retire_socket()
+                raise TypeError("host network socket recv() must return bytes")
             chunks.extend(chunk)
         return bytes(chunks)
 
