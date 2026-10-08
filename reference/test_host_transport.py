@@ -960,6 +960,34 @@ def test_socket_network_transport_marks_closed_when_close_raises():
     assert transport.closed
 
 
+def test_socket_host_transport_detaches_when_network_close_raises():
+    from host_transport import SocketHostTransportAdapter
+
+    class FailingCloseTransport:
+        closed = False
+
+        def close(self):
+            self.closed = True
+            raise OSError("close failed")
+
+    endpoint = HostEndpoint(
+        "socket-disconnect-close-failure",
+        CorelessIdentity("socket-disconnect-close-failure"),
+        HostCapabilities(network=True),
+        {"network": FailingCloseTransport()},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-disconnect-close-failure"))
+
+    adapter.connect(endpoint, interface)
+    with pytest.raises(OSError, match="close failed"):
+        adapter.disconnect(interface)
+
+    assert not interface.attached
+    assert interface.channels == {}
+
+
 def test_socket_host_transport_reconnect_same_socket_does_not_close_new_transport():
     import socket
     from host_socket import SocketNetworkTransport
