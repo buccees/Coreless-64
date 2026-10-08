@@ -69,7 +69,7 @@ class SocketNetworkTransport:
             raise ValueError("network packet exceeds host transport limit")
         try:
             self._socket.sendall(self._HEADER.pack(len(payload)) + payload)
-        except (ConnectionError, OSError, ValueError):
+        except (ConnectionError, OSError, TypeError, ValueError):
             self._retire_after_transport_error()
             raise
 
@@ -83,7 +83,7 @@ class SocketNetworkTransport:
                 self._close_after_protocol_error()
                 raise ValueError("network packet exceeds host transport limit")
             return self._recv_exact(size)
-        except (ConnectionError, OSError, ValueError):
+        except (ConnectionError, OSError, TypeError, ValueError):
             self._retire_after_transport_error()
             raise
 
