@@ -70,6 +70,7 @@ class SocketNetworkTransport:
             header = self._recv_exact(self._HEADER.size)
             (size,) = self._HEADER.unpack(header)
             if size > self._max_packet_size:
+                self._close_after_protocol_error()
                 raise ValueError("network packet exceeds host transport limit")
             return self._recv_exact(size)
         except (ConnectionError, OSError):
@@ -92,6 +93,14 @@ class SocketNetworkTransport:
                 raise ConnectionError("host network socket closed")
             chunks.extend(chunk)
         return bytes(chunks)
+
+    def _close_after_protocol_error(self) -> None:
+        """Retire the stream after an invalid frame length is observed."""
+        self._closed = True
+        try:
+            self._socket.close()
+        except (ConnectionError, OSError):
+            pass
 
     def _ensure_open(self) -> None:
         if self._closed:
