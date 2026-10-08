@@ -1839,6 +1839,68 @@ def test_socket_host_transport_failed_network_open_preserves_live_session():
         right1.close()
         right2.close()
 
+
+def test_socket_host_transport_recovers_after_failed_open_reconnect():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import HostEndpoint, SocketHostTransportAdapter
+    from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
+
+    left1, right1 = socket.socketpair()
+    bad, right_bad = socket.socketpair()
+    bad.close()
+    left2, right2 = socket.socketpair()
+    identity = CorelessIdentity("socket-recover-after-open-failure")
+    first = HostEndpoint(
+        "socket-recover-first",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left1},
+        device_capabilities={"network"},
+    )
+    failed = HostEndpoint(
+        "socket-recover-failed",
+        identity,
+        HostCapabilities(network=True),
+        {"network": bad},
+        device_capabilities={"network"},
+    )
+    replacement = HostEndpoint(
+        "socket-recover-replacement",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left2},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(first, interface)
+        previous = interface.channel("network")
+
+        with pytest.raises(RuntimeError, match="already closed"):
+            adapter.connect(failed, interface)
+
+        assert interface.channel("network") is previous
+        previous.send_packet(b"still-live")
+        assert right1.recv(1024).endswith(b"still-live")
+
+        adapter.connect(replacement, interface)
+        current = interface.channel("network")
+
+        assert isinstance(current, SocketNetworkTransport)
+        assert current is not previous
+        assert previous.closed
+        current.send_packet(b"recovered-session")
+        assert right2.recv(1024).endswith(b"recovered-session")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right1.close()
+        right_bad.close()
+        right2.close()
+
 def test_socket_host_transport_disconnect_detaches_when_socket_close_fails():
     from host_socket import SocketNetworkTransport
     from host_transport import SocketHostTransportAdapter
