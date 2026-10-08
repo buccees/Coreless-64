@@ -464,7 +464,12 @@ class SocketHostTransportAdapter(HostTransportAdapter):
                 try:
                     interface.bind_channel("network", network_transport)
                 except Exception:
-                    if not shares_previous_socket:
+                    if shares_previous_socket:
+                        # The replacement wrapper never became attached. Retire
+                        # it without closing the socket still owned by the live
+                        # previous wrapper.
+                        network_transport.retire_without_closing_socket()
+                    else:
                         try:
                             network_transport.close()
                         except Exception:
