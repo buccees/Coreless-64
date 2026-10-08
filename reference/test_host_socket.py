@@ -132,6 +132,25 @@ def test_socket_network_transport_preserves_transport_error_when_close_fails():
 
 
 
+def test_socket_network_transport_receive_failure_survives_close_error():
+    class FailingCloseSocket:
+        def recv(self, size):
+            raise OSError("recv failed")
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def close(self):
+            raise ValueError("close failed")
+
+    transport = SocketNetworkTransport(FailingCloseSocket())
+
+    with pytest.raises(OSError, match="recv failed"):
+        transport.receive_packet()
+    assert transport.closed
+
+
+
 def test_socket_network_transport_rejects_use_after_close():
     sender, receiver = transport_pair()
     sender.close()
