@@ -68,12 +68,24 @@ class HostTransportSession:
         closed = sorted(
             capability
             for capability in capabilities
-            if bool(getattr(self.interface.channels[capability], "closed", False))
+            if HostTransportSession._channel_closed(self.interface.channels[capability])
         )
         if closed:
             raise RuntimeError(
                 f"host transport session channels are closed: {closed}"
             )
+
+    @staticmethod
+    def _channel_closed(channel: object) -> bool:
+        if bool(getattr(channel, "closed", False)):
+            return True
+        fileno = getattr(channel, "fileno", None)
+        if callable(fileno):
+            try:
+                return fileno() < 0
+            except (OSError, ValueError):
+                return True
+        return False
 
     def validate(self) -> None:
         """Ensure the session still refers to its original live attachment."""
@@ -87,7 +99,7 @@ class HostTransportSession:
             capability
             for capability in self.negotiated
             if capability in self.interface.channels
-            and bool(getattr(self.interface.channels[capability], "closed", False))
+            and HostTransportSession._channel_closed(self.interface.channels[capability])
         )
         if closed:
             raise RuntimeError(
