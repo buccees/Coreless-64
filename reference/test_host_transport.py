@@ -899,3 +899,106 @@ def test_socket_host_transport_preserves_host_io_non_network_channels():
     finally:
         adapter.disconnect(interface)
         right.close()
+
+
+def test_socket_network_transport_validates_socket_contract():
+    from host_socket import SocketNetworkTransport
+
+    class Incomplete:
+        def sendall(self, data):
+            pass
+
+    with pytest.raises(TypeError, match="sendall"):
+        SocketNetworkTransport(Incomplete())
+
+
+def test_socket_network_transport_marks_closed_when_close_raises():
+    from host_socket import SocketNetworkTransport
+
+    class FailingClose:
+        def sendall(self, data):
+            pass
+        def recv(self, size):
+            return b""
+        def close(self):
+            raise OSError("close failed")
+
+    transport = SocketNetworkTransport(FailingClose())
+    with pytest.raises(OSError, match="close failed"):
+        transport.close()
+    assert transport.closed
+
+
+def test_socket_host_transport_reconnect_same_socket_does_not_close_new_transport():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-reconnect-same")
+    endpoint = HostEndpoint(
+        "socket-reconnect-same",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(endpoint, interface)
+        previous = interface.channel("network")
+        adapter.connect(endpoint, interface)
+        current = interface.channel("network")
+
+        assert isinstance(previous, SocketNetworkTransport)
+        assert isinstance(current, SocketNetworkTransport)
+        assert previous is not current
+        assert not current.closed
+        current.send_packet(b"same-socket")
+        assert right.recv(1024).endswith(b"same-socket")
+    finally:
+        adapter.disconnect(interface)
+        right.close()
+
+
+def test_socket_host_transport_failed_reconnect_preserves_live_session():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-reconnect-failure")
+    good = HostEndpoint(
+        "socket-good",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    bad = HostEndpoint(
+        "socket-bad",
+        identity,
+        HostCapabilities(network=True),
+        {"network": object()},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(good, interface)
+        previous = interface.channel("network")
+
+        with pytest.raises(TypeError, match="sock must provide"):
+            adapter.connect(bad, interface)
+
+        assert interface.attached
+        assert interface.channel("network") is previous
+        assert not previous.closed
+        previous.send_packet(b"still-live")
+        assert right.recv(1024).endswith(b"still-live")
+    finally:
+        adapter.disconnect(interface)
+        right.close()
