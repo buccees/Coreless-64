@@ -325,6 +325,11 @@ class SocketHostTransportAdapter(HostTransportAdapter):
         input_router=None,
     ) -> frozenset[str]:
         """Attach the endpoint with its network channel wrapped by Coreless transport."""
+        from host_socket import SocketNetworkTransport
+
+        previous = interface.channels.get("network")
+        if isinstance(previous, SocketNetworkTransport):
+            previous.close()
         negotiated = super().connect(
             endpoint,
             interface,
