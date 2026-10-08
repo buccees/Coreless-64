@@ -119,3 +119,25 @@ def test_memory_host_discovery_provider_is_empty_by_default():
     provider = MemoryHostDiscoveryProvider()
     assert provider.enumerate_candidates() == ()
     assert HostDeviceEnumerator().discover_provider(provider) == ()
+
+
+def test_host_device_enumerator_rejects_missing_advertised_network_channel():
+    candidate = HostDiscoveryCandidate(
+        "missing-network",
+        identity_frame("missing-network", ("network",)),
+        HostCapabilities(network=True),
+    )
+    with pytest.raises(ValueError, match="host discovery channels are missing"):
+        HostDeviceEnumerator().discover([candidate])
+
+
+def test_host_device_enumerator_accepts_advertised_network_channel():
+    channel = object()
+    candidate = HostDiscoveryCandidate(
+        "network",
+        identity_frame("network", ("network",)),
+        HostCapabilities(network=True),
+        {"network": channel},
+    )
+    endpoint = HostDeviceEnumerator().discover([candidate])[0]
+    assert endpoint.channel_map()["network"] is channel
