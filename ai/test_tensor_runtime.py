@@ -896,3 +896,44 @@ def test_grouped_attention_uses_merge_heads_boundary():
 
     assert result.shape == (1, 4)
     assert runtime.merge_heads_calls == 1
+
+
+def test_tensor_runtime_load_rejects_data_length_mismatch():
+    import json
+    import pytest
+
+    image = PersistentMachineImage()
+    image.objects["tensor/bad-length"] = json.dumps(
+        {"version": 2, "shape": [2, 2], "dtype": "fp32", "data": [1.0, 2.0]}
+    ).encode("utf-8")
+
+    with pytest.raises(ValueError, match="invalid persisted tensor payload"):
+        TensorRuntime(image).load("bad-length")
+
+
+def test_tensor_runtime_load_rejects_unsupported_dtype():
+    import json
+    import pytest
+
+    image = PersistentMachineImage()
+    image.objects["tensor/bad-dtype"] = json.dumps(
+        {"version": 2, "shape": [1], "dtype": "fp128", "data": [1.0]}
+    ).encode("utf-8")
+
+    with pytest.raises(ValueError, match="invalid persisted tensor payload"):
+        TensorRuntime(image).load("bad-dtype")
+
+
+def test_tensor_runtime_load_accepts_legacy_payload_without_dtype():
+    import json
+
+    image = PersistentMachineImage()
+    image.objects["tensor/legacy"] = json.dumps(
+        {"version": 1, "shape": [2], "data": [3.0, 4.0]}
+    ).encode("utf-8")
+
+    restored = TensorRuntime(image).load("legacy")
+
+    assert restored.shape == (2,)
+    assert restored.dtype == "fp64"
+    assert restored.data == (3.0, 4.0)
