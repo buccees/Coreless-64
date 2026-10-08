@@ -591,3 +591,36 @@ def test_socket_host_transport_adapter_requires_network_channel():
     )
     with pytest.raises(RuntimeError, match="no network channel"):
         SocketHostTransportAdapter(object()).open_network(endpoint)
+
+
+def test_socket_host_transport_adapter_requires_network_capability():
+    from host_transport import SocketHostTransportAdapter
+    endpoint = HostEndpoint(
+        "no-network-capability",
+        CorelessIdentity("no-network-capability"),
+        HostCapabilities(),
+        {"network": object()},
+        device_capabilities={"network"},
+    )
+    with pytest.raises(RuntimeError, match="does not advertise network capability"):
+        SocketHostTransportAdapter(object()).open_network(endpoint)
+
+
+def test_socket_host_transport_adapter_rejects_closed_channel():
+    import socket
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    left.close()
+    endpoint = HostEndpoint(
+        "closed-network",
+        CorelessIdentity("closed-network"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    try:
+        with pytest.raises(RuntimeError, match="already closed"):
+            SocketHostTransportAdapter(object()).open_network(endpoint)
+    finally:
+        right.close()
