@@ -235,6 +235,31 @@ def test_socket_network_transport_close_is_idempotent():
     assert sock.close_calls == 1
 
 
+def test_socket_network_transport_context_manager_closes_on_body_failure():
+    class CountingSocket:
+        def __init__(self):
+            self.close_calls = 0
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            self.close_calls += 1
+
+    sock = CountingSocket()
+
+    with pytest.raises(RuntimeError, match="body failed"):
+        with SocketNetworkTransport(sock) as transport:
+            assert not transport.closed
+            raise RuntimeError("body failed")
+
+    assert transport.closed
+    assert sock.close_calls == 1
+
+
 def test_socket_network_transport_context_manager_closes_once():
     class CountingSocket:
         def __init__(self):
