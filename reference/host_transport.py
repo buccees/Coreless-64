@@ -372,6 +372,13 @@ class SocketHostTransportAdapter(HostTransportAdapter):
                         network_transport.close()
                     except Exception:
                         pass
+                    # The base connection has already attached the interface;
+                    # a failed network bind must roll that attachment back so
+                    # no partially attached session survives the failure.
+                    try:
+                        super().disconnect(interface)
+                    except Exception:
+                        pass
                     raise
             else:
                 # The endpoint supplied a socket, but negotiation may decline
