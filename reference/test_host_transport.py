@@ -828,6 +828,47 @@ def test_socket_host_transport_session_rejects_peer_close():
     adapter.close_session(session)
 
 
+
+def test_socket_host_transport_closes_stale_network_on_reconnect():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    first_left, first_right = socket.socketpair()
+    second_left, second_right = socket.socketpair()
+    identity = CorelessIdentity("socket-reconnect")
+    first = HostEndpoint(
+        "socket-reconnect-1",
+        identity,
+        HostCapabilities(network=True),
+        {"network": first_left},
+        device_capabilities={"network"},
+    )
+    second = HostEndpoint(
+        "socket-reconnect-2",
+        identity,
+        HostCapabilities(network=True),
+        {"network": second_left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(first, interface)
+        previous = interface.channel("network")
+        assert isinstance(previous, SocketNetworkTransport)
+        adapter.connect(second, interface)
+        current = interface.channel("network")
+        assert previous.closed
+        assert isinstance(current, SocketNetworkTransport)
+        assert current is not previous
+        current.send_packet(b"reconnected")
+    finally:
+        adapter.disconnect(interface)
+        first_right.close()
+        second_right.close()
+
 def test_socket_host_transport_preserves_host_io_non_network_channels():
     import socket
     from host_io import MemoryHostIO, MemoryNetworkTransport
