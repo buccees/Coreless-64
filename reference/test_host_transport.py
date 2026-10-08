@@ -1002,3 +1002,90 @@ def test_socket_host_transport_failed_reconnect_preserves_live_session():
     finally:
         adapter.disconnect(interface)
         right.close()
+
+
+def test_socket_host_transport_discovers_and_binds_provider_socket():
+    import socket
+    from device_protocol import (
+        ARCHITECTURE_CORELESS64,
+        DEVICE_TYPE_CORELESS64,
+        DeviceIdentityFrame,
+        capability_bits,
+    )
+    from host_discovery import HostDiscoveryCandidate
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-provider")
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"network"}),
+        payload=identity.computer_id.encode("utf-8"),
+    )
+
+    class Provider:
+        def enumerate_candidates(self):
+            return (
+                HostDiscoveryCandidate(
+                    "socket-provider",
+                    frame,
+                    HostCapabilities(network=True),
+                    channels={"network": left},
+                ),
+            )
+
+    adapter = SocketHostTransportAdapter(Provider())
+    interface = CorelessHostInterface(identity)
+    try:
+        endpoints = adapter.enumerate()
+        assert len(endpoints) == 1
+        session = adapter.open_session(endpoints[0], interface)
+        transport = session.channel("network")
+        assert isinstance(transport, SocketNetworkTransport)
+        transport.send_packet(b"provider-path")
+        assert right.recv(1024).endswith(b"provider-path")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right.close()
+
+
+def test_socket_host_transport_rejects_discovered_non_socket_network_channel():
+    from device_protocol import (
+        ARCHITECTURE_CORELESS64,
+        DEVICE_TYPE_CORELESS64,
+        DeviceIdentityFrame,
+        capability_bits,
+    )
+    from host_discovery import HostDiscoveryCandidate
+    from host_transport import SocketHostTransportAdapter
+
+    identity = CorelessIdentity("socket-provider-invalid")
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"network"}),
+        payload=identity.computer_id.encode("utf-8"),
+    )
+
+    class Provider:
+        def enumerate_candidates(self):
+            return (
+                HostDiscoveryCandidate(
+                    "socket-provider-invalid",
+                    frame,
+                    HostCapabilities(network=True),
+                    channels={"network": object()},
+                ),
+            )
+
+    adapter = SocketHostTransportAdapter(Provider())
+    endpoint = adapter.enumerate()[0]
+    interface = CorelessHostInterface(identity)
+    with pytest.raises(TypeError, match="sock must provide"):
+        adapter.connect(endpoint, interface)
+    assert not interface.attached
