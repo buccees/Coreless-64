@@ -494,6 +494,28 @@ def test_tensor_runtime_grouped_attention_matches_repeated_kv_attention():
     assert grouped.data == repeated.data
 
 
+def test_tensor_runtime_batch_matmul_shared_right_matches_per_batch_matmul():
+    runtime = TensorRuntime()
+    left = runtime.create(
+        (2, 2, 2),
+        [1.0, 2.0, 3.0, 4.0, 2.0, 0.0, 1.0, 3.0],
+        dtype="fp32",
+    )
+    right = runtime.create(
+        (2, 2),
+        [2.0, 1.0, 0.0, 3.0],
+        dtype="fp32",
+    )
+    shared = runtime.batch_matmul_shared_right(left, right)
+    expected = runtime.create(
+        (2, 2, 2),
+        runtime.batch_matmul(left, runtime.create((2, 2, 2), right.data + right.data, dtype="fp32")).data,
+        dtype="fp32",
+    )
+    assert shared.shape == expected.shape
+    assert shared.data == expected.data
+
+
 def test_tensor_runtime_grouped_attention_reuses_each_kv_group_once():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
