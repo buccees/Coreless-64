@@ -933,3 +933,83 @@ def test_qwen3_config_rejects_invalid_normalization_and_rope_parameters():
             pass
         else:
             raise AssertionError(f"invalid Qwen3 options were accepted: {options}")
+
+
+
+def test_qwen3_kv_cache_append_is_transactional_when_value_append_fails():
+    class FailingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.calls = 0
+
+        def append_sequence(self, existing, update):
+            self.calls += 1
+            if self.calls == 2:
+                raise RuntimeError("simulated value append failure")
+            return super().append_sequence(existing, update)
+
+    runtime = FailingRuntime()
+    cache = Qwen3KVCache.create(1, runtime)
+    key = Tensor.from_values((1, 1, 2), [1.0, 2.0], dtype="fp32")
+    value = Tensor.from_values((1, 1, 2), [3.0, 4.0], dtype="fp32")
+    cache.append(0, key, value)
+    next_key = Tensor.from_values((1, 1, 2), [5.0, 6.0], dtype="fp32")
+    next_value = Tensor.from_values((1, 1, 2), [7.0, 8.0], dtype="fp32")
+
+    try:
+        cache.append(0, next_key, next_value)
+    except RuntimeError as exc:
+        assert "simulated value append failure" in str(exc)
+    else:
+        raise AssertionError("cache append unexpectedly succeeded")
+
+    assert cache.keys[0] is key
+    assert cache.values[0] is value
+    assert cache.sequence_length == 1
+
+
+def test_qwen3_kv_cache_restore_rejects_incomplete_persisted_layer():
+    from storage import PersistentMachineImage
+
+    runtime = TensorRuntime(PersistentMachineImage())
+    runtime.save(
+        "partial_layer_0_key",
+        Tensor.from_values((1, 1, 2), [1.0, 2.0], dtype="fp32"),
+    )
+
+    try:
+        Qwen3KVCache.restore(runtime, "partial", 1)
+    except ValueError as exc:
+        assert "without a value tensor" in str(exc)
+    else:
+        raise AssertionError("restore accepted a cache layer missing its value tensor")
+
+
+def test_qwen3_kv_cache_append_rejects_dimension_or_dtype_drift():
+    cache = Qwen3KVCache.create(1)
+    key = Tensor.from_values((1, 1, 2), [1.0, 2.0], dtype="fp32")
+    value = Tensor.from_values((1, 1, 2), [3.0, 4.0], dtype="fp32")
+    cache.append(0, key, value)
+
+    invalid_updates = (
+        (
+            Tensor.from_values((2, 1, 2), [1.0, 2.0, 3.0, 4.0], dtype="fp32"),
+            Tensor.from_values((2, 1, 2), [5.0, 6.0, 7.0, 8.0], dtype="fp32"),
+        ),
+        (
+            Tensor.from_values((1, 1, 3), [1.0, 2.0, 3.0], dtype="fp32"),
+            Tensor.from_values((1, 1, 3), [4.0, 5.0, 6.0], dtype="fp32"),
+        ),
+        (
+            Tensor.from_values((1, 1, 2), [1.0, 2.0], dtype="fp64"),
+            Tensor.from_values((1, 1, 2), [3.0, 4.0], dtype="fp64"),
+        ),
+    )
+    for next_key, next_value in invalid_updates:
+        try:
+            cache.append(0, next_key, next_value)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("cache accepted append with incompatible dimensions or dtype")
+    assert cache.sequence_length == 1
