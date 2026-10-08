@@ -4,7 +4,7 @@ These adapters model the host-side discovery/transport boundary without making
 the host responsible for Coreless computation.
 """
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Iterable, Mapping
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
 from host_io import HostIO
@@ -295,7 +295,36 @@ class SocketHostTransportAdapter(HostTransportAdapter):
         if getattr(channel, "_closed", False):
             raise RuntimeError("host network channel is already closed")
         return SocketNetworkTransport(channel)
-    
+
+    def connect(
+        self,
+        endpoint: HostEndpoint,
+        interface: CorelessHostInterface,
+        *,
+        system=None,
+        host_io: HostIO | None = None,
+        input_router=None,
+    ) -> frozenset[str]:
+        """Attach the endpoint with its network channel wrapped by Coreless transport."""
+        channels = endpoint.channel_map()
+        if endpoint.capabilities.network and "network" in channels:
+            channels["network"] = self.open_network(endpoint)
+            endpoint = replace(endpoint, channels=channels)
+        return super().connect(
+            endpoint,
+            interface,
+            system=system,
+            host_io=host_io,
+            input_router=input_router,
+        )
+
+    def disconnect(self, interface: CorelessHostInterface) -> None:
+        """Close socket transports before ending the host attachment."""
+        channel = interface.channels.get("network")
+        if channel is not None and hasattr(channel, "close"):
+            channel.close()
+        super().disconnect(interface)
+
 
 class ProviderHostTransportAdapter(HostTransportAdapter):
     """Reference adapter backed by a platform discovery provider.
