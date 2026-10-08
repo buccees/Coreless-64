@@ -33,9 +33,10 @@ def test_socket_network_transport_handles_empty_packet():
 
 
 def test_socket_network_transport_rejects_oversized_packet():
-    sender, receiver = transport_pair()
+    left, right = socket.socketpair()
+    sender = SocketNetworkTransport(left, max_packet_size=3)
+    receiver = SocketNetworkTransport(right)
     try:
-        sender = SocketNetworkTransport(sender._socket, max_packet_size=3)
         with pytest.raises(ValueError, match="exceeds host transport limit"):
             sender.send_packet(b"1234")
     finally:
@@ -44,11 +45,12 @@ def test_socket_network_transport_rejects_oversized_packet():
 
 
 def test_socket_network_transport_rejects_oversized_incoming_packet():
-    sender, receiver = transport_pair()
+    left, right = socket.socketpair()
+    sender = SocketNetworkTransport(left)
+    receiver = SocketNetworkTransport(right, max_packet_size=3)
     try:
-        sender._socket.sendall(sender._HEADER.pack(4) + b"1234")
+        sender.send_packet(b"1234")
         with pytest.raises(ValueError, match="exceeds host transport limit"):
-            receiver = SocketNetworkTransport(receiver._socket, max_packet_size=3)
             receiver.receive_packet()
     finally:
         sender.close()
