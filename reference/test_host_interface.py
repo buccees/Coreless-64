@@ -71,6 +71,41 @@ def test_host_interface_detach_preserves_identity_but_closes_channels():
     assert interface.negotiated == frozenset()
 
 
+def test_host_interface_identity_attachment_rolls_back_failed_reconnect():
+    class FailingAttachInterface(CorelessHostInterface):
+        def attach(self, identity, host, *, system=None):
+            negotiated = super().attach(identity, host, system=system)
+            raise RuntimeError("simulated reconnect failure")
+
+    interface = FailingAttachInterface(
+        CorelessIdentity("coreless-0"),
+        supported={"display", "network"},
+    )
+    interface._attached = True
+    interface._negotiated = frozenset({"display"})
+    interface._host_capabilities = HostCapabilities(display=True)
+    previous_system = object()
+    interface._system = previous_system
+    previous_channel = object()
+    interface._channels["display"] = previous_channel
+
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=0,
+        payload=b"coreless-0",
+    )
+
+    with pytest.raises(RuntimeError, match="simulated reconnect failure"):
+        interface.attach_identity_frame(frame, HostCapabilities(network=True))
+
+    assert interface.attached
+    assert interface.negotiated == frozenset({"display"})
+    assert interface.channel("display") is previous_channel
+    assert interface.system is previous_system
+
+
 def test_host_interface_rejects_incompatible_protocol():
     interface = CorelessHostInterface(CorelessIdentity("coreless-0"))
 
