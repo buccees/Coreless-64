@@ -396,7 +396,14 @@ class SocketHostTransportAdapter(HostTransportAdapter):
                 network_transport.close()
         if isinstance(previous, SocketNetworkTransport) and previous is not network_transport:
             if network_transport is None or previous.socket is not network_transport.socket:
-                previous.close()
+                # The new attachment is already established. Failure to retire
+                # the superseded socket must not roll back or mask a successful
+                # reconnect; the transport's own close state records cleanup
+                # failure without invalidating the new session.
+                try:
+                    previous.close()
+                except Exception:
+                    pass
         return negotiated
 
     def disconnect(self, interface: CorelessHostInterface) -> None:
