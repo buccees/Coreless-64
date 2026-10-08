@@ -557,3 +557,37 @@ def test_host_transport_discovers_from_platform_provider():
     adapter = MemoryHostTransportAdapter()
     endpoints = adapter.discover_provider(Provider())
     assert [endpoint.endpoint_id for endpoint in endpoints] == ["platform-a"]
+
+
+def test_socket_host_transport_adapter_opens_network_channel():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-host",
+        CorelessIdentity("socket-host"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    transport = adapter.open_network(endpoint)
+    assert isinstance(transport, SocketNetworkTransport)
+    transport.send_packet(b"coreless")
+    assert right.recv(1024).endswith(b"coreless")
+    transport.close()
+    right.close()
+
+
+def test_socket_host_transport_adapter_requires_network_channel():
+    from host_transport import SocketHostTransportAdapter
+    endpoint = HostEndpoint(
+        "no-network",
+        CorelessIdentity("no-network"),
+        HostCapabilities(),
+        device_capabilities=set(),
+    )
+    with pytest.raises(RuntimeError, match="no network channel"):
+        SocketHostTransportAdapter(object()).open_network(endpoint)
