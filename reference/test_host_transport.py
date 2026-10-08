@@ -1066,6 +1066,7 @@ def test_socket_host_transport_reconnect_same_socket_does_not_close_new_transpor
         assert isinstance(previous, SocketNetworkTransport)
         assert isinstance(current, SocketNetworkTransport)
         assert previous is not current
+        assert previous.closed
         assert not current.closed
         current.send_packet(b"same-socket")
         assert right.recv(1024).endswith(b"same-socket")
