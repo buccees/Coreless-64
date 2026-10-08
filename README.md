@@ -123,3 +123,12 @@ The repository now includes `scripts/coreless-run.py`, a direct launcher for a p
 ## Host transport hardening — 2026-10-08
 
 The reference host transport now protects live reconnects from invalid replacement HostIO bundles and rejects closed raw socket channels before constructing a network transport. These boundaries are covered by green GitHub Actions runs through #1519. The transport layer remains transport-neutral above the socket adapter and does not claim physical display/input/network hardware implementation.
+
+
+## Host transport hardening — 2026-10-08: transactional reconnects and session validation
+
+The reference host transport now treats reconnect and HostIO channel binding as transactional operations. Failed replacement HostIO validation, identity attachment, channel rebinding, or partial HostIO binding no longer destroys an already-live attachment. Socket-backed reconnect failures also clean up replacement network transports without discarding the previous live session.
+
+Reusable transport-session validation now detects closed raw sockets through the standard socket descriptor state as well as explicit transport `closed` properties. Regression coverage protects these lifecycle contracts.
+
+Verified GitHub Actions runs **#1552** and **#1556** are green. This remains a transport-neutral host boundary; it does not claim completed physical display/input/network adapters or physical bus enumeration.
