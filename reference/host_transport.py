@@ -336,6 +336,7 @@ class SocketHostTransportAdapter(HostTransportAdapter):
         from host_socket import SocketNetworkTransport
 
         previous = interface.channels.get("network")
+        was_attached = interface.attached
         network_transport = None
         if endpoint.capabilities.network:
             # A negotiated network capability must always have a concrete socket
@@ -360,6 +361,14 @@ class SocketHostTransportAdapter(HostTransportAdapter):
             if network_transport is not None:
                 try:
                     network_transport.close()
+                except Exception:
+                    pass
+            # A fresh attachment may have been partially established before
+            # channel binding failed. Roll it back, but never destroy an
+            # already-live attachment during a failed reconnect.
+            if not was_attached and interface.attached:
+                try:
+                    interface.detach()
                 except Exception:
                     pass
             raise
