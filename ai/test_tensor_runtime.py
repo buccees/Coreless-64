@@ -937,3 +937,14 @@ def test_tensor_runtime_load_accepts_legacy_payload_without_dtype():
     assert restored.shape == (2,)
     assert restored.dtype == "fp64"
     assert restored.data == (3.0, 4.0)
+
+
+def test_tensor_runtime_save_rejects_non_finite_values_before_writing():
+    import pytest
+
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    for invalid in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(ValueError, match="finite values"):
+            runtime.save("invalid", Tensor.from_values((1,), [invalid]))
+        assert "tensor/invalid" not in image.objects
