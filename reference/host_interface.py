@@ -153,9 +153,21 @@ class CorelessHostInterface:
         advertised = decoded.capability_names()
         negotiated_supported = self.supported & advertised
         original_supported = self.supported
+        original_attached = self._attached
+        original_negotiated = self._negotiated
+        original_host_capabilities = self._host_capabilities
+        original_system = self._system
         try:
             self.supported = frozenset(negotiated_supported)
             return self.attach(identity, host, system=system)
+        except Exception:
+            # Reconnect identity validation/negotiation is transactional:
+            # restore the live attachment if the replacement cannot complete.
+            self._attached = original_attached
+            self._negotiated = original_negotiated
+            self._host_capabilities = original_host_capabilities
+            self._system = original_system
+            raise
         finally:
             self.supported = original_supported
 
