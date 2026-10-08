@@ -1005,14 +1005,36 @@ class TensorRuntime:
     def load(self, name: str) -> Tensor:
         if self.storage is None:
             raise RuntimeError("tensor runtime has no persistent storage")
+        if not name or "/" in name:
+            raise ValueError("tensor name must be a non-empty local name")
         key = f"{self.namespace}/{name}"
         raw = self.storage.objects.get(key)
         if raw is None:
             raise KeyError(name)
-        payload = json.loads(raw.decode("utf-8"))
-        if payload.get("version") not in (1, 2):
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("invalid persisted tensor payload") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("invalid persisted tensor payload")
+        version = payload.get("version")
+        if version not in (1, 2):
             raise ValueError("unsupported tensor format version")
-        return Tensor.from_values(payload["shape"], payload["data"], dtype=payload.get("dtype", "fp64"))
+        shape = payload.get("shape")
+        data = payload.get("data")
+        dtype = payload.get("dtype", "fp64")
+        if (
+            not isinstance(shape, list)
+            or not shape
+            or any(type(dim) is not int or dim <= 0 for dim in shape)
+            or not isinstance(data, list)
+            or not isinstance(dtype, str)
+        ):
+            raise ValueError("invalid persisted tensor payload")
+        try:
+            return Tensor.from_values(shape, data, dtype=dtype)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("invalid persisted tensor payload") from exc
 
 
 def test_tensor_runtime_head_layout_ops_use_contiguous_storage():
