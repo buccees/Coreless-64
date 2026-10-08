@@ -399,6 +399,14 @@ class SocketHostTransportAdapter(HostTransportAdapter):
 
         previous = interface.channels.get("network")
         was_attached = interface.attached
+        original_negotiated = interface._negotiated
+        original_host_capabilities = interface._host_capabilities
+        original_system = interface._system
+        original_hub = interface._hub
+        original_channels = dict(interface._channels)
+        original_input_router = interface._input_router
+        original_host_io = interface._host_io
+        original_last_host_display = interface._last_host_display
         network_transport = None
         if endpoint.capabilities.network:
             # A negotiated network capability must always have a concrete socket
@@ -443,13 +451,25 @@ class SocketHostTransportAdapter(HostTransportAdapter):
                         network_transport.close()
                     except Exception:
                         pass
-                    # The base connection has already attached the interface;
-                    # a failed network bind must roll that attachment back so
-                    # no partially attached session survives the failure.
-                    try:
-                        interface.detach()
-                    except Exception:
-                        pass
+                    # The base connection has already attached the interface.
+                    # A network bind failure must preserve a previously live
+                    # reconnect target just like any other post-attachment
+                    # binding failure.
+                    if was_attached:
+                        interface._attached = was_attached
+                        interface._negotiated = original_negotiated
+                        interface._host_capabilities = original_host_capabilities
+                        interface._system = original_system
+                        interface._hub = original_hub
+                        interface._channels = original_channels
+                        interface._input_router = original_input_router
+                        interface._host_io = original_host_io
+                        interface._last_host_display = original_last_host_display
+                    else:
+                        try:
+                            interface.detach()
+                        except Exception:
+                            pass
                     raise
             else:
                 # The endpoint supplied a socket, but negotiation may decline
