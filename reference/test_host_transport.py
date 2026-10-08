@@ -1737,7 +1737,7 @@ def test_socket_host_transport_reconnect_different_socket_closes_stale_transport
         assert previous.closed
         assert not current.closed
 
-        with pytest.raises(RuntimeError, match="socket transport is closed"):
+        with pytest.raises(RuntimeError, match="host network transport is closed"):
             previous.send_packet(b"stale-wrapper-must-fail")
 
         current.send_packet(b"different-socket-reconnect")
