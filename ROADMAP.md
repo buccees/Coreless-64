@@ -312,3 +312,13 @@ The latest transport-hardening reference tests are green. The next implementatio
 
 The latest transport-hardening fixes are green in GitHub Actions through runs **#1552** and **#1556**. The next implementation step should move to the next concrete transport lifecycle/provider contract while preserving the transport-neutral HostIO, discovery, command, and session boundaries.
 
+
+
+## Documentation checkpoint — 2026-10-08: session validation contract correction
+
+- [x] Keep reusable-session validation focused on attachment/identity/negotiation/liveness
+- [x] Require explicit channel completeness through `require_channels()`
+- [x] Cover missing required session channels with regression coverage
+- [x] Reject closed raw sockets consistently at session validation boundaries
+
+GitHub Actions **#1569** is green on the corrective session-validation commit. The next implementation step is the next concrete socket/transport lifecycle or platform-provider contract; do not broaden `validate()` into an implicit channel-completeness check.
