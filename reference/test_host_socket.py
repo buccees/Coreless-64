@@ -279,3 +279,22 @@ def test_socket_network_transport_context_manager_closes_once():
         assert not transport.closed
     assert transport.closed
     assert sock.close_calls == 1
+
+
+def test_socket_network_transport_context_manager_preserves_body_error_when_close_fails():
+    class FailingCloseSocket:
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            raise ValueError("close failed")
+
+    with pytest.raises(RuntimeError, match="body failed"):
+        with SocketNetworkTransport(FailingCloseSocket()) as transport:
+            assert not transport.closed
+            raise RuntimeError("body failed")
+
+    assert transport.closed
