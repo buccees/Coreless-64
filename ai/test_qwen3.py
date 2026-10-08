@@ -1088,3 +1088,33 @@ def test_qwen3_greedy_decode_zero_new_tokens_returns_valid_prompt_without_model_
 
     model = Qwen3Runtime(Qwen3Config(2, 2, 1, 1, 1, 3, 2), ModelWeights([]))
     assert model.generate_greedy([0, 2], 0) == [0, 2]
+
+
+
+def test_qwen3_kv_cache_restore_continues_identically_to_live_cache():
+    from storage import PersistentMachineImage
+
+    runtime = TensorRuntime(PersistentMachineImage())
+    live = Qwen3KVCache.create(2)
+    first_key = Tensor.from_values((1, 1, 2), [1.0, 2.0], dtype="fp32")
+    first_value = Tensor.from_values((1, 1, 2), [3.0, 4.0], dtype="fp32")
+    live.append(0, first_key, first_value)
+    live.append(1, first_key, first_value)
+    live.persist(runtime, "continuity")
+
+    restored = Qwen3KVCache.restore(runtime, "continuity", 2)
+    next_key = Tensor.from_values((1, 1, 2), [5.0, 6.0], dtype="fp32")
+    next_value = Tensor.from_values((1, 1, 2), [7.0, 8.0], dtype="fp32")
+
+    for cache in (live, restored):
+        cache.append(0, next_key, next_value, runtime)
+        cache.append(1, next_key, next_value, runtime)
+
+    assert restored.sequence_length == live.sequence_length == 2
+    for layer in range(2):
+        live_key, live_value = live.layer(layer)
+        restored_key, restored_value = restored.layer(layer)
+        assert restored_key.data == live_key.data
+        assert restored_value.data == live_value.data
+        assert restored_key.shape == live_key.shape
+        assert restored_value.shape == live_value.shape
