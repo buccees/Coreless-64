@@ -73,5 +73,33 @@ def test_socket_network_transport_detects_peer_close():
     try:
         with pytest.raises(ConnectionError, match="socket closed"):
             receiver.receive_packet()
+        assert receiver.closed
+    finally:
+        receiver.close()
+
+
+def test_socket_network_transport_marks_send_failure_closed():
+    left, right = socket.socketpair()
+    transport = SocketNetworkTransport(left)
+    left.close()
+    try:
+        with pytest.raises(OSError):
+            transport.send_packet(b"send-failure")
+        assert transport.closed
+        with pytest.raises(RuntimeError, match="transport is closed"):
+            transport.send_packet(b"after-failure")
+    finally:
+        right.close()
+
+
+def test_socket_network_transport_marks_partial_receive_failure_closed():
+    left, right = socket.socketpair()
+    receiver = SocketNetworkTransport(right)
+    try:
+        left.sendall((5).to_bytes(4, "big") + b"x")
+        left.close()
+        with pytest.raises(ConnectionError, match="socket closed"):
+            receiver.receive_packet()
+        assert receiver.closed
     finally:
         receiver.close()
