@@ -1013,3 +1013,45 @@ def test_qwen3_kv_cache_append_rejects_dimension_or_dtype_drift():
         else:
             raise AssertionError("cache accepted append with incompatible dimensions or dtype")
     assert cache.sequence_length == 1
+
+
+
+def test_qwen3_runtime_rejects_bad_weight_shape_before_cache_mutation():
+    from qwen3 import Qwen3Runtime
+
+    cfg = Qwen3Config(2, 2, 1, 1, 1, 3, 8, head_dim=2)
+    weights = ModelWeights([
+        ModelTensor("model.embed_tokens.weight", Tensor.from_values((3, 1), [1.0, 0.0, 0.0])),
+    ])
+    model = Qwen3Runtime(cfg, weights)
+    cache = Qwen3KVCache.create(1)
+
+    try:
+        model.forward([0], cache)
+    except ValueError as exc:
+        assert "model.embed_tokens.weight" in str(exc)
+        assert "expected (3, 2)" in str(exc)
+    else:
+        raise AssertionError("runtime accepted an embedding with the wrong shape")
+    assert cache.sequence_length == 0
+
+
+def test_qwen3_runtime_rejects_missing_required_weight_before_cache_mutation():
+    from qwen3 import Qwen3Runtime
+
+    cfg = Qwen3Config(2, 2, 1, 1, 1, 3, 8, head_dim=2)
+    model = Qwen3Runtime(
+        cfg,
+        ModelWeights([
+            ModelTensor("model.embed_tokens.weight", Tensor.from_values((3, 2), [1.0] * 6)),
+        ]),
+    )
+    cache = Qwen3KVCache.create(1)
+
+    try:
+        model.forward([0], cache)
+    except ValueError as exc:
+        assert "model.norm.weight" in str(exc) or "model.layers.0" in str(exc)
+    else:
+        raise AssertionError("runtime accepted missing required Qwen3 weights")
+    assert cache.sequence_length == 0
