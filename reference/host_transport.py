@@ -325,17 +325,16 @@ class SocketHostTransportAdapter(HostTransportAdapter):
         input_router=None,
     ) -> frozenset[str]:
         """Attach the endpoint with its network channel wrapped by Coreless transport."""
-        channels = endpoint.channel_map()
-        if endpoint.capabilities.network and "network" in channels:
-            channels["network"] = self.open_network(endpoint)
-            endpoint = replace(endpoint, channels=channels)
-        return super().connect(
+        negotiated = super().connect(
             endpoint,
             interface,
             system=system,
             host_io=host_io,
             input_router=input_router,
         )
+        if "network" in negotiated and "network" in endpoint.channel_map():
+            interface.bind_channel("network", self.open_network(endpoint))
+        return negotiated
 
     def disconnect(self, interface: CorelessHostInterface) -> None:
         """Close socket transports before ending the host attachment."""
