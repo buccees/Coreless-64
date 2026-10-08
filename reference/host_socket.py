@@ -38,6 +38,16 @@ class SocketNetworkTransport:
             raise ValueError("max_packet_size must be positive")
         if max_packet_size > self._MAX_PACKET:
             raise ValueError("max_packet_size exceeds Coreless host limit")
+        closed = bool(getattr(sock, "closed", False))
+        if not closed:
+            fileno = getattr(sock, "fileno", None)
+            if callable(fileno):
+                try:
+                    closed = fileno() < 0
+                except (OSError, ValueError):
+                    closed = True
+        if closed:
+            raise RuntimeError("host network socket is already closed")
         self._socket = sock
         self._max_packet_size = max_packet_size
         self._closed = False
