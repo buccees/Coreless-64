@@ -1311,3 +1311,41 @@ def test_socket_host_transport_closes_network_when_reconnect_drops_capability():
         if interface.attached:
             adapter.disconnect(interface)
         right.close()
+
+
+def test_socket_host_transport_base_connect_failure_preserves_original_error_when_cleanup_fails():
+    from host_transport import SocketHostTransportAdapter
+
+    class TrackingTransport:
+        closed = False
+        socket = object()
+
+        def close(self):
+            self.closed = True
+            raise OSError("cleanup failed")
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = None
+
+        def open_network(self, endpoint):
+            self.created = TrackingTransport()
+            return self.created
+
+    endpoint = HostEndpoint(
+        "socket-connect-original-error",
+        CorelessIdentity("socket-connect-original-error"),
+        HostCapabilities(network=True),
+        {"network": object()},
+        device_capabilities={"network"},
+    )
+    adapter = TrackingAdapter()
+    interface = CorelessHostInterface(CorelessIdentity("different-coreless"))
+
+    with pytest.raises(ValueError, match="identity verification failed"):
+        adapter.connect(endpoint, interface)
+
+    assert adapter.created is not None
+    assert adapter.created.closed
+    assert not interface.attached
