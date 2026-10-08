@@ -1372,6 +1372,51 @@ def test_socket_host_transport_failed_reconnect_network_bind_preserves_live_sess
         right2.close()
 
 
+
+def test_socket_host_transport_failed_reconnect_same_socket_network_bind_retires_replacement_wrapper():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-shared-network-bind-failure")
+    endpoint = HostEndpoint(
+        "socket-shared-network-bind-failure",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+
+    class FailingNetworkBindInterface(CorelessHostInterface):
+        fail_network_bind = False
+
+        def bind_channel(self, capability, channel):
+            if self.fail_network_bind and capability == "network":
+                raise RuntimeError("replacement network bind failed")
+            super().bind_channel(capability, channel)
+
+    adapter = SocketHostTransportAdapter(object())
+    interface = FailingNetworkBindInterface(identity)
+
+    try:
+        adapter.connect(endpoint, interface)
+        previous = interface.channel("network")
+        interface.fail_network_bind = True
+
+        with pytest.raises(RuntimeError, match="replacement network bind failed"):
+            adapter.connect(endpoint, interface)
+
+        assert isinstance(previous, SocketNetworkTransport)
+        assert previous.closed is False
+        assert interface.channel("network") is previous
+        previous.send_packet(b"shared-socket-still-live")
+        assert right.recv(1024).endswith(b"shared-socket-still-live")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right.close()
+
 def test_socket_host_transport_discovers_and_binds_provider_socket():
     import socket
     from device_protocol import (
