@@ -60,11 +60,19 @@ class HostTransportSession:
             capability
             for capability in capabilities
             if capability not in self.interface.channels
-            or bool(getattr(self.interface.channels[capability], "closed", False))
         )
         if missing:
             raise RuntimeError(
                 f"host transport session channels are missing: {missing}"
+            )
+        closed = sorted(
+            capability
+            for capability in capabilities
+            if bool(getattr(self.interface.channels[capability], "closed", False))
+        )
+        if closed:
+            raise RuntimeError(
+                f"host transport session channels are closed: {closed}"
             )
 
     def validate(self) -> None:
