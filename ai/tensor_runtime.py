@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import struct
 from dataclasses import dataclass
-from math import cos, exp, fsum, sin
+from math import cos, exp, fsum, isfinite, sin
 from typing import Iterable
 
 from .tensor import Tensor, add, dot, matmul, mul, relu, softmax, sub
@@ -1029,6 +1029,7 @@ class TensorRuntime:
             or any(type(dim) is not int or dim <= 0 for dim in shape)
             or not isinstance(data, list)
             or any(type(value) not in (int, float) for value in data)
+            or any(not isfinite(value) for value in data)
             or not isinstance(dtype, str)
         ):
             raise ValueError("invalid persisted tensor payload")
