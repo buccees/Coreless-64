@@ -1160,6 +1160,47 @@ def test_host_transport_failed_reconnect_host_io_preserves_live_session():
     assert interface.negotiated == frozenset({"display"})
 
 
+def test_host_transport_failed_reconnect_channel_bind_preserves_live_session():
+    from host_transport import MemoryHostTransportAdapter
+
+    class FailingBindInterface(CorelessHostInterface):
+        def bind_channel(self, capability, channel):
+            if capability == "display":
+                raise RuntimeError("replacement channel bind failed")
+            super().bind_channel(capability, channel)
+
+    identity = CorelessIdentity("channel-reconnect-atomic")
+    first = HostEndpoint(
+        "channel-reconnect-first",
+        identity,
+        HostCapabilities(display=True),
+        {"display": object()},
+        device_capabilities={"display"},
+    )
+    second = HostEndpoint(
+        "channel-reconnect-second",
+        identity,
+        HostCapabilities(display=True),
+        {"display": object()},
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter((first, second))
+    interface = FailingBindInterface(identity)
+
+    # The failing interface rejects the first replacement bind as well, so
+    # establish a live session using the base interface before reconnecting.
+    CorelessHostInterface.connect(interface, first.identity, first.capabilities)
+    previous = object()
+    interface._channels["display"] = previous
+
+    with pytest.raises(RuntimeError, match="replacement channel bind failed"):
+        adapter.connect(second, interface)
+
+    assert interface.attached
+    assert interface.channel("display") is previous
+    assert interface.negotiated == frozenset({"display"})
+
+
 def test_socket_host_transport_failed_reconnect_preserves_live_session():
     import socket
     from host_socket import SocketNetworkTransport
