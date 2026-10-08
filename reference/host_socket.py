@@ -8,7 +8,6 @@ bytes can cross a stream transport without ambiguity.
 
 from __future__ import annotations
 
-import socket
 import struct
 from typing import Protocol
 
