@@ -1789,6 +1789,56 @@ def test_socket_host_transport_reconnect_different_socket_closes_stale_transport
         right2.close()
 
 
+
+def test_socket_host_transport_failed_network_open_preserves_live_session():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import HostEndpoint, SocketHostTransportAdapter
+    from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
+
+    left1, right1 = socket.socketpair()
+    left2, right2 = socket.socketpair()
+    left2.close()
+    identity = CorelessIdentity("socket-open-failure-preserves-session")
+    first = HostEndpoint(
+        "socket-open-failure-first",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left1},
+        device_capabilities={"network"},
+    )
+    replacement = HostEndpoint(
+        "socket-open-failure-replacement",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left2},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(first, interface)
+        previous = interface.channel("network")
+        assert isinstance(previous, SocketNetworkTransport)
+        negotiated_before = interface.negotiated
+
+        with pytest.raises(RuntimeError, match="socket is already closed|already closed"):
+            adapter.connect(replacement, interface)
+
+        assert interface.attached
+        assert interface.negotiated == negotiated_before
+        assert interface.channel("network") is previous
+        assert not previous.closed
+
+        previous.send_packet(b"live-session-survives-open-failure")
+        assert right1.recv(1024).endswith(b"live-session-survives-open-failure")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right1.close()
+        right2.close()
+
 def test_socket_host_transport_disconnect_detaches_when_socket_close_fails():
     from host_socket import SocketNetworkTransport
     from host_transport import SocketHostTransportAdapter
