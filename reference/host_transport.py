@@ -317,7 +317,7 @@ class SocketHostTransportAdapter(HostTransportAdapter):
         channel = endpoint.channel_map().get("network")
         if channel is None:
             raise RuntimeError("host endpoint has no network channel")
-        if getattr(channel, "_closed", False):
+        if bool(getattr(channel, "closed", False)):
             raise RuntimeError("host network channel is already closed")
         if self._max_packet_size is None:
             return SocketNetworkTransport(channel)
