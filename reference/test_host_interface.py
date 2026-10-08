@@ -89,6 +89,7 @@ def test_host_interface_host_io_binding_rolls_back_partial_channel_failure():
     interface.attach(identity, host)
     original = object()
     interface.bind_channel("display", original)
+    interface.bind_input_router(type("Router", (), {"submit": lambda self, event: event})())
     previous_host_io = object()
     interface._host_io = previous_host_io
     previous_display = interface.channel("display")
