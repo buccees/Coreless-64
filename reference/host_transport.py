@@ -83,11 +83,19 @@ class HostTransportSession:
             raise RuntimeError("host transport session identity changed")
         if self.interface.negotiated != self.negotiated:
             raise RuntimeError("host transport session negotiation changed")
+        missing = sorted(
+            capability
+            for capability in self.negotiated
+            if capability not in self.interface.channels
+        )
+        if missing:
+            raise RuntimeError(
+                f"host transport session channels are missing: {missing}"
+            )
         closed = sorted(
             capability
             for capability in self.negotiated
-            if capability in self.interface.channels
-            and bool(getattr(self.interface.channels[capability], "closed", False))
+            if bool(getattr(self.interface.channels[capability], "closed", False))
         )
         if closed:
             raise RuntimeError(
