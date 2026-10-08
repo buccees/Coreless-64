@@ -1127,7 +1127,7 @@ def test_socket_host_transport_closes_replacement_when_base_connect_fails():
 
 def test_host_transport_failed_reconnect_host_io_preserves_live_session():
     from host_io import MemoryHostIO
-    from host_transport import MemoryHostTransportAdapter
+    from host_transport import HostTransportAdapter, MemoryHostTransportAdapter
 
     identity = CorelessIdentity("host-io-reconnect-atomic")
     first = HostEndpoint(
