@@ -838,7 +838,7 @@ def test_socket_host_transport_preserves_host_io_non_network_channels():
     endpoint = HostEndpoint(
         "socket-host-io",
         CorelessIdentity("socket-host-io"),
-        HostCapabilities(network=True, display=True, input=True),
+        HostCapabilities(network=True, display=True),
         {"network": left},
         device_capabilities={"network", "display", "input"},
     )
@@ -851,7 +851,6 @@ def test_socket_host_transport_preserves_host_io_non_network_channels():
             endpoint,
             interface,
             host_io=host_io,
-            input_router=object(),
         )
         assert isinstance(session.channel("network"), SocketNetworkTransport)
         assert session.channel("display") is host_io.display
