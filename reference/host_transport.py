@@ -376,7 +376,7 @@ class SocketHostTransportAdapter(HostTransportAdapter):
                     # a failed network bind must roll that attachment back so
                     # no partially attached session survives the failure.
                     try:
-                        super().disconnect(interface)
+                        interface.detach()
                     except Exception:
                         pass
                     raise
