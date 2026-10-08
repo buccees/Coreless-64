@@ -851,3 +851,49 @@ def test_qwen3_kv_cache_rejects_divergent_layer_lengths():
     else:
         raise AssertionError("divergent cache layer lengths were accepted")
 
+
+def test_qwen3_runtime_assembles_final_logits_for_greedy_decode():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.last_row_calls = 0
+            self.argmax_calls = 0
+
+        def last_row(self, value):
+            self.last_row_calls += 1
+            return super().last_row(value)
+
+        def argmax(self, value):
+            self.argmax_calls += 1
+            return super().argmax(value)
+
+    from qwen3 import Qwen3Runtime
+
+    identity = _identity(2)
+    zero = Tensor.from_values((2, 2), (0.0, 0.0, 0.0, 0.0))
+    embedding = Tensor.from_values((3, 2), (1.0, 0.0, 0.0, 1.0, 0.0, 0.0))
+    lm_head = Tensor.from_values((3, 2), (0.0, 2.0, 0.0, 1.0, 0.0, 0.0))
+    weights = ModelWeights([
+        ModelTensor("model.embed_tokens.weight", embedding),
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", zero),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.input_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.post_attention_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.mlp.gate_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.up_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.down_proj.weight", zero),
+        ModelTensor("model.norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("lm_head.weight", lm_head),
+    ])
+    runtime = RecordingRuntime()
+    model = Qwen3Runtime(Qwen3Config(2, 2, 1, 1, 1, 3, 8, head_dim=2), weights, runtime)
+
+    generated = model.generate_greedy([0], 2)
+
+    assert generated == [0, 1, 2]
+    assert runtime.last_row_calls == 2
+    assert runtime.argmax_calls == 2
