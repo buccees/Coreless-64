@@ -739,6 +739,38 @@ def test_socket_host_transport_session_receives_framed_network_packet():
 
 
 
+
+def test_socket_host_transport_disconnect_closes_network_transport():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-disconnect",
+        CorelessIdentity("socket-disconnect"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-disconnect"))
+
+    session = adapter.open_session(endpoint, interface)
+    transport = session.channel("network")
+    assert isinstance(transport, SocketNetworkTransport)
+
+    adapter.disconnect(interface)
+
+    assert transport.closed
+    assert not interface.attached
+    with pytest.raises(RuntimeError, match="session is detached"):
+        session.validate()
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.receive_packet()
+
+    right.close()
+
 def test_socket_host_transport_session_rejects_send_failure():
     import socket
     from host_transport import SocketHostTransportAdapter
