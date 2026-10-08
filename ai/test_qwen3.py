@@ -1200,3 +1200,42 @@ def test_qwen3_chunked_prefill_matches_full_sequence_logits():
         assert abs(actual - wanted) < 1e-6
     assert cache.sequence_length == len(token_ids)
 
+def test_qwen3_greedy_decode_cache_matches_full_prefix_recomputation():
+    from qwen3 import Qwen3Runtime
+
+    identity = _identity(2)
+    zero = Tensor.from_values((2, 2), (0.0, 0.0, 0.0, 0.0))
+    embedding = Tensor.from_values((4, 2), (1.0, 0.0, 0.0, 1.0, 1.0, 1.0, -1.0, 0.5))
+    lm_head = Tensor.from_values((4, 2), (1.0, 0.0, 0.0, 1.0, 0.5, 0.5, -1.0, 0.25))
+    weights = ModelWeights([
+        ModelTensor("model.embed_tokens.weight", embedding),
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.input_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.post_attention_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.mlp.gate_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.up_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.down_proj.weight", zero),
+        ModelTensor("model.norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("lm_head.weight", lm_head),
+    ])
+    cfg = Qwen3Config(2, 2, 1, 1, 1, 4, 8, head_dim=2)
+    runtime = TensorRuntime()
+    cached_model = Qwen3Runtime(cfg, weights, runtime)
+    reference_model = Qwen3Runtime(cfg, weights, runtime)
+    prompt = [0, 1]
+    expected = list(prompt)
+
+    for _ in range(2):
+        logits = reference_model.forward(expected)
+        next_token = runtime.argmax(runtime.last_row(logits))
+        expected.append(next_token)
+
+    actual = cached_model.generate_greedy(prompt, 2)
+
+    assert actual == expected
+
