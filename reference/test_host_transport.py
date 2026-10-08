@@ -1273,6 +1273,50 @@ def test_socket_host_transport_failed_reconnect_preserves_live_session():
         right.close()
 
 
+def test_socket_host_transport_failed_reconnect_same_socket_preserves_live_session():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-reconnect-shared-failure")
+    endpoint = HostEndpoint(
+        "socket-reconnect-shared-failure",
+        identity,
+        HostCapabilities(network=True, display=True),
+        {"network": left},
+        device_capabilities={"network", "display"},
+    )
+
+    class FailingBindInterface(CorelessHostInterface):
+        fail_bind = False
+
+        def bind_channel(self, capability, channel):
+            if self.fail_bind and capability == "display":
+                raise RuntimeError("replacement display bind failed")
+            super().bind_channel(capability, channel)
+
+    adapter = SocketHostTransportAdapter(object())
+    interface = FailingBindInterface(identity)
+
+    try:
+        adapter.connect(endpoint, interface)
+        previous = interface.channel("network")
+        interface.fail_bind = True
+
+        with pytest.raises(RuntimeError, match="replacement display bind failed"):
+            adapter.connect(endpoint, interface)
+
+        assert interface.attached
+        assert interface.channel("network") is previous
+        assert not previous.closed
+        previous.send_packet(b"survives-failed-reconnect")
+        assert right.recv(1024).endswith(b"survives-failed-reconnect")
+    finally:
+        adapter.disconnect(interface)
+        right.close()
+
+
 def test_socket_host_transport_failed_reconnect_network_bind_preserves_live_session():
     import socket
     from host_transport import SocketHostTransportAdapter
