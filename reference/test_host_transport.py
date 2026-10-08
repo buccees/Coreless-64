@@ -1047,6 +1047,44 @@ def test_socket_host_transport_reconnect_same_socket_does_not_close_new_transpor
         right.close()
 
 
+def test_socket_host_transport_closes_replacement_when_base_connect_fails():
+    from host_transport import SocketHostTransportAdapter
+
+    class TrackingTransport:
+        closed = False
+        socket = object()
+
+        def close(self):
+            self.closed = True
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = None
+
+        def open_network(self, endpoint):
+            self.created = TrackingTransport()
+            return self.created
+
+    endpoint = HostEndpoint(
+        "socket-connect-fails",
+        CorelessIdentity("socket-connect-fails"),
+        HostCapabilities(network=True),
+        {"network": object()},
+        device_capabilities={"network"},
+    )
+    adapter = TrackingAdapter()
+    interface = CorelessHostInterface(CorelessIdentity("different-coreless"))
+
+    with pytest.raises(ValueError, match="identity verification failed"):
+        adapter.connect(endpoint, interface)
+
+    assert adapter.created is not None
+    assert adapter.created.closed
+    assert not interface.attached
+    assert interface.channels == {}
+
+
 def test_socket_host_transport_failed_reconnect_preserves_live_session():
     import socket
     from host_socket import SocketNetworkTransport
