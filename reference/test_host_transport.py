@@ -2,7 +2,7 @@ import sys
 sys.path.insert(0, ".")
 import pytest
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
-from host_transport import HostEndpoint, MemoryHostTransportAdapter
+from host_transport import HostEndpoint, HostTransportAdapter, MemoryHostTransportAdapter
 from device_command import OP_CAPABILITIES, OP_STATUS, OP_SYNC, DeviceCommand, is_response
 
 
