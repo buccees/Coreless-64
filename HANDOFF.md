@@ -509,3 +509,16 @@ This milestone is limited to the host-side network transport boundary. It does *
 - CI: run #1480, 664 passed
 
 Documentation status must not be used to infer CI status; verify GitHub Actions when resuming work.
+
+
+## Documentation checkpoint — 2026-10-08: reconnect transaction hardening
+
+Socket-backed host transport reconnect handling now validates replacement HostIO bundles before mutating an existing attachment. A failed reconnect caused by an invalid display/input/network transport or input-router contract therefore preserves the currently live session instead of clearing its channels first. Regression coverage was added in reference/test_host_transport.py.
+
+The closed-raw-socket lifecycle check was also hardened: stdlib sockets are rejected when their fileno() reports a closed descriptor, while socket-like transports retaining an explicit closed property remain supported.
+
+**Verified CI:** GitHub Actions runs #1514, #1515, #1516, #1517, #1518, and #1519 are green across the transport-hardening commits; the latest commit is 3987e1e092390fef900545dace4cfe44b3f3130b.
+
+### Current transport resume point
+
+The reconnect/HostIO atomicity checkpoint is complete. Continue with the next concrete socket lifecycle or transport-boundary contract; do not revisit memory ownership or the already-closed raw-socket regression unless a new failure requires it.
