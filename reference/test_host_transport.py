@@ -1579,6 +1579,44 @@ def test_socket_host_transport_connect_rejects_negotiated_network_without_channe
     assert interface.channels == {}
 
 
+def test_socket_host_transport_ignores_unused_wrapper_close_failure_when_network_not_negotiated():
+    from host_transport import SocketHostTransportAdapter
+
+    class FailingCloseTransport:
+        closed = False
+        socket = object()
+
+        def close(self):
+            self.closed = True
+            raise OSError("unused wrapper close failed")
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = None
+
+        def open_network(self, endpoint):
+            self.created = FailingCloseTransport()
+            return self.created
+
+    identity = CorelessIdentity("socket-unused-wrapper-close-failure")
+    endpoint = HostEndpoint(
+        "socket-unused-wrapper-close-failure",
+        identity,
+        HostCapabilities(network=True),
+        {"network": object()},
+        device_capabilities={"display"},
+    )
+    adapter = TrackingAdapter()
+    interface = CorelessHostInterface(identity)
+
+    negotiated = adapter.connect(endpoint, interface)
+
+    assert negotiated == frozenset()
+    assert interface.attached
+    assert interface.channels == {}
+    assert adapter.created.closed
+
 def test_socket_host_transport_closes_network_when_reconnect_drops_capability():
     import socket
     from host_socket import SocketNetworkTransport
