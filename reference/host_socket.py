@@ -139,7 +139,9 @@ class SocketNetworkTransport:
         self._closed = True
         try:
             self._socket.close()
-        except (ConnectionError, OSError, ValueError):
+        except Exception:
+            # Retirement cleanup is best-effort and must not mask the
+            # transport failure that triggered it.
             pass
 
     def _ensure_open(self) -> None:
