@@ -517,6 +517,44 @@ class Qwen3Runtime:
         self.weights = weights
         self.tensor_runtime = tensor_runtime
 
+    def _validate_weight_contracts(self) -> None:
+        """Fail before execution/cache mutation when model tensors violate Qwen3 shapes."""
+        cfg = self.config
+        hidden = cfg.hidden_size
+        head_width = cfg.resolved_head_dim
+        q_width = cfg.num_attention_heads * head_width
+        kv_width = cfg.num_key_value_heads * head_width
+        expected = {
+            "model.embed_tokens.weight": (cfg.vocab_size, hidden),
+            "model.norm.weight": (hidden,),
+        }
+        for layer in range(cfg.num_hidden_layers):
+            prefix = f"model.layers.{layer}"
+            expected.update({
+                f"{prefix}.input_layernorm.weight": (hidden,),
+                f"{prefix}.post_attention_layernorm.weight": (hidden,),
+                f"{prefix}.self_attn.q_proj.weight": (q_width, hidden),
+                f"{prefix}.self_attn.k_proj.weight": (kv_width, hidden),
+                f"{prefix}.self_attn.v_proj.weight": (kv_width, hidden),
+                f"{prefix}.self_attn.o_proj.weight": (hidden, q_width),
+                f"{prefix}.self_attn.q_norm.weight": (head_width,),
+                f"{prefix}.self_attn.k_norm.weight": (head_width,),
+                f"{prefix}.mlp.gate_proj.weight": (cfg.intermediate_size, hidden),
+                f"{prefix}.mlp.up_proj.weight": (cfg.intermediate_size, hidden),
+                f"{prefix}.mlp.down_proj.weight": (hidden, cfg.intermediate_size),
+            })
+        if self.weights.contains("lm_head.weight"):
+            expected["lm_head.weight"] = (cfg.vocab_size, hidden)
+        for name, shape in expected.items():
+            try:
+                tensor = self.weights.get(name)
+            except KeyError as exc:
+                raise ValueError(f"Qwen3 model is missing required tensor: {name}") from exc
+            if tensor.shape != shape:
+                raise ValueError(
+                    f"Qwen3 tensor {name} has shape {tensor.shape}; expected {shape}"
+                )
+
     def forward(
         self,
         token_ids: Sequence[int],
@@ -531,6 +569,7 @@ class Qwen3Runtime:
             raise ValueError("token sequence exceeds Qwen3 context length")
         if cache is not None and cache.layer_count != self.config.num_hidden_layers:
             raise ValueError("Qwen3 KV cache layer count does not match the model")
+        self._validate_weight_contracts()
 
         embedding = self.weights.get("model.embed_tokens.weight")
         if self.tensor_runtime is not None:
