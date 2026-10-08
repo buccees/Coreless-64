@@ -474,3 +474,38 @@ This milestone does not claim physical USB/PCIe/display/input/network adapters. 
 ## Documentation checkpoint — 2026-10-07: atomic HostIO validation
 
 The negotiated HostIO boundary now validates the complete negotiated display/input/network bundle before channel mutation and validates the input-router contract before binding. Regression coverage preserves the no-partial-attachment invariant. The latest reference-test checkpoint is green. Resume with concrete platform host providers/adapters while preserving the transport-neutral discovery, HostIO, command, and session contracts. Physical device support remains unclaimed.
+
+
+## Documentation checkpoint — 2026-10-08: socket-backed host network transport
+
+The host transport boundary now includes a concrete socket-backed network transport in `reference/host_socket.py` and a socket-aware adapter in `reference/host_transport.py`.
+
+Implemented and covered by the reference suite:
+
+- deterministic 32-bit big-endian length framing;
+- bounded packet sizes and retirement of transports receiving oversized frames;
+- exact/partial socket reads and peer-close handling;
+- send/receive failure and close-state handling;
+- socket discovery and required network-channel validation;
+- reconnect preservation and stale socket cleanup;
+- guaranteed interface detachment when disconnect cleanup encounters a close failure;
+- reusable session validation with explicit `require_channels(...)` checks for operations that require particular negotiated channels.
+
+The latest validation-order failure was fixed in commit `2fa4433d26873e8f3b45e9c48e01a81b4f169967`: missing negotiated channels are now checked for membership before channel state is inspected, so the intended missing-channel contract error is raised instead of a `KeyError`.
+
+**Verified CI:** GitHub Actions run **#1480** is green with **664 tests passed**.
+
+### Current transport resume point
+
+Continue only with socket lifecycle hardening that has a concrete contract or regression need. The first candidate is ensuring a newly constructed socket transport is cleaned up if the superclass connect path fails after construction. Memory ownership has already been handled and should not be revisited.
+
+This milestone is limited to the host-side network transport boundary. It does **not** claim physical display/input implementation or physical USB/PCIe/bus enumeration.
+
+### Current repository checkpoint
+
+- Branch: `next-host-network-adapter`
+- PR: #17
+- Latest verified green commit: `2fa4433d26873e8f3b45e9c48e01a81b4f169967`
+- CI: run #1480, 664 passed
+
+Documentation status must not be used to infer CI status; verify GitHub Actions when resuming work.
