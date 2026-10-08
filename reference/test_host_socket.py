@@ -403,3 +403,28 @@ def test_socket_network_transport_marks_receive_type_error_closed():
     assert transport.closed
     with pytest.raises(RuntimeError, match="transport is closed"):
         transport.receive_packet()
+
+
+def test_socket_network_transport_marks_packet_conversion_type_error_closed():
+    class ConversionErrorPacket:
+        def __bytes__(self):
+            raise TypeError("packet conversion failed")
+
+    class TrackingSocket:
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            pass
+
+    transport = SocketNetworkTransport(TrackingSocket())
+
+    with pytest.raises(TypeError, match="packet conversion failed"):
+        transport.send_packet(ConversionErrorPacket())
+
+    assert transport.closed
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.send_packet(b"again")
