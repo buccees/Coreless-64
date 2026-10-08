@@ -1284,7 +1284,7 @@ def test_socket_host_transport_failed_reconnect_same_socket_preserves_live_sessi
         "socket-reconnect-shared-failure",
         identity,
         HostCapabilities(network=True, display=True),
-        {"network": left},
+        {"network": left, "display": MemoryDisplayTransport()},
         device_capabilities={"network", "display"},
     )
 
