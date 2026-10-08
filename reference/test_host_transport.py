@@ -1697,3 +1697,56 @@ def test_socket_host_transport_bind_failure_detaches_and_closes_replacement():
     assert adapter.created.closed
     assert not interface.attached
     assert interface.channels == {}
+
+
+def test_socket_host_transport_reconnect_different_socket_closes_stale_transport():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left1, right1 = socket.socketpair()
+    left2, right2 = socket.socketpair()
+    identity = CorelessIdentity("socket-different-reconnect")
+    first = HostEndpoint(
+        "socket-different-reconnect-first",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left1},
+        device_capabilities={"network"},
+    )
+    second = HostEndpoint(
+        "socket-different-reconnect-second",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left2},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(first, interface)
+        previous = interface.channel("network")
+        assert isinstance(previous, SocketNetworkTransport)
+
+        adapter.connect(second, interface)
+        current = interface.channel("network")
+
+        assert isinstance(current, SocketNetworkTransport)
+        assert current is not previous
+        assert previous.closed
+        assert not current.closed
+
+        with pytest.raises(RuntimeError, match="socket transport is closed"):
+            previous.send_packet(b"stale-wrapper-must-fail")
+
+        current.send_packet(b"different-socket-reconnect")
+        assert right2.recv(1024).endswith(b"different-socket-reconnect")
+
+        with pytest.raises((ConnectionError, OSError)):
+            right1.recv(1)
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right1.close()
+        right2.close()
