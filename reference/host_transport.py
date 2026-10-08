@@ -328,6 +328,11 @@ class SocketHostTransportAdapter(HostTransportAdapter):
         from host_socket import SocketNetworkTransport
 
         previous = interface.channels.get("network")
+        network_transport = None
+        if endpoint.capabilities.network and "network" in endpoint.channel_map():
+            # Construct the replacement before mutating the current attachment.
+            # A bad reconnect must leave a live session untouched.
+            network_transport = self.open_network(endpoint)
         negotiated = super().connect(
             endpoint,
             interface,
@@ -335,11 +340,10 @@ class SocketHostTransportAdapter(HostTransportAdapter):
             host_io=host_io,
             input_router=input_router,
         )
-        if "network" in negotiated and "network" in endpoint.channel_map():
-            current = self.open_network(endpoint)
-            interface.bind_channel("network", current)
-            if isinstance(previous, SocketNetworkTransport) and previous is not current:
-                if previous.socket is not current.socket:
+        if network_transport is not None and "network" in negotiated:
+            interface.bind_channel("network", network_transport)
+            if isinstance(previous, SocketNetworkTransport) and previous is not network_transport:
+                if previous.socket is not network_transport.socket:
                     previous.close()
         return negotiated
 
