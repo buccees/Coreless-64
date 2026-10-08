@@ -1239,3 +1239,42 @@ def test_qwen3_greedy_decode_cache_matches_full_prefix_recomputation():
 
     assert actual == expected
 
+def test_qwen3_chunked_prefill_matches_full_logits_at_every_split_point():
+    from qwen3 import Qwen3Runtime
+
+    identity = _identity(2)
+    zero = Tensor.from_values((2, 2), (0.0, 0.0, 0.0, 0.0))
+    embedding = Tensor.from_values((4, 2), (1.0, 0.0, 0.0, 1.0, 1.0, 1.0, -1.0, 0.5))
+    lm_head = Tensor.from_values((4, 2), (1.0, 0.0, 0.0, 1.0, 0.5, 0.5, -1.0, 0.25))
+    weights = ModelWeights([
+        ModelTensor("model.embed_tokens.weight", embedding),
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.input_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.post_attention_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.mlp.gate_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.up_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.down_proj.weight", zero),
+        ModelTensor("model.norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("lm_head.weight", lm_head),
+    ])
+    cfg = Qwen3Config(2, 2, 1, 1, 1, 4, 8, head_dim=2)
+    runtime = TensorRuntime()
+    model = Qwen3Runtime(cfg, weights, runtime)
+    token_ids = [0, 1, 2, 3]
+    full_logits = model.forward(token_ids)
+
+    for split in range(1, len(token_ids)):
+        cache = Qwen3KVCache.create(cfg.num_hidden_layers, runtime)
+        first = model.forward(token_ids[:split], cache)
+        second = model.forward(token_ids[split:], cache)
+        chunked = first.data + second.data
+
+        assert len(chunked) == len(full_logits.data)
+        for actual, wanted in zip(chunked, full_logits.data):
+            assert abs(actual - wanted) < 1e-6
+        assert cache.sequence_length == len(token_ids)
