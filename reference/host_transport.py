@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Iterable, Mapping
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
-from host_io import HostIO
+from host_io import HostIO, NetworkTransport
 from device_command import CommandBatch, DeviceCommand, is_response, round_trip
 
 
@@ -313,6 +313,8 @@ class SocketHostTransportAdapter(HostTransportAdapter):
             raise RuntimeError("host endpoint has no network channel")
         if getattr(channel, "_closed", False):
             raise RuntimeError("host network channel is already closed")
+        if not isinstance(channel, NetworkTransport):
+            raise TypeError("host network channel must implement NetworkTransport")
         return SocketNetworkTransport(channel)
 
     def connect(
