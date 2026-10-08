@@ -266,6 +266,33 @@ class HostTransportAdapter:
         interface.detach()
 
 
+class SocketHostTransportAdapter(HostTransportAdapter):
+    """Host transport adapter using a connected socket network channel.
+
+    Discovery remains provider-driven; the provider supplies endpoint identity
+    and the connected socket through the endpoint's network channel.
+    """
+
+    def __init__(self, provider) -> None:
+        self._provider = provider
+
+    def enumerate(self) -> tuple[HostEndpoint, ...]:
+        return self.discover_provider(self._provider)
+
+    @property
+    def provider(self):
+        return self._provider
+
+    def open_network(self, endpoint: HostEndpoint):
+        """Return the connected socket transport advertised by an endpoint."""
+        from host_socket import SocketNetworkTransport
+
+        channel = endpoint.channel_map().get("network")
+        if channel is None:
+            raise RuntimeError("host endpoint has no network channel")
+        return SocketNetworkTransport(channel)
+    
+
 class ProviderHostTransportAdapter(HostTransportAdapter):
     """Reference adapter backed by a platform discovery provider.
 
