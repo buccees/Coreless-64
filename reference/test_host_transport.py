@@ -1187,11 +1187,12 @@ def test_host_transport_failed_reconnect_channel_bind_preserves_live_session():
     adapter = MemoryHostTransportAdapter((first, second))
     interface = FailingBindInterface(identity)
 
-    # The failing interface rejects the first replacement bind as well, so
-    # establish a live session using the base interface before reconnecting.
-    CorelessHostInterface.connect(interface, first.identity, first.capabilities)
-    previous = object()
-    interface._channels["display"] = previous
+    # Establish the initial live session through the base adapter behavior,
+    # then install the channel that the reconnect must preserve.
+    HostTransportAdapter.connect(
+        adapter, first, interface
+    )
+    previous = interface.channel("display")
 
     with pytest.raises(RuntimeError, match="replacement channel bind failed"):
         adapter.connect(second, interface)
