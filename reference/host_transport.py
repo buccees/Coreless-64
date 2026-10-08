@@ -445,9 +445,12 @@ class SocketHostTransportAdapter(HostTransportAdapter):
             # succeeds. Retire it if validation or attachment fails so a
             # failed reconnect cannot leak a live host socket. Cleanup failure
             # must never mask the original connection failure.
-            if network_transport is not None and not shares_previous_socket:
+            if network_transport is not None:
                 try:
-                    network_transport.close()
+                    if shares_previous_socket:
+                        network_transport.retire_without_closing_socket()
+                    else:
+                        network_transport.close()
                 except Exception:
                     pass
             # A fresh attachment may have been partially established before
