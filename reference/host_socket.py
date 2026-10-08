@@ -30,6 +30,10 @@ class SocketNetworkTransport:
     _MAX_PACKET = 16 * 1024 * 1024
 
     def __init__(self, sock: SocketLike, *, max_packet_size: int = _MAX_PACKET) -> None:
+        if not all(callable(getattr(sock, name, None)) for name in ("sendall", "recv", "close")):
+            raise TypeError("sock must provide sendall(), recv(), and close()")
+        if isinstance(max_packet_size, bool) or not isinstance(max_packet_size, int):
+            raise TypeError("max_packet_size must be an integer")
         if max_packet_size <= 0:
             raise ValueError("max_packet_size must be positive")
         if max_packet_size > self._MAX_PACKET:
@@ -41,6 +45,11 @@ class SocketNetworkTransport:
     @property
     def closed(self) -> bool:
         return self._closed
+
+    @property
+    def socket(self) -> SocketLike:
+        """Return the host-owned socket for adapter lifecycle comparison."""
+        return self._socket
 
     def send_packet(self, packet: bytes) -> None:
         """Send one length-delimited packet."""
@@ -70,8 +79,10 @@ class SocketNetworkTransport:
     def close(self) -> None:
         """Close the host-owned socket without changing Coreless state."""
         if not self._closed:
-            self._socket.close()
-            self._closed = True
+            try:
+                self._socket.close()
+            finally:
+                self._closed = True
 
     def _recv_exact(self, size: int) -> bytes:
         chunks = bytearray()
