@@ -581,6 +581,37 @@ def test_socket_host_transport_adapter_opens_network_channel():
     right.close()
 
 
+def test_socket_host_transport_adapter_propagates_packet_size():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-configured",
+        CorelessIdentity("socket-configured"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object(), max_packet_size=7)
+    try:
+        transport = adapter.open_network(endpoint)
+        assert isinstance(transport, SocketNetworkTransport)
+        assert adapter.max_packet_size == 7
+        transport.send_packet(b"1234567")
+        assert right.recv(11).endswith(b"1234567")
+        with pytest.raises(ValueError, match="exceeds host transport limit"):
+            transport.send_packet(b"12345678")
+    finally:
+        if not getattr(left, "_closed", False):
+            try:
+                left.close()
+            except OSError:
+                pass
+        right.close()
+
+
 def test_socket_host_transport_adapter_requires_network_channel():
     from host_transport import SocketHostTransportAdapter
     endpoint = HostEndpoint(
