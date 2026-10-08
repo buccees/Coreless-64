@@ -380,6 +380,25 @@ def test_host_transport_reconnect_drops_stale_channels():
         interface.channel("network")
 
 
+def test_host_transport_session_rejects_missing_negotiated_channel():
+    display = object()
+    endpoint = HostEndpoint(
+        "coreless-session-missing-live-channel",
+        CorelessIdentity("coreless-session-missing-live-channel"),
+        HostCapabilities(display=True),
+        {"display": display},
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-session-missing-live-channel"))
+    session = adapter.open_session(endpoint, interface)
+
+    interface.clear_channels()
+
+    with pytest.raises(RuntimeError, match="channels are missing"):
+        session.validate()
+
+
 def test_host_transport_session_exposes_and_requires_live_channels():
     display = object()
     endpoint = HostEndpoint(
