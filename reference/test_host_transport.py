@@ -1899,3 +1899,49 @@ def test_socket_host_transport_reconnect_ignores_stale_close_failure():
             adapter.disconnect(interface)
         right1.close()
         right2.close()
+
+
+def test_socket_host_transport_disconnect_preserves_non_close_exceptions_after_detach():
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    class FailingCloseTransport(SocketNetworkTransport):
+        def close(self):
+            self._closed = True
+            raise RuntimeError("unexpected socket cleanup failure")
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def open_network(self, endpoint):
+            return FailingCloseTransport(endpoint.channel_map()["network"])
+
+    class TrackingSocket:
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            raise RuntimeError("unexpected socket cleanup failure")
+
+        def fileno(self):
+            return 42
+
+    identity = CorelessIdentity("socket-disconnect-runtime-failure")
+    endpoint = HostEndpoint(
+        "socket-disconnect-runtime-failure",
+        identity,
+        HostCapabilities(network=True),
+        {"network": TrackingSocket()},
+        device_capabilities={"network"},
+    )
+    adapter = TrackingAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    adapter.connect(endpoint, interface)
+
+    with pytest.raises(RuntimeError, match="unexpected socket cleanup failure"):
+        adapter.disconnect(interface)
+
+    assert not interface.attached
+    assert interface.channels == {}
