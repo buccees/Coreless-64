@@ -344,13 +344,21 @@ class SocketHostTransportAdapter(HostTransportAdapter):
             if "network" not in endpoint.channel_map():
                 raise RuntimeError("host endpoint has no network channel")
             network_transport = self.open_network(endpoint)
-        negotiated = super().connect(
-            endpoint,
-            interface,
-            system=system,
-            host_io=host_io,
-            input_router=input_router,
-        )
+        try:
+            negotiated = super().connect(
+                endpoint,
+                interface,
+                system=system,
+                host_io=host_io,
+                input_router=input_router,
+            )
+        except Exception:
+            # The replacement socket is not attached until the base connection
+            # succeeds. Retire it if validation or attachment fails so a
+            # failed reconnect cannot leak a live host socket.
+            if network_transport is not None:
+                network_transport.close()
+            raise
         if network_transport is not None and "network" in negotiated:
             interface.bind_channel("network", network_transport)
         if isinstance(previous, SocketNetworkTransport) and previous is not network_transport:
