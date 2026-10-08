@@ -147,16 +147,44 @@ class HostTransportAdapter:
             if "network" in negotiated_preview and not isinstance(host_io.network, NetworkTransport):
                 raise TypeError("host network transport does not implement the Coreless network contract")
 
-        negotiated = interface.attach_identity_frame(
-            endpoint.identity_frame(), endpoint.capabilities, system=system
-        )
-        interface.clear_channels()
-        for capability, channel in endpoint.channel_map().items():
-            if capability in negotiated:
-                interface.bind_channel(capability, channel)
-        if host_io is not None:
-            interface.bind_host_io(host_io, input_router=input_router)
-        return negotiated
+        # Snapshot the live attachment before any replacement mutation. The
+        # identity layer is transactional on negotiation failure, but channel
+        # binding and HostIO installation can also fail after that point.
+        original_attached = interface._attached
+        original_negotiated = interface._negotiated
+        original_host_capabilities = interface._host_capabilities
+        original_system = interface._system
+        original_hub = interface._hub
+        original_channels = dict(interface._channels)
+        original_input_router = interface._input_router
+        original_host_io = interface._host_io
+        original_last_host_display = interface._last_host_display
+        try:
+            negotiated = interface.attach_identity_frame(
+                endpoint.identity_frame(), endpoint.capabilities, system=system
+            )
+            interface.clear_channels()
+            for capability, channel in endpoint.channel_map().items():
+                if capability in negotiated:
+                    interface.bind_channel(capability, channel)
+            if host_io is not None:
+                interface.bind_host_io(host_io, input_router=input_router)
+            return negotiated
+        except Exception:
+            # Reconnects are transactional across the whole attachment
+            # boundary: restore the previously live channels and HostIO if
+            # any post-negotiation binding step fails.
+            if original_attached:
+                interface._attached = original_attached
+                interface._negotiated = original_negotiated
+                interface._host_capabilities = original_host_capabilities
+                interface._system = original_system
+                interface._hub = original_hub
+                interface._channels = original_channels
+                interface._input_router = original_input_router
+                interface._host_io = original_host_io
+                interface._last_host_display = original_last_host_display
+            raise
 
     def open_session(
         self,
