@@ -328,8 +328,6 @@ class SocketHostTransportAdapter(HostTransportAdapter):
         from host_socket import SocketNetworkTransport
 
         previous = interface.channels.get("network")
-        if isinstance(previous, SocketNetworkTransport):
-            previous.close()
         negotiated = super().connect(
             endpoint,
             interface,
@@ -338,7 +336,11 @@ class SocketHostTransportAdapter(HostTransportAdapter):
             input_router=input_router,
         )
         if "network" in negotiated and "network" in endpoint.channel_map():
-            interface.bind_channel("network", self.open_network(endpoint))
+            current = self.open_network(endpoint)
+            interface.bind_channel("network", current)
+            if isinstance(previous, SocketNetworkTransport) and previous is not current:
+                if previous.socket is not current.socket:
+                    previous.close()
         return negotiated
 
     def disconnect(self, interface: CorelessHostInterface) -> None:
