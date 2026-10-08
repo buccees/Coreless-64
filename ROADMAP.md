@@ -288,3 +288,13 @@ The host transport layer now validates the transport-neutral HostIO bundle befor
 - [x] Preserve no-partial-attachment behavior on HostIO validation failure
 
 The reference test suite is green at this checkpoint. Next implementation work should proceed toward concrete platform host providers/adapters while preserving the transport-neutral boundary.
+
+
+## Documentation checkpoint — 2026-10-08: reconnect transaction hardening
+
+- [x] Reject already-closed raw socket channels at adapter construction
+- [x] Clean up newly constructed socket transports on failed connection
+- [x] Preserve a live attachment when replacement HostIO validation fails
+- [x] Cover reconnect HostIO atomicity with regression tests
+
+The latest transport-hardening reference tests are green. The next implementation step should address the next concrete transport lifecycle contract without regressing the transport-neutral HostIO/discovery boundaries.
