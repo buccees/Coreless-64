@@ -353,9 +353,9 @@ class SocketHostTransportAdapter(HostTransportAdapter):
         )
         if network_transport is not None and "network" in negotiated:
             interface.bind_channel("network", network_transport)
-            if isinstance(previous, SocketNetworkTransport) and previous is not network_transport:
-                if previous.socket is not network_transport.socket:
-                    previous.close()
+        if isinstance(previous, SocketNetworkTransport) and previous is not network_transport:
+            if network_transport is None or previous.socket is not network_transport.socket:
+                previous.close()
         return negotiated
 
     def disconnect(self, interface: CorelessHostInterface) -> None:
