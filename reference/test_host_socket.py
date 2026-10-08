@@ -361,3 +361,45 @@ def test_socket_network_transport_retirement_ignores_unexpected_close_error():
     assert transport.closed
     with pytest.raises(RuntimeError, match="transport is closed"):
         transport.send_packet(b"again")
+
+
+def test_socket_network_transport_marks_send_type_error_closed():
+    class TypeErrorSocket:
+        def sendall(self, data):
+            raise TypeError("send type failed")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            pass
+
+    transport = SocketNetworkTransport(TypeErrorSocket())
+
+    with pytest.raises(TypeError, match="send type failed"):
+        transport.send_packet(b"x")
+
+    assert transport.closed
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.send_packet(b"again")
+
+
+def test_socket_network_transport_marks_receive_type_error_closed():
+    class TypeErrorSocket:
+        def recv(self, size):
+            raise TypeError("recv type failed")
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def close(self):
+            pass
+
+    transport = SocketNetworkTransport(TypeErrorSocket())
+
+    with pytest.raises(TypeError, match="recv type failed"):
+        transport.receive_packet()
+
+    assert transport.closed
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.receive_packet()
