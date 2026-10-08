@@ -897,3 +897,39 @@ def test_qwen3_runtime_assembles_final_logits_for_greedy_decode():
     assert generated == [0, 1, 2]
     assert runtime.last_row_calls == 2
     assert runtime.argmax_calls == 2
+
+
+def test_qwen3_config_rejects_nonpositive_architecture_dimensions():
+    invalid_configs = (
+        (0, 4, 1, 2, 1, 8, 16),
+        (4, 0, 1, 2, 1, 8, 16),
+        (4, 8, 0, 2, 1, 8, 16),
+        (4, 8, 1, 0, 1, 8, 16),
+        (4, 8, 1, 2, 0, 8, 16),
+        (4, 8, 1, 2, 1, 0, 16),
+        (4, 8, 1, 2, 1, 8, 0),
+    )
+    for args in invalid_configs:
+        try:
+            Qwen3Config(*args)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid Qwen3 configuration was accepted: {args}")
+
+
+def test_qwen3_config_rejects_invalid_normalization_and_rope_parameters():
+    base = (4, 8, 1, 2, 1, 8, 16)
+    invalid_options = (
+        {"rms_norm_eps": -1e-6},
+        {"rope_theta": 0.0},
+        {"rope_scaling_factor": 0.0},
+        {"original_max_position_embeddings": 0},
+    )
+    for options in invalid_options:
+        try:
+            Qwen3Config(*base, **options)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid Qwen3 options were accepted: {options}")
