@@ -1207,7 +1207,8 @@ def test_socket_host_transport_closes_network_when_reconnect_drops_capability():
         adapter.connect(plain_endpoint, interface)
 
         assert previous.closed
-        assert not interface.transport_ready({"network"})
+        with pytest.raises(PermissionError, match="capabilities were not negotiated"):
+            interface.transport_ready({"network"})
         assert interface.channel("display") is not None
     finally:
         if interface.attached:
