@@ -139,3 +139,14 @@ Verified GitHub Actions runs **#1552** and **#1556** are green. This remains a t
 Reusable host transport sessions distinguish session liveness from channel requirements: session validation checks attachment, identity, negotiated-state consistency, and closed channels that are present, while `require_channels()` explicitly rejects missing or closed requested channels. This keeps existing negotiated sessions compatible with partial channel binding while giving callers a deterministic completeness check when required.
 
 GitHub Actions run **#1569** is green for the corrective validation checkpoint.
+
+
+## Documentation checkpoint — 2026-10-08: socket transport hardening complete
+
+The socket-backed host transport lifecycle hardening pass is complete at the reference boundary. Replacement socket construction failures now leave an existing live session intact; a later valid reconnect can recover normally. Send/receive transport failures retire the affected socket wrapper, cleanup errors do not mask the original transport failure, scoped cleanup preserves body exceptions, and disconnect detaches the Coreless interface even when socket cleanup reports an error.
+
+Regression coverage exercises failed reconnect recovery, socket ownership across reconnects, closed-channel/session validation, transport retirement, and disconnect cleanup. **GitHub Actions run #1662 is green** for the final reconnect-recovery regression.
+
+### Transport resume point
+
+The reference socket lifecycle hardening is complete. Do not continue adding socket edge cases without a concrete contract failure. The next host-interface work is concrete cross-platform enumeration and platform display/input/network adapters.
