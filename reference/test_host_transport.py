@@ -710,3 +710,58 @@ def test_socket_host_transport_session_binds_typed_network_transport():
     with pytest.raises(RuntimeError, match="transport is closed"):
         transport.send_packet(b"after-close")
     right.close()
+
+def test_socket_host_transport_session_receives_framed_network_packet():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-session-receive",
+        CorelessIdentity("socket-session-receive"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-session-receive"))
+
+    session = adapter.open_session(endpoint, interface)
+    transport = session.channel("network")
+    assert isinstance(transport, SocketNetworkTransport)
+
+    right.sendall((7).to_bytes(4, "big") + b"network")
+    assert transport.receive_packet() == b"network"
+
+    adapter.close_session(session)
+    right.close()
+
+
+def test_socket_host_transport_session_rejects_peer_close():
+    import socket
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-session-peer-close",
+        CorelessIdentity("socket-session-peer-close"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-session-peer-close"))
+
+    session = adapter.open_session(endpoint, interface)
+    transport = session.channel("network")
+    right.close()
+
+    with pytest.raises(ConnectionError, match="socket closed"):
+        transport.receive_packet()
+    assert transport.closed
+
+    with pytest.raises(RuntimeError, match="channels are closed"):
+        session.validate()
+
+    adapter.close_session(session)
