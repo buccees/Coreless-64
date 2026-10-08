@@ -359,8 +359,18 @@ class SocketHostTransportAdapter(HostTransportAdapter):
             if network_transport is not None:
                 network_transport.close()
             raise
-        if network_transport is not None and "network" in negotiated:
-            interface.bind_channel("network", network_transport)
+        if network_transport is not None:
+            if "network" in negotiated:
+                try:
+                    interface.bind_channel("network", network_transport)
+                except Exception:
+                    network_transport.close()
+                    raise
+            else:
+                # The endpoint supplied a socket, but negotiation may decline
+                # network support on the Coreless side. Do not leave that
+                # newly-created transport live when it cannot be attached.
+                network_transport.close()
         if isinstance(previous, SocketNetworkTransport) and previous is not network_transport:
             if network_transport is None or previous.socket is not network_transport.socket:
                 previous.close()
