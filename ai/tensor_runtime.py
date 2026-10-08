@@ -994,6 +994,8 @@ class TensorRuntime:
             raise RuntimeError("tensor runtime has no persistent storage")
         if not name or "/" in name:
             raise ValueError("tensor name must be a non-empty local name")
+        if any(not isfinite(item) for item in value.data):
+            raise ValueError("tensor data must contain only finite values")
         key = f"{self.namespace}/{name}"
         payload = json.dumps(
             {"version": 2, "shape": list(value.shape), "dtype": value.dtype, "data": list(value.data)},
