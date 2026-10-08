@@ -951,6 +951,31 @@ def test_socket_host_transport_preserves_host_io_non_network_channels():
         right.close()
 
 
+def test_host_transport_session_rejects_closed_raw_socket_channel():
+    import socket
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("session-closed-raw-socket")
+    endpoint = HostEndpoint(
+        "session-closed-raw-socket",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(identity)
+    session = adapter.open_session(endpoint, interface)
+
+    left.close()
+    right.close()
+
+    with pytest.raises(RuntimeError, match="channels are closed"):
+        session.validate()
+    with pytest.raises(RuntimeError, match="channels are closed"):
+        session.require_channels({"network"})
+
+
 def test_socket_network_transport_validates_socket_contract():
     from host_socket import SocketNetworkTransport
 
