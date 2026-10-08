@@ -1330,3 +1330,56 @@ def test_qwen3_kv_cache_persist_rejects_runtime_rebinding_before_writing():
         raise AssertionError("cache persistence accepted a different runtime")
 
     assert second_image.objects == {}
+
+
+def test_tensor_runtime_load_rejects_malformed_persisted_payloads():
+    import json
+    from storage import PersistentMachineImage
+
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    malformed_payloads = (
+        b"{not-json",
+        json.dumps([]).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [2], "data": [1.0]}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [0], "data": [], "dtype": "fp32"}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [1], "data": [1.0], "dtype": "not-a-dtype"}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [1], "data": "not-a-list", "dtype": "fp32"}).encode("utf-8"),
+    )
+    for index, payload in enumerate(malformed_payloads):
+        image.objects[f"tensor/broken_{index}"] = payload
+        try:
+            runtime.load(f"broken_{index}")
+        except ValueError as exc:
+            assert "persisted tensor payload" in str(exc)
+        else:
+            raise AssertionError(f"malformed persisted tensor payload {index} was accepted")
+
+
+def test_tensor_runtime_load_rejects_non_local_tensor_names():
+    from storage import PersistentMachineImage
+
+    runtime = TensorRuntime(PersistentMachineImage())
+    for name in ("", "../outside", "nested/tensor"):
+        try:
+            runtime.load(name)
+        except ValueError as exc:
+            assert "local name" in str(exc)
+        else:
+            raise AssertionError(f"non-local tensor name was accepted: {name!r}")
+
+
+def test_qwen3_kv_cache_restore_surfaces_corrupt_persisted_tensor():
+    from storage import PersistentMachineImage
+
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    image.objects["tensor/corrupt_layer_0_key"] = b"not-json"
+
+    try:
+        Qwen3KVCache.restore(runtime, "corrupt", 1)
+    except ValueError as exc:
+        assert "invalid persisted tensor payload" in str(exc)
+    else:
+        raise AssertionError("Qwen3 cache restore accepted a corrupt key tensor")
+
