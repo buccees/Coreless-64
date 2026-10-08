@@ -95,6 +95,15 @@ class SocketNetworkTransport:
             finally:
                 self._closed = True
 
+    def __enter__(self) -> "SocketNetworkTransport":
+        """Return the live transport for scoped host socket ownership."""
+        self._ensure_open()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        """Retire the transport when its scoped ownership ends."""
+        self.close()
+
     def retire_without_closing_socket(self) -> None:
         """Invalidate this wrapper while leaving a shared socket usable."""
         self._closed = True
