@@ -539,3 +539,16 @@ Regression coverage now exercises failed reconnect HostIO validation, channel re
 The reconnect and session closed-channel atomicity work is complete. Continue with the next concrete socket/transport lifecycle contract or platform-provider integration. Do not revisit memory ownership or the closed-raw-socket regression unless a new failure requires it.
 
 The host boundary remains transport-neutral above the concrete socket adapter and does not claim completed physical display/input/network hardware enumeration.
+
+
+## Documentation checkpoint — 2026-10-08: session validation contract correction
+
+The reusable transport-session validation boundary was rechecked after a regression exposed an overly strong invariant. Session `validate()` remains responsible for attachment identity, negotiated-state consistency, and detection of channels that are present but closed; it does not require every negotiated capability to currently have a bound channel. Explicit channel completeness remains the responsibility of `require_channels()`.
+
+The regression coverage for a missing negotiated channel therefore exercises `require_channels()`, preserving the established session contract while still rejecting incomplete channel requirements deterministically.
+
+**Verified CI:** GitHub Actions run **#1569** is green for commit `2cf39f92e6a9b9923a734f02d91902ea783884f0`.
+
+### Current transport resume point
+
+The corrective session-validation change is green. Continue with the next concrete socket/transport lifecycle or platform-provider contract. Preserve the distinction between session liveness validation and explicit channel requirements.
