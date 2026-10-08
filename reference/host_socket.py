@@ -95,6 +95,10 @@ class SocketNetworkTransport:
             finally:
                 self._closed = True
 
+    def retire_without_closing_socket(self) -> None:
+        """Invalidate this wrapper while leaving a shared socket usable."""
+        self._closed = True
+
     def _recv_exact(self, size: int) -> bytes:
         chunks = bytearray()
         while len(chunks) < size:
