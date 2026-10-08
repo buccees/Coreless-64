@@ -830,7 +830,7 @@ def test_socket_host_transport_session_rejects_peer_close():
 
 def test_socket_host_transport_preserves_host_io_non_network_channels():
     import socket
-    from host_io import MemoryHostIO
+    from host_io import MemoryHostIO, MemoryNetworkTransport
     from host_socket import SocketNetworkTransport
     from host_transport import SocketHostTransportAdapter
 
@@ -844,7 +844,7 @@ def test_socket_host_transport_preserves_host_io_non_network_channels():
     )
     adapter = SocketHostTransportAdapter(object())
     interface = CorelessHostInterface(CorelessIdentity("socket-host-io"))
-    host_io = MemoryHostIO()
+    host_io = MemoryHostIO(network=MemoryNetworkTransport())
 
     try:
         session = adapter.open_session(
@@ -853,6 +853,7 @@ def test_socket_host_transport_preserves_host_io_non_network_channels():
             host_io=host_io,
         )
         assert isinstance(session.channel("network"), SocketNetworkTransport)
+        assert session.channel("network") is not host_io.network
         assert session.channel("display") is host_io.display
     finally:
         adapter.disconnect(interface)
