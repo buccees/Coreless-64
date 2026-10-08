@@ -396,7 +396,7 @@ def test_host_transport_session_rejects_missing_negotiated_channel():
     interface.clear_channels()
 
     with pytest.raises(RuntimeError, match="channels are missing"):
-        session.validate()
+        session.require_channels({"display"})
 
 
 def test_host_transport_session_exposes_and_requires_live_channels():
