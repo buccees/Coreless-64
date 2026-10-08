@@ -1028,6 +1028,7 @@ class TensorRuntime:
             or not shape
             or any(type(dim) is not int or dim <= 0 for dim in shape)
             or not isinstance(data, list)
+            or any(type(value) not in (int, float) for value in data)
             or not isinstance(dtype, str)
         ):
             raise ValueError("invalid persisted tensor payload")
