@@ -501,7 +501,12 @@ class SocketHostTransportAdapter(HostTransportAdapter):
                 # The endpoint supplied a socket, but negotiation may decline
                 # network support on the Coreless side. Do not leave that
                 # newly-created transport live when it cannot be attached.
-                network_transport.close()
+                # Cleanup is best-effort because successful attachment state
+                # must not be replaced by a close error from an unused wrapper.
+                try:
+                    network_transport.close()
+                except Exception:
+                    pass
         if isinstance(previous, SocketNetworkTransport) and previous is not network_transport:
             if network_transport is not None and previous.socket is network_transport.socket:
                 # Reconnect created a new wrapper around the same host socket.
