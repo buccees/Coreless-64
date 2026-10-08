@@ -298,3 +298,24 @@ def test_socket_network_transport_context_manager_preserves_body_error_when_clos
             raise RuntimeError("body failed")
 
     assert transport.closed
+
+
+def test_socket_network_transport_marks_send_value_error_closed():
+    class ValueErrorSocket:
+        def sendall(self, data):
+            raise ValueError("send value failed")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            pass
+
+    transport = SocketNetworkTransport(ValueErrorSocket())
+
+    with pytest.raises(ValueError, match="send value failed"):
+        transport.send_packet(b"x")
+
+    assert transport.closed
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.send_packet(b"again")
