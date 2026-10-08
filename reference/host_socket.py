@@ -64,10 +64,10 @@ class SocketNetworkTransport:
     def send_packet(self, packet: bytes) -> None:
         """Send one length-delimited packet."""
         self._ensure_open()
-        payload = bytes(packet)
-        if len(payload) > self._max_packet_size:
-            raise ValueError("network packet exceeds host transport limit")
         try:
+            payload = bytes(packet)
+            if len(payload) > self._max_packet_size:
+                raise ValueError("network packet exceeds host transport limit")
             self._socket.sendall(self._HEADER.pack(len(payload)) + payload)
         except (ConnectionError, OSError, TypeError, ValueError):
             self._retire_after_transport_error()
