@@ -1055,3 +1055,36 @@ def test_qwen3_runtime_rejects_missing_required_weight_before_cache_mutation():
     else:
         raise AssertionError("runtime accepted missing required Qwen3 weights")
     assert cache.sequence_length == 0
+
+
+def test_qwen3_greedy_decode_rejects_invalid_eos_token_before_early_return():
+    from qwen3 import Qwen3Runtime
+
+    model = Qwen3Runtime(Qwen3Config(2, 2, 1, 1, 1, 3, 8), ModelWeights([]))
+    for eos_token_id in (-1, 3):
+        try:
+            model.generate_greedy([], 0, eos_token_id=eos_token_id)
+        except ValueError as exc:
+            assert "EOS token id" in str(exc)
+        else:
+            raise AssertionError(f"invalid EOS token id was accepted: {eos_token_id}")
+
+
+def test_qwen3_greedy_decode_validates_prompt_even_when_no_tokens_requested():
+    from qwen3 import Qwen3Runtime
+
+    model = Qwen3Runtime(Qwen3Config(2, 2, 1, 1, 1, 3, 2), ModelWeights([]))
+    for prompt in ([-1], [3], [0, 1, 2]):
+        try:
+            model.generate_greedy(prompt, 0)
+        except ValueError as exc:
+            assert "token id" in str(exc) or "context length" in str(exc)
+        else:
+            raise AssertionError(f"invalid prompt was accepted: {prompt}")
+
+
+def test_qwen3_greedy_decode_zero_new_tokens_returns_valid_prompt_without_model_execution():
+    from qwen3 import Qwen3Runtime
+
+    model = Qwen3Runtime(Qwen3Config(2, 2, 1, 1, 1, 3, 2), ModelWeights([]))
+    assert model.generate_greedy([0, 2], 0) == [0, 2]
