@@ -738,6 +738,35 @@ def test_socket_host_transport_session_receives_framed_network_packet():
     right.close()
 
 
+
+def test_socket_host_transport_session_rejects_send_failure():
+    import socket
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-session-send-failure",
+        CorelessIdentity("socket-session-send-failure"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-session-send-failure"))
+
+    session = adapter.open_session(endpoint, interface)
+    transport = session.channel("network")
+    right.close()
+
+    with pytest.raises((BrokenPipeError, ConnectionError, OSError)):
+        transport.send_packet(b"after-peer-close")
+    assert transport.closed
+
+    with pytest.raises(RuntimeError, match="channels are closed"):
+        session.validate()
+
+    adapter.close_session(session)
+
 def test_socket_host_transport_session_rejects_peer_close():
     import socket
     from host_transport import SocketHostTransportAdapter
