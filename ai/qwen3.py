@@ -156,6 +156,24 @@ class Qwen3Config:
     original_max_position_embeddings: int | None = None
 
     def __post_init__(self) -> None:
+        if min(
+            self.hidden_size,
+            self.intermediate_size,
+            self.num_hidden_layers,
+            self.num_attention_heads,
+            self.num_key_value_heads,
+            self.vocab_size,
+            self.max_position_embeddings,
+        ) <= 0:
+            raise ValueError("Qwen3 dimensions, layer count, vocabulary, and context length must be positive")
+        if self.rms_norm_eps < 0.0:
+            raise ValueError("Qwen3 RMSNorm epsilon must be non-negative")
+        if self.rope_theta <= 0.0:
+            raise ValueError("Qwen3 RoPE theta must be positive")
+        if self.rope_scaling_factor is not None and self.rope_scaling_factor <= 0.0:
+            raise ValueError("Qwen3 RoPE scaling factor must be positive")
+        if self.original_max_position_embeddings is not None and self.original_max_position_embeddings <= 0:
+            raise ValueError("Qwen3 original context length must be positive")
         head_dim = self.head_dim or (self.hidden_size // self.num_attention_heads)
         if self.hidden_size % self.num_attention_heads:
             raise ValueError("hidden_size must be divisible by num_attention_heads")
