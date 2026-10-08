@@ -624,3 +624,32 @@ def test_socket_host_transport_adapter_rejects_closed_channel():
             SocketHostTransportAdapter(object()).open_network(endpoint)
     finally:
         right.close()
+
+
+def test_socket_host_transport_session_binds_typed_network_transport():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-session",
+        CorelessIdentity("socket-session"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-session"))
+
+    session = adapter.open_session(endpoint, interface)
+    transport = session.channel("network")
+    assert isinstance(transport, SocketNetworkTransport)
+
+    transport.send_packet(b"session")
+    assert right.recv(1024).endswith(b"session")
+
+    adapter.close_session(session)
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.send_packet(b"after-close")
+    right.close()
