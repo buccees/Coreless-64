@@ -68,10 +68,14 @@ class Qwen3KVCache:
         """Persist every populated KV tensor through the Coreless tensor store."""
         if not name or "/" in name:
             raise ValueError("cache name must be a non-empty local name")
+        # Validate the entire cache before the first persistent write. This
+        # prevents malformed layer counts or divergent sequence lengths from
+        # leaving a partially updated persistent snapshot.
+        self.validate()
+        if self.runtime is not None and runtime is not self.runtime:
+            raise ValueError("Qwen3 KV cache is bound to a different TensorRuntime")
         keys: list[str] = []
         for layer_index, (key, value) in enumerate(zip(self.keys, self.values)):
-            if (key is None) != (value is None):
-                raise ValueError("Qwen3 KV cache layer must contain both key and value")
             if key is None or value is None:
                 continue
             keys.append(runtime.save(f"{name}_layer_{layer_index}_key", key))
