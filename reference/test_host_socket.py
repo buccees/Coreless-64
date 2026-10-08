@@ -84,6 +84,35 @@ def test_socket_network_transport_retires_on_oversized_incoming_header():
         left.close()
 
 
+
+def test_socket_network_transport_rejects_already_closed_raw_socket():
+    left, right = socket.socketpair()
+    left.close()
+    try:
+        with pytest.raises(RuntimeError, match="socket is already closed"):
+            SocketNetworkTransport(left)
+    finally:
+        right.close()
+
+
+def test_socket_network_transport_accepts_socket_like_closed_contract():
+    class SocketLikeClosed:
+        closed = False
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            pass
+
+    transport = SocketNetworkTransport(SocketLikeClosed())
+    assert not transport.closed
+    transport.close()
+
+
 def test_socket_network_transport_rejects_use_after_close():
     sender, receiver = transport_pair()
     sender.close()
