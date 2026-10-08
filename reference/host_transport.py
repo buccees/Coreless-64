@@ -337,9 +337,12 @@ class SocketHostTransportAdapter(HostTransportAdapter):
 
         previous = interface.channels.get("network")
         network_transport = None
-        if endpoint.capabilities.network and "network" in endpoint.channel_map():
-            # Construct the replacement before mutating the current attachment.
-            # A bad reconnect must leave a live session untouched.
+        if endpoint.capabilities.network:
+            # A negotiated network capability must always have a concrete socket
+            # channel. Validate and construct the replacement before mutating the
+            # current attachment so a bad reconnect leaves the live session intact.
+            if "network" not in endpoint.channel_map():
+                raise RuntimeError("host endpoint has no network channel")
             network_transport = self.open_network(endpoint)
         negotiated = super().connect(
             endpoint,
