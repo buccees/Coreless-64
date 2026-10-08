@@ -56,12 +56,13 @@ class HostTransportSession:
     def require_channels(self, capabilities: frozenset[str] | set[str]) -> None:
         """Require all requested session capabilities to have live channels."""
         self.validate()
-        if not self.interface.transport_ready(capabilities):
-            missing = sorted(
-                capability
-                for capability in capabilities
-                if capability not in self.interface.channels
-            )
+        missing = sorted(
+            capability
+            for capability in capabilities
+            if capability not in self.interface.channels
+            or bool(getattr(self.interface.channels[capability], "closed", False))
+        )
+        if missing:
             raise RuntimeError(
                 f"host transport session channels are missing: {missing}"
             )
@@ -74,6 +75,16 @@ class HostTransportSession:
             raise RuntimeError("host transport session identity changed")
         if self.interface.negotiated != self.negotiated:
             raise RuntimeError("host transport session negotiation changed")
+        closed = sorted(
+            capability
+            for capability in self.negotiated
+            if capability in self.interface.channels
+            and bool(getattr(self.interface.channels[capability], "closed", False))
+        )
+        if closed:
+            raise RuntimeError(
+                f"host transport session channels are closed: {closed}"
+            )
 
 
 class HostTransportAdapter:
