@@ -1047,6 +1047,46 @@ def test_socket_host_transport_reconnect_same_socket_does_not_close_new_transpor
         right.close()
 
 
+def test_socket_host_transport_closes_unnegotiated_replacement():
+    from host_transport import SocketHostTransportAdapter
+
+    class TrackingTransport:
+        closed = False
+        socket = object()
+
+        def close(self):
+            self.closed = True
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = None
+
+        def open_network(self, endpoint):
+            self.created = TrackingTransport()
+            return self.created
+
+    endpoint = HostEndpoint(
+        "socket-unnegotiated",
+        CorelessIdentity("socket-unnegotiated"),
+        HostCapabilities(network=True),
+        {"network": object()},
+        device_capabilities={"network"},
+    )
+    adapter = TrackingAdapter()
+    interface = CorelessHostInterface(
+        CorelessIdentity("socket-unnegotiated"),
+        supported={"display"},
+    )
+
+    negotiated = adapter.connect(endpoint, interface)
+
+    assert negotiated == frozenset()
+    assert adapter.created is not None
+    assert adapter.created.closed
+    assert "network" not in interface.channels
+
+
 def test_socket_host_transport_closes_replacement_when_base_connect_fails():
     from host_transport import SocketHostTransportAdapter
 
