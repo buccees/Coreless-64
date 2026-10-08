@@ -648,7 +648,13 @@ class Qwen3Runtime:
         """Generate tokens using native Coreless greedy decoding and KV cache."""
         if max_new_tokens < 0:
             raise ValueError("max_new_tokens must be non-negative")
+        if eos_token_id is not None and not 0 <= eos_token_id < self.config.vocab_size:
+            raise ValueError("EOS token id is outside the Qwen3 vocabulary")
         generated = list(token_ids)
+        if any(token_id < 0 or token_id >= self.config.vocab_size for token_id in generated):
+            raise ValueError("token id is outside the Qwen3 vocabulary")
+        if len(generated) > self.config.max_position_embeddings:
+            raise ValueError("prompt exceeds Qwen3 context length")
         if not generated or max_new_tokens == 0:
             return generated
         cache = Qwen3KVCache.create(self.config.num_hidden_layers, self.tensor_runtime)
