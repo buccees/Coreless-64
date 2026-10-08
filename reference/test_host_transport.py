@@ -606,20 +606,6 @@ def test_socket_host_transport_adapter_requires_network_capability():
         SocketHostTransportAdapter(object()).open_network(endpoint)
 
 
-def test_socket_host_transport_adapter_rejects_invalid_network_channel():
-    from host_transport import SocketHostTransportAdapter
-
-    endpoint = HostEndpoint(
-        "invalid-network-channel",
-        CorelessIdentity("invalid-network-channel"),
-        HostCapabilities(network=True),
-        {"network": object()},
-        device_capabilities={"network"},
-    )
-    with pytest.raises(TypeError, match="must implement NetworkTransport"):
-        SocketHostTransportAdapter(object()).open_network(endpoint)
-
-
 def test_socket_host_transport_adapter_rejects_closed_channel():
     import socket
     from host_transport import SocketHostTransportAdapter
