@@ -317,7 +317,19 @@ class SocketHostTransportAdapter(HostTransportAdapter):
         channel = endpoint.channel_map().get("network")
         if channel is None:
             raise RuntimeError("host endpoint has no network channel")
-        if bool(getattr(channel, "closed", False)):
+        closed = bool(getattr(channel, "closed", False))
+        if not closed:
+            # Python's stdlib socket exposes closed state through fileno()
+            # rather than a public .closed property. Keep the adapter neutral
+            # for SocketNetworkTransport and socket-like test doubles while
+            # rejecting a raw socket that has already been closed.
+            fileno = getattr(channel, "fileno", None)
+            if callable(fileno):
+                try:
+                    closed = fileno() < 0
+                except (OSError, ValueError):
+                    closed = True
+        if closed:
             raise RuntimeError("host network channel is already closed")
         if self._max_packet_size is None:
             return SocketNetworkTransport(channel)
