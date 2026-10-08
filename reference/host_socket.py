@@ -123,7 +123,7 @@ class SocketNetworkTransport:
         self._closed = True
         try:
             self._socket.close()
-        except (ConnectionError, OSError):
+        except (ConnectionError, OSError, ValueError):
             pass
 
     def _ensure_open(self) -> None:
