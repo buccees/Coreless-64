@@ -1,3 +1,37 @@
+"""Socket-backed host network transport for the Coreless host boundary.
+
+This adapter carries Coreless network packets over an already-connected host
+socket. The host owns the socket; Coreless remains the computational owner.
+Packets use a deterministic 32-bit big-endian length prefix so arbitrary packet
+bytes can cross a stream transport without ambiguity.
+"""
+
+from __future__ import annotations
+
+import socket
+import struct
+from typing import Protocol
+
+
+class SocketLike(Protocol):
+    def sendall(self, data: bytes) -> None:
+        ...
+
+    def recv(self, size: int) -> bytes:
+        ...
+
+    def close(self) -> None:
+        ...
+
+
+class SocketNetworkTransport:
+    """NetworkTransport implementation over a connected stream socket."""
+
+    _HEADER = struct.Struct(">I")
+    _MAX_PACKET = 16 * 1024 * 1024
+
+    def __init__(self, sock: SocketLike, *, max_packet_size: int = _MAX_PACKET) -> None:
+        if max_packet_size <= 0:
             raise ValueError("max_packet_size must be positive")
         if max_packet_size > self._MAX_PACKET:
             raise ValueError("max_packet_size exceeds Coreless host limit")
