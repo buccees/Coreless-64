@@ -102,7 +102,14 @@ class SocketNetworkTransport:
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         """Retire the transport when its scoped ownership ends."""
-        self.close()
+        if exc_type is None:
+            self.close()
+            return
+        try:
+            self.close()
+        except Exception:
+            # Cleanup must not mask the exception raised by the scoped body.
+            pass
 
     def retire_without_closing_socket(self) -> None:
         """Invalidate this wrapper while leaving a shared socket usable."""
