@@ -71,6 +71,42 @@ def test_host_interface_detach_preserves_identity_but_closes_channels():
     assert interface.negotiated == frozenset()
 
 
+def test_host_interface_host_io_binding_rolls_back_partial_channel_failure():
+    from host_io import MemoryHostIO, MemoryInputTransport, MemoryNetworkTransport
+    from host_interface import CorelessHostInterface
+
+    class FailingDisplayInterface(CorelessHostInterface):
+        fail_display = False
+
+        def bind_channel(self, capability, channel):
+            if self.fail_display and capability == "display":
+                raise RuntimeError("display channel bind failed")
+            super().bind_channel(capability, channel)
+
+    identity = CorelessIdentity("host-io-bind-atomic")
+    interface = FailingDisplayInterface(identity)
+    host = HostCapabilities(display=True, input=True, network=True)
+    interface.attach(identity, host)
+    original = object()
+    interface.bind_channel("display", original)
+    previous_host_io = object()
+    interface._host_io = previous_host_io
+    previous_display = interface.channel("display")
+
+    replacement = MemoryHostIO(
+        display=original,
+        input=MemoryInputTransport(),
+        network=MemoryNetworkTransport(),
+    )
+    interface.fail_display = True
+
+    with pytest.raises(RuntimeError, match="display channel bind failed"):
+        interface.bind_host_io(replacement)
+
+    assert interface.channel("display") is previous_display
+    assert interface.host_io is previous_host_io
+
+
 def test_host_interface_identity_attachment_rolls_back_failed_reconnect():
     class FailingAttachInterface(CorelessHostInterface):
         def attach(self, identity, host, *, system=None):
