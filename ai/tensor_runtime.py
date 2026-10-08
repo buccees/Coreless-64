@@ -593,23 +593,27 @@ class TensorRuntime:
         fill_value: float,
     ) -> Tensor:
         """Apply a mask and softmax across the final axis without a temporary tensor."""
-        if value.shape != mask.shape:
-            raise ValueError("masked_softmax_last_dim requires matching tensor shapes")
         if len(value.shape) < 2:
             raise ValueError("masked_softmax_last_dim requires a rank-2-or-higher tensor")
+        if mask.shape != value.shape and mask.shape != value.shape[-2:]:
+            raise ValueError("masked_softmax_last_dim requires a matching or broadcastable final-two-axis mask")
         rows = value.size // value.shape[-1]
         width = value.shape[-1]
+        mask_rows = mask.shape[-2]
         outputs = [0.0] * value.size
         for row in range(rows):
             start = row * width
             stop = start + width
+            mask_row = row % mask_rows
+            mask_start = mask_row * width
             maximum = fill_value
-            for index in range(start, stop):
-                if not mask.data[index] and value.data[index] > maximum:
+            for offset, index in enumerate(range(start, stop)):
+                if not mask.data[mask_start + offset] and value.data[index] > maximum:
                     maximum = value.data[index]
             total = 0.0
-            for index in range(start, stop):
-                item = value.data[index] if not mask.data[index] else fill_value
+            for offset, index in enumerate(range(start, stop)):
+                masked = bool(mask.data[mask_start + offset])
+                item = value.data[index] if not masked else fill_value
                 item = exp(item - maximum)
                 outputs[index] = item
                 total += item
