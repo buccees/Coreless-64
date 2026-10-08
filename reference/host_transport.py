@@ -287,9 +287,13 @@ class SocketHostTransportAdapter(HostTransportAdapter):
         """Return the connected socket transport advertised by an endpoint."""
         from host_socket import SocketNetworkTransport
 
+        if not endpoint.capabilities.network:
+            raise RuntimeError("host endpoint does not advertise network capability")
         channel = endpoint.channel_map().get("network")
         if channel is None:
             raise RuntimeError("host endpoint has no network channel")
+        if getattr(channel, "_closed", False):
+            raise RuntimeError("host network channel is already closed")
         return SocketNetworkTransport(channel)
     
 
