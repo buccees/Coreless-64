@@ -114,3 +114,39 @@ def test_socket_network_transport_marks_partial_receive_failure_closed():
         assert receiver.closed
     finally:
         receiver.close()
+
+
+def test_socket_network_transport_rejects_invalid_packet_size():
+    left, right = socket.socketpair()
+    try:
+        with pytest.raises(ValueError, match="must be positive"):
+            SocketNetworkTransport(left, max_packet_size=0)
+        with pytest.raises(ValueError, match="exceeds Coreless host limit"):
+            SocketNetworkTransport(left, max_packet_size=17 * 1024 * 1024)
+    finally:
+        left.close()
+        right.close()
+
+
+def test_socket_network_transport_close_is_idempotent():
+    class CountingSocket:
+        def __init__(self):
+            self.close_calls = 0
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            self.close_calls += 1
+
+    sock = CountingSocket()
+    transport = SocketNetworkTransport(sock)
+
+    transport.close()
+    transport.close()
+
+    assert transport.closed
+    assert sock.close_calls == 1
