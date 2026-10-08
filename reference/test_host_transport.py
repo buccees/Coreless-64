@@ -1743,8 +1743,7 @@ def test_socket_host_transport_reconnect_different_socket_closes_stale_transport
         current.send_packet(b"different-socket-reconnect")
         assert right2.recv(1024).endswith(b"different-socket-reconnect")
 
-        with pytest.raises((ConnectionError, OSError)):
-            right1.recv(1)
+        assert left1.fileno() < 0
     finally:
         if interface.attached:
             adapter.disconnect(interface)
