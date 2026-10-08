@@ -1347,6 +1347,9 @@ def test_tensor_runtime_load_rejects_malformed_persisted_payloads():
         json.dumps({"version": 2, "shape": [1], "data": "not-a-list", "dtype": "fp32"}).encode("utf-8"),
         json.dumps({"version": 2, "shape": [1], "data": ["1.0"], "dtype": "fp32"}).encode("utf-8"),
         json.dumps({"version": 2, "shape": [1], "data": [True], "dtype": "fp32"}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [1], "data": [float("nan")], "dtype": "fp32"}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [1], "data": [float("inf")], "dtype": "fp32"}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [1], "data": [float("-inf")], "dtype": "fp32"}).encode("utf-8"),
         json.dumps({"version": True, "shape": [1], "data": [1.0], "dtype": "fp32"}).encode("utf-8"),
         json.dumps({"version": 2.0, "shape": [1], "data": [1.0], "dtype": "fp32"}).encode("utf-8"),
     )
