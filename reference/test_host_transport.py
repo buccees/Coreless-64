@@ -1349,3 +1349,44 @@ def test_socket_host_transport_base_connect_failure_preserves_original_error_whe
     assert adapter.created is not None
     assert adapter.created.closed
     assert not interface.attached
+
+def test_socket_host_transport_bind_failure_detaches_and_closes_replacement():
+    from host_transport import SocketHostTransportAdapter
+
+    class TrackingTransport:
+        closed = False
+        socket = object()
+
+        def close(self):
+            self.closed = True
+
+    class FailingBindInterface(CorelessHostInterface):
+        def bind_channel(self, capability, channel):
+            raise RuntimeError("bind failed")
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = None
+
+        def open_network(self, endpoint):
+            self.created = TrackingTransport()
+            return self.created
+
+    endpoint = HostEndpoint(
+        "socket-bind-fails",
+        CorelessIdentity("socket-bind-fails"),
+        HostCapabilities(network=True),
+        {"network": object()},
+        device_capabilities={"network"},
+    )
+    adapter = TrackingAdapter()
+    interface = FailingBindInterface(CorelessIdentity("socket-bind-fails"))
+
+    with pytest.raises(RuntimeError, match="bind failed"):
+        adapter.connect(endpoint, interface)
+
+    assert adapter.created is not None
+    assert adapter.created.closed
+    assert not interface.attached
+    assert interface.channels == {}
