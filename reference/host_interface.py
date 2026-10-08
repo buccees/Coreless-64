@@ -312,16 +312,27 @@ class CorelessHostInterface:
         if "network" in self._negotiated and not isinstance(host_io.network, NetworkTransport):
             raise TypeError("host network transport does not implement the Coreless network contract")
 
-        if "display" in self._negotiated:
-            self.bind_channel("display", host_io.display)
-        if "network" in self._negotiated:
-            self.bind_channel("network", host_io.network)
-        if "input" in self._negotiated:
-            if input_router is not None:
-                self.bind_input_router(input_router)
-            self._channels["input"] = host_io.input
-        self._host_io = host_io
-        self._last_host_display = None
+        original_channels = dict(self._channels)
+        original_input_router = self._input_router
+        original_host_io = self._host_io
+        original_last_host_display = self._last_host_display
+        try:
+            if "display" in self._negotiated:
+                self.bind_channel("display", host_io.display)
+            if "network" in self._negotiated:
+                self.bind_channel("network", host_io.network)
+            if "input" in self._negotiated:
+                if input_router is not None:
+                    self.bind_input_router(input_router)
+                self._channels["input"] = host_io.input
+            self._host_io = host_io
+            self._last_host_display = None
+        except Exception:
+            self._channels = original_channels
+            self._input_router = original_input_router
+            self._host_io = original_host_io
+            self._last_host_display = original_last_host_display
+            raise
 
     @property
     def host_io(self):
