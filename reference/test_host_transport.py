@@ -1749,3 +1749,115 @@ def test_socket_host_transport_reconnect_different_socket_closes_stale_transport
             adapter.disconnect(interface)
         right1.close()
         right2.close()
+
+
+def test_socket_host_transport_disconnect_detaches_when_socket_close_fails():
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    class FailingCloseTransport(SocketNetworkTransport):
+        def close(self):
+            self._closed = True
+            raise OSError("socket close failed")
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def open_network(self, endpoint):
+            return FailingCloseTransport(endpoint.channel_map()["network"])
+
+    class TrackingSocket:
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            raise OSError("socket close failed")
+
+        def fileno(self):
+            return 42
+
+    identity = CorelessIdentity("socket-disconnect-close-failure")
+    endpoint = HostEndpoint(
+        "socket-disconnect-close-failure",
+        identity,
+        HostCapabilities(network=True),
+        {"network": TrackingSocket()},
+        device_capabilities={"network"},
+    )
+    adapter = TrackingAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    adapter.connect(endpoint, interface)
+
+    with pytest.raises(OSError, match="socket close failed"):
+        adapter.disconnect(interface)
+
+    assert not interface.attached
+    assert interface.channels == {}
+
+
+def test_socket_host_transport_reconnect_ignores_stale_close_failure():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left1, right1 = socket.socketpair()
+    left2, right2 = socket.socketpair()
+    identity = CorelessIdentity("socket-stale-close-failure")
+    first = HostEndpoint(
+        "socket-stale-close-first",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left1},
+        device_capabilities={"network"},
+    )
+    second = HostEndpoint(
+        "socket-stale-close-second",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left2},
+        device_capabilities={"network"},
+    )
+
+    class FailingCloseTransport(SocketNetworkTransport):
+        def close(self):
+            self._closed = True
+            raise OSError("stale close failed")
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = []
+
+        def open_network(self, endpoint):
+            if endpoint.endpoint_id == first.endpoint_id:
+                transport = FailingCloseTransport(endpoint.channel_map()["network"])
+            else:
+                transport = super().open_network(endpoint)
+            self.created.append(transport)
+            return transport
+
+    adapter = TrackingAdapter()
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(first, interface)
+        previous = interface.channel("network")
+
+        # A successful reconnect must not be rolled back merely because
+        # retirement of the superseded transport reports a close failure.
+        adapter.connect(second, interface)
+        current = interface.channel("network")
+
+        assert current is not previous
+        assert previous.closed
+        assert not current.closed
+
+        current.send_packet(b"new-session-after-stale-close-failure")
+        assert right2.recv(1024).endswith(b"new-session-after-stale-close-failure")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right1.close()
+        right2.close()
