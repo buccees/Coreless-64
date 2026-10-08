@@ -92,7 +92,7 @@ class HostDeviceEnumerator:
         missing_channels = sorted(
             capability
             for capability in advertised
-            if capability in {"display", "input", "network"} and capability not in channels
+            if capability == "network" and capability not in channels
         )
         if missing_channels:
             raise ValueError(
