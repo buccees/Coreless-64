@@ -1154,3 +1154,22 @@ def test_socket_host_transport_rejects_discovered_non_socket_network_channel():
     with pytest.raises(TypeError, match="sock must provide"):
         adapter.connect(endpoint, interface)
     assert not interface.attached
+
+
+def test_socket_host_transport_connect_rejects_negotiated_network_without_channel():
+    from host_transport import SocketHostTransportAdapter
+
+    endpoint = HostEndpoint(
+        "socket-connect-missing-network",
+        CorelessIdentity("socket-connect-missing-network"),
+        HostCapabilities(network=True),
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-connect-missing-network"))
+
+    with pytest.raises(RuntimeError, match="no network channel"):
+        adapter.connect(endpoint, interface)
+
+    assert not interface.attached
+    assert interface.channels == {}
