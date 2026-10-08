@@ -340,3 +340,24 @@ def test_socket_network_transport_marks_receive_value_error_closed():
     assert transport.closed
     with pytest.raises(RuntimeError, match="transport is closed"):
         transport.receive_packet()
+
+
+def test_socket_network_transport_retirement_ignores_unexpected_close_error():
+    class RuntimeErrorSocket:
+        def sendall(self, data):
+            raise ConnectionError("send failed")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            raise RuntimeError("cleanup failed")
+
+    transport = SocketNetworkTransport(RuntimeErrorSocket())
+
+    with pytest.raises(ConnectionError, match="send failed"):
+        transport.send_packet(b"x")
+
+    assert transport.closed
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.send_packet(b"again")
