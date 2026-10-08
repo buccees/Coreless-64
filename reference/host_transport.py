@@ -427,6 +427,11 @@ class SocketHostTransportAdapter(HostTransportAdapter):
             if "network" not in endpoint.channel_map():
                 raise RuntimeError("host endpoint has no network channel")
             network_transport = self.open_network(endpoint)
+        shares_previous_socket = (
+            isinstance(previous, SocketNetworkTransport)
+            and network_transport is not None
+            and previous.socket is network_transport.socket
+        )
         try:
             negotiated = super().connect(
                 endpoint,
@@ -440,7 +445,7 @@ class SocketHostTransportAdapter(HostTransportAdapter):
             # succeeds. Retire it if validation or attachment fails so a
             # failed reconnect cannot leak a live host socket. Cleanup failure
             # must never mask the original connection failure.
-            if network_transport is not None:
+            if network_transport is not None and not shares_previous_socket:
                 try:
                     network_transport.close()
                 except Exception:
@@ -459,10 +464,11 @@ class SocketHostTransportAdapter(HostTransportAdapter):
                 try:
                     interface.bind_channel("network", network_transport)
                 except Exception:
-                    try:
-                        network_transport.close()
-                    except Exception:
-                        pass
+                    if not shares_previous_socket:
+                        try:
+                            network_transport.close()
+                        except Exception:
+                            pass
                     # The base connection has already attached the interface.
                     # A network bind failure must preserve a previously live
                     # reconnect target just like any other post-attachment
