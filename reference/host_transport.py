@@ -125,6 +125,28 @@ class HostTransportAdapter:
         """Attach an endpoint, optionally binding its persistent system and host I/O."""
         if host_io is not None and not isinstance(host_io, HostIO):
             raise TypeError("host_io must implement the Coreless HostIO contract")
+
+        # Validate the complete replacement bundle before mutating an existing
+        # attachment. Reconnect failures must leave the current session intact.
+        if host_io is not None:
+            from host_io import DisplayTransport, InputTransport, NetworkTransport
+
+            negotiated_preview = (
+                interface.supported
+                & endpoint.device_capabilities
+                & endpoint.capabilities.as_set()
+            )
+            if "input" in negotiated_preview and input_router is None and interface.input_router is None:
+                raise RuntimeError("input capability requires a Coreless input router")
+            if input_router is not None and not hasattr(input_router, "submit"):
+                raise TypeError("input_router must implement the Coreless input router contract")
+            if "display" in negotiated_preview and not isinstance(host_io.display, DisplayTransport):
+                raise TypeError("host display transport does not implement the Coreless display contract")
+            if "input" in negotiated_preview and not isinstance(host_io.input, InputTransport):
+                raise TypeError("host input transport does not implement the Coreless input contract")
+            if "network" in negotiated_preview and not isinstance(host_io.network, NetworkTransport):
+                raise TypeError("host network transport does not implement the Coreless network contract")
+
         negotiated = interface.attach_identity_frame(
             endpoint.identity_frame(), endpoint.capabilities, system=system
         )
