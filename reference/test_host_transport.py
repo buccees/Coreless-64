@@ -1275,6 +1275,7 @@ def test_socket_host_transport_failed_reconnect_preserves_live_session():
 
 def test_socket_host_transport_failed_reconnect_same_socket_preserves_live_session():
     import socket
+    from host_io import MemoryDisplayTransport
     from host_socket import SocketNetworkTransport
     from host_transport import SocketHostTransportAdapter
 
