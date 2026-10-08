@@ -1374,7 +1374,7 @@ def test_socket_host_transport_failed_reconnect_network_bind_preserves_live_sess
 
 
 
-def test_socket_host_transport_failed_reconnect_same_socket_base_failure_closes_only_replacement_wrapper():
+def test_socket_host_transport_failed_reconnect_same_socket_base_failure_retires_only_replacement_wrapper():
     import socket
     from host_socket import SocketNetworkTransport
     from host_transport import SocketHostTransportAdapter
@@ -1389,24 +1389,38 @@ def test_socket_host_transport_failed_reconnect_same_socket_base_failure_closes_
         device_capabilities={"network"},
     )
 
-    class FailingAdapter(SocketHostTransportAdapter):
-        def connect(self, endpoint, interface, **kwargs):
-            if interface.attached:
-                replacement = self.open_network(endpoint)
-                assert isinstance(replacement, SocketNetworkTransport)
-                assert interface.channel("network").socket is replacement.socket
-                replacement.retire_without_closing_socket()
-                raise RuntimeError("replacement base connect failed")
-            return super().connect(endpoint, interface, **kwargs)
+    class FailingReconnectInterface(CorelessHostInterface):
+        fail_reconnect = False
 
-    adapter = FailingAdapter(object())
-    interface = CorelessHostInterface(identity)
+        def attach_identity_frame(self, *args, **kwargs):
+            if self.fail_reconnect:
+                raise RuntimeError("replacement base connect failed")
+            return super().attach_identity_frame(*args, **kwargs)
+
+    class CapturingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = None
+
+        def open_network(self, endpoint):
+            self.created = super().open_network(endpoint)
+            return self.created
+
+    adapter = CapturingAdapter()
+    interface = FailingReconnectInterface(identity)
 
     try:
         adapter.connect(endpoint, interface)
         previous = interface.channel("network")
+        interface.fail_reconnect = True
+
         with pytest.raises(RuntimeError, match="replacement base connect failed"):
             adapter.connect(endpoint, interface)
+
+        replacement = adapter.created
+        assert isinstance(replacement, SocketNetworkTransport)
+        assert replacement is not previous
+        assert replacement.closed
         assert previous.closed is False
         previous.send_packet(b"base-failure-still-live")
         assert right.recv(1024).endswith(b"base-failure-still-live")
