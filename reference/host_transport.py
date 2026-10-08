@@ -355,16 +355,23 @@ class SocketHostTransportAdapter(HostTransportAdapter):
         except Exception:
             # The replacement socket is not attached until the base connection
             # succeeds. Retire it if validation or attachment fails so a
-            # failed reconnect cannot leak a live host socket.
+            # failed reconnect cannot leak a live host socket. Cleanup failure
+            # must never mask the original connection failure.
             if network_transport is not None:
-                network_transport.close()
+                try:
+                    network_transport.close()
+                except Exception:
+                    pass
             raise
         if network_transport is not None:
             if "network" in negotiated:
                 try:
                     interface.bind_channel("network", network_transport)
                 except Exception:
-                    network_transport.close()
+                    try:
+                        network_transport.close()
+                    except Exception:
+                        pass
                     raise
             else:
                 # The endpoint supplied a socket, but negotiation may decline
