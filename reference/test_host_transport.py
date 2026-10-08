@@ -1125,6 +1125,41 @@ def test_socket_host_transport_closes_replacement_when_base_connect_fails():
     assert interface.channels == {}
 
 
+def test_host_transport_failed_reconnect_host_io_preserves_live_session():
+    from host_io import MemoryHostIO
+    from host_transport import MemoryHostTransportAdapter
+
+    identity = CorelessIdentity("host-io-reconnect-atomic")
+    first = HostEndpoint(
+        "host-io-reconnect-first",
+        identity,
+        HostCapabilities(display=True),
+        {"display": object()},
+        device_capabilities={"display"},
+    )
+    second = HostEndpoint(
+        "host-io-reconnect-second",
+        identity,
+        HostCapabilities(display=True),
+        {"display": object()},
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter((first, second))
+    interface = CorelessHostInterface(identity)
+
+    adapter.connect(first, interface)
+    previous = interface.channel("display")
+    invalid_host_io = MemoryHostIO()
+    invalid_host_io.display = object()
+
+    with pytest.raises(TypeError, match="host display transport"):
+        adapter.connect(second, interface, host_io=invalid_host_io)
+
+    assert interface.attached
+    assert interface.channel("display") is previous
+    assert interface.negotiated == frozenset({"display"})
+
+
 def test_socket_host_transport_failed_reconnect_preserves_live_session():
     import socket
     from host_socket import SocketNetworkTransport
