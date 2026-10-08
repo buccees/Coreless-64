@@ -292,8 +292,9 @@ class SocketHostTransportAdapter(HostTransportAdapter):
     and the connected socket through the endpoint's network channel.
     """
 
-    def __init__(self, provider) -> None:
+    def __init__(self, provider, *, max_packet_size: int | None = None) -> None:
         self._provider = provider
+        self._max_packet_size = max_packet_size
 
     def enumerate(self) -> tuple[HostEndpoint, ...]:
         return self.discover_provider(self._provider)
@@ -301,6 +302,11 @@ class SocketHostTransportAdapter(HostTransportAdapter):
     @property
     def provider(self):
         return self._provider
+
+    @property
+    def max_packet_size(self) -> int | None:
+        """Return the configured maximum packet size for socket channels."""
+        return self._max_packet_size
 
     def open_network(self, endpoint: HostEndpoint):
         """Return the connected socket transport advertised by an endpoint."""
@@ -313,7 +319,9 @@ class SocketHostTransportAdapter(HostTransportAdapter):
             raise RuntimeError("host endpoint has no network channel")
         if getattr(channel, "_closed", False):
             raise RuntimeError("host network channel is already closed")
-        return SocketNetworkTransport(channel)
+        if self._max_packet_size is None:
+            return SocketNetworkTransport(channel)
+        return SocketNetworkTransport(channel, max_packet_size=self._max_packet_size)
 
     def connect(
         self,
