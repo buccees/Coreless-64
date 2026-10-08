@@ -1164,8 +1164,10 @@ def test_host_transport_failed_reconnect_channel_bind_preserves_live_session():
     from host_transport import MemoryHostTransportAdapter
 
     class FailingBindInterface(CorelessHostInterface):
+        fail_bind = False
+
         def bind_channel(self, capability, channel):
-            if capability == "display":
+            if self.fail_bind and capability == "display":
                 raise RuntimeError("replacement channel bind failed")
             super().bind_channel(capability, channel)
 
@@ -1193,6 +1195,7 @@ def test_host_transport_failed_reconnect_channel_bind_preserves_live_session():
         adapter, first, interface
     )
     previous = interface.channel("display")
+    interface.fail_bind = True
 
     with pytest.raises(RuntimeError, match="replacement channel bind failed"):
         adapter.connect(second, interface)
