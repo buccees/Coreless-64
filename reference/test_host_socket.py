@@ -4,12 +4,23 @@ sys.path.insert(0, ".")
 
 import pytest
 
+from host_io import NetworkTransport
 from host_socket import SocketNetworkTransport
 
 
 def transport_pair():
     left, right = socket.socketpair()
     return SocketNetworkTransport(left), SocketNetworkTransport(right)
+
+
+def test_socket_network_transport_implements_network_contract():
+    left, right = socket.socketpair()
+    transport = SocketNetworkTransport(left)
+    try:
+        assert isinstance(transport, NetworkTransport)
+    finally:
+        transport.close()
+        right.close()
 
 
 def test_socket_network_transport_round_trip():
