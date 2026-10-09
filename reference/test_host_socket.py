@@ -442,3 +442,36 @@ def test_socket_network_transport_rejects_arbitrary_packet_conversion():
 
     assert not transport.closed
     transport.close()
+
+
+
+def test_socket_network_transport_serializes_concurrent_packet_sends():
+    from concurrent.futures import ThreadPoolExecutor
+
+    sender, receiver = transport_pair()
+    packets = [f"packet-{worker}-{index}".encode() for worker in range(8) for index in range(40)]
+    try:
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            list(pool.map(sender.send_packet, packets))
+        received = [receiver.receive_packet() for _ in packets]
+        assert sorted(received) == sorted(packets)
+    finally:
+        sender.close()
+        receiver.close()
+
+
+def test_socket_network_transport_serializes_concurrent_packet_receives():
+    from concurrent.futures import ThreadPoolExecutor
+
+    sender, receiver = transport_pair()
+    packets = [f"receive-{worker}-{index}".encode() for worker in range(6) for index in range(30)]
+    try:
+        for packet in packets:
+            sender.send_packet(packet)
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            received_groups = list(pool.map(lambda _: [receiver.receive_packet() for _ in range(30)], range(6)))
+        received = [packet for group in received_groups for packet in group]
+        assert sorted(received) == sorted(packets)
+    finally:
+        sender.close()
+        receiver.close()

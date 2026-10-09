@@ -9,6 +9,7 @@ bytes can cross a stream transport without ambiguity.
 from __future__ import annotations
 
 import struct
+from threading import Lock
 from typing import Protocol
 
 
@@ -51,6 +52,10 @@ class SocketNetworkTransport:
         self._socket = sock
         self._max_packet_size = max_packet_size
         self._closed = False
+        # A stream has no packet boundaries of its own. Serialize complete
+        # frames so concurrent callers cannot interleave writes or split reads.
+        self._send_lock = Lock()
+        self._receive_lock = Lock()
 
     @property
     def closed(self) -> bool:
@@ -72,21 +77,24 @@ class SocketNetworkTransport:
         if len(payload) > self._max_packet_size:
             raise ValueError("network packet exceeds host transport limit")
         try:
-            self._socket.sendall(self._HEADER.pack(len(payload)) + payload)
+            with self._send_lock:
+                self._ensure_open()
+                self._socket.sendall(self._HEADER.pack(len(payload)) + payload)
         except (ConnectionError, OSError, TypeError, ValueError):
             self._retire_after_transport_error()
             raise
 
     def receive_packet(self) -> bytes:
         """Receive exactly one length-delimited packet."""
-        self._ensure_open()
         try:
-            header = self._recv_exact(self._HEADER.size)
-            (size,) = self._HEADER.unpack(header)
-            if size > self._max_packet_size:
-                self._close_after_protocol_error()
-                raise ValueError("network packet exceeds host transport limit")
-            return self._recv_exact(size)
+            with self._receive_lock:
+                self._ensure_open()
+                header = self._recv_exact(self._HEADER.size)
+                (size,) = self._HEADER.unpack(header)
+                if size > self._max_packet_size:
+                    self._close_after_protocol_error()
+                    raise ValueError("network packet exceeds host transport limit")
+                return self._recv_exact(size)
         except (ConnectionError, OSError, TypeError, ValueError):
             self._retire_after_transport_error()
             raise
