@@ -124,6 +124,25 @@ def test_socket_network_transport_rejects_already_closed_raw_socket():
         right.close()
 
 
+@pytest.mark.parametrize("error", [OSError("descriptor unavailable"), ValueError("descriptor invalid")])
+def test_socket_network_transport_rejects_socket_when_fileno_inspection_fails(error):
+    class FilenoFailingSocket:
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            pass
+
+        def fileno(self):
+            raise error
+
+    with pytest.raises(RuntimeError, match="socket is already closed"):
+        SocketNetworkTransport(FilenoFailingSocket())
+
+
 def test_socket_network_transport_accepts_socket_like_closed_contract():
     class SocketLikeClosed:
         closed = False
