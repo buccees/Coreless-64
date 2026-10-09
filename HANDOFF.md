@@ -1,5 +1,17 @@
 # Coreless-64 — Project Handoff
 
+## Latest verified checkpoint — 2026-10-09: socket packet validation
+
+GitHub Actions **#1770** passed on commit `c85b1cca92fff75e21aacb75f74069f8a10e3a60` (workflow: [Coreless reference tests](https://github.com/buccees/Coreless-64/actions/runs/37922079849)).
+
+The socket-backed host network adapter now treats invalid outbound packet arguments as caller-side validation failures rather than transport failures:
+- Only `bytes`, `bytearray`, and `memoryview` packets are accepted; arbitrary coercion such as `bytes(4)` is rejected.
+- Oversized outbound packets are rejected before writing to the stream.
+- These local validation failures leave a healthy socket transport usable for a subsequent valid packet.
+- Actual socket send/receive failures and invalid incoming frame lengths still retire the transport.
+
+The added regressions are in `reference/test_host_socket.py`. This is reference transport hardening only; it does not claim a physical platform network adapter is complete.
+
 ## Current state
 
 The canonical consolidated scope is [`REMAINING_REQUIREMENTS.md`](REMAINING_REQUIREMENTS.md). Use it to sequence remaining work and define exit evidence; do not treat reference CI alone as proof of physical adapters or live trained-model inference.
