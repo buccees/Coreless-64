@@ -168,6 +168,45 @@ def test_linux_tcp_provider_requires_tls_context():
     with pytest.raises(TypeError, match="ssl_context"):
         LinuxTCPDiscoveryProvider([])
 
+def test_linux_tcp_provider_closes_wrapped_tls_socket_if_setup_fails(monkeypatch):
+    class RawSocket:
+        closed = False
+
+        def settimeout(self, timeout):
+            pass
+
+        def close(self):
+            self.closed = True
+
+    class WrappedTLSSocket:
+        closed = False
+
+        def settimeout(self, timeout):
+            raise OSError("TLS timeout setup failed")
+
+        def close(self):
+            self.closed = True
+
+    class WrappingContext(TestTLSContext):
+        def __init__(self, wrapped):
+            self.wrapped = wrapped
+
+        def wrap_socket(self, sock, *, server_hostname):
+            return self.wrapped
+
+    raw = RawSocket()
+    wrapped = WrappedTLSSocket()
+    monkeypatch.setattr("linux_host_network.socket.create_connection", lambda *a, **k: raw)
+    provider = LinuxTCPDiscoveryProvider(
+        [LinuxTCPEndpoint("localhost", 12345, "coreless-linux")],
+        ssl_context=WrappingContext(wrapped),
+    )
+    with pytest.raises(OSError, match="TLS timeout setup failed"):
+        provider.enumerate_candidates()
+    assert wrapped.closed
+    assert not raw.closed
+
+
 def test_linux_tcp_provider_closes_socket_if_timeout_setup_fails(monkeypatch):
     class TimeoutFailSocket:
         closed = False

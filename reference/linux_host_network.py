@@ -97,6 +97,7 @@ class LinuxTCPDiscoveryProvider:
                 (endpoint.host, endpoint.port), timeout=self._timeout
             )
             transport = None
+            tls_socket = None
             try:
                 # Keep every post-connect setup operation inside the cleanup
                 # boundary so a timeout-configuration failure cannot leak the
@@ -133,6 +134,14 @@ class LinuxTCPDiscoveryProvider:
                 if transport is not None:
                     try:
                         transport.close()
+                    except Exception:
+                        pass
+                elif tls_socket is not None:
+                    # wrap_socket() may transfer ownership away from the raw
+                    # socket. If TLS setup fails before transport construction,
+                    # close the wrapped socket rather than the detached raw one.
+                    try:
+                        tls_socket.close()
                     except Exception:
                         pass
                 else:
