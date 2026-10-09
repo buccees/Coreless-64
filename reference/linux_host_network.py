@@ -55,7 +55,6 @@ class LinuxTCPDiscoveryProvider:
         self,
         endpoints: Iterable[LinuxTCPEndpoint],
         *,
-        *,
         ssl_context: ssl.SSLContext,
         timeout: float = 3.0,
         max_packet_size: int = 16 * 1024 * 1024,
