@@ -251,6 +251,18 @@ def test_socket_network_transport_rejects_invalid_packet_size():
         right.close()
 
 
+def test_socket_network_transport_rejects_non_callable_socket_methods():
+    class InvalidSocket:
+        sendall = None
+        recv = 42
+
+        def close(self):
+            pass
+
+    with pytest.raises(TypeError, match=r"sock must provide sendall\(\), recv\(\), and close\(\)"):
+        SocketNetworkTransport(InvalidSocket())
+
+
 def test_socket_network_transport_close_is_idempotent():
     class CountingSocket:
         def __init__(self):
