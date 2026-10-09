@@ -84,6 +84,45 @@ class PersistentMachineImage:
             if payload is None or len(payload) != allocation["size"]:
                 raise ValueError("Coreless structural allocation shape is inconsistent")
 
+    def migrate_structure(self, name, size, *, alignment=None, transform=None, sync=True):
+        """Explicitly migrate a protected object's shape after validating new bytes.
+
+        The caller supplies a transformation from the current payload to the
+        new representation. The current structure remains untouched unless the
+        transformed payload has the requested size and the updated image can be
+        committed. This is a logical object-store migration, not a physical
+        block relocation or a device-level atomicity guarantee.
+        """
+        structures = self.metadata.get("structural_allocations", {})
+        allocation = structures.get(name)
+        if allocation is None:
+            raise ValueError("Coreless structural allocation is not reserved")
+        if type(size) is not int or size <= 0:
+            raise ValueError("migrated structural allocation size must be a positive integer")
+        if alignment is None:
+            alignment = allocation["alignment"]
+        if type(alignment) is not int or alignment <= 0 or alignment & (alignment - 1):
+            raise ValueError("structural allocation alignment must be a positive power of two")
+        if not callable(transform):
+            raise ValueError("structural migration requires an explicit transformation")
+        old_payload = self.objects[name]
+        new_payload = bytes(transform(old_payload))
+        if len(new_payload) != size:
+            raise ValueError("transformed structural data must match the new reserved size")
+
+        old_allocation = allocation.copy()
+        self.objects[name] = new_payload
+        structures[name] = {"size": size, "alignment": alignment}
+        try:
+            self._validate_structural_allocations(self.metadata, self.objects)
+            if sync:
+                self.sync()
+        except Exception:
+            self.objects[name] = old_payload
+            structures[name] = old_allocation
+            raise
+        return name
+
     def get(self, name):
         return self.objects[name]
 
