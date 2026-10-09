@@ -614,3 +614,33 @@ def test_socket_network_transport_close_interrupts_blocked_send():
     finally:
         sender.close()
         right.close()
+
+
+def test_socket_network_transport_close_still_closes_when_shutdown_fails():
+    class ShutdownFailingSocket:
+        def __init__(self):
+            self.shutdown_calls = 0
+            self.close_calls = 0
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def shutdown(self, how):
+            self.shutdown_calls += 1
+            raise OSError("already disconnected")
+
+        def close(self):
+            self.close_calls += 1
+
+    sock = ShutdownFailingSocket()
+    transport = SocketNetworkTransport(sock)
+
+    transport.close()
+    transport.close()
+
+    assert transport.closed
+    assert sock.shutdown_calls == 1
+    assert sock.close_calls == 1
