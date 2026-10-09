@@ -184,3 +184,56 @@ def test_application_and_shell_state_persist(tmp_path):
     os2 = CorelessOS(second)
     assert os2.init_pid == 1
     assert os2.application_state[app.pid]["path"] == "/app"
+
+
+def test_structural_allocations_keep_fixed_shape_during_rewrites(tmp_path):
+    from reference.storage import PersistentMachineImage
+
+    disk = tmp_path / "coreless-structure.img"
+    image = PersistentMachineImage(disk)
+    image.reserve_structure("os/kernel-layout", 16, alignment=8, initial=b"K" * 16)
+    image.put("os/kernel-layout", b"N" * 16)
+    assert image.get("os/kernel-layout") == b"N" * 16
+    try:
+        image.put("os/kernel-layout", b"resized")
+    except ValueError as exc:
+        assert "size is fixed" in str(exc)
+    else:
+        raise AssertionError("structural allocation was allowed to change size")
+    try:
+        image.reserve_structure("os/kernel-layout", 32, alignment=8)
+    except ValueError as exc:
+        assert "shape cannot change" in str(exc)
+    else:
+        raise AssertionError("structural allocation was allowed to change shape")
+    reopened = PersistentMachineImage(disk)
+    assert reopened.metadata["structural_allocations"]["os/kernel-layout"] == {
+        "size": 16, "alignment": 8,
+    }
+    assert reopened.get("os/kernel-layout") == b"N" * 16
+
+
+def test_checkpoint_restore_preserves_structural_allocation_shape():
+    from reference.storage import PersistentMachineImage
+
+    image = PersistentMachineImage()
+    image.reserve_structure("cpu/component-map", 8, alignment=4, initial=b"CPUCORE!")
+    image.create_checkpoint("stable-layout")
+    image.put("cpu/component-map", b"NEWCORE!")
+    image.restore_checkpoint("stable-layout")
+    assert image.get("cpu/component-map") == b"CPUCORE!"
+    assert image.metadata["structural_allocations"]["cpu/component-map"]["size"] == 8
+
+
+def test_checkpoint_cannot_remove_a_structural_allocation():
+    from reference.storage import PersistentMachineImage
+
+    image = PersistentMachineImage()
+    image.create_checkpoint("before-reservation")
+    image.reserve_structure("os/boot-layout", 4)
+    try:
+        image.restore_checkpoint("before-reservation")
+    except ValueError as exc:
+        assert "cannot change" in str(exc)
+    else:
+        raise AssertionError("checkpoint restore removed a protected allocation")
