@@ -23,41 +23,48 @@ class PersistentMachineImage:
         payload = data.encode() if isinstance(data, str) else bytes(data)
         structures = self.metadata.get("structural_allocations", {})
         allocation = structures.get(name)
-        if allocation is not None and len(payload) != allocation["size"]:
-            raise ValueError(
-                "Coreless structural allocation size is fixed; "
-                "use an explicit validated migration to change its shape"
-            )
+        if allocation is not None:
+            # The logical home remains stable while the current payload may
+            # grow or shrink. A device adapter must separately enforce physical
+            # extent placement; this JSON image cannot guarantee NAND placement.
+            allocation["size"] = len(payload)
+            allocation["capacity"] = max(allocation.get("capacity", 0), len(payload))
         self.objects[name] = payload
         if sync:
             self.sync()
 
     def reserve_structure(self, name, size, *, alignment=1, initial=None, sync=True):
-        """Reserve a fixed-shape structural object for OS/CPU architecture state.
+        """Assign a stable logical home to upgradeable OS/CPU structural data.
 
-        This is a logical allocation contract, not a claim that the host device
-        exposes physical SSD sectors or flash erase blocks.
+        Payload size may change across upgrades. The stable home identifier and
+        alignment are retained; actual physical placement requires a device
+        adapter that exposes and enforces storage extents.
         """
         if not isinstance(name, str) or not name or name.startswith("checkpoint/"):
             raise ValueError("structural allocation name must be a non-empty local key")
         if type(size) is not int or size <= 0:
-            raise ValueError("structural allocation size must be a positive integer")
+            raise ValueError("initial structural allocation size must be a positive integer")
         if type(alignment) is not int or alignment <= 0 or alignment & (alignment - 1):
             raise ValueError("structural allocation alignment must be a positive power of two")
         payload = bytes(size) if initial is None else (
             initial.encode() if isinstance(initial, str) else bytes(initial)
         )
         if len(payload) != size:
-            raise ValueError("initial structural data must match the reserved size")
+            raise ValueError("initial structural data must match its initial size")
         structures = self.metadata.setdefault("structural_allocations", {})
         allocation = structures.get(name)
-        expected = {"size": size, "alignment": alignment}
-        if allocation is not None and allocation != expected:
-            raise ValueError("Coreless structural allocation shape cannot change")
+        if allocation is not None and allocation.get("alignment") != alignment:
+            raise ValueError("structural allocation home alignment cannot change implicitly")
         existing = self.objects.get(name)
         if existing is not None and len(existing) != size:
-            raise ValueError("existing data does not match structural allocation size")
-        structures[name] = expected
+            raise ValueError("existing data size does not match requested initial size")
+        if allocation is None:
+            structures[name] = {
+                "home_id": name,
+                "size": size,
+                "capacity": size,
+                "alignment": alignment,
+            }
         if existing is None:
             self.objects[name] = payload
         if sync:
@@ -73,8 +80,11 @@ class PersistentMachineImage:
             if (
                 not isinstance(name, str) or not name
                 or not isinstance(allocation, dict)
+                or allocation.get("home_id") != name
                 or type(allocation.get("size")) is not int
-                or allocation["size"] <= 0
+                or allocation["size"] < 0
+                or type(allocation.get("capacity")) is not int
+                or allocation["capacity"] < allocation["size"]
                 or type(allocation.get("alignment")) is not int
                 or allocation["alignment"] <= 0
                 or allocation["alignment"] & (allocation["alignment"] - 1)
@@ -82,45 +92,23 @@ class PersistentMachineImage:
                 raise ValueError("invalid Coreless structural allocation manifest")
             payload = objects.get(name)
             if payload is None or len(payload) != allocation["size"]:
-                raise ValueError("Coreless structural allocation shape is inconsistent")
+                raise ValueError("Coreless structural allocation size is inconsistent")
 
-    def migrate_structure(self, name, size, *, alignment=None, transform=None, sync=True):
-        """Explicitly migrate a protected object's shape after validating new bytes.
+    def grow_structure(self, name, capacity, *, sync=True):
+        """Increase the logical capacity without changing the structure's home ID.
 
-        The caller supplies a transformation from the current payload to the
-        new representation. The current structure remains untouched unless the
-        transformed payload has the requested size and the updated image can be
-        committed. This is a logical object-store migration, not a physical
-        block relocation or a device-level atomicity guarantee.
+        This models stable logical ownership only. It cannot pin physical SSD
+        flash cells; that guarantee must come from a capable device adapter.
         """
         structures = self.metadata.get("structural_allocations", {})
         allocation = structures.get(name)
         if allocation is None:
             raise ValueError("Coreless structural allocation is not reserved")
-        if type(size) is not int or size <= 0:
-            raise ValueError("migrated structural allocation size must be a positive integer")
-        if alignment is None:
-            alignment = allocation["alignment"]
-        if type(alignment) is not int or alignment <= 0 or alignment & (alignment - 1):
-            raise ValueError("structural allocation alignment must be a positive power of two")
-        if not callable(transform):
-            raise ValueError("structural migration requires an explicit transformation")
-        old_payload = self.objects[name]
-        new_payload = bytes(transform(old_payload))
-        if len(new_payload) != size:
-            raise ValueError("transformed structural data must match the new reserved size")
-
-        old_allocation = allocation.copy()
-        self.objects[name] = new_payload
-        structures[name] = {"size": size, "alignment": alignment}
-        try:
-            self._validate_structural_allocations(self.metadata, self.objects)
-            if sync:
-                self.sync()
-        except Exception:
-            self.objects[name] = old_payload
-            structures[name] = old_allocation
-            raise
+        if type(capacity) is not int or capacity < allocation["capacity"]:
+            raise ValueError("structural home capacity may only grow to a larger integer")
+        allocation["capacity"] = capacity
+        if sync:
+            self.sync()
         return name
 
     def get(self, name):
