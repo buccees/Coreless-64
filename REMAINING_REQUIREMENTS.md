@@ -40,6 +40,17 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 
 **Exit evidence:** injected storage failures never leave an undetected mixed cache snapshot; successful persistence can be restored and validated after reopening the image.
 
+
+### P0.2a — Explicit persistent-storage regions and write policies
+- [ ] Define named **logical** storage regions for immutable/model artifacts, machine configuration and boot metadata, durable machine state, checkpoints/snapshots, and high-churn runtime state such as KV caches and logs.
+- [ ] Give each region an explicit owner, namespace, durability/sync policy, capacity budget, recovery policy, and write-amplification/retention expectations.
+- [ ] Route high-churn data to bounded, replaceable or append-oriented storage structures rather than rewriting unrelated machine-state objects for every update.
+- [ ] Keep checkpoint publication atomic: write and validate a new generation, then publish its manifest/pointer; retain the previous valid generation until the new one is durable.
+- [ ] Add tests for region isolation, quota/exhaustion, interrupted writes, recovery to the last committed generation, and cleanup of abandoned temporary data.
+- [ ] Document the device boundary: ordinary files/LBAs are logical addresses, while the SSD's flash translation layer manages physical NAND placement and wear leveling. Do not pin physical NAND sectors unless Coreless intentionally supports a raw-flash or zoned-device contract and has device-specific validation.
+
+**Exit evidence:** every persistent data class has a documented region and lifecycle; failure injection proves atomic publication and recovery, and physical-media placement remains delegated to the device unless a supported low-level interface explicitly says otherwise.
+
 ### P0.3 — Real trained-model execution
 - [ ] Validate an official trained Qwen3-0.6B artifact end to end: tokenizer/artifact loading, a real forward pass, and short generation.
 - [ ] Compare output tensors/logits and generation against a trusted reference with documented tolerances and reproducible settings.
