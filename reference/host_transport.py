@@ -186,16 +186,15 @@ class HostTransportAdapter:
             # Reconnects are transactional across the whole attachment
             # boundary: restore the previously live channels and HostIO if
             # any post-negotiation binding step fails.
-            if original_attached:
-                interface._attached = original_attached
-                interface._negotiated = original_negotiated
-                interface._host_capabilities = original_host_capabilities
-                interface._system = original_system
-                interface._hub = original_hub
-                interface._channels = original_channels
-                interface._input_router = original_input_router
-                interface._host_io = original_host_io
-                interface._last_host_display = original_last_host_display
+            interface._attached = original_attached
+            interface._negotiated = original_negotiated
+            interface._host_capabilities = original_host_capabilities
+            interface._system = original_system
+            interface._hub = original_hub
+            interface._channels = original_channels
+            interface._input_router = original_input_router
+            interface._host_io = original_host_io
+            interface._last_host_display = original_last_host_display
             raise
 
     def open_session(

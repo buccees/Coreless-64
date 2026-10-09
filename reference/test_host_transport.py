@@ -43,6 +43,33 @@ def test_host_transport_connects_negotiated_channels():
     assert interface.transport_ready({"display"})
 
 
+
+def test_host_transport_failed_initial_channel_binding_rolls_back_attachment(monkeypatch):
+    endpoint = HostEndpoint(
+        "coreless-initial-rollback",
+        CorelessIdentity("coreless-initial-rollback"),
+        HostCapabilities(display=True, network=True),
+        {"display": object(), "network": object()},
+        device_capabilities={"display", "network"},
+    )
+    interface = CorelessHostInterface(CorelessIdentity("coreless-initial-rollback"))
+    adapter = MemoryHostTransportAdapter([endpoint])
+    original_bind_channel = interface.bind_channel
+
+    def fail_network(capability, channel):
+        if capability == "network":
+            raise RuntimeError("injected channel binding failure")
+        return original_bind_channel(capability, channel)
+
+    monkeypatch.setattr(interface, "bind_channel", fail_network)
+    with pytest.raises(RuntimeError, match="injected channel binding failure"):
+        adapter.connect(endpoint, interface)
+
+    assert not interface.attached
+    assert interface.negotiated == frozenset()
+    assert interface.channels == {}
+    assert interface.host_io is None
+
 def test_host_transport_rejects_invalid_host_io_before_attachment():
     endpoint = HostEndpoint(
         "coreless-invalid-io",
