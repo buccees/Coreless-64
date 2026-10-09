@@ -135,6 +135,20 @@ def test_linux_tcp_provider_requires_positive_timeout():
         LinuxTCPDiscoveryProvider([], ssl_context=make_test_tls_context(), timeout=0)
 
 
+@pytest.mark.parametrize("max_packet_size,error,match", [
+    (0, ValueError, "max_packet_size must be positive"),
+    (-1, ValueError, "max_packet_size must be positive"),
+    (True, TypeError, "max_packet_size must be an integer"),
+    (1.5, TypeError, "max_packet_size must be an integer"),
+    (16 * 1024 * 1024 + 1, ValueError, "exceeds Coreless host limit"),
+])
+def test_linux_tcp_provider_rejects_invalid_packet_limit(max_packet_size, error, match):
+    with pytest.raises(error, match=match):
+        LinuxTCPDiscoveryProvider(
+            [], ssl_context=make_test_tls_context(), max_packet_size=max_packet_size
+        )
+
+
 
 def test_linux_tcp_provider_rejects_unverified_tls_context():
     class UnverifiedContext:
