@@ -144,6 +144,10 @@ class SocketNetworkTransport:
             if not isinstance(chunk, (bytes, bytearray, memoryview)):
                 self._retire_socket()
                 raise TypeError("host network socket recv() must return bytes")
+            # A memoryview can expose multi-byte elements, for which len()
+            # counts elements rather than bytes. Normalize before enforcing
+            # the recv size contract and appending to the frame buffer.
+            chunk = bytes(chunk)
             if not chunk:
                 raise ConnectionError("host network socket closed")
             if len(chunk) > remaining:
