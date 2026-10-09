@@ -187,7 +187,7 @@ def test_application_and_shell_state_persist(tmp_path):
 
 
 def test_structural_allocations_keep_fixed_shape_during_rewrites(tmp_path):
-    from reference.storage import PersistentMachineImage
+    from storage import PersistentMachineImage
 
     disk = tmp_path / "coreless-structure.img"
     image = PersistentMachineImage(disk)
@@ -214,7 +214,7 @@ def test_structural_allocations_keep_fixed_shape_during_rewrites(tmp_path):
 
 
 def test_checkpoint_restore_preserves_structural_allocation_shape():
-    from reference.storage import PersistentMachineImage
+    from storage import PersistentMachineImage
 
     image = PersistentMachineImage()
     image.reserve_structure("cpu/component-map", 8, alignment=4, initial=b"CPUCORE!")
@@ -226,7 +226,7 @@ def test_checkpoint_restore_preserves_structural_allocation_shape():
 
 
 def test_checkpoint_cannot_remove_a_structural_allocation():
-    from reference.storage import PersistentMachineImage
+    from storage import PersistentMachineImage
 
     image = PersistentMachineImage()
     image.create_checkpoint("before-reservation")
