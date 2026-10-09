@@ -293,9 +293,9 @@ def test_structural_allocation_changes_shape_only_through_validated_migration():
 
     image.migrate_structure(
         "os/kernel-layout", 8, alignment=8,
-        transform=lambda old: old + b"LESS!!!",
+        transform=lambda old: b"CORELESS",
     )
-    assert image.get("os/kernel-layout") == b"CORELESS!!!"
+    assert image.get("os/kernel-layout") == b"CORELESS"
     assert image.metadata["structural_allocations"]["os/kernel-layout"] == {
         "size": 8, "alignment": 8,
     }
