@@ -684,6 +684,25 @@ def test_socket_network_transport_close_interrupts_blocked_send():
         right.close()
 
 
+def test_socket_network_transport_constructor_rejects_socket_with_failing_closed_property():
+    class ClosedPropertySocket:
+        @property
+        def closed(self):
+            raise OSError("closed state unavailable")
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            pass
+
+    with pytest.raises(OSError, match="closed state unavailable"):
+        SocketNetworkTransport(ClosedPropertySocket())
+
+
 def test_socket_network_transport_close_still_closes_when_shutdown_fails():
     class ShutdownFailingSocket:
         def __init__(self):
