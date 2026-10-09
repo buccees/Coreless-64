@@ -7,15 +7,16 @@ on:
 jobs:
   reference-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
       - name: Install test runner
-        run: python -m pip install pytest
+        run: python -m pip install pytest pytest-timeout
       - name: Run reference tests
         working-directory: reference
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: python -m pytest -q
+        run: python -m pytest -q --timeout=120 --timeout-method=thread
