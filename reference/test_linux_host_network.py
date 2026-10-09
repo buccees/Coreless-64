@@ -316,8 +316,7 @@ def test_linux_tcp_provider_performs_real_verified_tls_discovery(tmp_path):
         ssl_context=client_context,
         timeout=2,
     )
-    candidates = provider.enumerate_candidates()
-    endpoints = HostDeviceEnumerator().discover(candidates)
+    endpoints = HostDeviceEnumerator().discover_provider(provider)
     assert endpoints[0].identity.computer_id == "coreless-linux"
     channel = endpoints[0].channel_map()["network"]
     channel.send_packet(b"verified-tls-channel")
@@ -372,7 +371,7 @@ def test_linux_tcp_provider_rejects_tls_hostname_mismatch(tmp_path):
         architecture=ARCHITECTURE_CORELESS64,
         device_type=DEVICE_TYPE_CORELESS64,
         capabilities=capability_bits({"network"}),
-        payload=b"\\xff",
+        payload=b"\xff",
     ).encode(),
 ])
 def test_linux_tcp_provider_rejects_malformed_identity_over_verified_tls(tmp_path, reply):
