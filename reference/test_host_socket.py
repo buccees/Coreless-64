@@ -479,3 +479,31 @@ def test_socket_network_transport_serializes_concurrent_packet_receives():
     finally:
         sender.close()
         receiver.close()
+
+
+def test_socket_network_transport_concurrent_close_is_idempotent():
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Lock
+
+    class CountingSocket:
+        def __init__(self):
+            self.close_calls = 0
+            self.lock = Lock()
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            with self.lock:
+                self.close_calls += 1
+
+    sock = CountingSocket()
+    transport = SocketNetworkTransport(sock)
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        list(pool.map(lambda _: transport.close(), range(128)))
+
+    assert transport.closed
+    assert sock.close_calls == 1

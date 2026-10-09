@@ -56,10 +56,14 @@ class SocketNetworkTransport:
         # frames so concurrent callers cannot interleave writes or split reads.
         self._send_lock = Lock()
         self._receive_lock = Lock()
+        # Closing and error retirement can race with each other and with I/O.
+        # This lock protects only lifecycle state; it is never held during I/O.
+        self._state_lock = Lock()
 
     @property
     def closed(self) -> bool:
-        return self._closed
+        with self._state_lock:
+            return self._closed
 
     @property
     def socket(self) -> SocketLike:
@@ -101,11 +105,13 @@ class SocketNetworkTransport:
 
     def close(self) -> None:
         """Close the host-owned socket without changing Coreless state."""
-        if not self._closed:
-            try:
-                self._socket.close()
-            finally:
-                self._closed = True
+        with self._state_lock:
+            if self._closed:
+                return
+            # Publish closure before calling the host so concurrent close or
+            # error paths cannot close the same socket a second time.
+            self._closed = True
+        self._socket.close()
 
     def __enter__(self) -> "SocketNetworkTransport":
         """Return the live transport for scoped host socket ownership."""
@@ -125,7 +131,8 @@ class SocketNetworkTransport:
 
     def retire_without_closing_socket(self) -> None:
         """Invalidate this wrapper while leaving a shared socket usable."""
-        self._closed = True
+        with self._state_lock:
+            self._closed = True
 
     def _recv_exact(self, size: int) -> bytes:
         chunks = bytearray()
@@ -148,7 +155,10 @@ class SocketNetworkTransport:
         self._retire_socket()
 
     def _retire_socket(self) -> None:
-        self._closed = True
+        with self._state_lock:
+            if self._closed:
+                return
+            self._closed = True
         try:
             self._socket.close()
         except Exception:
@@ -157,5 +167,6 @@ class SocketNetworkTransport:
             pass
 
     def _ensure_open(self) -> None:
-        if self._closed:
-            raise RuntimeError("host network transport is closed")
+        with self._state_lock:
+            if self._closed:
+                raise RuntimeError("host network transport is closed")
