@@ -112,16 +112,7 @@ class SocketNetworkTransport:
             # Publish closure before calling the host so concurrent close or
             # error paths cannot close the same socket a second time.
             self._closed = True
-        # Shutdown wakes blocked recv/send calls where the host socket
-        # supports it; close remains the required SocketLike operation.
-        shutdown = getattr(self._socket, "shutdown", None)
-        if callable(shutdown):
-            try:
-                shutdown(socket.SHUT_RDWR)
-            except Exception:
-                # Already-disconnected sockets and socket-like adapters may
-                # reject shutdown. Still attempt the required close operation.
-                pass
+        self._shutdown_socket()
         self._socket.close()
 
     def __enter__(self) -> "SocketNetworkTransport":
@@ -170,12 +161,24 @@ class SocketNetworkTransport:
             if self._closed:
                 return
             self._closed = True
+        self._shutdown_socket()
         try:
             self._socket.close()
         except Exception:
             # Retirement cleanup is best-effort and must not mask the
             # transport failure that triggered it.
             pass
+
+    def _shutdown_socket(self) -> None:
+        """Best-effort interruption of blocking I/O before socket closure."""
+        shutdown = getattr(self._socket, "shutdown", None)
+        if callable(shutdown):
+            try:
+                shutdown(socket.SHUT_RDWR)
+            except Exception:
+                # Already-disconnected sockets and socket-like adapters may
+                # reject shutdown; cleanup must still attempt close().
+                pass
 
     def _ensure_open(self) -> None:
         with self._state_lock:
