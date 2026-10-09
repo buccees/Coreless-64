@@ -20,96 +20,9 @@ class PersistentMachineImage:
             self._load()
 
     def put(self, name, data, sync=True):
-        payload = data.encode() if isinstance(data, str) else bytes(data)
-        structures = self.metadata.get("structural_allocations", {})
-        allocation = structures.get(name)
-        if allocation is not None:
-            # The logical home remains stable while the current payload may
-            # grow or shrink. A device adapter must separately enforce physical
-            # extent placement; this JSON image cannot guarantee NAND placement.
-            allocation["size"] = len(payload)
-            allocation["capacity"] = max(allocation.get("capacity", 0), len(payload))
-        self.objects[name] = payload
+        self.objects[name] = data.encode() if isinstance(data, str) else bytes(data)
         if sync:
             self.sync()
-
-    def reserve_structure(self, name, size, *, alignment=1, initial=None, sync=True):
-        """Assign a stable logical home to upgradeable OS/CPU structural data.
-
-        Payload size may change across upgrades. The stable home identifier and
-        alignment are retained; actual physical placement requires a device
-        adapter that exposes and enforces storage extents.
-        """
-        if not isinstance(name, str) or not name or name.startswith("checkpoint/"):
-            raise ValueError("structural allocation name must be a non-empty local key")
-        if type(size) is not int or size <= 0:
-            raise ValueError("initial structural allocation size must be a positive integer")
-        if type(alignment) is not int or alignment <= 0 or alignment & (alignment - 1):
-            raise ValueError("structural allocation alignment must be a positive power of two")
-        payload = bytes(size) if initial is None else (
-            initial.encode() if isinstance(initial, str) else bytes(initial)
-        )
-        if len(payload) != size:
-            raise ValueError("initial structural data must match its initial size")
-        structures = self.metadata.setdefault("structural_allocations", {})
-        allocation = structures.get(name)
-        if allocation is not None and allocation.get("alignment") != alignment:
-            raise ValueError("structural allocation home alignment cannot change implicitly")
-        existing = self.objects.get(name)
-        if existing is not None and len(existing) != size:
-            raise ValueError("existing data size does not match requested initial size")
-        if allocation is None:
-            structures[name] = {
-                "home_id": name,
-                "size": size,
-                "capacity": size,
-                "alignment": alignment,
-            }
-        if existing is None:
-            self.objects[name] = payload
-        if sync:
-            self.sync()
-        return name
-
-    @staticmethod
-    def _validate_structural_allocations(metadata, objects):
-        structures = metadata.get("structural_allocations", {})
-        if not isinstance(structures, dict):
-            raise ValueError("invalid Coreless structural allocation manifest")
-        for name, allocation in structures.items():
-            if (
-                not isinstance(name, str) or not name
-                or not isinstance(allocation, dict)
-                or allocation.get("home_id") != name
-                or type(allocation.get("size")) is not int
-                or allocation["size"] < 0
-                or type(allocation.get("capacity")) is not int
-                or allocation["capacity"] < allocation["size"]
-                or type(allocation.get("alignment")) is not int
-                or allocation["alignment"] <= 0
-                or allocation["alignment"] & (allocation["alignment"] - 1)
-            ):
-                raise ValueError("invalid Coreless structural allocation manifest")
-            payload = objects.get(name)
-            if payload is None or len(payload) != allocation["size"]:
-                raise ValueError("Coreless structural allocation size is inconsistent")
-
-    def grow_structure(self, name, capacity, *, sync=True):
-        """Increase the logical capacity without changing the structure's home ID.
-
-        This models stable logical ownership only. It cannot pin physical SSD
-        flash cells; that guarantee must come from a capable device adapter.
-        """
-        structures = self.metadata.get("structural_allocations", {})
-        allocation = structures.get(name)
-        if allocation is None:
-            raise ValueError("Coreless structural allocation is not reserved")
-        if type(capacity) is not int or capacity < allocation["capacity"]:
-            raise ValueError("structural home capacity may only grow to a larger integer")
-        allocation["capacity"] = capacity
-        if sync:
-            self.sync()
-        return name
 
     def get(self, name):
         return self.objects[name]
@@ -145,25 +58,16 @@ class PersistentMachineImage:
         snapshot = json.loads(raw.decode("utf-8"))
         if snapshot.get("format") != self.FORMAT:
             raise ValueError("unsupported Coreless checkpoint format")
-        snapshot_metadata = dict(snapshot.get("metadata", {}))
-        snapshot_objects = {
-            key: base64.b64decode(value.encode("ascii"))
-            for key, value in snapshot.get("objects", {}).items()
-        }
-        current_structures = self.metadata.get("structural_allocations", {})
-        snapshot_structures = snapshot_metadata.get("structural_allocations", {})
-        current_homes = {key: (value.get("home_id", key), value.get("alignment")) for key, value in current_structures.items()}
-        snapshot_homes = {key: (value.get("home_id", key), value.get("alignment")) for key, value in snapshot_structures.items()}
-        if current_homes != snapshot_homes:
-            raise ValueError("checkpoint cannot change Coreless structural storage homes")
-        self._validate_structural_allocations(snapshot_metadata, snapshot_objects)
-        self.metadata = snapshot_metadata
+        self.metadata = dict(snapshot.get("metadata", {}))
         self.metadata["format"] = self.FORMAT
         checkpoints = {
             key: value for key, value in self.objects.items()
             if key.startswith("checkpoint/")
         }
-        self.objects = snapshot_objects
+        self.objects = {
+            key: base64.b64decode(value.encode("ascii"))
+            for key, value in snapshot.get("objects", {}).items()
+        }
         self.objects.update(checkpoints)
         self.sync()
         return hashlib.sha256(raw).hexdigest()
@@ -221,12 +125,6 @@ class PersistentMachineImage:
             name: base64.b64decode(data.encode("ascii"))
             for name, data in image.get("objects", {}).items()
         }
-        structures = self.metadata.get("structural_allocations", {})
-        for name, allocation in structures.items():
-            allocation.setdefault("home_id", name)
-            allocation.setdefault("capacity", max(allocation.get("size", 0), len(self.objects.get(name, b""))))
-            allocation["size"] = len(self.objects.get(name, b""))
-        self._validate_structural_allocations(self.metadata, self.objects)
 
     def sync(self):
         if not self.path:
