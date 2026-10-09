@@ -42,6 +42,9 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 
 
 ### P0.2a — Coreless-managed storage regions and block-reuse policy
+
+**Foundational invariant — structural allocations never reshape:** Coreless OS structures, CPU-component layouts, architectural metadata, and other designated structural allocations retain their specified size, alignment, layout, and allocation boundaries. Rewriteable data may change within its assigned capacity, but may not resize, relocate, overwrite, or consume protected structural allocations. Any intentional structural change requires an explicit, validated migration/reconfiguration procedure; ordinary writes must never trigger it implicitly.
+
 - [ ] Define a Coreless storage-layout contract with explicitly assigned regions for immutable/model artifacts, configuration and boot metadata, durable machine state, checkpoint generations, high-churn KV caches/logs, and reserved/recovery capacity.
 - [ ] Where the target storage device exposes controllable allocation units, assign stable block ranges or extents to those regions; record the mapping, ownership, permissions, capacity, and lifecycle in Coreless-managed metadata. Do not treat arbitrary allocator placement as the policy.
 - [ ] Give each region an explicit write class: immutable/write-once, low-churn durable, transactional snapshot, or high-churn rewrite/append. Reuse blocks only under that region's declared lifecycle and reclamation rules; high-churn writes must not consume or rewrite protected durable-state blocks.
