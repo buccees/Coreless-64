@@ -67,6 +67,25 @@ def test_host_device_enumerator_rejects_unsupported_protocol_version():
         HostDeviceEnumerator().discover([candidate])
 
 
+@pytest.mark.parametrize("endpoint_id", ["", "   ", None, 7])
+def test_host_device_enumerator_rejects_invalid_endpoint_id_types(endpoint_id):
+    candidate = HostDiscoveryCandidate(endpoint_id, identity_frame(), HostCapabilities())
+    with pytest.raises(ValueError, match="endpoint_id must be a nonempty string"):
+        HostDeviceEnumerator().discover([candidate])
+
+
+def test_host_device_enumerator_rejects_non_frame_identity_objects():
+    candidate = HostDiscoveryCandidate("bad-frame-object", object(), HostCapabilities())
+    with pytest.raises(ValueError, match="invalid Coreless discovery identity frame"):
+        HostDeviceEnumerator().discover([candidate])
+
+
+def test_host_device_enumerator_rejects_invalid_host_capabilities_type():
+    candidate = HostDiscoveryCandidate("bad-capabilities", identity_frame(), object())
+    with pytest.raises(TypeError, match="host_capabilities must be HostCapabilities"):
+        HostDeviceEnumerator().discover([candidate])
+
+
 def test_host_device_enumerator_rejects_duplicate_endpoint_ids():
     candidate = HostDiscoveryCandidate(
         "duplicate", identity_frame("one"), HostCapabilities()
@@ -76,7 +95,7 @@ def test_host_device_enumerator_rejects_duplicate_endpoint_ids():
 
 
 def test_host_device_enumerator_rejects_empty_endpoint_id():
-    with pytest.raises(ValueError, match="endpoint_id must not be empty"):
+    with pytest.raises(ValueError, match="endpoint_id must be a nonempty string"):
         HostDeviceEnumerator().discover(
             [HostDiscoveryCandidate("", identity_frame(), HostCapabilities())]
         )
