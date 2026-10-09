@@ -20,9 +20,69 @@ class PersistentMachineImage:
             self._load()
 
     def put(self, name, data, sync=True):
-        self.objects[name] = data.encode() if isinstance(data, str) else bytes(data)
+        payload = data.encode() if isinstance(data, str) else bytes(data)
+        structures = self.metadata.get("structural_allocations", {})
+        allocation = structures.get(name)
+        if allocation is not None and len(payload) != allocation["size"]:
+            raise ValueError(
+                "Coreless structural allocation size is fixed; "
+                "use an explicit validated migration to change its shape"
+            )
+        self.objects[name] = payload
         if sync:
             self.sync()
+
+    def reserve_structure(self, name, size, *, alignment=1, initial=None, sync=True):
+        """Reserve a fixed-shape structural object for OS/CPU architecture state.
+
+        This is a logical allocation contract, not a claim that the host device
+        exposes physical SSD sectors or flash erase blocks.
+        """
+        if not isinstance(name, str) or not name or name.startswith("checkpoint/"):
+            raise ValueError("structural allocation name must be a non-empty local key")
+        if type(size) is not int or size <= 0:
+            raise ValueError("structural allocation size must be a positive integer")
+        if type(alignment) is not int or alignment <= 0 or alignment & (alignment - 1):
+            raise ValueError("structural allocation alignment must be a positive power of two")
+        payload = bytes(size) if initial is None else (
+            initial.encode() if isinstance(initial, str) else bytes(initial)
+        )
+        if len(payload) != size:
+            raise ValueError("initial structural data must match the reserved size")
+        structures = self.metadata.setdefault("structural_allocations", {})
+        allocation = structures.get(name)
+        expected = {"size": size, "alignment": alignment}
+        if allocation is not None and allocation != expected:
+            raise ValueError("Coreless structural allocation shape cannot change")
+        existing = self.objects.get(name)
+        if existing is not None and len(existing) != size:
+            raise ValueError("existing data does not match structural allocation size")
+        structures[name] = expected
+        if existing is None:
+            self.objects[name] = payload
+        if sync:
+            self.sync()
+        return name
+
+    @staticmethod
+    def _validate_structural_allocations(metadata, objects):
+        structures = metadata.get("structural_allocations", {})
+        if not isinstance(structures, dict):
+            raise ValueError("invalid Coreless structural allocation manifest")
+        for name, allocation in structures.items():
+            if (
+                not isinstance(name, str) or not name
+                or not isinstance(allocation, dict)
+                or type(allocation.get("size")) is not int
+                or allocation["size"] <= 0
+                or type(allocation.get("alignment")) is not int
+                or allocation["alignment"] <= 0
+                or allocation["alignment"] & (allocation["alignment"] - 1)
+            ):
+                raise ValueError("invalid Coreless structural allocation manifest")
+            payload = objects.get(name)
+            if payload is None or len(payload) != allocation["size"]:
+                raise ValueError("Coreless structural allocation shape is inconsistent")
 
     def get(self, name):
         return self.objects[name]
@@ -58,16 +118,23 @@ class PersistentMachineImage:
         snapshot = json.loads(raw.decode("utf-8"))
         if snapshot.get("format") != self.FORMAT:
             raise ValueError("unsupported Coreless checkpoint format")
-        self.metadata = dict(snapshot.get("metadata", {}))
+        snapshot_metadata = dict(snapshot.get("metadata", {}))
+        snapshot_objects = {
+            key: base64.b64decode(value.encode("ascii"))
+            for key, value in snapshot.get("objects", {}).items()
+        }
+        current_structures = self.metadata.get("structural_allocations", {})
+        snapshot_structures = snapshot_metadata.get("structural_allocations", {})
+        if current_structures != snapshot_structures:
+            raise ValueError("checkpoint cannot change Coreless structural allocation shape")
+        self._validate_structural_allocations(snapshot_metadata, snapshot_objects)
+        self.metadata = snapshot_metadata
         self.metadata["format"] = self.FORMAT
         checkpoints = {
             key: value for key, value in self.objects.items()
             if key.startswith("checkpoint/")
         }
-        self.objects = {
-            key: base64.b64decode(value.encode("ascii"))
-            for key, value in snapshot.get("objects", {}).items()
-        }
+        self.objects = snapshot_objects
         self.objects.update(checkpoints)
         self.sync()
         return hashlib.sha256(raw).hexdigest()
@@ -125,6 +192,7 @@ class PersistentMachineImage:
             name: base64.b64decode(data.encode("ascii"))
             for name, data in image.get("objects", {}).items()
         }
+        self._validate_structural_allocations(self.metadata, self.objects)
 
     def sync(self):
         if not self.path:
