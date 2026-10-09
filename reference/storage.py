@@ -152,8 +152,10 @@ class PersistentMachineImage:
         }
         current_structures = self.metadata.get("structural_allocations", {})
         snapshot_structures = snapshot_metadata.get("structural_allocations", {})
-        if current_structures != snapshot_structures:
-            raise ValueError("checkpoint cannot change Coreless structural allocation shape")
+        current_homes = {key: (value.get("home_id", key), value.get("alignment")) for key, value in current_structures.items()}
+        snapshot_homes = {key: (value.get("home_id", key), value.get("alignment")) for key, value in snapshot_structures.items()}
+        if current_homes != snapshot_homes:
+            raise ValueError("checkpoint cannot change Coreless structural storage homes")
         self._validate_structural_allocations(snapshot_metadata, snapshot_objects)
         self.metadata = snapshot_metadata
         self.metadata["format"] = self.FORMAT
@@ -219,6 +221,11 @@ class PersistentMachineImage:
             name: base64.b64decode(data.encode("ascii"))
             for name, data in image.get("objects", {}).items()
         }
+        structures = self.metadata.get("structural_allocations", {})
+        for name, allocation in structures.items():
+            allocation.setdefault("home_id", name)
+            allocation.setdefault("capacity", max(allocation.get("size", 0), len(self.objects.get(name, b""))))
+            allocation["size"] = len(self.objects.get(name, b""))
         self._validate_structural_allocations(self.metadata, self.objects)
 
     def sync(self):
