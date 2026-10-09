@@ -70,6 +70,20 @@ def test_socket_network_transport_rejects_non_bytes_packet_without_retiring_stre
         receiver.close()
 
 
+def test_socket_network_transport_accepts_packet_at_configured_size_limit():
+    left, right = socket.socketpair()
+    sender = SocketNetworkTransport(left, max_packet_size=4)
+    receiver = SocketNetworkTransport(right, max_packet_size=4)
+    try:
+        sender.send_packet(b"1234")
+        assert receiver.receive_packet() == b"1234"
+        assert not sender.closed
+        assert not receiver.closed
+    finally:
+        sender.close()
+        receiver.close()
+
+
 def test_socket_network_transport_rejects_oversized_incoming_packet():
     left, right = socket.socketpair()
     sender = SocketNetworkTransport(left)
