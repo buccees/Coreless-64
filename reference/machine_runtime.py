@@ -187,8 +187,7 @@ class CorelessMachine:
         }
 
     @staticmethod
-    def _restore_fixed_array(target, incoming, name):
-        """Update architectural arrays in place without permitting shape changes."""
+    def _validate_fixed_array_shape(target, incoming, name):
         if not isinstance(incoming, (list, tuple)) or len(incoming) != len(target):
             raise ValueError("Coreless structural state shape mismatch: " + name)
         for index, value in enumerate(incoming):
@@ -196,25 +195,40 @@ class CorelessMachine:
                 if not isinstance(value, (list, tuple)) or len(value) != len(target[index]):
                     raise ValueError("Coreless structural state shape mismatch: " + name)
                 for nested_index, nested_value in enumerate(value):
+                    if isinstance(target[index][nested_index], list) and (
+                        not isinstance(nested_value, (list, tuple))
+                        or len(nested_value) != len(target[index][nested_index])
+                    ):
+                        raise ValueError("Coreless structural state shape mismatch: " + name)
+
+    @staticmethod
+    def _restore_fixed_array(target, incoming):
+        """Update validated architectural arrays in place, preserving allocations."""
+        for index, value in enumerate(incoming):
+            if isinstance(target[index], list):
+                for nested_index, nested_value in enumerate(value):
                     if isinstance(target[index][nested_index], list):
-                        nested_target = target[index][nested_index]
-                        if (
-                            not isinstance(nested_value, (list, tuple))
-                            or len(nested_value) != len(nested_target)
-                        ):
-                            raise ValueError("Coreless structural state shape mismatch: " + name)
-                        nested_target[:] = nested_value
+                        target[index][nested_index][:] = nested_value
                     else:
-                        target[index][nested_index] = value[nested_index]
+                        target[index][nested_index] = nested_value
             else:
                 target[index] = value
 
     def _restore_cpu_state(self, cpu, state):
-        # Validate and update the fixed-shape architectural arrays in place.
+        # Preflight every structural field before mutating any architectural state.
         # Restoring persisted state must never resize or replace these structures.
-        for field in ("r", "f", "vector", "matrix", "vector_mask"):
+        fields = ("r", "f", "vector", "matrix", "vector_mask")
+        for field in fields:
             if field in state:
-                self._restore_fixed_array(getattr(cpu, field), state[field], field)
+                self._validate_fixed_array_shape(getattr(cpu, field), state[field], field)
+        if "matrix_shape" in state and (
+            not isinstance(state["matrix_shape"], (list, tuple))
+            or len(state["matrix_shape"]) != 3
+        ):
+            raise ValueError("Coreless structural state shape mismatch: matrix_shape")
+        for field in fields:
+            if field in state:
+                self._restore_fixed_array(getattr(cpu, field), state[field])
         cpu.r[0] = 0
         cpu.fp_rounding = state.get("fp_rounding", cpu.fp_rounding)
         cpu.pc = state.get("pc", cpu.pc); cpu.sp = state.get("sp", cpu.sp)
