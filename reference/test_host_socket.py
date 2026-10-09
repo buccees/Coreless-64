@@ -879,6 +879,44 @@ def test_socket_network_transport_retires_when_receive_header_is_partial_and_pee
     transport.close()
     assert sock.close_calls == 1
 
+
+def test_socket_network_transport_retires_when_receive_payload_is_partial_and_peer_closes():
+    class PartialPayloadSocket:
+        def __init__(self):
+            self.chunks = [bytes.fromhex("00000003"), b"a", b""]
+            self.closed = False
+            self.close_calls = 0
+            self.shutdown_calls = 0
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            chunk = self.chunks.pop(0)
+            assert len(chunk) <= size
+            return chunk
+
+        def shutdown(self, how):
+            self.shutdown_calls += 1
+
+        def close(self):
+            self.close_calls += 1
+            self.closed = True
+
+    sock = PartialPayloadSocket()
+    transport = SocketNetworkTransport(sock)
+
+    with pytest.raises(ConnectionError, match="socket closed"):
+        transport.receive_packet()
+
+    assert transport.closed
+    assert sock.close_calls == 1
+    assert sock.shutdown_calls == 1
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.receive_packet()
+    transport.close()
+    assert sock.close_calls == 1
+
 def test_socket_network_transport_accepts_bytes_like_send_packets():
     sender, receiver = transport_pair()
     packets = [b"bytes", bytearray(b"bytearray"), memoryview(b"memoryview")]
