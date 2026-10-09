@@ -507,3 +507,37 @@ def test_socket_network_transport_concurrent_close_is_idempotent():
 
     assert transport.closed
     assert sock.close_calls == 1
+
+
+def test_socket_network_transport_close_interrupts_blocked_receive():
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    left, right = socket.socketpair()
+    receive_started = Event()
+
+    class SignalingSocket:
+        def sendall(self, data):
+            right.sendall(data)
+
+        def recv(self, size):
+            receive_started.set()
+            return right.recv(size)
+
+        def shutdown(self, how):
+            right.shutdown(how)
+
+        def close(self):
+            right.close()
+
+    receiver = SocketNetworkTransport(SignalingSocket())
+    try:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(receiver.receive_packet)
+            assert receive_started.wait(timeout=2)
+            receiver.close()
+            with pytest.raises(ConnectionError, match="socket closed"):
+                future.result(timeout=2)
+    finally:
+        receiver.close()
+        left.close()
