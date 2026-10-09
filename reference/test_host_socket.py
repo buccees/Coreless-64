@@ -644,3 +644,25 @@ def test_socket_network_transport_close_still_closes_when_shutdown_fails():
     assert transport.closed
     assert sock.shutdown_calls == 1
     assert sock.close_calls == 1
+
+
+def test_socket_network_transport_retires_if_recv_exceeds_requested_size():
+    class OverreadingSocket:
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            return b"x" * (size + 1)
+
+        def close(self):
+            self.closed = True
+
+    sock = OverreadingSocket()
+    transport = SocketNetworkTransport(sock)
+
+    with pytest.raises(ValueError, match="more bytes than requested"):
+        transport.receive_packet()
+
+    assert transport.closed
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.receive_packet()

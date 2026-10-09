@@ -139,12 +139,16 @@ class SocketNetworkTransport:
     def _recv_exact(self, size: int) -> bytes:
         chunks = bytearray()
         while len(chunks) < size:
-            chunk = self._socket.recv(size - len(chunks))
+            remaining = size - len(chunks)
+            chunk = self._socket.recv(remaining)
             if not chunk:
                 raise ConnectionError("host network socket closed")
             if not isinstance(chunk, (bytes, bytearray, memoryview)):
                 self._retire_socket()
                 raise TypeError("host network socket recv() must return bytes")
+            if len(chunk) > remaining:
+                self._retire_socket()
+                raise ValueError("host network socket recv() returned more bytes than requested")
             chunks.extend(chunk)
         return bytes(chunks)
 
