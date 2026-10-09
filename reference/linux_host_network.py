@@ -8,6 +8,7 @@ The established socket remains the negotiated network channel.
 """
 from __future__ import annotations
 
+import math
 import socket
 import ssl
 import sys
@@ -63,8 +64,8 @@ class LinuxTCPDiscoveryProvider:
             raise RuntimeError("LinuxTCPDiscoveryProvider requires Linux")
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
             raise TypeError("timeout must be a positive number")
-        if timeout <= 0:
-            raise ValueError("timeout must be positive")
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("timeout must be positive and finite")
         self._endpoints = tuple(endpoints)
         if any(not isinstance(endpoint, LinuxTCPEndpoint) for endpoint in self._endpoints):
             raise TypeError("endpoints must contain LinuxTCPEndpoint values")

@@ -133,9 +133,10 @@ def test_linux_tcp_endpoint_validates_configuration(host, port, error):
         LinuxTCPEndpoint(host, port, "coreless-linux")
 
 
-def test_linux_tcp_provider_requires_positive_timeout():
-    with pytest.raises(ValueError, match="timeout must be positive"):
-        LinuxTCPDiscoveryProvider([], ssl_context=make_test_tls_context(), timeout=0)
+@pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("-inf"), float("nan")])
+def test_linux_tcp_provider_requires_positive_finite_timeout(timeout):
+    with pytest.raises(ValueError, match="timeout must be positive and finite"):
+        LinuxTCPDiscoveryProvider([], ssl_context=make_test_tls_context(), timeout=timeout)
 
 
 @pytest.mark.parametrize("max_packet_size,error,match", [
