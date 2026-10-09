@@ -96,9 +96,12 @@ class LinuxTCPDiscoveryProvider:
             raw_socket = socket.create_connection(
                 (endpoint.host, endpoint.port), timeout=self._timeout
             )
-            raw_socket.settimeout(self._timeout)
             transport = None
             try:
+                # Keep every post-connect setup operation inside the cleanup
+                # boundary so a timeout-configuration failure cannot leak the
+                # newly opened host socket.
+                raw_socket.settimeout(self._timeout)
                 tls_socket = self._ssl_context.wrap_socket(
                     raw_socket, server_hostname=endpoint.host
                 )
