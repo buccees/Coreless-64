@@ -268,3 +268,34 @@ def test_cpu_state_restore_rejects_reshaped_components_without_partial_mutation(
     else:
         raise AssertionError("CPU state restore accepted a reshaped vector component")
     assert cpu.r == before_registers
+
+
+def test_structural_allocation_changes_shape_only_through_validated_migration():
+    from storage import PersistentMachineImage
+
+    image = PersistentMachineImage()
+    image.reserve_structure("os/kernel-layout", 4, alignment=4, initial=b"CORE")
+    try:
+        image.migrate_structure("os/kernel-layout", 8)
+    except ValueError as exc:
+        assert "explicit transformation" in str(exc)
+    else:
+        raise AssertionError("migration without an explicit transformation was accepted")
+
+    try:
+        image.migrate_structure("os/kernel-layout", 8, transform=lambda old: old + b"!")
+    except ValueError as exc:
+        assert "new reserved size" in str(exc)
+    else:
+        raise AssertionError("migration accepted a transformed payload with the wrong size")
+    assert image.get("os/kernel-layout") == b"CORE"
+    assert image.metadata["structural_allocations"]["os/kernel-layout"]["size"] == 4
+
+    image.migrate_structure(
+        "os/kernel-layout", 8, alignment=8,
+        transform=lambda old: old + b"LESS!!!",
+    )
+    assert image.get("os/kernel-layout") == b"CORELESS!!!"
+    assert image.metadata["structural_allocations"]["os/kernel-layout"] == {
+        "size": 8, "alignment": 8,
+    }
