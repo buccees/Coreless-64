@@ -365,14 +365,14 @@ def test_linux_tcp_provider_rejects_tls_hostname_mismatch(tmp_path):
 
 
 @pytest.mark.parametrize("reply, expected_error", [
-    (b"not-an-identity-frame", "invalid Coreless discovery identity frame"),
+    (b"not-an-identity-frame", "Coreless identity frame is truncated"),
     (
         DeviceIdentityFrame(
             protocol_version=1,
             architecture=ARCHITECTURE_CORELESS64,
             device_type=DEVICE_TYPE_CORELESS64,
             capabilities=capability_bits({"network"}),
-            payload=b"\\xff",
+            payload=b"\xff",
         ).encode(),
         "invalid Coreless discovery identity payload",
     ),
