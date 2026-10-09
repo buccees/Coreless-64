@@ -98,8 +98,8 @@ def test_socket_network_transport_accepts_bytes_like_recv_chunks():
 
         def __init__(self):
             self.reads = [
-                bytearray(b"\\x00\\x00"),
-                memoryview(b"\\x00\\x03"),
+                bytearray(bytes.fromhex("0000")),
+                memoryview(bytes.fromhex("0003")),
                 bytearray(b"a"),
                 memoryview(b"bc"),
             ]
