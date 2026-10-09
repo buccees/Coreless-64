@@ -287,6 +287,37 @@ def test_socket_network_transport_close_is_idempotent():
     assert sock.close_calls == 1
 
 
+def test_socket_network_transport_close_failure_still_marks_closed_once():
+    class FailingCloseSocket:
+        def __init__(self):
+            self.close_calls = 0
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            self.close_calls += 1
+            raise OSError("close failed")
+
+    sock = FailingCloseSocket()
+    transport = SocketNetworkTransport(sock)
+
+    with pytest.raises(OSError, match="close failed"):
+        transport.close()
+
+    assert transport.closed
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.send_packet(b"after-close-failure")
+
+    # Closure is published before host cleanup; a repeated close must not
+    # retry an operation whose outcome may be uncertain.
+    transport.close()
+    assert sock.close_calls == 1
+
+
 def test_socket_network_transport_context_manager_closes_on_body_failure():
     class CountingSocket:
         def __init__(self):
