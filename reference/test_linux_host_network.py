@@ -364,17 +364,17 @@ def test_linux_tcp_provider_rejects_tls_hostname_mismatch(tmp_path):
     assert errors
 
 
-@pytest.mark.parametrize("reply", [
-    b"not-an-identity-frame",
+@pytest.mark.parametrize("reply, expected_error", [
+    (b"not-an-identity-frame", "invalid Coreless discovery identity frame"),
     DeviceIdentityFrame(
         protocol_version=1,
         architecture=ARCHITECTURE_CORELESS64,
         device_type=DEVICE_TYPE_CORELESS64,
         capabilities=capability_bits({"network"}),
         payload=b"\xff",
-    ).encode(),
+    ).encode(), "invalid Coreless discovery identity payload"),
 ])
-def test_linux_tcp_provider_rejects_malformed_identity_over_verified_tls(tmp_path, reply):
+def test_linux_tcp_provider_rejects_malformed_identity_over_verified_tls(tmp_path, reply, expected_error):
     certfile, keyfile = make_tls_credentials(tmp_path)
     client_context = ssl.create_default_context(
         purpose=ssl.Purpose.SERVER_AUTH, cafile=str(certfile)

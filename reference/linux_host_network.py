@@ -118,7 +118,12 @@ class LinuxTCPDiscoveryProvider:
                     raise ValueError("unsupported Coreless discovery protocol version")
                 # Requiring a nonempty UTF-8 identity here prevents a connection
                 # from being surfaced as a candidate before neutral validation.
-                computer_id = identity.payload.decode("utf-8")
+                try:
+                    computer_id = identity.payload.decode("utf-8")
+                except UnicodeDecodeError as exc:
+                    raise ValueError(
+                        "invalid Coreless discovery identity payload"
+                    ) from exc
                 if not computer_id:
                     raise ValueError("Coreless discovery identity is empty")
                 if computer_id != endpoint.expected_computer_id:
