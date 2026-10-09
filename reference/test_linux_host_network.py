@@ -346,3 +346,29 @@ def test_linux_tcp_provider_rejects_tls_hostname_mismatch(tmp_path):
     thread.join(timeout=2)
     assert not thread.is_alive()
     assert errors
+
+
+def test_linux_tcp_provider_rejects_identity_mismatch_after_verified_tls(tmp_path):
+    certfile, keyfile = make_tls_credentials(tmp_path)
+    client_context = ssl.create_default_context(
+        purpose=ssl.Purpose.SERVER_AUTH, cafile=str(certfile)
+    )
+    port, seen, errors, thread = start_tls_peer(
+        identity_frame("different-coreless"), certfile, keyfile
+    )
+    provider = LinuxTCPDiscoveryProvider(
+        [LinuxTCPEndpoint("localhost", port, "coreless-linux")],
+        ssl_context=client_context,
+        timeout=2,
+    )
+
+    # TLS authenticates the configured peer, but the advertised Coreless
+    # identity must independently match the endpoint's pinned identity.
+    with pytest.raises(ValueError, match="does not match configured endpoint"):
+        provider.enumerate_candidates()
+    thread.join(timeout=2)
+
+    assert not thread.is_alive()
+    assert not errors
+    assert seen == [DISCOVERY_REQUEST]
+
