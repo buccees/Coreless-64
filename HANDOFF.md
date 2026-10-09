@@ -627,3 +627,16 @@ No additional production-code change was justified by this audit. The recent tar
 **Important boundary:** this closes only the reference socket transport/lifecycle hardening work. P0.6 remains open for selecting a real target platform, implementing physical host/device enumeration and platform display/input/network adapters, and validating the complete lifecycle on actual platform I/O. Reference CI is not evidence that physical plug-and-play hardware support is complete.
 
 Resume with the concrete target-platform integration in `REMAINING_REQUIREMENTS.md`, not another socket-only edge-case batch.
+
+
+## Documentation checkpoint — 2026-10-09: Linux TCP discovery security gates
+
+The Linux configured-TCP discovery provider now upgrades the connection to TLS using a caller-supplied context that must require certificate validation and hostname checking. Real loopback TLS tests cover successful verified discovery and continued use of the same TLS-backed framed channel, rejection of untrusted certificates, hostname mismatch, and a trusted TLS peer advertising the wrong configured Coreless identity. Failure-path coverage also verifies cleanup when raw-socket timeout setup fails and when wrapped TLS-socket setup fails.
+
+The provider and shared HostDeviceEnumerator now reject protocol versions other than the currently supported PROTOCOL_VERSION (v1). Non-finite, zero, and negative timeout values are rejected before connecting. Regression tests cover the supported boundary and invalid configuration values.
+
+**Verified CI:** runs [#1887](https://github.com/buccees/Coreless-64/actions/runs/37965392852), [#1888](https://github.com/buccees/Coreless-64/actions/runs/37965399067), [#1889](https://github.com/buccees/Coreless-64/actions/runs/37965538836), and [#1890](https://github.com/buccees/Coreless-64/actions/runs/37965545743) are green. The wrapped TLS socket cleanup regression is green in [#1884](https://github.com/buccees/Coreless-64/actions/runs/37965199909), and TLS identity binding is green in [#1885](https://github.com/buccees/Coreless-64/actions/runs/37965287809).
+
+### Current host-platform resume point
+
+Linux userspace is the first target and the configured TCP/TLS bootstrap is a concrete reference network provider. It is not physical USB/PCIe enumeration and does not prove interoperability with a real Coreless peer. Still open: choosing the actual physical endpoint/bus contract, platform enumeration and display/input/network adapters, lifecycle validation on real platform I/O, and hot-unplug/reconnect coverage against that target. Do not reopen completed socket-only hardening without a concrete contract failure.

@@ -80,7 +80,7 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 **Exit evidence:** lifecycle and fault-injection acceptance tests demonstrate that components remain autonomous and the Hub never silently dispatches work to an ineligible component.
 
 ### P0.6 — Host I/O integration and target platform
-- [ ] Select and document the first concrete host platform/OS target.
+- [x] Select and document the first concrete host platform/OS target (Linux userspace; see specification/linux_host_platform.md).
 - [ ] Implement physical host/device enumeration providers for that target.
 - [ ] Implement and validate platform display and keyboard/pointer/touch input adapters.
 - [ ] Complete the platform network adapter and integrate it with the existing socket-backed/reference transport contract as appropriate.
@@ -88,6 +88,9 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 - [ ] Test hot unplug, unavailable channels, reconnect, malformed advertisements, and host-side I/O failures without moving CPU/OS/VM/AI authority into the host.
 
 **Exit evidence:** a real target machine completes the lifecycle using actual platform I/O. The existing socket/reference transport tests alone do not satisfy this item.
+
+**Implementation checkpoint — 2026-10-09:** Linux userspace is selected and documented, and reference/linux_host_network.py implements configured TCP discovery over verified TLS with a framed identity exchange and a retained socket-backed channel. Reference CI covers real loopback TLS success, untrusted-certificate and hostname rejection, configured Coreless identity binding, protocol-version rejection, invalid timeout configuration, and socket cleanup on setup failures. These tests do **not** complete physical enumeration or the P0.6 exit gate; all actual platform enumeration, display/input adapters, real-peer interoperability, and real-target lifecycle validation remain open.
+
 
 ## P1 — Operating environment and interaction
 
