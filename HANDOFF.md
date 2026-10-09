@@ -1,5 +1,14 @@
 # Coreless-64 — Project Handoff
 
+## Latest verified checkpoint — 2026-10-09: Linux host-platform target
+
+Commit `96292b978f2f73f0e6b68ccce1c7dc878a973a1c` adds `specification/linux_host_platform.md`, defining Linux userspace as the first host-platform target and laying out implementation gates. CI runs [#1843](https://github.com/buccees/Coreless-64/actions/runs/37961790772) and [#1844](https://github.com/buccees/Coreless-64/actions/runs/37961796955) passed.
+
+The target choice is Linux, but the physical Coreless endpoint/bus and the concrete identity-exchange path are not yet selected. The new specification explicitly prevents a simulated provider or inferred OS device name from being represented as physical plug-and-play. Next implementation work should first resolve the actual endpoint/bus and identity exchange, then implement a provider that reads a real identity frame and binds real channels. Platform display/input stack and permissions must be selected for the target deployment. No physical hardware validation is claimed.
+
+The previous socket transport hardening checkpoint remains closed and green. Do not reopen socket-only regression work without a demonstrated contract gap.
+
+
 ## Latest verified checkpoint — 2026-10-09: socket packet validation
 
 GitHub Actions **#1770** passed on commit `c85b1cca92fff75e21aacb75f74069f8a10e3a60` (workflow: [Coreless reference tests](https://github.com/buccees/Coreless-64/actions/runs/37922079849)).
