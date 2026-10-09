@@ -9,6 +9,7 @@ The established socket remains the negotiated network channel.
 from __future__ import annotations
 
 import socket
+import ssl
 import sys
 from dataclasses import dataclass
 from typing import Iterable
@@ -28,6 +29,7 @@ class LinuxTCPEndpoint:
 
     host: str
     port: int
+    expected_computer_id: str
 
     def __post_init__(self) -> None:
         if not isinstance(self.host, str) or not self.host.strip():
@@ -36,6 +38,8 @@ class LinuxTCPEndpoint:
             raise TypeError("Linux TCP endpoint port must be an integer")
         if not 1 <= self.port <= 65535:
             raise ValueError("Linux TCP endpoint port must be between 1 and 65535")
+        if not isinstance(self.expected_computer_id, str) or not self.expected_computer_id.strip():
+            raise ValueError("expected Coreless computer identity must not be empty")
 
 
 class LinuxTCPDiscoveryProvider:
@@ -51,6 +55,8 @@ class LinuxTCPDiscoveryProvider:
         self,
         endpoints: Iterable[LinuxTCPEndpoint],
         *,
+        *,
+        ssl_context: ssl.SSLContext,
         timeout: float = 3.0,
         max_packet_size: int = 16 * 1024 * 1024,
     ) -> None:
@@ -66,6 +72,11 @@ class LinuxTCPDiscoveryProvider:
         ids = [self._endpoint_id(endpoint) for endpoint in self._endpoints]
         if len(ids) != len(set(ids)):
             raise ValueError("duplicate configured Linux TCP endpoint")
+        if not all(hasattr(ssl_context, name) for name in ("verify_mode", "check_hostname", "wrap_socket")):
+            raise TypeError("ssl_context must provide verified TLS context settings and wrap_socket()")
+        if ssl_context.verify_mode != ssl.CERT_REQUIRED or not ssl_context.check_hostname:
+            raise ValueError("TLS context must require certificate validation and hostname checking")
+        self._ssl_context = ssl_context
         self._timeout = float(timeout)
         self._max_packet_size = max_packet_size
 
@@ -83,8 +94,12 @@ class LinuxTCPDiscoveryProvider:
             raw_socket.settimeout(self._timeout)
             transport = None
             try:
+                tls_socket = self._ssl_context.wrap_socket(
+                    raw_socket, server_hostname=endpoint.host
+                )
+                tls_socket.settimeout(self._timeout)
                 transport = SocketNetworkTransport(
-                    raw_socket, max_packet_size=self._max_packet_size
+                    tls_socket, max_packet_size=self._max_packet_size
                 )
                 transport.send_packet(DISCOVERY_REQUEST)
                 identity_payload = transport.receive_packet()
@@ -96,6 +111,8 @@ class LinuxTCPDiscoveryProvider:
                 computer_id = identity.payload.decode("utf-8")
                 if not computer_id:
                     raise ValueError("Coreless discovery identity is empty")
+                if computer_id != endpoint.expected_computer_id:
+                    raise ValueError("Coreless identity does not match configured endpoint")
                 candidates.append(
                     HostDiscoveryCandidate(
                         endpoint_id=self._endpoint_id(endpoint),
