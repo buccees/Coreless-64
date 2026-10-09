@@ -666,3 +666,25 @@ def test_socket_network_transport_retires_if_recv_exceeds_requested_size():
     assert transport.closed
     with pytest.raises(RuntimeError, match="transport is closed"):
         transport.receive_packet()
+
+
+
+def test_socket_network_transport_rejects_non_bytes_recv_before_eof_check():
+    class InvalidReceiveSocket:
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            return None
+
+        def close(self):
+            self.closed = True
+
+    sock = InvalidReceiveSocket()
+    transport = SocketNetworkTransport(sock)
+
+    with pytest.raises(TypeError, match="recv\\(\\) must return bytes"):
+        transport.receive_packet()
+
+    assert transport.closed
+    assert sock.closed
