@@ -237,3 +237,34 @@ def test_checkpoint_cannot_remove_a_structural_allocation():
         assert "cannot change" in str(exc)
     else:
         raise AssertionError("checkpoint restore removed a protected allocation")
+
+
+def test_cpu_state_restore_preserves_fixed_architectural_array_allocations():
+    machine = CorelessMachine(8192)
+    cpu = machine.cpu
+    registers = cpu.r
+    vector = cpu.vector
+    matrix = cpu.matrix
+    state = machine._cpu_state(cpu)
+    state["r"][1] = 0xCAFE
+    machine._restore_cpu_state(cpu, state)
+    assert cpu.r is registers
+    assert cpu.vector is vector
+    assert cpu.matrix is matrix
+    assert cpu.r[1] == 0xCAFE
+
+
+def test_cpu_state_restore_rejects_reshaped_components_without_partial_mutation():
+    machine = CorelessMachine(8192)
+    cpu = machine.cpu
+    before_registers = cpu.r[:]
+    state = machine._cpu_state(cpu)
+    state["r"][1] = 0xBAD
+    state["vector"] = state["vector"][:-1]
+    try:
+        machine._restore_cpu_state(cpu, state)
+    except ValueError as exc:
+        assert "structural state shape mismatch" in str(exc)
+    else:
+        raise AssertionError("CPU state restore accepted a reshaped vector component")
+    assert cpu.r == before_registers
