@@ -186,43 +186,44 @@ def test_application_and_shell_state_persist(tmp_path):
     assert os2.application_state[app.pid]["path"] == "/app"
 
 
-def test_structural_allocations_keep_fixed_shape_during_rewrites(tmp_path):
+def test_structural_allocation_home_survives_size_changes(tmp_path):
     from storage import PersistentMachineImage
 
     disk = tmp_path / "coreless-structure.img"
     image = PersistentMachineImage(disk)
     image.reserve_structure("os/kernel-layout", 16, alignment=8, initial=b"K" * 16)
-    image.put("os/kernel-layout", b"N" * 16)
-    assert image.get("os/kernel-layout") == b"N" * 16
-    try:
-        image.put("os/kernel-layout", b"resized")
-    except ValueError as exc:
-        assert "size is fixed" in str(exc)
-    else:
-        raise AssertionError("structural allocation was allowed to change size")
-    try:
-        image.reserve_structure("os/kernel-layout", 32, alignment=8)
-    except ValueError as exc:
-        assert "shape cannot change" in str(exc)
-    else:
-        raise AssertionError("structural allocation was allowed to change shape")
+    home_id = image.metadata["structural_allocations"]["os/kernel-layout"]["home_id"]
+    image.put("os/kernel-layout", b"UPGRADED-OS-LAYOUT")
+    allocation = image.metadata["structural_allocations"]["os/kernel-layout"]
+    assert allocation["home_id"] == home_id
+    assert allocation["size"] == len(b"UPGRADED-OS-LAYOUT")
+    assert allocation["capacity"] >= allocation["size"]
     reopened = PersistentMachineImage(disk)
-    assert reopened.metadata["structural_allocations"]["os/kernel-layout"] == {
-        "size": 16, "alignment": 8,
-    }
-    assert reopened.get("os/kernel-layout") == b"N" * 16
+    assert reopened.metadata["structural_allocations"]["os/kernel-layout"]["home_id"] == home_id
+    assert reopened.get("os/kernel-layout") == b"UPGRADED-OS-LAYOUT"
 
 
-def test_checkpoint_restore_preserves_structural_allocation_shape():
+def test_structural_home_capacity_can_grow_without_changing_identity():
     from storage import PersistentMachineImage
 
     image = PersistentMachineImage()
     image.reserve_structure("cpu/component-map", 8, alignment=4, initial=b"CPUCORE!")
-    image.create_checkpoint("stable-layout")
-    image.put("cpu/component-map", b"NEWCORE!")
-    image.restore_checkpoint("stable-layout")
+    home_id = image.metadata["structural_allocations"]["cpu/component-map"]["home_id"]
+    image.grow_structure("cpu/component-map", 4096)
+    assert image.metadata["structural_allocations"]["cpu/component-map"]["capacity"] == 4096
+    assert image.metadata["structural_allocations"]["cpu/component-map"]["home_id"] == home_id
+
+
+def test_checkpoint_restore_preserves_structural_home_and_payload_size():
+    from storage import PersistentMachineImage
+
+    image = PersistentMachineImage()
+    image.reserve_structure("cpu/component-map", 8, alignment=4, initial=b"CPUCORE!")
+    image.create_checkpoint("stable-home")
+    image.put("cpu/component-map", b"UPGRADED-CPU")
+    image.restore_checkpoint("stable-home")
     assert image.get("cpu/component-map") == b"CPUCORE!"
-    assert image.metadata["structural_allocations"]["cpu/component-map"]["size"] == 8
+    assert image.metadata["structural_allocations"]["cpu/component-map"]["home_id"] == "cpu/component-map"
 
 
 def test_checkpoint_cannot_remove_a_structural_allocation():
