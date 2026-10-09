@@ -845,7 +845,7 @@ def test_socket_network_transport_normalizes_typed_memoryview_receive_chunks():
 def test_socket_network_transport_retires_when_receive_header_is_partial_and_peer_closes():
     class PartialHeaderSocket:
         def __init__(self):
-            self.chunks = [b"\\x00\\x00", b""]
+            self.chunks = [bytes((0, 0)), b""]
             self.closed = False
             self.close_calls = 0
             self.shutdown_calls = 0
