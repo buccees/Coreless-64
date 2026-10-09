@@ -228,6 +228,17 @@ def test_socket_network_transport_marks_partial_receive_failure_closed():
         receiver.close()
 
 
+def test_socket_network_transport_rejects_non_integer_packet_size():
+    left, right = socket.socketpair()
+    try:
+        for invalid_size in (True, False, 1.5, "4", None):
+            with pytest.raises(TypeError, match="must be an integer"):
+                SocketNetworkTransport(left, max_packet_size=invalid_size)
+    finally:
+        left.close()
+        right.close()
+
+
 def test_socket_network_transport_rejects_invalid_packet_size():
     left, right = socket.socketpair()
     try:
