@@ -577,3 +577,22 @@ Regression coverage exercises failed reconnect recovery, socket ownership across
 ### Transport resume point
 
 The reference socket lifecycle hardening is complete. Do not continue adding socket edge cases without a concrete contract failure. The next host-interface work is concrete cross-platform enumeration and platform display/input/network adapters.
+
+
+## Documentation checkpoint — 2026-10-09: final socket transport hardening audit
+
+The final reference-boundary audit is complete at commit `259569c8b20a3b9ad4a0252804c96dafe1bcad2a`. GitHub Actions runs [#1839](https://github.com/buccees/Coreless-64/actions/runs/37961186663) and [#1840](https://github.com/buccees/Coreless-64/actions/runs/37961193448) both passed.
+
+The audit reviewed the socket framing implementation and adapter lifecycle against the current contract and the existing regression suite, including:
+
+- 32-bit big-endian frame boundaries, empty packets, configured size limits, partial reads, and peer EOF;
+- serialized concurrent sends and receives, plus close/error retirement during blocked I/O;
+- bytes-like input normalization and invalid receive chunks;
+- cleanup idempotency and preservation of the original transport/protocol exception when shutdown or close fails;
+- shared-socket wrapper retirement, reconnect rollback/recovery, and interface detachment after cleanup errors.
+
+No additional production-code change was justified by this audit. The recent targeted regressions for partial payload EOF, shared-socket wrapper retirement/usability, and oversized-frame errors surviving cleanup failures are green. The reference socket transport hardening task is therefore closed; do not add further isolated socket tests without a demonstrated contract gap or regression.
+
+**Important boundary:** this closes only the reference socket transport/lifecycle hardening work. P0.6 remains open for selecting a real target platform, implementing physical host/device enumeration and platform display/input/network adapters, and validating the complete lifecycle on actual platform I/O. Reference CI is not evidence that physical plug-and-play hardware support is complete.
+
+Resume with the concrete target-platform integration in `REMAINING_REQUIREMENTS.md`, not another socket-only edge-case batch.
