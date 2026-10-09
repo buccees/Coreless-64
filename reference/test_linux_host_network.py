@@ -41,7 +41,7 @@ class TestTLSContext:
         return sock
 
 
-def test_tls_context():
+def make_test_tls_context():
     return TestTLSContext()
 
 
@@ -84,7 +84,7 @@ def test_linux_tcp_provider_exchanges_identity_and_retains_network_channel():
     # TLS handshake behavior is covered by the provider's required context policy.
     provider = LinuxTCPDiscoveryProvider(
         [LinuxTCPEndpoint("localhost", port, "coreless-linux")],
-        ssl_context=test_tls_context(), timeout=1
+        ssl_context=make_test_tls_context(), timeout=1
     )
     candidates = provider.enumerate_candidates()
     endpoints = HostDeviceEnumerator().discover(candidates)
@@ -116,7 +116,7 @@ def test_linux_tcp_provider_rejects_invalid_identity_and_closes_channel():
 def test_linux_tcp_provider_rejects_duplicate_configured_endpoints():
     endpoint = LinuxTCPEndpoint("127.0.0.1", 12345, "coreless-linux")
     with pytest.raises(ValueError, match="duplicate configured"):
-        LinuxTCPDiscoveryProvider([endpoint, endpoint])
+        LinuxTCPDiscoveryProvider([endpoint, endpoint], ssl_context=make_test_tls_context())
 
 
 @pytest.mark.parametrize("host,port,error", [
