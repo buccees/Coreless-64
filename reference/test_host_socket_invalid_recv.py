@@ -55,3 +55,37 @@ def test_socket_network_transport_retires_when_recv_returns_more_than_requested(
 
     assert transport.closed
     assert sock.closed
+
+
+def test_socket_network_transport_retires_when_packet_payload_is_truncated():
+    from host_socket import SocketNetworkTransport
+
+    class TruncatedPayloadSocket:
+        closed = False
+
+        def __init__(self):
+            self.reads = [b"\\x00\\x00\\x00\\x05", b"ab", b""]
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            chunk = self.reads.pop(0)
+            assert len(chunk) <= size
+            return chunk
+
+        def close(self):
+            self.closed = True
+
+    sock = TruncatedPayloadSocket()
+    transport = SocketNetworkTransport(sock)
+
+    try:
+        transport.receive_packet()
+    except ConnectionError as exc:
+        assert str(exc) == "host network socket closed"
+    else:
+        raise AssertionError("truncated packet payload was accepted")
+
+    assert transport.closed
+    assert sock.closed
