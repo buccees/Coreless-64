@@ -86,6 +86,29 @@ def test_host_device_enumerator_rejects_invalid_host_capabilities_type():
         HostDeviceEnumerator().discover([candidate])
 
 
+
+@pytest.mark.parametrize("channels", [[], "network", 7])
+def test_host_device_enumerator_rejects_non_mapping_channels(channels):
+    candidate = HostDiscoveryCandidate("bad-channels", identity_frame(), HostCapabilities(), channels)
+    with pytest.raises(TypeError, match="channels must be a mapping or None"):
+        HostDeviceEnumerator().discover([candidate])
+
+
+@pytest.mark.parametrize("channels", [{None: object()}, {"": object()}, {7: object()}])
+def test_host_device_enumerator_rejects_invalid_channel_names(channels):
+    candidate = HostDiscoveryCandidate("bad-channel-name", identity_frame(), HostCapabilities(), channels)
+    with pytest.raises(ValueError, match="discovery channel names must be nonempty strings"):
+        HostDeviceEnumerator().discover([candidate])
+
+
+def test_host_device_enumerator_rejects_none_channel_values():
+    candidate = HostDiscoveryCandidate(
+        "empty-channel", identity_frame("empty-channel", ("network",)),
+        HostCapabilities(network=True), {"network": None}
+    )
+    with pytest.raises(ValueError, match="discovery channels must not be None"):
+        HostDeviceEnumerator().discover([candidate])
+
 def test_host_device_enumerator_rejects_duplicate_endpoint_ids():
     candidate = HostDiscoveryCandidate(
         "duplicate", identity_frame("one"), HostCapabilities()
