@@ -775,6 +775,42 @@ def test_socket_network_transport_retires_if_recv_exceeds_requested_size():
 
 
 
+
+def test_socket_network_transport_preserves_oversized_header_error_when_close_fails():
+    class FailingCloseSocket:
+        def __init__(self):
+            self.close_calls = 0
+            self.shutdown_calls = 0
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            assert size == 4
+            return (4).to_bytes(4, "big")
+
+        def shutdown(self, how):
+            self.shutdown_calls += 1
+            raise OSError("shutdown failed")
+
+        def close(self):
+            self.close_calls += 1
+            raise OSError("close failed")
+
+    sock = FailingCloseSocket()
+    transport = SocketNetworkTransport(sock, max_packet_size=3)
+
+    with pytest.raises(ValueError, match="exceeds host transport limit"):
+        transport.receive_packet()
+
+    assert transport.closed
+    assert sock.shutdown_calls == 1
+    assert sock.close_calls == 1
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.receive_packet()
+    transport.close()
+    assert sock.close_calls == 1
+
 def test_socket_network_transport_rejects_non_bytes_recv_before_eof_check():
     class InvalidReceiveSocket:
         def sendall(self, data):
