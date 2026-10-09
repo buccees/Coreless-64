@@ -24,9 +24,9 @@ from linux_host_network import (
 )
 
 
-def identity_frame(computer_id="coreless-linux", capabilities=("network",)):
+def identity_frame(computer_id="coreless-linux", capabilities=("network",), protocol_version=1):
     return DeviceIdentityFrame(
-        protocol_version=1,
+        protocol_version=protocol_version,
         architecture=ARCHITECTURE_CORELESS64,
         device_type=DEVICE_TYPE_CORELESS64,
         capabilities=capability_bits(set(capabilities)),
@@ -102,6 +102,22 @@ def test_linux_tcp_provider_exchanges_identity_and_retains_network_channel():
     assert not thread.is_alive()
     assert not errors
     assert seen == [DISCOVERY_REQUEST, b"post-discovery"]
+
+
+def test_linux_tcp_provider_rejects_unsupported_protocol_version():
+    port, seen, errors, thread = start_peer(identity_frame(protocol_version=2))
+    provider = LinuxTCPDiscoveryProvider(
+        [LinuxTCPEndpoint("127.0.0.1", port, "coreless-linux")],
+        ssl_context=make_test_tls_context(),
+        timeout=1,
+    )
+
+    with pytest.raises(ValueError, match="unsupported Coreless discovery protocol version"):
+        provider.enumerate_candidates()
+    thread.join(timeout=1)
+    assert not thread.is_alive()
+    assert not errors
+    assert seen == [DISCOVERY_REQUEST]
 
 
 def test_linux_tcp_provider_rejects_invalid_identity_and_closes_channel():

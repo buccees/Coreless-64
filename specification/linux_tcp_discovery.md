@@ -11,7 +11,7 @@ The first concrete Linux adapter uses explicitly configured TCP endpoints. This 
 
 The client opens a TCP connection to a configured endpoint, upgrades it to TLS using a caller-supplied trust-configured context, and uses the existing `SocketNetworkTransport` 32-bit big-endian length-prefixed packet framing:
 
-1. TLS certificate validation and hostname verification must succeed. The caller must configure a trust store appropriate for the deployment; disabling certificate checks is rejected.
+1. TLS certificate validation and hostname verification must succeed. The caller must configure a trust store appropriate for the deployment; disabling certificate checks is rejected. This implementation supports identity protocol version 1 and rejects other versions; it does not silently downgrade or assume forward compatibility.
 2. The endpoint configuration includes an expected Coreless computer identity. The returned identity must match that configured value; a valid frame alone does not authorize an arbitrary device.
 3. Client sends one packet whose payload is the exact byte string `CORELESS_DISCOVERY_V1`.
 4. Peer responds with one packet containing a complete encoded `DeviceIdentityFrame` from `reference/device_protocol.py`.

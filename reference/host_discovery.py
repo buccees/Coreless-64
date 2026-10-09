@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Mapping, Protocol
 
-from device_protocol import DeviceIdentityFrame
+from device_protocol import PROTOCOL_VERSION, DeviceIdentityFrame
 from host_interface import CorelessIdentity, HostCapabilities
 from host_transport import HostEndpoint
 
@@ -78,8 +78,8 @@ class HostDeviceEnumerator:
 
         if not frame.is_coreless64():
             raise ValueError("unsupported Coreless discovery endpoint")
-        if frame.protocol_version <= 0:
-            raise ValueError("invalid Coreless discovery protocol version")
+        if frame.protocol_version != PROTOCOL_VERSION:
+            raise ValueError("unsupported Coreless discovery protocol version")
         try:
             computer_id = frame.payload.decode("utf-8")
         except UnicodeDecodeError as exc:

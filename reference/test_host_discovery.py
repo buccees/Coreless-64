@@ -18,9 +18,9 @@ from host_discovery import (
 )
 
 
-def identity_frame(computer_id="coreless-a", capabilities=("display", "input")):
+def identity_frame(computer_id="coreless-a", capabilities=("display", "input"), protocol_version=1):
     return DeviceIdentityFrame(
-        protocol_version=1,
+        protocol_version=protocol_version,
         architecture=ARCHITECTURE_CORELESS64,
         device_type=DEVICE_TYPE_CORELESS64,
         capabilities=capability_bits(set(capabilities)),
@@ -57,6 +57,14 @@ def test_host_device_enumerator_rejects_invalid_identity_frame():
         HostDeviceEnumerator().discover(
             [HostDiscoveryCandidate("bad", b"not-coreless", HostCapabilities())]
         )
+
+
+def test_host_device_enumerator_rejects_unsupported_protocol_version():
+    candidate = HostDiscoveryCandidate(
+        "future-version", identity_frame("future-version", protocol_version=2), HostCapabilities()
+    )
+    with pytest.raises(ValueError, match="unsupported Coreless discovery protocol version"):
+        HostDeviceEnumerator().discover([candidate])
 
 
 def test_host_device_enumerator_rejects_duplicate_endpoint_ids():

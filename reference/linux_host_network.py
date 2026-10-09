@@ -15,7 +15,7 @@ import sys
 from dataclasses import dataclass
 from typing import Iterable
 
-from device_protocol import DeviceIdentityFrame
+from device_protocol import PROTOCOL_VERSION, DeviceIdentityFrame
 from host_discovery import HostDiscoveryCandidate
 from host_interface import HostCapabilities
 from host_socket import SocketNetworkTransport
@@ -114,8 +114,8 @@ class LinuxTCPDiscoveryProvider:
                 transport.send_packet(DISCOVERY_REQUEST)
                 identity_payload = transport.receive_packet()
                 identity = DeviceIdentityFrame.decode(identity_payload)
-                if identity.protocol_version <= 0:
-                    raise ValueError("invalid Coreless discovery protocol version")
+                if identity.protocol_version != PROTOCOL_VERSION:
+                    raise ValueError("unsupported Coreless discovery protocol version")
                 # Requiring a nonempty UTF-8 identity here prevents a connection
                 # from being surfaced as a candidate before neutral validation.
                 computer_id = identity.payload.decode("utf-8")
