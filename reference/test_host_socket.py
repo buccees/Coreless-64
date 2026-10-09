@@ -917,6 +917,44 @@ def test_socket_network_transport_retires_when_receive_payload_is_partial_and_pe
     transport.close()
     assert sock.close_calls == 1
 
+
+def test_socket_network_transport_wrapper_retirement_preserves_shared_socket():
+    class SharedSocket:
+        def __init__(self):
+            self.closed = False
+            self.close_calls = 0
+            self.shutdown_calls = 0
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def shutdown(self, how):
+            self.shutdown_calls += 1
+
+        def close(self):
+            self.close_calls += 1
+            self.closed = True
+
+    sock = SharedSocket()
+    transport = SocketNetworkTransport(sock)
+
+    transport.retire_without_closing_socket()
+
+    assert transport.closed
+    assert not sock.closed
+    assert sock.close_calls == 0
+    assert sock.shutdown_calls == 0
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.send_packet(b"not sent")
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.receive_packet()
+    transport.close()
+    assert not sock.closed
+    assert sock.close_calls == 0
+
 def test_socket_network_transport_accepts_bytes_like_send_packets():
     sender, receiver = transport_pair()
     packets = [b"bytes", bytearray(b"bytearray"), memoryview(b"memoryview")]
