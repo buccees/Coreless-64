@@ -64,7 +64,7 @@ def test_socket_network_transport_retires_when_packet_payload_is_truncated():
         closed = False
 
         def __init__(self):
-            self.reads = [b"\\x00\\x00\\x00\\x05", b"ab", b""]
+            self.reads = [bytes.fromhex("00000005"), b"ab", b""]
 
         def sendall(self, data):
             raise AssertionError("sendall should not be called")
