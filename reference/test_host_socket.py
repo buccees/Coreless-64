@@ -813,6 +813,34 @@ def test_socket_network_transport_retires_on_truncated_frame_header():
         left.close()
 
 
+
+def test_socket_network_transport_normalizes_typed_memoryview_receive_chunks():
+    class TypedMemoryviewSocket:
+        def __init__(self):
+            self.chunks = [
+                memoryview(bytes.fromhex("00000003")).cast("I"),
+                memoryview(b"abc"),
+            ]
+            self.closed = False
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            chunk = self.chunks.pop(0)
+            assert chunk.nbytes <= size
+            return chunk
+
+        def close(self):
+            self.closed = True
+
+    sock = TypedMemoryviewSocket()
+    transport = SocketNetworkTransport(sock)
+
+    assert transport.receive_packet() == b"abc"
+    assert not transport.closed
+    transport.close()
+
 def test_socket_network_transport_accepts_bytes_like_send_packets():
     sender, receiver = transport_pair()
     packets = [b"bytes", bytearray(b"bytearray"), memoryview(b"memoryview")]
