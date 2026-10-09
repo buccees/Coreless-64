@@ -366,16 +366,21 @@ def test_linux_tcp_provider_rejects_tls_hostname_mismatch(tmp_path):
 
 @pytest.mark.parametrize("reply, expected_error", [
     (b"not-an-identity-frame", "invalid Coreless discovery identity frame"),
-    DeviceIdentityFrame(
-        protocol_version=1,
-        architecture=ARCHITECTURE_CORELESS64,
-        device_type=DEVICE_TYPE_CORELESS64,
-        capabilities=capability_bits({"network"}),
-        payload=b"\xff",
-    ).encode(), "invalid Coreless discovery identity payload"),
+    (
+        DeviceIdentityFrame(
+            protocol_version=1,
+            architecture=ARCHITECTURE_CORELESS64,
+            device_type=DEVICE_TYPE_CORELESS64,
+            capabilities=capability_bits({"network"}),
+            payload=b"\\xff",
+        ).encode(),
+        "invalid Coreless discovery identity payload",
+    ),
 ])
-def test_linux_tcp_provider_rejects_malformed_identity_over_verified_tls(tmp_path, reply, expected_error):
-    certfile, keyfile = make_tls_credentials(tmp_path)
+def test_linux_tcp_provider_rejects_malformed_identity_over_verified_tls(
+    tmp_path, reply, expected_error
+):
+    certfile, keyfile = make_test_tls_credentials(tmp_path)
     client_context = ssl.create_default_context(
         purpose=ssl.Purpose.SERVER_AUTH, cafile=str(certfile)
     )
@@ -386,7 +391,7 @@ def test_linux_tcp_provider_rejects_malformed_identity_over_verified_tls(tmp_pat
         timeout=2,
     )
 
-    with pytest.raises((ValueError, UnicodeDecodeError)):
+    with pytest.raises(ValueError, match=expected_error):
         provider.enumerate_candidates()
     thread.join(timeout=2)
 
