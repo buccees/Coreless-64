@@ -577,3 +577,40 @@ def test_socket_network_transport_error_retirement_interrupts_blocked_receive():
     finally:
         receiver.close()
         left.close()
+
+
+def test_socket_network_transport_close_interrupts_blocked_send():
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    left, right = socket.socketpair()
+    left.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 4096)
+    send_started = Event()
+
+    class SignalingSocket:
+        def sendall(self, data):
+            send_started.set()
+            left.sendall(data)
+
+        def recv(self, size):
+            return left.recv(size)
+
+        def shutdown(self, how):
+            left.shutdown(how)
+
+        def close(self):
+            left.close()
+
+    sender = SocketNetworkTransport(SignalingSocket())
+    # Do not read from the peer: the large frame must block in sendall.
+    try:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(sender.send_packet, b"x" * (8 * 1024 * 1024))
+            assert send_started.wait(timeout=2)
+            sender.close()
+            with pytest.raises(OSError):
+                future.result(timeout=2)
+        assert sender.closed
+    finally:
+        sender.close()
+        right.close()
