@@ -1,7 +1,10 @@
+import shutil
 import socket
 import ssl
+import subprocess
 import sys
 import threading
+from pathlib import Path
 
 sys.path.insert(0, ".")
 import pytest
@@ -184,3 +187,82 @@ def test_linux_tcp_provider_closes_socket_if_timeout_setup_fails(monkeypatch):
     with pytest.raises(OSError, match="timeout setup failed"):
         provider.enumerate_candidates()
     assert sock.closed
+
+
+def start_tls_peer(reply, certfile, keyfile):
+    """Start a loopback peer that serves discovery over an actual TLS socket."""
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certfile=str(certfile), keyfile=str(keyfile))
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    seen = []
+    errors = []
+
+    def serve():
+        try:
+            conn, _ = listener.accept()
+            with context.wrap_socket(conn, server_side=True) as tls_conn:
+                transport = SocketNetworkTransport(tls_conn)
+                try:
+                    seen.append(transport.receive_packet())
+                    transport.send_packet(reply)
+                    try:
+                        seen.append(transport.receive_packet())
+                    except (ConnectionError, OSError, RuntimeError):
+                        pass
+                finally:
+                    transport.retire_without_closing_socket()
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            listener.close()
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    return port, seen, errors, thread
+
+
+def test_linux_tcp_provider_performs_real_verified_tls_discovery(tmp_path):
+    openssl = shutil.which("openssl")
+    if openssl is None:
+        pytest.skip("openssl is required to generate ephemeral TLS test credentials")
+
+    certfile = tmp_path / "linux_tls_server.crt"
+    keyfile = tmp_path / "linux_tls_server.key"
+    subprocess.run(
+        [
+            openssl, "req", "-x509", "-newkey", "rsa:2048",
+            "-keyout", str(keyfile), "-out", str(certfile),
+            "-days", "1", "-nodes", "-subj", "/CN=localhost",
+            "-addext", "subjectAltName=DNS:localhost",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    client_context = ssl.create_default_context(
+        purpose=ssl.Purpose.SERVER_AUTH, cafile=str(certfile)
+    )
+    assert client_context.verify_mode == ssl.CERT_REQUIRED
+    assert client_context.check_hostname
+
+    port, seen, errors, thread = start_tls_peer(identity_frame(), certfile, keyfile)
+    provider = LinuxTCPDiscoveryProvider(
+        [LinuxTCPEndpoint("localhost", port, "coreless-linux")],
+        ssl_context=client_context,
+        timeout=2,
+    )
+    candidates = provider.enumerate_candidates()
+    endpoints = HostDeviceEnumerator().discover(candidates)
+    assert endpoints[0].identity.computer_id == "coreless-linux"
+    channel = endpoints[0].channel_map()["network"]
+    channel.send_packet(b"verified-tls-channel")
+    channel.close()
+    thread.join(timeout=2)
+
+    assert not thread.is_alive()
+    assert not errors
+    assert seen == [DISCOVERY_REQUEST, b"verified-tls-channel"]
