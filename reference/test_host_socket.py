@@ -955,6 +955,43 @@ def test_socket_network_transport_wrapper_retirement_preserves_shared_socket():
     assert not sock.closed
     assert sock.close_calls == 0
 
+
+def test_socket_network_transport_wrapper_retirement_leaves_shared_transport_usable():
+    class SharedSocket:
+        def __init__(self):
+            self.closed = False
+            self.close_calls = 0
+            self.chunks = [bytes.fromhex("00000003"), b"abc"]
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            chunk = self.chunks.pop(0)
+            assert len(chunk) <= size
+            return chunk
+
+        def shutdown(self, how):
+            raise AssertionError("shared socket must not be shut down")
+
+        def close(self):
+            self.close_calls += 1
+            self.closed = True
+
+    sock = SharedSocket()
+    retired = SocketNetworkTransport(sock)
+    active = SocketNetworkTransport(sock)
+
+    retired.retire_without_closing_socket()
+
+    assert active.receive_packet() == b"abc"
+    assert not active.closed
+    assert not sock.closed
+    assert sock.close_calls == 0
+    active.close()
+    assert sock.closed
+    assert sock.close_calls == 1
+
 def test_socket_network_transport_accepts_bytes_like_send_packets():
     sender, receiver = transport_pair()
     packets = [b"bytes", bytearray(b"bytearray"), memoryview(b"memoryview")]
