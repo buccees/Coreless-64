@@ -123,3 +123,38 @@ def test_socket_network_transport_accepts_bytes_like_recv_chunks():
     assert not sock.closed
     transport.close()
     assert sock.closed
+
+
+def test_socket_network_transport_normalizes_non_byte_memoryview_recv_chunks():
+    from array import array
+
+    from host_socket import SocketNetworkTransport
+
+    class TypedMemoryviewRecvSocket:
+        closed = False
+
+        def __init__(self):
+            self.reads = [
+                memoryview(array("I", [3])),
+                memoryview(b"abc"),
+            ]
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            chunk = self.reads.pop(0)
+            assert chunk.nbytes <= size
+            return chunk
+
+        def close(self):
+            self.closed = True
+
+    sock = TypedMemoryviewRecvSocket()
+    transport = SocketNetworkTransport(sock)
+
+    assert transport.receive_packet() == b"abc"
+    assert not transport.closed
+    assert not sock.closed
+    transport.close()
+    assert sock.closed
