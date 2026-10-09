@@ -164,3 +164,23 @@ def test_linux_tcp_provider_rejects_unverified_tls_context():
 def test_linux_tcp_provider_requires_tls_context():
     with pytest.raises(TypeError, match="ssl_context"):
         LinuxTCPDiscoveryProvider([])
+
+def test_linux_tcp_provider_closes_socket_if_timeout_setup_fails(monkeypatch):
+    class TimeoutFailSocket:
+        closed = False
+
+        def settimeout(self, timeout):
+            raise OSError("timeout setup failed")
+
+        def close(self):
+            self.closed = True
+
+    sock = TimeoutFailSocket()
+    monkeypatch.setattr("linux_host_network.socket.create_connection", lambda *a, **k: sock)
+    provider = LinuxTCPDiscoveryProvider(
+        [LinuxTCPEndpoint("localhost", 12345, "coreless-linux")],
+        ssl_context=make_test_tls_context(),
+    )
+    with pytest.raises(OSError, match="timeout setup failed"):
+        provider.enumerate_candidates()
+    assert sock.closed
