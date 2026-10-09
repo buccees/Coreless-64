@@ -688,3 +688,20 @@ def test_socket_network_transport_rejects_non_bytes_recv_before_eof_check():
 
     assert transport.closed
     assert sock.closed
+
+
+
+def test_socket_network_transport_retires_on_truncated_frame_header():
+    left, right = socket.socketpair()
+    receiver = SocketNetworkTransport(right)
+    try:
+        left.sendall(b"\x00\x00")
+        left.close()
+        with pytest.raises(ConnectionError, match="socket closed"):
+            receiver.receive_packet()
+        assert receiver.closed
+        with pytest.raises(RuntimeError, match="transport is closed"):
+            receiver.receive_packet()
+    finally:
+        receiver.close()
+        left.close()
