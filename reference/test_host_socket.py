@@ -451,9 +451,13 @@ def test_socket_network_transport_serializes_concurrent_packet_sends():
     sender, receiver = transport_pair()
     packets = [f"packet-{worker}-{index}".encode() for worker in range(8) for index in range(40)]
     try:
-        with ThreadPoolExecutor(max_workers=8) as pool:
+        # Drain concurrently: a stream socket's send buffer is finite, so
+        # sending every frame before reading can deadlock independently of
+        # frame serialization.
+        with ThreadPoolExecutor(max_workers=9) as pool:
+            receive_future = pool.submit(lambda: [receiver.receive_packet() for _ in packets])
             list(pool.map(sender.send_packet, packets))
-        received = [receiver.receive_packet() for _ in packets]
+            received = receive_future.result(timeout=10)
         assert sorted(received) == sorted(packets)
     finally:
         sender.close()
