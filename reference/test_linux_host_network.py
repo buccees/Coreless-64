@@ -224,7 +224,7 @@ def start_tls_peer(reply, certfile, keyfile):
     return port, seen, errors, thread
 
 
-def test_linux_tcp_provider_performs_real_verified_tls_discovery(tmp_path):
+def make_tls_credentials(tmp_path):
     openssl = shutil.which("openssl")
     if openssl is None:
         pytest.skip("openssl is required to generate ephemeral TLS test credentials")
@@ -242,6 +242,11 @@ def test_linux_tcp_provider_performs_real_verified_tls_discovery(tmp_path):
         capture_output=True,
         text=True,
     )
+    return certfile, keyfile
+
+
+def test_linux_tcp_provider_performs_real_verified_tls_discovery(tmp_path):
+    certfile, keyfile = make_tls_credentials(tmp_path)
 
     client_context = ssl.create_default_context(
         purpose=ssl.Purpose.SERVER_AUTH, cafile=str(certfile)
@@ -266,3 +271,39 @@ def test_linux_tcp_provider_performs_real_verified_tls_discovery(tmp_path):
     assert not thread.is_alive()
     assert not errors
     assert seen == [DISCOVERY_REQUEST, b"verified-tls-channel"]
+
+
+
+def test_linux_tcp_provider_rejects_untrusted_tls_certificate(tmp_path):
+    certfile, keyfile = make_tls_credentials(tmp_path)
+    port, _seen, errors, thread = start_tls_peer(identity_frame(), certfile, keyfile)
+    provider = LinuxTCPDiscoveryProvider(
+        [LinuxTCPEndpoint("localhost", port, "coreless-linux")],
+        ssl_context=ssl.create_default_context(ssl.Purpose.SERVER_AUTH),
+        timeout=2,
+    )
+
+    with pytest.raises(ssl.SSLCertVerificationError):
+        provider.enumerate_candidates()
+    thread.join(timeout=2)
+    assert not thread.is_alive()
+    assert errors
+
+
+def test_linux_tcp_provider_rejects_tls_hostname_mismatch(tmp_path):
+    certfile, keyfile = make_tls_credentials(tmp_path)
+    client_context = ssl.create_default_context(
+        purpose=ssl.Purpose.SERVER_AUTH, cafile=str(certfile)
+    )
+    port, _seen, errors, thread = start_tls_peer(identity_frame(), certfile, keyfile)
+    provider = LinuxTCPDiscoveryProvider(
+        [LinuxTCPEndpoint("127.0.0.1", port, "coreless-linux")],
+        ssl_context=client_context,
+        timeout=2,
+    )
+
+    with pytest.raises(ssl.SSLCertVerificationError):
+        provider.enumerate_candidates()
+    thread.join(timeout=2)
+    assert not thread.is_alive()
+    assert errors
