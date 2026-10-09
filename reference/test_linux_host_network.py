@@ -365,6 +365,37 @@ def test_linux_tcp_provider_rejects_tls_hostname_mismatch(tmp_path):
     assert errors
 
 
+@pytest.mark.parametrize("reply", [
+    b"not-an-identity-frame",
+    DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"network"}),
+        payload=b"\\xff",
+    ).encode(),
+])
+def test_linux_tcp_provider_rejects_malformed_identity_over_verified_tls(tmp_path, reply):
+    certfile, keyfile = make_tls_credentials(tmp_path)
+    client_context = ssl.create_default_context(
+        purpose=ssl.Purpose.SERVER_AUTH, cafile=str(certfile)
+    )
+    port, seen, errors, thread = start_tls_peer(reply, certfile, keyfile)
+    provider = LinuxTCPDiscoveryProvider(
+        [LinuxTCPEndpoint("localhost", port, "coreless-linux")],
+        ssl_context=client_context,
+        timeout=2,
+    )
+
+    with pytest.raises((ValueError, UnicodeDecodeError)):
+        provider.enumerate_candidates()
+    thread.join(timeout=2)
+
+    assert not thread.is_alive()
+    assert not errors
+    assert seen == [DISCOVERY_REQUEST]
+
+
 def test_linux_tcp_provider_rejects_identity_mismatch_after_verified_tls(tmp_path):
     certfile, keyfile = make_tls_credentials(tmp_path)
     client_context = ssl.create_default_context(
