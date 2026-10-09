@@ -1,5 +1,27 @@
 # Coreless-64 — Project Handoff
 
+## Latest verified checkpoint — 2026-10-09: Linux TCP discovery bootstrap
+
+Implemented a concrete configured-endpoint Linux TCP discovery provider in `reference/linux_host_network.py`. It connects only to explicitly configured `host:port` targets, sends the framed `CORELESS_DISCOVERY_V1` request, receives and validates a Coreless identity frame, and preserves the same socket-backed `SocketNetworkTransport` as the discovered network channel. Failed bootstrap attempts close their sockets and propagate errors; endpoint identity is not inferred from address or DNS.
+
+Added loopback integration and configuration tests in `reference/test_linux_host_network.py`, plus the wire/bootstrap contract and limitations in `specification/linux_tcp_discovery.md`. This is a real TCP integration path, but it is **not** automatic USB/PCIe enumeration, peer authentication, or physical Coreless hardware validation. The target peer must implement the documented handshake, and network exposure needs an explicit authentication policy before it is trusted on untrusted networks.
+
+Verified green runs:
+- [#1847 — Linux TCP provider](https://github.com/buccees/Coreless-64/actions/runs/37962102913)
+- [#1848 — provider and tests](https://github.com/buccees/Coreless-64/actions/runs/37962107266)
+- [#1849 — provider tests](https://github.com/buccees/Coreless-64/actions/runs/37962110453)
+- [#1850 — bootstrap specification](https://github.com/buccees/Coreless-64/actions/runs/37962111069)
+- [#1851 — final branch state](https://github.com/buccees/Coreless-64/actions/runs/37962116761)
+
+The previous socket hardening checkpoint remains closed and green. Do not reopen socket-only regression work without a demonstrated contract gap.
+
+### Next platform work
+1. Specify and implement peer authentication/authorization for the configured TCP bootstrap before production use on untrusted networks.
+2. Decide the first physical Coreless endpoint/bus and implement its real identity-exchange provider; TCP bootstrap does not satisfy USB/PCIe or generic physical enumeration.
+3. Select a concrete Linux display stack and input device access policy, then implement adapters with permission/hot-unplug handling.
+4. Run the full lifecycle on a real target machine and record physical I/O evidence.
+
+
 ## Latest verified checkpoint — 2026-10-09: Linux host-platform target
 
 Commit `96292b978f2f73f0e6b68ccce1c7dc878a973a1c` adds `specification/linux_host_platform.md`, defining Linux userspace as the first host-platform target and laying out implementation gates. CI runs [#1843](https://github.com/buccees/Coreless-64/actions/runs/37961790772) and [#1844](https://github.com/buccees/Coreless-64/actions/runs/37961796955) passed.
