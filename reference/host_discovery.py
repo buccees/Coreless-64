@@ -65,14 +65,19 @@ class HostDeviceEnumerator:
         return self.discover(provider.enumerate_candidates())
 
     def _decode(self, candidate: HostDiscoveryCandidate) -> HostEndpoint:
-        if not candidate.endpoint_id:
-            raise ValueError("endpoint_id must not be empty")
+        if not isinstance(candidate, HostDiscoveryCandidate):
+            raise TypeError("discovery candidates must be HostDiscoveryCandidate values")
+        if not isinstance(candidate.endpoint_id, str) or not candidate.endpoint_id.strip():
+            raise ValueError("endpoint_id must be a nonempty string")
+        if not isinstance(candidate.host_capabilities, HostCapabilities):
+            raise TypeError("host_capabilities must be HostCapabilities")
         try:
-            frame = (
-                DeviceIdentityFrame.decode(candidate.identity_frame)
-                if isinstance(candidate.identity_frame, bytes)
-                else candidate.identity_frame
-            )
+            if isinstance(candidate.identity_frame, bytes):
+                frame = DeviceIdentityFrame.decode(candidate.identity_frame)
+            elif isinstance(candidate.identity_frame, DeviceIdentityFrame):
+                frame = candidate.identity_frame
+            else:
+                raise TypeError("identity_frame must be bytes or DeviceIdentityFrame")
         except (TypeError, ValueError) as exc:
             raise ValueError("invalid Coreless discovery identity frame") from exc
 
