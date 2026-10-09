@@ -83,7 +83,7 @@ Qwen3, DeepSeek, gpt-oss, Gemma and Codestral remain local model participants; G
 
 ## Documentation
 
-See `ROADMAP.md`, `TESTING.md`, `TEST_ENVIRONMENT.md`, `HANDOFF.md`, and the `specification/` directory for the current project record.
+See `REMAINING_REQUIREMENTS.md` for the consolidated remaining scope and completion gates. Also see `ROADMAP.md`, `TESTING.md`, `TEST_ENVIRONMENT.md`, `HANDOFF.md`, and the `specification/` directory for implementation status and normative contracts.
 
 Do not commit model weights, API keys or credentials.
 
