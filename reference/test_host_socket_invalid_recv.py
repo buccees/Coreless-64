@@ -89,3 +89,37 @@ def test_socket_network_transport_retires_when_packet_payload_is_truncated():
 
     assert transport.closed
     assert sock.closed
+
+def test_socket_network_transport_accepts_bytes_like_recv_chunks():
+    from host_socket import SocketNetworkTransport
+
+    class BytesLikeRecvSocket:
+        closed = False
+
+        def __init__(self):
+            self.reads = [
+                bytearray(b"\\x00\\x00"),
+                memoryview(b"\\x00\\x03"),
+                bytearray(b"a"),
+                memoryview(b"bc"),
+            ]
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            chunk = self.reads.pop(0)
+            assert len(chunk) <= size
+            return chunk
+
+        def close(self):
+            self.closed = True
+
+    sock = BytesLikeRecvSocket()
+    transport = SocketNetworkTransport(sock)
+
+    assert transport.receive_packet() == b"abc"
+    assert not transport.closed
+    assert not sock.closed
+    transport.close()
+    assert sock.closed
