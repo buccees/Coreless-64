@@ -1,4 +1,5 @@
 import socket
+import ssl
 import sys
 import threading
 
@@ -28,6 +29,20 @@ def identity_frame(computer_id="coreless-linux", capabilities=("network",)):
         capabilities=capability_bits(set(capabilities)),
         payload=computer_id.encode("utf-8"),
     ).encode()
+
+
+class TestTLSContext:
+    """Test-only TLS shim; not a security or TLS interoperability test."""
+    verify_mode = ssl.CERT_REQUIRED
+    check_hostname = True
+
+    def wrap_socket(self, sock, *, server_hostname):
+        self.server_hostname = server_hostname
+        return sock
+
+
+def test_tls_context():
+    return TestTLSContext()
 
 
 def start_peer(reply):
@@ -65,8 +80,11 @@ def start_peer(reply):
 
 def test_linux_tcp_provider_exchanges_identity_and_retains_network_channel():
     port, seen, errors, thread = start_peer(identity_frame())
+    # Use a verified context. Loopback peer tests exercise protocol framing;
+    # TLS handshake behavior is covered by the provider's required context policy.
     provider = LinuxTCPDiscoveryProvider(
-        [LinuxTCPEndpoint("127.0.0.1", port)], timeout=1
+        [LinuxTCPEndpoint("localhost", port, "coreless-linux")],
+        ssl_context=test_tls_context(), timeout=1
     )
     candidates = provider.enumerate_candidates()
     endpoints = HostDeviceEnumerator().discover(candidates)
@@ -86,7 +104,7 @@ def test_linux_tcp_provider_exchanges_identity_and_retains_network_channel():
 def test_linux_tcp_provider_rejects_invalid_identity_and_closes_channel():
     port, seen, errors, thread = start_peer(b"not-an-identity-frame")
     provider = LinuxTCPDiscoveryProvider(
-        [LinuxTCPEndpoint("127.0.0.1", port)], timeout=1
+        [LinuxTCPEndpoint("127.0.0.1", port, "coreless-linux")], ssl_context=test_tls_context(), timeout=1
     )
     with pytest.raises(ValueError):
         provider.enumerate_candidates()
@@ -96,7 +114,7 @@ def test_linux_tcp_provider_rejects_invalid_identity_and_closes_channel():
 
 
 def test_linux_tcp_provider_rejects_duplicate_configured_endpoints():
-    endpoint = LinuxTCPEndpoint("127.0.0.1", 12345)
+    endpoint = LinuxTCPEndpoint("127.0.0.1", 12345, "coreless-linux")
     with pytest.raises(ValueError, match="duplicate configured"):
         LinuxTCPDiscoveryProvider([endpoint, endpoint])
 
@@ -109,9 +127,26 @@ def test_linux_tcp_provider_rejects_duplicate_configured_endpoints():
 ])
 def test_linux_tcp_endpoint_validates_configuration(host, port, error):
     with pytest.raises(error):
-        LinuxTCPEndpoint(host, port)
+        LinuxTCPEndpoint(host, port, "coreless-linux")
 
 
 def test_linux_tcp_provider_requires_positive_timeout():
     with pytest.raises(ValueError, match="timeout must be positive"):
-        LinuxTCPDiscoveryProvider([], timeout=0)
+        LinuxTCPDiscoveryProvider([], ssl_context=test_tls_context(), timeout=0)
+
+
+
+def test_linux_tcp_provider_rejects_unverified_tls_context():
+    class UnverifiedContext:
+        verify_mode = ssl.CERT_NONE
+        check_hostname = False
+        def wrap_socket(self, sock, *, server_hostname):
+            return sock
+
+    with pytest.raises(ValueError, match="require certificate validation"):
+        LinuxTCPDiscoveryProvider([], ssl_context=UnverifiedContext())
+
+
+def test_linux_tcp_provider_requires_tls_context():
+    with pytest.raises(TypeError, match="ssl_context"):
+        LinuxTCPDiscoveryProvider([])
