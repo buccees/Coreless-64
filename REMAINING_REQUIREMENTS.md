@@ -140,6 +140,25 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 
 These are substantial compatibility programs. Each needs its own supported-version matrix, ABI/ISA contract, conformance suite, and explicit limits; they should not block the first Coreless-native end-to-end milestone unless the release scope explicitly requires them.
 
+### P2.3 — AI-core selection and composition behavior
+- [ ] Specify the AI-core component competition/selection contract, including deterministic tie handling and when a component may win repeatedly.
+- [ ] Define how a selected core combines complementary strengths from contributing components and excludes unused or incompatible parts.
+- [ ] Preserve provenance, validation, capability/policy checks, and rollback when composing or replacing parts.
+- [ ] Add deterministic tests for selection, repeated tie wins, merge decisions, rejected contributions, and recovery after a failed merge.
+
+**Exit evidence:** repeatable selection and composition decisions with a traceable provenance chain; no component gains authority to bypass Coreless policy.
+
+### P5 — Deferred desktop experience
+- [ ] Add an optional desktop theme based on the user's requested *The Gate* → *The Core* concept: a central gate/core motif, dark industrial atmosphere, restrained red/amber status lighting, and subtle motion.
+- [ ] Make the theme communicate real AI-core/system states rather than decorative false status.
+- [ ] Keep the theme optional and isolated from execution, persistence, and security contracts.
+
+**Exit evidence:** a working, accessible theme integrated with the desktop/application environment after the underlying GUI exists. This is a deferred product/UI requirement, not a blocker for persistence or model validation.
+
+## Full-project completion gate
+
+The first end-to-end gate above is not the same as completion of the entire roadmap. The full project scope is complete only when the applicable requirements in **P0 through P5** have either passed their stated acceptance evidence or been explicitly removed from the agreed product scope. In particular, scaling, compatibility, adaptive model parts, VIGIL spatial services, platform I/O, and the desktop experience must not disappear from the plan merely because the first local-model demo works.
+
 ## Cross-cutting acceptance requirements
 
 Apply these requirements to every track above:
