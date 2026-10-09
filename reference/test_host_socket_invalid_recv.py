@@ -126,8 +126,6 @@ def test_socket_network_transport_accepts_bytes_like_recv_chunks():
 
 
 def test_socket_network_transport_normalizes_non_byte_memoryview_recv_chunks():
-    from array import array
-
     from host_socket import SocketNetworkTransport
 
     class TypedMemoryviewRecvSocket:
@@ -135,7 +133,7 @@ def test_socket_network_transport_normalizes_non_byte_memoryview_recv_chunks():
 
         def __init__(self):
             self.reads = [
-                memoryview(array("I", [3])),
+                memoryview(bytes.fromhex("00000003")).cast("I"),
                 memoryview(b"abc"),
             ]
 
