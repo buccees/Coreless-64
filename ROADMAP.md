@@ -2,6 +2,8 @@
 
 ## Current checkpoint
 
+The consolidated outstanding requirements and acceptance gates are tracked in [`REMAINING_REQUIREMENTS.md`](REMAINING_REQUIREMENTS.md). Use that document to distinguish the first end-to-end completion gate from later scaling and compatibility phases; keep this roadmap aligned with verified implementation evidence.
+
 The current implementation checkpoint includes the complete reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, Transformer → TensorRuntime routing, autonomous Coreless components, Hub composition, coordinated persistence, native CPU/VM component execution, Hub scheduling, and a reference plug-and-play host transport layer.
 
 ## Phase 1 — Architecture
