@@ -2,6 +2,8 @@
 
 ## Current state
 
+The canonical consolidated scope is [`REMAINING_REQUIREMENTS.md`](REMAINING_REQUIREMENTS.md). Use it to sequence remaining work and define exit evidence; do not treat reference CI alone as proof of physical adapters or live trained-model inference.
+
 **Status: green.** The repository is at a stable checkpoint with the Coreless-64 digital machine foundation, 314DNest control plane, persistent tensor runtime, Transformer integration, autonomous component execution, Hub scheduling, and reference host transport layer all passing CI.
 
 The project has two connected layers:
