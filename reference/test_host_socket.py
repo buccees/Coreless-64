@@ -43,13 +43,28 @@ def test_socket_network_transport_handles_empty_packet():
         receiver.close()
 
 
-def test_socket_network_transport_rejects_oversized_packet():
-    left, right = socket.socketpair()
-    sender = SocketNetworkTransport(left, max_packet_size=3)
-    receiver = SocketNetworkTransport(right)
+def test_socket_network_transport_rejects_oversized_packet_without_retiring_stream():
+    sender, receiver = transport_pair()
+    sender._max_packet_size = 3
     try:
         with pytest.raises(ValueError, match="exceeds host transport limit"):
             sender.send_packet(b"1234")
+        assert not sender.closed
+        sender.send_packet(b"ok")
+        assert receiver.receive_packet() == b"ok"
+    finally:
+        sender.close()
+        receiver.close()
+
+
+def test_socket_network_transport_rejects_non_bytes_packet_without_retiring_stream():
+    sender, receiver = transport_pair()
+    try:
+        with pytest.raises(TypeError, match="must be bytes-like"):
+            sender.send_packet(4)
+        assert not sender.closed
+        sender.send_packet(b"ok")
+        assert receiver.receive_packet() == b"ok"
     finally:
         sender.close()
         receiver.close()
@@ -405,10 +420,10 @@ def test_socket_network_transport_marks_receive_type_error_closed():
         transport.receive_packet()
 
 
-def test_socket_network_transport_marks_packet_conversion_type_error_closed():
+def test_socket_network_transport_rejects_arbitrary_packet_conversion():
     class ConversionErrorPacket:
         def __bytes__(self):
-            raise TypeError("packet conversion failed")
+            raise AssertionError("arbitrary conversion must not be invoked")
 
     class TrackingSocket:
         def sendall(self, data):
@@ -422,9 +437,8 @@ def test_socket_network_transport_marks_packet_conversion_type_error_closed():
 
     transport = SocketNetworkTransport(TrackingSocket())
 
-    with pytest.raises(TypeError, match="packet conversion failed"):
+    with pytest.raises(TypeError, match="must be bytes-like"):
         transport.send_packet(ConversionErrorPacket())
 
-    assert transport.closed
-    with pytest.raises(RuntimeError, match="transport is closed"):
-        transport.send_packet(b"again")
+    assert not transport.closed
+    transport.close()
