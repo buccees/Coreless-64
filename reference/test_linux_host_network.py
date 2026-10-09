@@ -380,7 +380,7 @@ def test_linux_tcp_provider_rejects_tls_hostname_mismatch(tmp_path):
 def test_linux_tcp_provider_rejects_malformed_identity_over_verified_tls(
     tmp_path, reply, expected_error
 ):
-    certfile, keyfile = make_test_tls_credentials(tmp_path)
+    certfile, keyfile = make_tls_credentials(tmp_path)
     client_context = ssl.create_default_context(
         purpose=ssl.Purpose.SERVER_AUTH, cafile=str(certfile)
     )
