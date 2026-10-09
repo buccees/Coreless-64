@@ -719,3 +719,21 @@ def test_socket_network_transport_retires_on_truncated_frame_header():
     finally:
         receiver.close()
         left.close()
+
+
+def test_socket_network_transport_accepts_bytes_like_send_packets():
+    sender, receiver = transport_pair()
+    packets = [b"bytes", bytearray(b"bytearray"), memoryview(b"memoryview")]
+    try:
+        for packet in packets:
+            sender.send_packet(packet)
+        assert [receiver.receive_packet() for _ in packets] == [
+            b"bytes",
+            b"bytearray",
+            b"memoryview",
+        ]
+        assert not sender.closed
+        assert not receiver.closed
+    finally:
+        sender.close()
+        receiver.close()
