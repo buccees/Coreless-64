@@ -42,9 +42,6 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 
 
 ### P0.2a — Coreless-managed storage regions and block-reuse policy
-
-**Foundational invariant — stable storage home, upgradeable contents:** Coreless OS and CPU-related structures need stable, explicitly assigned storage homes, not permanently fixed payload sizes. Their contents and size may change during normal upgrades while their logical home identity remains stable. Growth must extend or reserve capacity under a defined region policy; unrelated rewriteable data must not overwrite or silently consume that home. A file-backed reference image can test logical ownership, but only a device adapter with suitable extent controls can claim stable physical placement. Ordinary SSD firmware may remap NAND internally, so physical-cell identity must not be claimed unless the target hardware actually exposes that guarantee.
-
 - [ ] Define a Coreless storage-layout contract with explicitly assigned regions for immutable/model artifacts, configuration and boot metadata, durable machine state, checkpoint generations, high-churn KV caches/logs, and reserved/recovery capacity.
 - [ ] Where the target storage device exposes controllable allocation units, assign stable block ranges or extents to those regions; record the mapping, ownership, permissions, capacity, and lifecycle in Coreless-managed metadata. Do not treat arbitrary allocator placement as the policy.
 - [ ] Give each region an explicit write class: immutable/write-once, low-churn durable, transactional snapshot, or high-churn rewrite/append. Reuse blocks only under that region's declared lifecycle and reclamation rules; high-churn writes must not consume or rewrite protected durable-state blocks.
