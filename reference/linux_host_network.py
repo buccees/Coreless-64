@@ -75,6 +75,12 @@ class LinuxTCPDiscoveryProvider:
             raise TypeError("ssl_context must provide verified TLS context settings and wrap_socket()")
         if ssl_context.verify_mode != ssl.CERT_REQUIRED or not ssl_context.check_hostname:
             raise ValueError("TLS context must require certificate validation and hostname checking")
+        if isinstance(max_packet_size, bool) or not isinstance(max_packet_size, int):
+            raise TypeError("max_packet_size must be an integer")
+        if max_packet_size <= 0:
+            raise ValueError("max_packet_size must be positive")
+        if max_packet_size > SocketNetworkTransport._MAX_PACKET:
+            raise ValueError("max_packet_size exceeds Coreless host limit")
         self._ssl_context = ssl_context
         self._timeout = float(timeout)
         self._max_packet_size = max_packet_size
