@@ -192,3 +192,43 @@ def test_memory_transports_normalize_bytes_like_payloads(transport, method, rece
     assert [getattr(transport, receive)(), getattr(transport, receive)()] == [
         b"mutable", b"view"
     ]
+
+
+@pytest.mark.parametrize("field,value", [
+    ("x", float("nan")),
+    ("x", float("inf")),
+    ("y", float("-inf")),
+    ("pressure", float("nan")),
+])
+def test_decode_input_event_rejects_nonfinite_numeric_fields(field, value):
+    import json
+    from host_io import decode_input_event
+
+    base = {
+        "abi_version": 1,
+        "event_type": "pointer_move",
+        "device_id": "mouse-1",
+        "timestamp_ns": 10,
+        "sequence": 1,
+        "coordinate_frame": "coreless",
+        "x": 1.0,
+        "y": 2.0,
+        "pressure": 0.5,
+        "metadata": {},
+    }
+    base[field] = value
+    with pytest.raises(ValueError, match=f"{field} must be finite"):
+        decode_input_event(json.dumps(base).encode("utf-8"))
+
+
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_decode_input_event_rejects_nonstandard_json_numeric_constants(constant):
+    from host_io import decode_input_event
+
+    payload = (
+        '{"abi_version":1,"event_type":"pointer_move","device_id":"mouse-1",'
+        '"timestamp_ns":10,"sequence":1,"coordinate_frame":"coreless",'
+        f'"x":{constant},"y":2,"metadata":{{}}' + "}"
+    ).encode("utf-8")
+    with pytest.raises(ValueError, match="invalid input event frame"):
+        decode_input_event(payload)

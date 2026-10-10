@@ -8,6 +8,7 @@ moving computation into the host or pretending physical buses are complete.
 from __future__ import annotations
 
 import json
+import math
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
@@ -75,9 +76,15 @@ def decode_input_event(payload: bytes) -> InputEvent:
     """Decode and validate one host input frame without coercing field types."""
     if not isinstance(payload, (bytes, bytearray, memoryview)):
         raise TypeError("input event payload must be bytes-like")
+    def reject_nonfinite_constant(value: str) -> None:
+        raise ValueError(f"non-finite JSON number is not allowed: {value}")
+
     try:
-        value = json.loads(bytes(payload).decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        value = json.loads(
+            bytes(payload).decode("utf-8"),
+            parse_constant=reject_nonfinite_constant,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
         raise ValueError("invalid input event frame") from exc
     if not isinstance(value, dict):
         raise ValueError("input event frame must contain a JSON object")
@@ -109,6 +116,8 @@ def decode_input_event(payload: bytes) -> InputEvent:
         item = value.get(name)
         if item is not None and (isinstance(item, bool) or not isinstance(item, (int, float))):
             raise ValueError(f"{name} must be a number or null")
+        if item is not None and not math.isfinite(item):
+            raise ValueError(f"{name} must be finite or null")
 
     return InputEvent(
         abi_version=value["abi_version"],
