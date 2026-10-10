@@ -193,4 +193,7 @@ The optional host-side Arduino adapter is implemented in `reference/arduino_io.p
 
 The adapter validates command allowlists and value ranges, rejects wrong-device and stale/replayed messages, and does not require pyserial at import time. Applications may pass an already-open serial object implementing `write(bytes)` and `readline()`. Port discovery/open/close remains the application or platform adapter's responsibility.
 
-This defines the first Arduino I/O integration boundary; it does not yet imply that a matching Arduino firmware sketch or physical-board test has been completed.
+This defines the first Arduino I/O integration boundary. A reference ArduinoJson 6.x sketch is provided at `firmware/arduino/coreless_arduino_bridge.ino`; it supports the same command names and emits periodic A0 sensor events. The sketch is a starting point for hardware bring-up, not evidence of physical-board validation.
+
+
+The reference sketch uses 115200 baud, a bounded line buffer, device identity matching, command-sequence checks, and an example periodic analog sensor event. Board-specific pin limits and PWM behavior still depend on the selected Arduino model; host-side pin validation intentionally uses a broad protocol range rather than claiming every pin exists on every board.
