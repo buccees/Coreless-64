@@ -99,3 +99,61 @@ def test_host_io_bundle_rejects_invalid_negotiated_channel():
 
     assert "display" not in interface.channels
     assert "network" not in interface.channels
+
+
+def test_input_event_decoder_round_trips_valid_events():
+    from host_io import decode_input_event, encode_input_event
+    from input import CoordinateFrame, InputEvent, InputEventType
+
+    event = InputEvent(
+        abi_version=1,
+        event_type=InputEventType.TOUCH_UPDATE,
+        device_id="touch-1",
+        timestamp_ns=123,
+        sequence=4,
+        coordinate_frame=CoordinateFrame.DISPLAY,
+        x=12.5,
+        y=8,
+        contact_id=2,
+        pressure=0.75,
+        metadata={"source": "host"},
+    )
+    assert decode_input_event(encode_input_event(event)) == event
+
+
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        (b"not-json", "invalid input event frame"),
+        (b"[]", "JSON object"),
+        (b'{"abi_version":"1"}', "missing fields"),
+        (
+            b'{"abi_version":"1","event_type":"pointer_move","device_id":"p",'
+            b'"timestamp_ns":1,"sequence":1,"coordinate_frame":"host"}',
+            "abi_version must be an integer",
+        ),
+        (
+            b'{"abi_version":1,"event_type":"pointer_move","device_id":"p",'
+            b'"timestamp_ns":1,"sequence":1,"coordinate_frame":"host",'
+            b'"metadata":[]}',
+            "metadata must be a JSON object",
+        ),
+        (
+            b'{"abi_version":1,"event_type":"pointer_move","device_id":"p",'
+            b'"timestamp_ns":1,"sequence":1,"coordinate_frame":"host","x":NaN,"y":2}',
+            "x must be finite",
+        ),
+    ],
+)
+def test_input_event_decoder_rejects_malformed_or_coerced_frames(payload, message):
+    from host_io import decode_input_event
+
+    with pytest.raises((TypeError, ValueError), match=message):
+        decode_input_event(payload)
+
+
+def test_input_event_decoder_rejects_non_bytes_payloads():
+    from host_io import decode_input_event
+
+    with pytest.raises(TypeError, match="bytes-like"):
+        decode_input_event(12)
