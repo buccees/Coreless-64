@@ -197,3 +197,8 @@ This defines the first Arduino I/O integration boundary. A reference ArduinoJson
 
 
 The reference sketch uses 115200 baud, a bounded line buffer, device identity matching, command-sequence checks, and an example periodic analog sensor event. Board-specific pin limits and PWM behavior still depend on the selected Arduino model; host-side pin validation intentionally uses a broad protocol range rather than claiming every pin exists on every board.
+
+
+### Arduino event integration
+
+`ArduinoInputAdapter` bridges `ArduinoSerialIO` to the existing Coreless host input transport. It converts device events into versioned `InputEvent` records and forwards them using `encode_input_event`, so the existing `CorelessHostInterface.pump_host_io()` path can route them through the standard Coreless input router. Unclassified sensor/GPIO reports become `DEVICE_STATE` events with source metadata; firmware may send a recognized `event_type` for pointer/touch/stylus-style events. Acknowledgements are counted and ignored by the input stream. Invalid event types, partial coordinates, non-finite numeric values, stale sequences, and identity mismatches are rejected.
