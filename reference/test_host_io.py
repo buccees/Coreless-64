@@ -157,3 +157,16 @@ def test_input_event_decoder_rejects_non_bytes_payloads():
 
     with pytest.raises(TypeError, match="bytes-like"):
         decode_input_event(12)
+
+
+@pytest.mark.parametrize(
+    ("transport", "send", "channel"),
+    [
+        (MemoryDisplayTransport(), "send_frame", "display frame"),
+        (MemoryInputTransport(), "send_event", "input event"),
+        (MemoryNetworkTransport(), "send_packet", "network packet"),
+    ],
+)
+def test_memory_transports_reject_non_bytes_payloads(transport, send, channel):
+    with pytest.raises(TypeError, match=channel):
+        getattr(transport, send)(5)
