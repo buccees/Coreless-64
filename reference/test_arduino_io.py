@@ -9,6 +9,7 @@ from arduino_io import (
     ArduinoInputAdapter,
     ArduinoSerialIO,
     decode_message,
+    discover_serial_devices,
     encode_message,
 )
 
@@ -225,3 +226,44 @@ def test_arduino_input_adapter_rejects_invalid_sensor_values():
     serial.reads.append(b'{"device_id":"arduino-1","kind":"event","payload":{"event_type":"pointer_move","x":NaN,"y":2},"protocol":1,"sequence":0}\n')
     with pytest.raises(ValueError, match="finite"):
         adapter.pump_once()
+
+
+
+def test_serial_discovery_filters_and_sorts_without_opening_ports():
+    from types import SimpleNamespace
+
+    ports = [
+        SimpleNamespace(device="/dev/ttyUSB1", description="other", hwid="usb:2", vid=0x2341, pid=0x0043, serial_number="B"),
+        SimpleNamespace(device="/dev/ttyACM0", description="Arduino", hwid="usb:1", vid=0x2341, pid=0x0043, serial_number="A"),
+        SimpleNamespace(device="/dev/ttyUSB0", description="different VID", hwid="usb:3", vid=0x9999, pid=0x0043, serial_number="C"),
+    ]
+    calls = []
+    def provider():
+        calls.append(True)
+        return ports
+
+    found = discover_serial_devices(
+        provider, vendor_ids={0x2341}, product_ids={0x0043}
+    )
+    assert [item["device"] for item in found] == ["/dev/ttyACM0", "/dev/ttyUSB1"]
+    assert found[0]["serial_number"] == "A"
+    assert calls == [True]
+
+
+def test_serial_discovery_can_select_one_stable_device():
+    from types import SimpleNamespace
+
+    ports = [
+        SimpleNamespace(device="COM4", vid=1, pid=2, serial_number="first"),
+        SimpleNamespace(device="COM3", vid=1, pid=2, serial_number="wanted"),
+    ]
+    found = discover_serial_devices(lambda: ports, serial_number="wanted")
+    assert len(found) == 1
+    assert found[0]["device"] == "COM3"
+
+
+def test_serial_discovery_validates_provider_and_serial_filter():
+    with pytest.raises(TypeError, match="provider must be callable"):
+        discover_serial_devices(42)
+    with pytest.raises(ValueError, match="serial_number"):
+        discover_serial_devices(lambda: [], serial_number="  ")
