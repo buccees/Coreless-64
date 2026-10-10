@@ -68,21 +68,57 @@ def encode_input_event(event: InputEvent) -> bytes:
 
 
 def decode_input_event(payload: bytes) -> InputEvent:
-    """Decode a host input frame into a Coreless-owned input event."""
-    value = json.loads(bytes(payload).decode("utf-8"))
+    """Decode and validate one host input frame without coercing field types."""
+    if not isinstance(payload, (bytes, bytearray, memoryview)):
+        raise TypeError("input event payload must be bytes-like")
+    try:
+        value = json.loads(bytes(payload).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("invalid input event frame") from exc
+    if not isinstance(value, dict):
+        raise ValueError("input event frame must contain a JSON object")
+
+    required = (
+        "abi_version", "event_type", "device_id", "timestamp_ns",
+        "sequence", "coordinate_frame",
+    )
+    missing = [name for name in required if name not in value]
+    if missing:
+        raise ValueError(f"input event frame missing required fields: {', '.join(missing)}")
+
+    for name in ("abi_version", "timestamp_ns", "sequence"):
+        if type(value[name]) is not int:
+            raise ValueError(f"{name} must be an integer")
+    for name in ("event_type", "device_id", "coordinate_frame"):
+        if not isinstance(value[name], str):
+            raise ValueError(f"{name} must be a string")
+
+    metadata = value.get("metadata", {})
+    if not isinstance(metadata, dict):
+        raise ValueError("metadata must be a JSON object")
+
+    for name in ("contact_id", "button"):
+        item = value.get(name)
+        if item is not None and type(item) is not int:
+            raise ValueError(f"{name} must be an integer or null")
+    for name in ("x", "y", "pressure"):
+        item = value.get(name)
+        if item is not None and (isinstance(item, bool) or not isinstance(item, (int, float))):
+            raise ValueError(f"{name} must be a number or null")
+
     return InputEvent(
-        abi_version=int(value["abi_version"]),
+        abi_version=value["abi_version"],
         event_type=InputEventType(value["event_type"]),
-        device_id=str(value["device_id"]),
-        timestamp_ns=int(value["timestamp_ns"]),
-        sequence=int(value["sequence"]),
+        device_id=value["device_id"],
+        timestamp_ns=value["timestamp_ns"],
+        sequence=value["sequence"],
         coordinate_frame=CoordinateFrame(value["coordinate_frame"]),
         x=value.get("x"),
         y=value.get("y"),
         contact_id=value.get("contact_id"),
         pressure=value.get("pressure"),
         button=value.get("button"),
-        metadata=value.get("metadata", {}),
+        metadata=metadata,
     )
 
 

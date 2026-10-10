@@ -99,3 +99,58 @@ def test_host_io_bundle_rejects_invalid_negotiated_channel():
 
     assert "display" not in interface.channels
     assert "network" not in interface.channels
+
+
+def test_decode_input_event_rejects_non_object_and_malformed_frames():
+    from host_io import decode_input_event
+
+    for payload in (b"not json", b"\\xff", b"[]", b"null", b'"event"'):
+        with pytest.raises(ValueError):
+            decode_input_event(payload)
+
+
+def test_decode_input_event_rejects_coercive_or_wrong_field_types():
+    import json
+    from host_io import decode_input_event
+
+    base = {
+        "abi_version": 1,
+        "event_type": "pointer_move",
+        "device_id": "mouse-1",
+        "timestamp_ns": 10,
+        "sequence": 1,
+        "coordinate_frame": "coreless",
+        "metadata": {},
+    }
+    cases = [
+        {**base, "abi_version": "1"},
+        {**base, "timestamp_ns": True},
+        {**base, "sequence": 1.5},
+        {**base, "device_id": 42},
+        {**base, "metadata": []},
+        {**base, "x": "10", "y": 20},
+        {**base, "button": True},
+    ]
+    for value in cases:
+        with pytest.raises((TypeError, ValueError)):
+            decode_input_event(json.dumps(value).encode("utf-8"))
+
+
+def test_decode_input_event_round_trips_encoded_event():
+    from host_io import decode_input_event, encode_input_event
+    from input import CoordinateFrame, InputEvent, InputEventType
+
+    event = InputEvent(
+        abi_version=1,
+        event_type=InputEventType.TOUCH_BEGIN,
+        device_id="touch-1",
+        timestamp_ns=123,
+        sequence=7,
+        coordinate_frame=CoordinateFrame.CORELESS,
+        x=1.5,
+        y=2,
+        contact_id=3,
+        pressure=0.75,
+        metadata={"source": "host"},
+    )
+    assert decode_input_event(encode_input_event(event)) == event
