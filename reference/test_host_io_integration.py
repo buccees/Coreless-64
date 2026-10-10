@@ -129,7 +129,7 @@ def test_host_io_pump_preserves_outbound_packet_when_transport_send_fails(tmp_pa
     system.boot()
     identity = CorelessIdentity("outbound-failure")
     interface = CorelessHostInterface(identity)
-    interface.attach(identity, HostCapabilities(network=True))
+    interface.attach(identity, HostCapabilities(network=True), system=system)
     io = MemoryHostIO()
     interface.bind_host_io(io)
     outbound = system.machine.network.transmit(b"retry-me", "host")
