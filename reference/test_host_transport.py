@@ -557,3 +557,40 @@ def test_host_transport_discovers_from_platform_provider():
     adapter = MemoryHostTransportAdapter()
     endpoints = adapter.discover_provider(Provider())
     assert [endpoint.endpoint_id for endpoint in endpoints] == ["platform-a"]
+
+
+
+def test_host_transport_session_rejects_replaced_channel():
+    endpoint = HostEndpoint(
+        "coreless-session-stale-channel",
+        CorelessIdentity("coreless-session-stale-channel"),
+        HostCapabilities(display=True),
+        {"display": object()},
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-session-stale-channel"))
+    session = adapter.open_session(endpoint, interface)
+
+    interface.bind_channel("display", object())
+
+    with pytest.raises(RuntimeError, match="session channels changed"):
+        session.validate()
+
+
+def test_host_transport_session_rejects_channel_added_after_open():
+    endpoint = HostEndpoint(
+        "coreless-session-added-channel",
+        CorelessIdentity("coreless-session-added-channel"),
+        HostCapabilities(display=True, network=True),
+        {"display": object()},
+        device_capabilities={"display", "network"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-session-added-channel"))
+    session = adapter.open_session(endpoint, interface)
+
+    interface.bind_channel("network", object())
+
+    with pytest.raises(RuntimeError, match="session channels changed"):
+        session.require_channels({"display"})
