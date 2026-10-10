@@ -78,7 +78,9 @@ def test_arduino_serial_io_rejects_short_write_without_advancing_sequence():
     class ShortWrite(FakeSerial):
         def write(self, data):
             self.writes.append(bytes(data))
-            return len(data) - 1
+            if len(self.writes) == 1:
+                return len(data) - 1
+            return len(data)
 
     bridge = ArduinoSerialIO(ShortWrite(), "arduino-1")
     with pytest.raises(IOError, match="short write"):
