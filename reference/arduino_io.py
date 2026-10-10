@@ -9,7 +9,12 @@ uses a duck-typed serial object (write/readline), so pyserial is optional.
 from __future__ import annotations
 
 import json
+import math
+import time
 from typing import Any, Protocol
+
+from host_io import InputTransport, encode_input_event
+from input import CoordinateFrame, InputEvent, InputEventType
 
 PROTOCOL_VERSION = 1
 MAX_FRAME_BYTES = 4096
@@ -148,3 +153,95 @@ class ArduinoSerialIO:
         if message["kind"] != "event":
             raise ValueError("next Arduino message is not an event")
         return message
+
+
+
+class ArduinoInputAdapter:
+    """Translate Arduino events into the existing Coreless input-event stream.
+
+    Sensor readings and GPIO state changes become DEVICE_STATE events by
+    default. Firmware may opt into a typed input event by including a valid
+    event_type plus supported fields in the event payload.
+    """
+
+    def __init__(self, bridge: ArduinoSerialIO, input_transport: InputTransport) -> None:
+        if not isinstance(bridge, ArduinoSerialIO):
+            raise TypeError("bridge must be an ArduinoSerialIO")
+        if not callable(getattr(input_transport, "send_event", None)):
+            raise TypeError("input_transport must implement send_event(bytes)")
+        self.bridge = bridge
+        self.input_transport = input_transport
+        self.events_forwarded = 0
+        self.acknowledgements_seen = 0
+
+    def _to_coreless_event(self, message: dict) -> InputEvent:
+        payload = message["payload"]
+        raw_type = payload.get("event_type", InputEventType.DEVICE_STATE.value)
+        try:
+            event_type = InputEventType(raw_type)
+        except (ValueError, TypeError) as exc:
+            raise ValueError("Arduino event has unsupported event_type") from exc
+
+        def optional_number(name: str) -> float | None:
+            value = payload.get(name)
+            if value is None:
+                return None
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ValueError(f"Arduino event {name} must be numeric")
+            if not math.isfinite(value):
+                raise ValueError(f"Arduino event {name} must be finite")
+            return float(value)
+
+        contact_id = payload.get("contact_id")
+        if contact_id is not None and (
+            isinstance(contact_id, bool) or not isinstance(contact_id, int)
+        ):
+            raise ValueError("Arduino event contact_id must be an integer")
+        button = payload.get("button")
+        if button is not None and (
+            isinstance(button, bool) or not isinstance(button, int)
+        ):
+            raise ValueError("Arduino event button must be an integer")
+
+        x = optional_number("x")
+        y = optional_number("y")
+        if (x is None) != (y is None):
+            raise ValueError("Arduino event coordinates must include both x and y")
+
+        metadata = {
+            "source": "arduino",
+            "arduino_sequence": message["sequence"],
+            "payload": payload,
+        }
+        return InputEvent(
+            abi_version=InputEvent.ABI_VERSION,
+            event_type=event_type,
+            device_id=self.bridge.device_id,
+            timestamp_ns=time.monotonic_ns(),
+            sequence=message["sequence"],
+            coordinate_frame=CoordinateFrame.HOST,
+            x=x,
+            y=y,
+            contact_id=contact_id,
+            pressure=optional_number("pressure"),
+            button=button,
+            metadata=metadata,
+        )
+
+    def pump_once(self) -> bool:
+        """Read one serial message; forward events, ignore acknowledgements.
+
+        Returns True when a Coreless input event was forwarded, False for an
+        acknowledgement. Device errors and malformed messages remain visible
+        to the caller instead of being silently discarded.
+        """
+        message = self.bridge.receive_message()
+        if message["kind"] == "ack":
+            self.acknowledgements_seen += 1
+            return False
+        if message["kind"] != "event":
+            raise ValueError("unexpected Arduino message kind")
+        event = self._to_coreless_event(message)
+        self.input_transport.send_event(encode_input_event(event))
+        self.events_forwarded += 1
+        return True
