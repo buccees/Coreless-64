@@ -185,3 +185,12 @@ This does not claim physical USB, PCIe, network, display, or input support. A fu
 ## Atomic HostIO validation
 
 Before binding a negotiated HostIO bundle, the reference host interface validates every negotiated display, input, and network transport and validates any supplied Coreless input router. Validation occurs before channel mutation, so an invalid bundle cannot leave a partially attached host state. This is a software conformance guarantee; physical platform adapters are not implied.
+
+
+## Arduino serial I/O bridge
+
+The optional host-side Arduino adapter is implemented in `reference/arduino_io.py`. Protocol version 1 uses newline-delimited UTF-8 JSON messages with a bounded 4096-byte frame size, explicit device identity, message kind, sequence number, and object payload. Supported host commands are `pin_mode`, `digital_write`, `analog_write`, `digital_read`, and `analog_read`. Events, acknowledgements, and device errors travel in the reverse direction.
+
+The adapter validates command allowlists and value ranges, rejects wrong-device and stale/replayed messages, and does not require pyserial at import time. Applications may pass an already-open serial object implementing `write(bytes)` and `readline()`. Port discovery/open/close remains the application or platform adapter's responsibility.
+
+This defines the first Arduino I/O integration boundary; it does not yet imply that a matching Arduino firmware sketch or physical-board test has been completed.
