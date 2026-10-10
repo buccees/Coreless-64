@@ -442,6 +442,8 @@ def test_linux_tcp_provider_closes_prior_channels_if_later_connect_fails(monkeyp
             self.closed = True
 
     class FakeTransport:
+        _MAX_PACKET = 16 * 1024 * 1024
+
         def __init__(self, sock, *, max_packet_size):
             self.sock = sock
             self.closed = False
