@@ -128,3 +128,6 @@ Initial command set: `pin_mode`, `digital_write`, `analog_write`, `digital_read`
 
 
 The reference Arduino sketch uses a 115200-baud serial connection and a small line buffer suitable for low-RAM boards. Change its `DEVICE_ID` to match the host adapter's configured ID. Install ArduinoJson 6.x through the Arduino Library Manager before compiling.
+
+
+The host-side `ArduinoInputAdapter` in `reference/arduino_io.py` now translates Arduino event frames into the existing Coreless `InputEvent` ABI and forwards them through the negotiated host input transport. Sensor/GPIO events default to `DEVICE_STATE`; firmware can emit supported typed input events with validated coordinates and fields. Acknowledgements are consumed without creating fake input events. Regression tests cover sensor forwarding, pointer events, acknowledgements, and malformed numeric data.
