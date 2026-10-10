@@ -68,21 +68,74 @@ def encode_input_event(event: InputEvent) -> bytes:
 
 
 def decode_input_event(payload: bytes) -> InputEvent:
-    """Decode a host input frame into a Coreless-owned input event."""
-    value = json.loads(bytes(payload).decode("utf-8"))
+    """Decode and validate one untrusted host frame as a Coreless input event."""
+    if not isinstance(payload, (bytes, bytearray, memoryview)):
+        raise TypeError("input event payload must be bytes-like")
+    try:
+        value = json.loads(bytes(payload).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("invalid input event frame") from exc
+    if not isinstance(value, dict):
+        raise ValueError("input event frame must contain a JSON object")
+
+    required = {
+        "abi_version", "event_type", "device_id", "timestamp_ns",
+        "sequence", "coordinate_frame",
+    }
+    missing = sorted(required.difference(value))
+    if missing:
+        raise ValueError(f"input event frame is missing fields: {missing}")
+
+    def require_int(name: str) -> int:
+        item = value[name]
+        if isinstance(item, bool) or not isinstance(item, int):
+            raise ValueError(f"{name} must be an integer")
+        return item
+
+    def optional_number(name: str) -> float | None:
+        item = value.get(name)
+        if item is None:
+            return None
+        if isinstance(item, bool) or not isinstance(item, (int, float)):
+            raise ValueError(f"{name} must be a number or null")
+        if not __import__("math").isfinite(item):
+            raise ValueError(f"{name} must be finite")
+        return item
+
+    for name in ("event_type", "device_id", "coordinate_frame"):
+        if not isinstance(value[name], str):
+            raise ValueError(f"{name} must be a string")
+    device_id = value["device_id"]
+    if not device_id:
+        raise ValueError("device_id must not be empty")
+
+    contact_id = value.get("contact_id")
+    if contact_id is not None and (
+        isinstance(contact_id, bool) or not isinstance(contact_id, int)
+    ):
+        raise ValueError("contact_id must be an integer or null")
+    button = value.get("button")
+    if button is not None and (
+        isinstance(button, bool) or not isinstance(button, int)
+    ):
+        raise ValueError("button must be an integer or null")
+    metadata = value.get("metadata", {})
+    if not isinstance(metadata, dict):
+        raise ValueError("metadata must be a JSON object")
+
     return InputEvent(
-        abi_version=int(value["abi_version"]),
+        abi_version=require_int("abi_version"),
         event_type=InputEventType(value["event_type"]),
-        device_id=str(value["device_id"]),
-        timestamp_ns=int(value["timestamp_ns"]),
-        sequence=int(value["sequence"]),
+        device_id=device_id,
+        timestamp_ns=require_int("timestamp_ns"),
+        sequence=require_int("sequence"),
         coordinate_frame=CoordinateFrame(value["coordinate_frame"]),
-        x=value.get("x"),
-        y=value.get("y"),
-        contact_id=value.get("contact_id"),
-        pressure=value.get("pressure"),
-        button=value.get("button"),
-        metadata=value.get("metadata", {}),
+        x=optional_number("x"),
+        y=optional_number("y"),
+        contact_id=contact_id,
+        pressure=optional_number("pressure"),
+        button=button,
+        metadata=metadata,
     )
 
 
