@@ -191,3 +191,23 @@ def test_host_device_enumerator_accepts_advertised_network_channel():
     )
     endpoint = HostDeviceEnumerator().discover([candidate])[0]
     assert endpoint.channel_map()["network"] is channel
+
+
+@pytest.mark.parametrize("frame", [
+    DeviceIdentityFrame(
+        protocol_version=1, architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64, capabilities=0, payload="not-bytes"
+    ),
+    DeviceIdentityFrame(
+        protocol_version=1, architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64, capabilities=1 << 63, payload=b"bad"
+    ),
+    DeviceIdentityFrame(
+        protocol_version=True, architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64, capabilities=0, payload=b"bad"
+    ),
+])
+def test_host_device_enumerator_validates_identity_frame_objects(frame):
+    candidate = HostDiscoveryCandidate("invalid-frame-object", frame, HostCapabilities())
+    with pytest.raises(ValueError, match="invalid Coreless discovery identity frame"):
+        HostDeviceEnumerator().discover([candidate])

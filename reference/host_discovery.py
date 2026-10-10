@@ -82,7 +82,9 @@ class HostDeviceEnumerator:
             if isinstance(candidate.identity_frame, bytes):
                 frame = DeviceIdentityFrame.decode(candidate.identity_frame)
             elif isinstance(candidate.identity_frame, DeviceIdentityFrame):
-                frame = candidate.identity_frame
+                # Dataclass instances can still contain invalid runtime values;
+                # validate them through the same wire contract as byte frames.
+                frame = DeviceIdentityFrame.decode(candidate.identity_frame.encode())
             else:
                 raise TypeError("identity_frame must be bytes or DeviceIdentityFrame")
         except (TypeError, ValueError) as exc:
