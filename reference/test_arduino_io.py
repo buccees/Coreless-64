@@ -219,11 +219,9 @@ def test_arduino_input_adapter_rejects_invalid_sensor_values():
     from host_io import MemoryInputTransport
 
     serial = FakeSerial()
-    serial.reads.append(frame(payload={"sensor": "analog", "value": float("nan")}))
     adapter = ArduinoInputAdapter(ArduinoSerialIO(serial, "arduino-1"), MemoryInputTransport())
 
-    # encode_message rejects NaN at the transport boundary, so exercise the
-    # adapter's numeric validator with a valid JSON frame containing NaN.
-    serial.reads[0] = b'{"device_id":"arduino-1","kind":"event","payload":{"value":NaN},"protocol":1,"sequence":0}\n'
+    # Exercise the adapter's numeric validator with a JSON frame containing NaN.
+    serial.reads.append(b'{"device_id":"arduino-1","kind":"event","payload":{"event_type":"pointer_move","x":NaN,"y":2},"protocol":1,"sequence":0}\n')
     with pytest.raises(ValueError, match="finite"):
         adapter.pump_once()
