@@ -48,6 +48,13 @@ class NetworkTransport(Protocol):
         ...
 
 
+def _copy_payload(payload: bytes, channel: str) -> bytes:
+    """Copy an immutable transport payload without accepting integer coercions."""
+    if not isinstance(payload, (bytes, bytearray, memoryview)):
+        raise TypeError(f"{channel} payload must be bytes-like")
+    return bytes(payload)
+
+
 def encode_input_event(event: InputEvent) -> bytes:
     """Encode one Coreless input event for the host input transport."""
     payload = {
@@ -146,7 +153,7 @@ class MemoryDisplayTransport:
     frames: deque[bytes] = field(default_factory=deque)
 
     def send_frame(self, frame: bytes) -> None:
-        self.frames.append(bytes(frame))
+        self.frames.append(_copy_payload(frame, "display frame"))
 
     def receive_frame(self) -> bytes:
         if not self.frames:
@@ -161,7 +168,7 @@ class MemoryInputTransport:
     events: deque[bytes] = field(default_factory=deque)
 
     def send_event(self, event: bytes) -> None:
-        self.events.append(bytes(event))
+        self.events.append(_copy_payload(event, "input event"))
 
     def receive_event(self) -> bytes:
         if not self.events:
@@ -176,7 +183,7 @@ class MemoryNetworkTransport:
     packets: deque[bytes] = field(default_factory=deque)
 
     def send_packet(self, packet: bytes) -> None:
-        self.packets.append(bytes(packet))
+        self.packets.append(_copy_payload(packet, "network packet"))
 
     def receive_packet(self) -> bytes:
         if not self.packets:
