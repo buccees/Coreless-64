@@ -161,3 +161,34 @@ def test_memory_transport_empty_signal_is_specific():
 
     with pytest.raises(HostIOQueueEmpty):
         MemoryInputTransport().receive_event()
+
+
+@pytest.mark.parametrize(
+    "transport,method,message",
+    [
+        (MemoryDisplayTransport(), "send_frame", "display frame must be bytes-like"),
+        (MemoryInputTransport(), "send_event", "input event must be bytes-like"),
+        (MemoryNetworkTransport(), "send_packet", "network packet must be bytes-like"),
+    ],
+)
+@pytest.mark.parametrize("invalid", [3, "not bytes", None])
+def test_memory_transports_reject_non_bytes_payloads(transport, method, message, invalid):
+    with pytest.raises(TypeError, match=message):
+        getattr(transport, method)(invalid)
+
+
+@pytest.mark.parametrize(
+    "transport,method,receive",
+    [
+        (MemoryDisplayTransport(), "send_frame", "receive_frame"),
+        (MemoryInputTransport(), "send_event", "receive_event"),
+        (MemoryNetworkTransport(), "send_packet", "receive_packet"),
+    ],
+)
+def test_memory_transports_normalize_bytes_like_payloads(transport, method, receive):
+    payloads = [bytearray(b"mutable"), memoryview(b"view")]
+    for payload in payloads:
+        getattr(transport, method)(payload)
+    assert [getattr(transport, receive)(), getattr(transport, receive)()] == [
+        b"mutable", b"view"
+    ]

@@ -133,6 +133,8 @@ class MemoryDisplayTransport:
     frames: deque[bytes] = field(default_factory=deque)
 
     def send_frame(self, frame: bytes) -> None:
+        if not isinstance(frame, (bytes, bytearray, memoryview)):
+            raise TypeError("display frame must be bytes-like")
         self.frames.append(bytes(frame))
 
     def receive_frame(self) -> bytes:
@@ -148,6 +150,8 @@ class MemoryInputTransport:
     events: deque[bytes] = field(default_factory=deque)
 
     def send_event(self, event: bytes) -> None:
+        if not isinstance(event, (bytes, bytearray, memoryview)):
+            raise TypeError("input event must be bytes-like")
         self.events.append(bytes(event))
 
     def receive_event(self) -> bytes:
@@ -163,6 +167,8 @@ class MemoryNetworkTransport:
     packets: deque[bytes] = field(default_factory=deque)
 
     def send_packet(self, packet: bytes) -> None:
+        if not isinstance(packet, (bytes, bytearray, memoryview)):
+            raise TypeError("network packet must be bytes-like")
         self.packets.append(bytes(packet))
 
     def receive_packet(self) -> bytes:
