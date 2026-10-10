@@ -215,11 +215,6 @@ def test_decode_input_event_rejects_nonfinite_numeric_fields(field, literal):
     with pytest.raises(ValueError, match=f"{field} must be finite"):
         decode_input_event(payload)
 
-@pytest.mark.parametrize("field,value", [
-    ("x", float("nan")),
-    ("pressure", float("inf")),
-    ("metadata", {"nested": [float("-inf")]}),
-])
 def test_encode_input_event_rejects_non_string_metadata_keys():
     from host_io import encode_input_event
     from input import CoordinateFrame, InputEvent, InputEventType
@@ -239,6 +234,11 @@ def test_encode_input_event_rejects_non_string_metadata_keys():
         encode_input_event(event)
 
 
+@pytest.mark.parametrize("field,value", [
+    ("x", float("nan")),
+    ("pressure", float("inf")),
+    ("metadata", {"nested": [float("-inf")]}),
+])
 def test_encode_input_event_rejects_nonfinite_numbers(field, value):
     from host_io import encode_input_event
     from input import CoordinateFrame, InputEvent, InputEventType
