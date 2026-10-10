@@ -206,7 +206,7 @@ The reference sketch uses 115200 baud, a bounded line buffer, device identity ma
 
 ### Arduino USB serial discovery and hardware bring-up
 
-The optional `discover_serial_devices()` helper enumerates serial-port metadata without opening ports or requiring pyserial at import time. Callers may inject a port provider for tests, and may filter by USB vendor ID, product ID, and serial number. It does not assume one VID/PID is shared by every Arduino-compatible board, does not auto-connect, and does not send commands during discovery. The application remains responsible for selecting a port and opening it with the configured baud rate.
+The optional `discover_serial_devices()` helper enumerates serial-port metadata without opening ports or requiring pyserial at import time. Callers may inject a port provider for tests, and may filter by USB vendor ID, product ID, and serial number. It does not assume one VID/PID is shared by every Arduino-compatible board, does not auto-connect, and does not send commands during discovery. The application remains responsible for selecting a port and opening it with the configured baud rate. Before forwarding events, register the Arduino board as a discovered Coreless input device using its stable device ID. Sensor/device-state events are accepted from any discovered device without changing the designated pointer device; pointer/touch events remain restricted to the designated device.
 
 Hardware bring-up checklist:
 
