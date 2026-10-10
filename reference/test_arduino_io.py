@@ -6,6 +6,7 @@ import pytest
 
 from arduino_io import (
     MAX_FRAME_BYTES,
+    ArduinoInputAdapter,
     ArduinoSerialIO,
     decode_message,
     encode_message,
@@ -149,3 +150,80 @@ def test_arduino_serial_io_surfaces_device_errors():
     bridge = ArduinoSerialIO(serial, "arduino-1")
     with pytest.raises(RuntimeError, match="pin unavailable"):
         bridge.receive_message()
+
+
+
+def test_arduino_input_adapter_forwards_sensor_event_into_coreless_input_stream():
+    from host_io import MemoryInputTransport, decode_input_event
+    from input import CoordinateFrame, InputEventType
+
+    serial = FakeSerial()
+    serial.reads.append(frame(payload={"sensor": "analog", "pin": "A0", "value": 512}))
+    bridge = ArduinoSerialIO(serial, "arduino-1")
+    transport = MemoryInputTransport()
+    adapter = ArduinoInputAdapter(bridge, transport)
+
+    assert adapter.pump_once() is True
+    event = decode_input_event(transport.receive_event())
+    assert event.event_type is InputEventType.DEVICE_STATE
+    assert event.device_id == "arduino-1"
+    assert event.coordinate_frame is CoordinateFrame.HOST
+    assert event.metadata["source"] == "arduino"
+    assert event.metadata["payload"]["value"] == 512
+    assert adapter.events_forwarded == 1
+
+
+def test_arduino_input_adapter_maps_typed_pointer_event():
+    from host_io import MemoryInputTransport, decode_input_event
+    from input import InputEventType
+
+    serial = FakeSerial()
+    serial.reads.append(
+        frame(payload={"event_type": "pointer_move", "x": 10.5, "y": 20, "button": None})
+    )
+    transport = MemoryInputTransport()
+    adapter = ArduinoInputAdapter(ArduinoSerialIO(serial, "arduino-1"), transport)
+
+    assert adapter.pump_once() is True
+    event = decode_input_event(transport.receive_event())
+    assert event.event_type is InputEventType.POINTER_MOVE
+    assert event.x == 10.5
+    assert event.y == 20.0
+
+
+def test_arduino_input_adapter_consumes_ack_without_faking_input():
+    from host_io import MemoryInputTransport
+
+    serial = FakeSerial()
+    serial.reads.append(frame(kind="ack", payload={"ok": True}))
+    transport = MemoryInputTransport()
+    adapter = ArduinoInputAdapter(ArduinoSerialIO(serial, "arduino-1"), transport)
+
+    assert adapter.pump_once() is False
+    assert adapter.acknowledgements_seen == 1
+    assert transport.events == ()
+
+
+def test_arduino_input_adapter_rejects_partial_coordinates():
+    from host_io import MemoryInputTransport
+
+    serial = FakeSerial()
+    serial.reads.append(frame(payload={"event_type": "pointer_move", "x": 5}))
+    adapter = ArduinoInputAdapter(ArduinoSerialIO(serial, "arduino-1"), MemoryInputTransport())
+
+    with pytest.raises(ValueError, match="coordinates must include both"):
+        adapter.pump_once()
+
+
+def test_arduino_input_adapter_rejects_invalid_sensor_values():
+    from host_io import MemoryInputTransport
+
+    serial = FakeSerial()
+    serial.reads.append(frame(payload={"sensor": "analog", "value": float("nan")}))
+    adapter = ArduinoInputAdapter(ArduinoSerialIO(serial, "arduino-1"), MemoryInputTransport())
+
+    # encode_message rejects NaN at the transport boundary, so exercise the
+    # adapter's numeric validator with a valid JSON frame containing NaN.
+    serial.reads[0] = b'{"device_id":"arduino-1","kind":"event","payload":{"value":NaN},"protocol":1,"sequence":0}\n'
+    with pytest.raises(ValueError, match="finite"):
+        adapter.pump_once()
