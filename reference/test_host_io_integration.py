@@ -122,3 +122,31 @@ def test_host_io_pump_propagates_transport_failures():
     io.input.receive_event = disconnected
     with pytest.raises(RuntimeError, match="input transport disconnected"):
         interface.pump_host_io()
+
+
+def test_host_io_pump_preserves_outbound_packet_when_transport_send_fails(tmp_path):
+    system = CorelessSystem(memory_size=4096, storage_path=tmp_path / "host-io-failure.img")
+    system.boot()
+    identity = CorelessIdentity("outbound-failure")
+    interface = CorelessHostInterface(identity)
+    interface.attach(identity, HostCapabilities(network=True))
+    io = MemoryHostIO()
+    interface.bind_host_io(io)
+    outbound = system.machine.network.transmit(b"retry-me", "host")
+
+    def disconnected(packet):
+        raise RuntimeError("network transport disconnected")
+
+    io.network.send_packet = disconnected
+    with pytest.raises(RuntimeError, match="network transport disconnected"):
+        interface.pump_host_io()
+
+    assert system.machine.network.tx == [outbound]
+
+    # Once the transport recovers, the same queued packet is delivered and
+    # only then removed from the Coreless transmit queue.
+    io.network.send_packet = lambda packet: io.network.packets.append(bytes(packet))
+    counts = interface.pump_host_io()
+    assert counts["network_tx"] == 1
+    assert io.network.receive_packet() == b"retry-me"
+    assert system.machine.network.tx == []

@@ -372,8 +372,12 @@ class CorelessHostInterface:
 
             if self._system is not None:
                 while self._system.machine.network.tx:
-                    packet = self._system.machine.network.tx.pop(0)
+                    # Keep the packet queued until the transport confirms the
+                    # complete send. A disconnect must not silently discard
+                    # Coreless-owned outbound data.
+                    packet = self._system.machine.network.tx[0]
                     self._host_io.network.send_packet(packet.data)
+                    self._system.machine.network.tx.pop(0)
                     counts["network_tx"] += 1
 
         if "display" in self._negotiated and self._system is not None:
