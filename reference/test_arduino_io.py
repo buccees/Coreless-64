@@ -103,7 +103,7 @@ def test_arduino_serial_io_receives_sensor_event_and_checks_identity():
 @pytest.mark.parametrize(
     ("raw", "message"),
     [
-        (b'{"protocol":1}\n', "JSON object"),
+        (b"[]\n", "JSON object"),
         (b"not-json\n", "invalid Arduino JSON frame"),
         (b'{"protocol":1,"kind":"event","device_id":"x","sequence":0,"payload":{}}', "newline terminated"),
         (b'{"protocol":true,"kind":"event","device_id":"x","sequence":0,"payload":{}}\n', "protocol version"),
