@@ -201,7 +201,7 @@ def test_arduino_input_adapter_consumes_ack_without_faking_input():
 
     assert adapter.pump_once() is False
     assert adapter.acknowledgements_seen == 1
-    assert transport.events == ()
+    assert not transport.events
 
 
 def test_arduino_input_adapter_rejects_partial_coordinates():
