@@ -194,32 +194,26 @@ def test_memory_transports_normalize_bytes_like_payloads(transport, method, rece
     ]
 
 
-@pytest.mark.parametrize("field,value", [
-    ("x", float("nan")),
-    ("x", float("inf")),
-    ("y", float("-inf")),
-    ("pressure", float("nan")),
+@pytest.mark.parametrize("field,literal", [
+    ("x", "1e999"),
+    ("y", "-1e999"),
+    ("pressure", "1e999"),
 ])
-def test_decode_input_event_rejects_nonfinite_numeric_fields(field, value):
-    import json
+def test_decode_input_event_rejects_nonfinite_numeric_fields(field, literal):
     from host_io import decode_input_event
 
-    base = {
-        "abi_version": 1,
-        "event_type": "pointer_move",
-        "device_id": "mouse-1",
-        "timestamp_ns": 10,
-        "sequence": 1,
-        "coordinate_frame": "coreless",
-        "x": 1.0,
-        "y": 2.0,
-        "pressure": 0.5,
-        "metadata": {},
-    }
-    base[field] = value
+    base = (
+        '{"abi_version":1,"event_type":"pointer_move","device_id":"mouse-1",'
+        '"timestamp_ns":10,"sequence":1,"coordinate_frame":"coreless",'
+        '"x":1.0,"y":2.0,"pressure":0.5,"metadata":{}}'
+    )
+    payload = base.replace(f'"{field}":' + {
+        "x": "1.0",
+        "y": "2.0",
+        "pressure": "0.5",
+    }[field], f'"{field}":{literal}').encode("utf-8")
     with pytest.raises(ValueError, match=f"{field} must be finite"):
-        decode_input_event(json.dumps(base).encode("utf-8"))
-
+        decode_input_event(payload)
 
 @pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
 def test_decode_input_event_rejects_nonstandard_json_numeric_constants(constant):
