@@ -18,6 +18,62 @@ from input import CoordinateFrame, InputEvent, InputEventType
 
 PROTOCOL_VERSION = 1
 MAX_FRAME_BYTES = 4096
+
+
+def discover_serial_devices(
+    port_provider=None,
+    *,
+    vendor_ids: set[int] | frozenset[int] | None = None,
+    product_ids: set[int] | frozenset[int] | None = None,
+    serial_number: str | None = None,
+) -> tuple[dict[str, object], ...]:
+    """Enumerate serial ports without opening them or requiring pyserial.
+
+    A caller may inject a provider (typically serial.tools.list_ports.comports)
+    for deterministic testing. If no provider is supplied, pyserial's optional
+    list_ports module is loaded lazily. VID/PID and serial-number filters are
+    exact matches; omitted filters leave the corresponding attribute unfiltered.
+    Returned records contain only stable, useful discovery metadata.
+    """
+    if port_provider is None:
+        try:
+            from serial.tools.list_ports import comports
+        except ImportError as exc:
+            raise RuntimeError(
+                "serial discovery requires pyserial or an explicit port_provider"
+            ) from exc
+        port_provider = comports
+    if not callable(port_provider):
+        raise TypeError("port_provider must be callable")
+    if serial_number is not None and (
+        not isinstance(serial_number, str) or not serial_number.strip()
+    ):
+        raise ValueError("serial_number must be a non-empty string or null")
+
+    found: list[dict[str, object]] = []
+    for port in port_provider():
+        device = getattr(port, "device", None)
+        if not isinstance(device, str) or not device:
+            continue
+        vid = getattr(port, "vid", None)
+        pid = getattr(port, "pid", None)
+        serial = getattr(port, "serial_number", None)
+        if vendor_ids is not None and vid not in vendor_ids:
+            continue
+        if product_ids is not None and pid not in product_ids:
+            continue
+        if serial_number is not None and serial != serial_number:
+            continue
+        found.append({
+            "device": device,
+            "description": str(getattr(port, "description", "") or ""),
+            "hwid": str(getattr(port, "hwid", "") or ""),
+            "vid": vid,
+            "pid": pid,
+            "serial_number": serial,
+        })
+    found.sort(key=lambda item: str(item["device"]).casefold())
+    return tuple(found)
 _COMMANDS = frozenset({"digital_write", "analog_write", "pin_mode", "digital_read", "analog_read"})
 _PIN_MODES = frozenset({"input", "input_pullup", "output"})
 
