@@ -118,3 +118,10 @@ This is an optimization layer over the existing Coreless machine architecture, n
 ## Persistent runtime launcher — 2026-10-07
 
 The repository now includes `scripts/coreless-run.py`, a direct launcher for a persistent Coreless machine image. It resumes the stored machine/OS state, accepts native Coreless shell commands, can advance the digital execution engine, and persists state or shutdown. The image remains the authoritative machine-state carrier and the host remains outside Coreless computational authority.
+
+
+## Arduino physical I/O bridge — 2026-10-10
+
+Coreless now has an initial Arduino serial bridge in `reference/arduino_io.py`. It defines a bounded, versioned newline-delimited JSON protocol for pin commands and device events, with device identity checks, monotonically increasing receive sequences, allowlisted GPIO operations, strict value ranges, and malformed-frame rejection. The adapter accepts a serial-port object, so applications may use pyserial without making it a mandatory dependency of the reference runtime.
+
+Initial command set: `pin_mode`, `digital_write`, `analog_write`, `digital_read`, and `analog_read`. The bridge is a software protocol and host-side adapter, not yet a claim of tested physical Arduino hardware support; a matching firmware sketch and hardware validation are the next steps.
