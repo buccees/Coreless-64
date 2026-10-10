@@ -1,6 +1,8 @@
 import sys
 sys.path.insert(0, ".")
 
+import pytest
+
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
 from host_io import MemoryHostIO, encode_input_event
 from host_transport import HostEndpoint, MemoryHostTransportAdapter
@@ -104,3 +106,19 @@ def test_host_io_rejects_nonconforming_bundle():
         pass
     else:
         raise AssertionError("nonconforming host I/O bundle was accepted")
+
+
+
+def test_host_io_pump_propagates_transport_failures():
+    endpoint_identity = CorelessIdentity("broken-input")
+    interface = CorelessHostInterface(endpoint_identity)
+    interface.attach(endpoint_identity, HostCapabilities(input=True))
+    io = MemoryHostIO()
+    interface.bind_host_io(io, input_router=make_router())
+
+    def disconnected():
+        raise RuntimeError("input transport disconnected")
+
+    io.input.receive_event = disconnected
+    with pytest.raises(RuntimeError, match="input transport disconnected"):
+        interface.pump_host_io()

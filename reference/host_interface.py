@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, TYPE_CHECKING
 
-from host_io import HostIO, DisplayTransport, InputTransport, NetworkTransport
+from host_io import HostIO, HostIOQueueEmpty, DisplayTransport, InputTransport, NetworkTransport
 from device_protocol import (
     ARCHITECTURE_CORELESS64,
     DEVICE_TYPE_CORELESS64,
@@ -352,7 +352,7 @@ class CorelessHostInterface:
             while True:
                 try:
                     payload = self._host_io.input.receive_event()
-                except RuntimeError:
+                except HostIOQueueEmpty:
                     break
                 event = decode_input_event(payload)
                 self.submit_input(event)
@@ -364,7 +364,7 @@ class CorelessHostInterface:
             while True:
                 try:
                     packet = self._host_io.network.receive_packet()
-                except RuntimeError:
+                except HostIOQueueEmpty:
                     break
                 if self._system is not None:
                     self._system.machine.network.receive(packet)

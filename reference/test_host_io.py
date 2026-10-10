@@ -154,3 +154,10 @@ def test_decode_input_event_round_trips_encoded_event():
         metadata={"source": "host"},
     )
     assert decode_input_event(encode_input_event(event)) == event
+
+
+def test_memory_transport_empty_signal_is_specific():
+    from host_io import HostIOQueueEmpty
+
+    with pytest.raises(HostIOQueueEmpty):
+        MemoryInputTransport().receive_event()

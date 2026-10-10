@@ -15,6 +15,10 @@ from typing import Protocol, runtime_checkable
 from input import CoordinateFrame, InputEvent, InputEventType
 
 
+class HostIOQueueEmpty(RuntimeError):
+    """Raised only when a memory host transport has no queued item."""
+
+
 @runtime_checkable
 class DisplayTransport(Protocol):
     """Host-side display channel contract."""
@@ -133,7 +137,7 @@ class MemoryDisplayTransport:
 
     def receive_frame(self) -> bytes:
         if not self.frames:
-            raise RuntimeError("display transport has no queued frame")
+            raise HostIOQueueEmpty("display transport has no queued frame")
         return self.frames.popleft()
 
 
@@ -148,7 +152,7 @@ class MemoryInputTransport:
 
     def receive_event(self) -> bytes:
         if not self.events:
-            raise RuntimeError("input transport has no queued event")
+            raise HostIOQueueEmpty("input transport has no queued event")
         return self.events.popleft()
 
 
@@ -163,7 +167,7 @@ class MemoryNetworkTransport:
 
     def receive_packet(self) -> bytes:
         if not self.packets:
-            raise RuntimeError("network transport has no queued packet")
+            raise HostIOQueueEmpty("network transport has no queued packet")
         return self.packets.popleft()
 
 
