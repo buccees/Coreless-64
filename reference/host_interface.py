@@ -366,6 +366,9 @@ class CorelessHostInterface:
                     packet = self._host_io.network.receive_packet()
                 except HostIOQueueEmpty:
                     break
+                if not isinstance(packet, (bytes, bytearray, memoryview)):
+                    raise TypeError("host network packet must be bytes-like")
+                packet = bytes(packet)
                 if self._system is not None:
                     self._system.machine.network.receive(packet)
                 counts["network_rx"] += 1

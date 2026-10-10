@@ -150,3 +150,19 @@ def test_host_io_pump_preserves_outbound_packet_when_transport_send_fails(tmp_pa
     assert counts["network_tx"] == 1
     assert io.network.receive_packet() == b"retry-me"
     assert system.machine.network.tx == []
+
+
+def test_host_io_pump_rejects_non_bytes_network_packet(tmp_path):
+    system = CorelessSystem(memory_size=4096, storage_path=tmp_path / "host-io-invalid-packet.img")
+    system.boot()
+    identity = CorelessIdentity("invalid-network-packet")
+    interface = CorelessHostInterface(identity)
+    interface.attach(identity, HostCapabilities(network=True), system=system)
+    io = MemoryHostIO()
+    interface.bind_host_io(io)
+    io.network.packets.append(4)
+
+    with pytest.raises(TypeError, match="host network packet must be bytes-like"):
+        interface.pump_host_io()
+
+    assert system.machine.network.rx == []
