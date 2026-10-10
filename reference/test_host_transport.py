@@ -2,7 +2,7 @@ import sys
 sys.path.insert(0, ".")
 import pytest
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
-from host_transport import HostEndpoint, MemoryHostTransportAdapter
+from host_transport import HostEndpoint, HostTransportAdapter, MemoryHostTransportAdapter
 from device_command import OP_CAPABILITIES, OP_STATUS, OP_SYNC, DeviceCommand, is_response
 
 
@@ -42,6 +42,33 @@ def test_host_transport_connects_negotiated_channels():
     assert interface.channel("display") is display
     assert interface.transport_ready({"display"})
 
+
+
+def test_host_transport_failed_initial_channel_binding_rolls_back_attachment(monkeypatch):
+    endpoint = HostEndpoint(
+        "coreless-initial-rollback",
+        CorelessIdentity("coreless-initial-rollback"),
+        HostCapabilities(display=True, network=True),
+        {"display": object(), "network": object()},
+        device_capabilities={"display", "network"},
+    )
+    interface = CorelessHostInterface(CorelessIdentity("coreless-initial-rollback"))
+    adapter = MemoryHostTransportAdapter([endpoint])
+    original_bind_channel = interface.bind_channel
+
+    def fail_network(capability, channel):
+        if capability == "network":
+            raise RuntimeError("injected channel binding failure")
+        return original_bind_channel(capability, channel)
+
+    monkeypatch.setattr(interface, "bind_channel", fail_network)
+    with pytest.raises(RuntimeError, match="injected channel binding failure"):
+        adapter.connect(endpoint, interface)
+
+    assert not interface.attached
+    assert interface.negotiated == frozenset()
+    assert interface.channels == {}
+    assert interface.host_io is None
 
 def test_host_transport_rejects_invalid_host_io_before_attachment():
     endpoint = HostEndpoint(
@@ -380,6 +407,25 @@ def test_host_transport_reconnect_drops_stale_channels():
         interface.channel("network")
 
 
+def test_host_transport_session_rejects_missing_negotiated_channel():
+    display = object()
+    endpoint = HostEndpoint(
+        "coreless-session-missing-live-channel",
+        CorelessIdentity("coreless-session-missing-live-channel"),
+        HostCapabilities(display=True),
+        {"display": display},
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("coreless-session-missing-live-channel"))
+    session = adapter.open_session(endpoint, interface)
+
+    interface.clear_channels()
+
+    with pytest.raises(RuntimeError, match="channels are missing"):
+        session.require_channels({"display"})
+
+
 def test_host_transport_session_exposes_and_requires_live_channels():
     display = object()
     endpoint = HostEndpoint(
@@ -557,3 +603,1484 @@ def test_host_transport_discovers_from_platform_provider():
     adapter = MemoryHostTransportAdapter()
     endpoints = adapter.discover_provider(Provider())
     assert [endpoint.endpoint_id for endpoint in endpoints] == ["platform-a"]
+
+
+def test_socket_host_transport_adapter_opens_network_channel():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-host",
+        CorelessIdentity("socket-host"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    transport = adapter.open_network(endpoint)
+    assert isinstance(transport, SocketNetworkTransport)
+    transport.send_packet(b"coreless")
+    assert right.recv(1024).endswith(b"coreless")
+    transport.close()
+    right.close()
+
+
+def test_socket_host_transport_adapter_propagates_packet_size():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-configured",
+        CorelessIdentity("socket-configured"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object(), max_packet_size=7)
+    try:
+        transport = adapter.open_network(endpoint)
+        assert isinstance(transport, SocketNetworkTransport)
+        assert adapter.max_packet_size == 7
+        transport.send_packet(b"1234567")
+        assert right.recv(11).endswith(b"1234567")
+        with pytest.raises(ValueError, match="exceeds host transport limit"):
+            transport.send_packet(b"12345678")
+    finally:
+        if not getattr(left, "_closed", False):
+            try:
+                left.close()
+            except OSError:
+                pass
+        right.close()
+
+
+def test_socket_host_transport_adapter_requires_network_channel():
+    from host_transport import SocketHostTransportAdapter
+    endpoint = HostEndpoint(
+        "no-network-channel",
+        CorelessIdentity("no-network-channel"),
+        HostCapabilities(network=True),
+        device_capabilities={"network"},
+    )
+    with pytest.raises(RuntimeError, match="no network channel"):
+        SocketHostTransportAdapter(object()).open_network(endpoint)
+
+
+def test_socket_host_transport_adapter_requires_network_capability():
+    from host_transport import SocketHostTransportAdapter
+    endpoint = HostEndpoint(
+        "no-network-capability",
+        CorelessIdentity("no-network-capability"),
+        HostCapabilities(),
+        {"network": object()},
+        device_capabilities={"network"},
+    )
+    with pytest.raises(RuntimeError, match="does not advertise network capability"):
+        SocketHostTransportAdapter(object()).open_network(endpoint)
+
+
+def test_socket_host_transport_adapter_rejects_closed_channel():
+    import socket
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    left.close()
+    endpoint = HostEndpoint(
+        "closed-network",
+        CorelessIdentity("closed-network"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    try:
+        with pytest.raises(RuntimeError, match="already closed"):
+            SocketHostTransportAdapter(object()).open_network(endpoint)
+    finally:
+        right.close()
+
+
+def test_host_transport_session_rejects_closed_network_channel():
+    class ClosedTransport:
+        closed = True
+
+    endpoint = HostEndpoint(
+        "closed-session",
+        CorelessIdentity("closed-session"),
+        HostCapabilities(network=True),
+        {"network": ClosedTransport()},
+        device_capabilities={"network"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("closed-session"))
+    session = adapter.open_session(endpoint, interface)
+
+    with pytest.raises(RuntimeError, match="channels are closed"):
+        session.validate()
+    with pytest.raises(RuntimeError, match="channels are closed"):
+        session.require_channels({"network"})
+
+
+def test_host_transport_session_rejects_missing_network_channel():
+    endpoint = HostEndpoint(
+        "missing-session-network",
+        CorelessIdentity("missing-session-network"),
+        HostCapabilities(network=True),
+        device_capabilities={"network"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("missing-session-network"))
+    session = adapter.open_session(endpoint, interface)
+
+    with pytest.raises(RuntimeError, match="channels are missing"):
+        session.require_channels({"network"})
+
+
+def test_host_transport_session_command_rejects_closed_channel():
+    class ClosedTransport:
+        closed = True
+
+    endpoint = HostEndpoint(
+        "closed-session-command",
+        CorelessIdentity("closed-session-command"),
+        HostCapabilities(network=True),
+        {"network": ClosedTransport()},
+        device_capabilities={"network"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(CorelessIdentity("closed-session-command"))
+    session = adapter.open_session(endpoint, interface)
+
+    with pytest.raises(RuntimeError, match="channels are closed"):
+        adapter.send_session_command(
+            session, DeviceCommand(OP_CAPABILITIES, 90)
+        )
+
+
+def test_socket_host_transport_session_binds_typed_network_transport():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-session",
+        CorelessIdentity("socket-session"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-session"))
+
+    session = adapter.open_session(endpoint, interface)
+    transport = session.channel("network")
+    assert isinstance(transport, SocketNetworkTransport)
+
+    transport.send_packet(b"session")
+    assert right.recv(1024).endswith(b"session")
+
+    adapter.close_session(session)
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.send_packet(b"after-close")
+    right.close()
+
+def test_socket_host_transport_session_receives_framed_network_packet():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-session-receive",
+        CorelessIdentity("socket-session-receive"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-session-receive"))
+
+    session = adapter.open_session(endpoint, interface)
+    transport = session.channel("network")
+    assert isinstance(transport, SocketNetworkTransport)
+
+    right.sendall((7).to_bytes(4, "big") + b"network")
+    assert transport.receive_packet() == b"network"
+
+    adapter.close_session(session)
+    right.close()
+
+
+
+
+def test_socket_host_transport_disconnect_closes_network_transport():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-disconnect",
+        CorelessIdentity("socket-disconnect"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-disconnect"))
+
+    session = adapter.open_session(endpoint, interface)
+    transport = session.channel("network")
+    assert isinstance(transport, SocketNetworkTransport)
+
+    adapter.disconnect(interface)
+
+    assert transport.closed
+    assert not interface.attached
+    with pytest.raises(RuntimeError, match="session is detached"):
+        session.validate()
+    with pytest.raises(RuntimeError, match="transport is closed"):
+        transport.receive_packet()
+
+    right.close()
+
+def test_socket_host_transport_session_rejects_send_failure():
+    import socket
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-session-send-failure",
+        CorelessIdentity("socket-session-send-failure"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-session-send-failure"))
+
+    session = adapter.open_session(endpoint, interface)
+    transport = session.channel("network")
+    right.close()
+
+    with pytest.raises((BrokenPipeError, ConnectionError, OSError)):
+        transport.send_packet(b"after-peer-close")
+    assert transport.closed
+    assert left.fileno() < 0
+
+    with pytest.raises(RuntimeError, match="channels are closed"):
+        session.validate()
+
+    adapter.close_session(session)
+
+def test_socket_host_transport_session_rejects_peer_close():
+    import socket
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-session-peer-close",
+        CorelessIdentity("socket-session-peer-close"),
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-session-peer-close"))
+
+    session = adapter.open_session(endpoint, interface)
+    transport = session.channel("network")
+    right.close()
+
+    with pytest.raises(ConnectionError, match="socket closed"):
+        transport.receive_packet()
+    assert transport.closed
+    assert left.fileno() < 0
+
+    with pytest.raises(RuntimeError, match="channels are closed"):
+        session.validate()
+
+    adapter.close_session(session)
+
+
+
+def test_socket_host_transport_closes_stale_network_on_reconnect():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    first_left, first_right = socket.socketpair()
+    second_left, second_right = socket.socketpair()
+    identity = CorelessIdentity("socket-reconnect")
+    first = HostEndpoint(
+        "socket-reconnect-1",
+        identity,
+        HostCapabilities(network=True),
+        {"network": first_left},
+        device_capabilities={"network"},
+    )
+    second = HostEndpoint(
+        "socket-reconnect-2",
+        identity,
+        HostCapabilities(network=True),
+        {"network": second_left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(first, interface)
+        previous = interface.channel("network")
+        assert isinstance(previous, SocketNetworkTransport)
+        adapter.connect(second, interface)
+        current = interface.channel("network")
+        assert previous.closed
+        assert isinstance(current, SocketNetworkTransport)
+        assert current is not previous
+        current.send_packet(b"reconnected")
+    finally:
+        adapter.disconnect(interface)
+        first_right.close()
+        second_right.close()
+
+def test_socket_host_transport_preserves_host_io_non_network_channels():
+    import socket
+    from host_io import MemoryDisplayTransport, MemoryHostIO, MemoryNetworkTransport
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    endpoint = HostEndpoint(
+        "socket-host-io",
+        CorelessIdentity("socket-host-io"),
+        HostCapabilities(network=True, display=True),
+        {"network": left},
+        device_capabilities={"network", "display", "input"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-host-io"))
+    host_io = MemoryHostIO(network=MemoryNetworkTransport())
+
+    try:
+        session = adapter.open_session(
+            endpoint,
+            interface,
+            host_io=host_io,
+        )
+        assert isinstance(session.channel("network"), SocketNetworkTransport)
+        assert session.channel("network") is not host_io.network
+        assert session.channel("display") is host_io.display
+    finally:
+        adapter.disconnect(interface)
+        right.close()
+
+
+def test_host_transport_session_rejects_closed_raw_socket_channel():
+    import socket
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("session-closed-raw-socket")
+    endpoint = HostEndpoint(
+        "session-closed-raw-socket",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    interface = CorelessHostInterface(identity)
+    session = adapter.open_session(endpoint, interface)
+
+    left.close()
+    right.close()
+
+    with pytest.raises(RuntimeError, match="channels are closed"):
+        session.validate()
+    with pytest.raises(RuntimeError, match="channels are closed"):
+        session.require_channels({"network"})
+
+
+def test_socket_network_transport_validates_socket_contract():
+    from host_socket import SocketNetworkTransport
+
+    class Incomplete:
+        def sendall(self, data):
+            pass
+
+    with pytest.raises(TypeError, match="sendall"):
+        SocketNetworkTransport(Incomplete())
+
+
+def test_socket_network_transport_marks_closed_when_close_raises():
+    from host_socket import SocketNetworkTransport
+
+    class FailingClose:
+        def sendall(self, data):
+            pass
+        def recv(self, size):
+            return b""
+        def close(self):
+            raise OSError("close failed")
+
+    transport = SocketNetworkTransport(FailingClose())
+    with pytest.raises(OSError, match="close failed"):
+        transport.close()
+    assert transport.closed
+
+
+def test_socket_host_transport_detaches_when_network_close_raises():
+    from host_transport import SocketHostTransportAdapter
+
+    class FailingCloseTransport:
+        closed = False
+
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            self.closed = True
+            raise OSError("close failed")
+
+    endpoint = HostEndpoint(
+        "socket-disconnect-close-failure",
+        CorelessIdentity("socket-disconnect-close-failure"),
+        HostCapabilities(network=True),
+        {"network": FailingCloseTransport()},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-disconnect-close-failure"))
+
+    adapter.connect(endpoint, interface)
+    with pytest.raises(OSError, match="close failed"):
+        adapter.disconnect(interface)
+
+    assert not interface.attached
+    assert interface.channels == {}
+
+
+def test_socket_host_transport_reconnect_same_socket_does_not_close_new_transport():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-reconnect-same")
+    endpoint = HostEndpoint(
+        "socket-reconnect-same",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(endpoint, interface)
+        previous = interface.channel("network")
+        adapter.connect(endpoint, interface)
+        current = interface.channel("network")
+
+        assert isinstance(previous, SocketNetworkTransport)
+        assert isinstance(current, SocketNetworkTransport)
+        assert previous is not current
+        assert previous.closed
+        assert not current.closed
+        current.send_packet(b"same-socket")
+        assert right.recv(1024).endswith(b"same-socket")
+    finally:
+        adapter.disconnect(interface)
+        right.close()
+
+
+def test_socket_host_transport_closes_unnegotiated_replacement():
+    from host_transport import SocketHostTransportAdapter
+
+    class TrackingTransport:
+        closed = False
+        socket = object()
+
+        def close(self):
+            self.closed = True
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = None
+
+        def open_network(self, endpoint):
+            self.created = TrackingTransport()
+            return self.created
+
+    endpoint = HostEndpoint(
+        "socket-unnegotiated",
+        CorelessIdentity("socket-unnegotiated"),
+        HostCapabilities(network=True),
+        {"network": object()},
+        device_capabilities={"network"},
+    )
+    adapter = TrackingAdapter()
+    interface = CorelessHostInterface(
+        CorelessIdentity("socket-unnegotiated"),
+        supported={"display"},
+    )
+
+    negotiated = adapter.connect(endpoint, interface)
+
+    assert negotiated == frozenset()
+    assert adapter.created is not None
+    assert adapter.created.closed
+    assert "network" not in interface.channels
+
+
+def test_socket_host_transport_closes_replacement_when_base_connect_fails():
+    from host_transport import SocketHostTransportAdapter
+
+    class TrackingTransport:
+        closed = False
+        socket = object()
+
+        def close(self):
+            self.closed = True
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = None
+
+        def open_network(self, endpoint):
+            self.created = TrackingTransport()
+            return self.created
+
+    endpoint = HostEndpoint(
+        "socket-connect-fails",
+        CorelessIdentity("socket-connect-fails"),
+        HostCapabilities(network=True),
+        {"network": object()},
+        device_capabilities={"network"},
+    )
+    adapter = TrackingAdapter()
+    interface = CorelessHostInterface(CorelessIdentity("different-coreless"))
+
+    with pytest.raises(ValueError, match="identity verification failed"):
+        adapter.connect(endpoint, interface)
+
+    assert adapter.created is not None
+    assert adapter.created.closed
+    assert not interface.attached
+    assert interface.channels == {}
+
+
+def test_host_transport_failed_reconnect_host_io_preserves_live_session():
+    from host_io import MemoryHostIO
+    from host_transport import HostTransportAdapter, MemoryHostTransportAdapter
+
+    identity = CorelessIdentity("host-io-reconnect-atomic")
+    first = HostEndpoint(
+        "host-io-reconnect-first",
+        identity,
+        HostCapabilities(display=True),
+        {"display": object()},
+        device_capabilities={"display"},
+    )
+    second = HostEndpoint(
+        "host-io-reconnect-second",
+        identity,
+        HostCapabilities(display=True),
+        {"display": object()},
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter((first, second))
+    interface = CorelessHostInterface(identity)
+
+    adapter.connect(first, interface)
+    previous = interface.channel("display")
+    invalid_host_io = MemoryHostIO()
+    invalid_host_io.display = object()
+
+    with pytest.raises(TypeError, match="host display transport"):
+        adapter.connect(second, interface, host_io=invalid_host_io)
+
+    assert interface.attached
+    assert interface.channel("display") is previous
+    assert interface.negotiated == frozenset({"display"})
+
+
+def test_host_transport_failed_reconnect_channel_bind_preserves_live_session():
+    from host_transport import MemoryHostTransportAdapter
+
+    class FailingBindInterface(CorelessHostInterface):
+        fail_bind = False
+
+        def bind_channel(self, capability, channel):
+            if self.fail_bind and capability == "display":
+                raise RuntimeError("replacement channel bind failed")
+            super().bind_channel(capability, channel)
+
+    identity = CorelessIdentity("channel-reconnect-atomic")
+    first = HostEndpoint(
+        "channel-reconnect-first",
+        identity,
+        HostCapabilities(display=True),
+        {"display": object()},
+        device_capabilities={"display"},
+    )
+    second = HostEndpoint(
+        "channel-reconnect-second",
+        identity,
+        HostCapabilities(display=True),
+        {"display": object()},
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter((first, second))
+    interface = FailingBindInterface(identity)
+
+    # Establish the initial live session through the base adapter behavior,
+    # then install the channel that the reconnect must preserve.
+    HostTransportAdapter.connect(
+        adapter, first, interface
+    )
+    previous = interface.channel("display")
+    interface.fail_bind = True
+
+    with pytest.raises(RuntimeError, match="replacement channel bind failed"):
+        adapter.connect(second, interface)
+
+    assert interface.attached
+    assert interface.channel("display") is previous
+    assert interface.negotiated == frozenset({"display"})
+
+
+def test_socket_host_transport_failed_reconnect_preserves_live_session():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-reconnect-failure")
+    good = HostEndpoint(
+        "socket-good",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    bad = HostEndpoint(
+        "socket-bad",
+        identity,
+        HostCapabilities(network=True),
+        {"network": object()},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(good, interface)
+        previous = interface.channel("network")
+
+        with pytest.raises(TypeError, match="sock must provide"):
+            adapter.connect(bad, interface)
+
+        assert interface.attached
+        assert interface.channel("network") is previous
+        assert not previous.closed
+        previous.send_packet(b"still-live")
+        assert right.recv(1024).endswith(b"still-live")
+    finally:
+        adapter.disconnect(interface)
+        right.close()
+
+
+def test_socket_host_transport_failed_reconnect_same_socket_preserves_live_session():
+    import socket
+    from host_io import MemoryDisplayTransport
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-reconnect-shared-failure")
+    endpoint = HostEndpoint(
+        "socket-reconnect-shared-failure",
+        identity,
+        HostCapabilities(network=True, display=True),
+        {"network": left, "display": MemoryDisplayTransport()},
+        device_capabilities={"network", "display"},
+    )
+
+    class FailingBindInterface(CorelessHostInterface):
+        fail_bind = False
+
+        def bind_channel(self, capability, channel):
+            if self.fail_bind and capability == "display":
+                raise RuntimeError("replacement display bind failed")
+            super().bind_channel(capability, channel)
+
+    adapter = SocketHostTransportAdapter(object())
+    interface = FailingBindInterface(identity)
+
+    try:
+        adapter.connect(endpoint, interface)
+        previous = interface.channel("network")
+        interface.fail_bind = True
+
+        with pytest.raises(RuntimeError, match="replacement display bind failed"):
+            adapter.connect(endpoint, interface)
+
+        assert interface.attached
+        assert interface.channel("network") is previous
+        assert not previous.closed
+        previous.send_packet(b"survives-failed-reconnect")
+        assert right.recv(1024).endswith(b"survives-failed-reconnect")
+    finally:
+        adapter.disconnect(interface)
+        right.close()
+
+
+def test_socket_host_transport_failed_reconnect_network_bind_preserves_live_session():
+    import socket
+    from host_transport import SocketHostTransportAdapter
+
+    class FailingNetworkBindInterface(CorelessHostInterface):
+        fail_network_bind = False
+
+        def bind_channel(self, capability, channel):
+            if self.fail_network_bind and capability == "network":
+                raise RuntimeError("replacement network bind failed")
+            super().bind_channel(capability, channel)
+
+    left1, right1 = socket.socketpair()
+    left2, right2 = socket.socketpair()
+    identity = CorelessIdentity("socket-network-bind-reconnect-atomic")
+    first = HostEndpoint(
+        "socket-network-bind-first",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left1},
+        device_capabilities={"network"},
+    )
+    second = HostEndpoint(
+        "socket-network-bind-second",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left2},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = FailingNetworkBindInterface(identity)
+
+    try:
+        adapter.connect(first, interface)
+        previous = interface.channel("network")
+        interface.fail_network_bind = True
+
+        with pytest.raises(RuntimeError, match="replacement network bind failed"):
+            adapter.connect(second, interface)
+
+        assert interface.attached
+        assert interface.channel("network") is previous
+        assert interface.negotiated == frozenset({"network"})
+        assert not previous.closed
+        previous.send_packet(b"still-live-after-network-bind-failure")
+        assert right1.recv(1024).endswith(b"still-live-after-network-bind-failure")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right1.close()
+        right2.close()
+
+
+
+
+def test_socket_host_transport_failed_reconnect_same_socket_base_failure_retires_only_replacement_wrapper():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-shared-base-failure")
+    endpoint = HostEndpoint(
+        "socket-shared-base-failure",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+
+    class FailingReconnectInterface(CorelessHostInterface):
+        fail_reconnect = False
+
+        def attach_identity_frame(self, *args, **kwargs):
+            if self.fail_reconnect:
+                raise RuntimeError("replacement base connect failed")
+            return super().attach_identity_frame(*args, **kwargs)
+
+    class CapturingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = None
+
+        def open_network(self, endpoint):
+            self.created = super().open_network(endpoint)
+            return self.created
+
+    adapter = CapturingAdapter()
+    interface = FailingReconnectInterface(identity)
+
+    try:
+        adapter.connect(endpoint, interface)
+        previous = interface.channel("network")
+        interface.fail_reconnect = True
+
+        with pytest.raises(RuntimeError, match="replacement base connect failed"):
+            adapter.connect(endpoint, interface)
+
+        replacement = adapter.created
+        assert isinstance(replacement, SocketNetworkTransport)
+        assert replacement is not previous
+        assert replacement.closed
+        assert previous.closed is False
+        previous.send_packet(b"base-failure-still-live")
+        assert right.recv(1024).endswith(b"base-failure-still-live")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right.close()
+
+def test_socket_host_transport_failed_reconnect_same_socket_network_bind_retires_replacement_wrapper():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-shared-network-bind-failure")
+    endpoint = HostEndpoint(
+        "socket-shared-network-bind-failure",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+
+    class FailingNetworkBindInterface(CorelessHostInterface):
+        fail_network_bind = False
+
+        def bind_channel(self, capability, channel):
+            if self.fail_network_bind and capability == "network":
+                raise RuntimeError("replacement network bind failed")
+            super().bind_channel(capability, channel)
+
+    adapter = SocketHostTransportAdapter(object())
+    interface = FailingNetworkBindInterface(identity)
+
+    try:
+        adapter.connect(endpoint, interface)
+        previous = interface.channel("network")
+        interface.fail_network_bind = True
+
+        with pytest.raises(RuntimeError, match="replacement network bind failed"):
+            adapter.connect(endpoint, interface)
+
+        assert isinstance(previous, SocketNetworkTransport)
+        assert previous.closed is False
+        assert interface.channel("network") is previous
+        previous.send_packet(b"shared-socket-still-live")
+        assert right.recv(1024).endswith(b"shared-socket-still-live")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right.close()
+
+def test_socket_host_transport_discovers_and_binds_provider_socket():
+    import socket
+    from device_protocol import (
+        ARCHITECTURE_CORELESS64,
+        DEVICE_TYPE_CORELESS64,
+        DeviceIdentityFrame,
+        capability_bits,
+    )
+    from host_discovery import HostDiscoveryCandidate
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-provider")
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"network"}),
+        payload=identity.computer_id.encode("utf-8"),
+    )
+
+    class Provider:
+        def enumerate_candidates(self):
+            return (
+                HostDiscoveryCandidate(
+                    "socket-provider",
+                    frame,
+                    HostCapabilities(network=True),
+                    channels={"network": left},
+                ),
+            )
+
+    adapter = SocketHostTransportAdapter(Provider())
+    interface = CorelessHostInterface(identity)
+    try:
+        endpoints = adapter.enumerate()
+        assert len(endpoints) == 1
+        session = adapter.open_session(endpoints[0], interface)
+        transport = session.channel("network")
+        assert isinstance(transport, SocketNetworkTransport)
+        transport.send_packet(b"provider-path")
+        assert right.recv(1024).endswith(b"provider-path")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right.close()
+
+
+def test_socket_host_transport_rejects_discovered_non_socket_network_channel():
+    from device_protocol import (
+        ARCHITECTURE_CORELESS64,
+        DEVICE_TYPE_CORELESS64,
+        DeviceIdentityFrame,
+        capability_bits,
+    )
+    from host_discovery import HostDiscoveryCandidate
+    from host_transport import SocketHostTransportAdapter
+
+    identity = CorelessIdentity("socket-provider-invalid")
+    frame = DeviceIdentityFrame(
+        protocol_version=1,
+        architecture=ARCHITECTURE_CORELESS64,
+        device_type=DEVICE_TYPE_CORELESS64,
+        capabilities=capability_bits({"network"}),
+        payload=identity.computer_id.encode("utf-8"),
+    )
+
+    class Provider:
+        def enumerate_candidates(self):
+            return (
+                HostDiscoveryCandidate(
+                    "socket-provider-invalid",
+                    frame,
+                    HostCapabilities(network=True),
+                    channels={"network": object()},
+                ),
+            )
+
+    adapter = SocketHostTransportAdapter(Provider())
+    endpoint = adapter.enumerate()[0]
+    interface = CorelessHostInterface(identity)
+    with pytest.raises(TypeError, match="sock must provide"):
+        adapter.connect(endpoint, interface)
+    assert not interface.attached
+
+
+def test_socket_host_transport_connect_rejects_negotiated_network_without_channel():
+    from host_transport import SocketHostTransportAdapter
+
+    endpoint = HostEndpoint(
+        "socket-connect-missing-network",
+        CorelessIdentity("socket-connect-missing-network"),
+        HostCapabilities(network=True),
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(CorelessIdentity("socket-connect-missing-network"))
+
+    with pytest.raises(RuntimeError, match="no network channel"):
+        adapter.connect(endpoint, interface)
+
+    assert not interface.attached
+    assert interface.channels == {}
+
+
+def test_socket_host_transport_ignores_unused_wrapper_close_failure_when_network_not_negotiated():
+    from host_transport import SocketHostTransportAdapter
+
+    class FailingCloseTransport:
+        closed = False
+        socket = object()
+
+        def close(self):
+            self.closed = True
+            raise OSError("unused wrapper close failed")
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = None
+
+        def open_network(self, endpoint):
+            self.created = FailingCloseTransport()
+            return self.created
+
+    identity = CorelessIdentity("socket-unused-wrapper-close-failure")
+    endpoint = HostEndpoint(
+        "socket-unused-wrapper-close-failure",
+        identity,
+        HostCapabilities(network=True),
+        {"network": object()},
+        device_capabilities={"display"},
+    )
+    adapter = TrackingAdapter()
+    interface = CorelessHostInterface(identity)
+
+    negotiated = adapter.connect(endpoint, interface)
+
+    assert negotiated == frozenset()
+    assert interface.attached
+    assert interface.channels == {}
+    assert adapter.created.closed
+
+def test_socket_host_transport_closes_network_when_reconnect_drops_capability():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left, right = socket.socketpair()
+    identity = CorelessIdentity("socket-reconnect-drop-network")
+    network_endpoint = HostEndpoint(
+        "socket-network",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left},
+        device_capabilities={"network"},
+    )
+    plain_endpoint = HostEndpoint(
+        "socket-plain",
+        identity,
+        HostCapabilities(display=True),
+        {"display": object()},
+        device_capabilities={"display"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(network_endpoint, interface)
+        previous = interface.channel("network")
+        assert isinstance(previous, SocketNetworkTransport)
+
+        adapter.connect(plain_endpoint, interface)
+
+        assert previous.closed
+        with pytest.raises(PermissionError, match="capabilities were not negotiated"):
+            interface.transport_ready({"network"})
+        assert interface.channel("display") is not None
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right.close()
+
+
+def test_socket_host_transport_base_connect_failure_preserves_original_error_when_cleanup_fails():
+    from host_transport import SocketHostTransportAdapter
+
+    class TrackingTransport:
+        closed = False
+        socket = object()
+
+        def close(self):
+            self.closed = True
+            raise OSError("cleanup failed")
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = None
+
+        def open_network(self, endpoint):
+            self.created = TrackingTransport()
+            return self.created
+
+    endpoint = HostEndpoint(
+        "socket-connect-original-error",
+        CorelessIdentity("socket-connect-original-error"),
+        HostCapabilities(network=True),
+        {"network": object()},
+        device_capabilities={"network"},
+    )
+    adapter = TrackingAdapter()
+    interface = CorelessHostInterface(CorelessIdentity("different-coreless"))
+
+    with pytest.raises(ValueError, match="identity verification failed"):
+        adapter.connect(endpoint, interface)
+
+    assert adapter.created is not None
+    assert adapter.created.closed
+    assert not interface.attached
+
+def test_socket_host_transport_bind_failure_detaches_and_closes_replacement():
+    from host_transport import SocketHostTransportAdapter
+
+    class TrackingTransport:
+        closed = False
+        socket = object()
+
+        def close(self):
+            self.closed = True
+
+    class FailingBindInterface(CorelessHostInterface):
+        def bind_channel(self, capability, channel):
+            raise RuntimeError("bind failed")
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = None
+
+        def open_network(self, endpoint):
+            self.created = TrackingTransport()
+            return self.created
+
+    endpoint = HostEndpoint(
+        "socket-bind-fails",
+        CorelessIdentity("socket-bind-fails"),
+        HostCapabilities(network=True),
+        {"network": object()},
+        device_capabilities={"network"},
+    )
+    adapter = TrackingAdapter()
+    interface = FailingBindInterface(CorelessIdentity("socket-bind-fails"))
+
+    with pytest.raises(RuntimeError, match="bind failed"):
+        adapter.connect(endpoint, interface)
+
+    assert adapter.created is not None
+    assert adapter.created.closed
+    assert not interface.attached
+    assert interface.channels == {}
+
+
+def test_socket_host_transport_reconnect_different_socket_closes_stale_transport():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left1, right1 = socket.socketpair()
+    left2, right2 = socket.socketpair()
+    identity = CorelessIdentity("socket-different-reconnect")
+    first = HostEndpoint(
+        "socket-different-reconnect-first",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left1},
+        device_capabilities={"network"},
+    )
+    second = HostEndpoint(
+        "socket-different-reconnect-second",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left2},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(first, interface)
+        previous = interface.channel("network")
+        assert isinstance(previous, SocketNetworkTransport)
+
+        adapter.connect(second, interface)
+        current = interface.channel("network")
+
+        assert isinstance(current, SocketNetworkTransport)
+        assert current is not previous
+        assert previous.closed
+        assert not current.closed
+
+        with pytest.raises(RuntimeError, match="host network transport is closed"):
+            previous.send_packet(b"stale-wrapper-must-fail")
+
+        current.send_packet(b"different-socket-reconnect")
+        assert right2.recv(1024).endswith(b"different-socket-reconnect")
+
+        assert left1.fileno() < 0
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right1.close()
+        right2.close()
+
+
+
+def test_socket_host_transport_failed_network_open_preserves_live_session():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import HostEndpoint, SocketHostTransportAdapter
+    from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
+
+    left1, right1 = socket.socketpair()
+    left2, right2 = socket.socketpair()
+    left2.close()
+    identity = CorelessIdentity("socket-open-failure-preserves-session")
+    first = HostEndpoint(
+        "socket-open-failure-first",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left1},
+        device_capabilities={"network"},
+    )
+    replacement = HostEndpoint(
+        "socket-open-failure-replacement",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left2},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(first, interface)
+        previous = interface.channel("network")
+        assert isinstance(previous, SocketNetworkTransport)
+        negotiated_before = interface.negotiated
+
+        with pytest.raises(RuntimeError, match="socket is already closed|already closed"):
+            adapter.connect(replacement, interface)
+
+        assert interface.attached
+        assert interface.negotiated == negotiated_before
+        assert interface.channel("network") is previous
+        assert not previous.closed
+
+        previous.send_packet(b"live-session-survives-open-failure")
+        assert right1.recv(1024).endswith(b"live-session-survives-open-failure")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right1.close()
+        right2.close()
+
+
+def test_socket_host_transport_recovers_after_failed_open_reconnect():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import HostEndpoint, SocketHostTransportAdapter
+    from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
+
+    left1, right1 = socket.socketpair()
+    bad, right_bad = socket.socketpair()
+    bad.close()
+    left2, right2 = socket.socketpair()
+    identity = CorelessIdentity("socket-recover-after-open-failure")
+    first = HostEndpoint(
+        "socket-recover-first",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left1},
+        device_capabilities={"network"},
+    )
+    failed = HostEndpoint(
+        "socket-recover-failed",
+        identity,
+        HostCapabilities(network=True),
+        {"network": bad},
+        device_capabilities={"network"},
+    )
+    replacement = HostEndpoint(
+        "socket-recover-replacement",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left2},
+        device_capabilities={"network"},
+    )
+    adapter = SocketHostTransportAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(first, interface)
+        previous = interface.channel("network")
+
+        with pytest.raises(RuntimeError, match="already closed"):
+            adapter.connect(failed, interface)
+
+        assert interface.channel("network") is previous
+        previous.send_packet(b"still-live")
+        assert right1.recv(1024).endswith(b"still-live")
+
+        adapter.connect(replacement, interface)
+        current = interface.channel("network")
+
+        assert isinstance(current, SocketNetworkTransport)
+        assert current is not previous
+        assert previous.closed
+        current.send_packet(b"recovered-session")
+        assert right2.recv(1024).endswith(b"recovered-session")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right1.close()
+        right_bad.close()
+        right2.close()
+
+def test_socket_host_transport_disconnect_detaches_when_socket_close_fails():
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    class FailingCloseTransport(SocketNetworkTransport):
+        def close(self):
+            self._closed = True
+            raise OSError("socket close failed")
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def open_network(self, endpoint):
+            return FailingCloseTransport(endpoint.channel_map()["network"])
+
+    class TrackingSocket:
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            raise OSError("socket close failed")
+
+        def fileno(self):
+            return 42
+
+    identity = CorelessIdentity("socket-disconnect-close-failure")
+    endpoint = HostEndpoint(
+        "socket-disconnect-close-failure",
+        identity,
+        HostCapabilities(network=True),
+        {"network": TrackingSocket()},
+        device_capabilities={"network"},
+    )
+    adapter = TrackingAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    adapter.connect(endpoint, interface)
+
+    with pytest.raises(OSError, match="socket close failed"):
+        adapter.disconnect(interface)
+
+    assert not interface.attached
+    assert interface.channels == {}
+
+
+def test_socket_host_transport_reconnect_ignores_stale_close_failure():
+    import socket
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    left1, right1 = socket.socketpair()
+    left2, right2 = socket.socketpair()
+    identity = CorelessIdentity("socket-stale-close-failure")
+    first = HostEndpoint(
+        "socket-stale-close-first",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left1},
+        device_capabilities={"network"},
+    )
+    second = HostEndpoint(
+        "socket-stale-close-second",
+        identity,
+        HostCapabilities(network=True),
+        {"network": left2},
+        device_capabilities={"network"},
+    )
+
+    class FailingCloseTransport(SocketNetworkTransport):
+        def close(self):
+            self._closed = True
+            raise OSError("stale close failed")
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def __init__(self):
+            super().__init__(object())
+            self.created = []
+
+        def open_network(self, endpoint):
+            if endpoint.endpoint_id == first.endpoint_id:
+                transport = FailingCloseTransport(endpoint.channel_map()["network"])
+            else:
+                transport = super().open_network(endpoint)
+            self.created.append(transport)
+            return transport
+
+    adapter = TrackingAdapter()
+    interface = CorelessHostInterface(identity)
+
+    try:
+        adapter.connect(first, interface)
+        previous = interface.channel("network")
+
+        # A successful reconnect must not be rolled back merely because
+        # retirement of the superseded transport reports a close failure.
+        adapter.connect(second, interface)
+        current = interface.channel("network")
+
+        assert current is not previous
+        assert previous.closed
+        assert not current.closed
+
+        current.send_packet(b"new-session-after-stale-close-failure")
+        assert right2.recv(1024).endswith(b"new-session-after-stale-close-failure")
+    finally:
+        if interface.attached:
+            adapter.disconnect(interface)
+        right1.close()
+        right2.close()
+
+
+def test_socket_host_transport_disconnect_preserves_non_close_exceptions_after_detach():
+    from host_socket import SocketNetworkTransport
+    from host_transport import SocketHostTransportAdapter
+
+    class FailingCloseTransport(SocketNetworkTransport):
+        def close(self):
+            self._closed = True
+            raise RuntimeError("unexpected socket cleanup failure")
+
+    class TrackingAdapter(SocketHostTransportAdapter):
+        def open_network(self, endpoint):
+            return FailingCloseTransport(endpoint.channel_map()["network"])
+
+    class TrackingSocket:
+        def sendall(self, data):
+            raise AssertionError("sendall should not be called")
+
+        def recv(self, size):
+            raise AssertionError("recv should not be called")
+
+        def close(self):
+            raise RuntimeError("unexpected socket cleanup failure")
+
+        def fileno(self):
+            return 42
+
+    identity = CorelessIdentity("socket-disconnect-runtime-failure")
+    endpoint = HostEndpoint(
+        "socket-disconnect-runtime-failure",
+        identity,
+        HostCapabilities(network=True),
+        {"network": TrackingSocket()},
+        device_capabilities={"network"},
+    )
+    adapter = TrackingAdapter(object())
+    interface = CorelessHostInterface(identity)
+
+    adapter.connect(endpoint, interface)
+
+    with pytest.raises(RuntimeError, match="unexpected socket cleanup failure"):
+        adapter.disconnect(interface)
+
+    assert not interface.attached
+    assert interface.channels == {}

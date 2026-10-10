@@ -672,6 +672,52 @@ def test_qwen3_attention_uses_native_head_staging_boundaries():
     assert runtime.rotary_calls == 2
 
 
+def test_qwen3_attention_uses_gqa_grouping_and_cache_sequence_offset():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.group_sizes = []
+            self.offsets = []
+
+        def grouped_attention(self, q, k, v, kv_group_size, *, causal=True, key_position_offset=0):
+            self.group_sizes.append(kv_group_size)
+            self.offsets.append(key_position_offset)
+            return super().grouped_attention(
+                q, k, v, kv_group_size,
+                causal=causal,
+                key_position_offset=key_position_offset,
+            )
+
+    identity = _identity(4)
+    weights = ModelWeights([
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", Tensor.from_values((2, 4), [
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+        ])),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", Tensor.from_values((2, 4), [
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0,
+        ])),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+    ])
+    cfg = Qwen3Config(4, 8, 1, 4, 2, 16, 16, head_dim=1)
+    runtime = RecordingRuntime()
+    cache = Qwen3KVCache.create(1)
+
+    first = Tensor.from_values((1, 4), (1.0, 0.0, 0.0, 1.0))
+    second = Tensor.from_values((1, 4), (0.0, 1.0, 1.0, 0.0))
+    qwen3_attention(first, weights, "model.layers.0", cfg, cache, runtime=runtime)
+    qwen3_attention(second, weights, "model.layers.0", cfg, cache, position_offset=1, runtime=runtime)
+
+    assert runtime.group_sizes == [2, 2]
+    assert runtime.offsets == [0, 1]
+    assert cache.sequence_length == 2
+    assert cache.keys[0].shape == (2, 2, 1)
+
+
 def test_qwen3_attention_uses_native_grouped_attention_boundary():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
@@ -804,4 +850,572 @@ def test_qwen3_kv_cache_rejects_divergent_layer_lengths():
         assert "share one sequence length" in str(exc)
     else:
         raise AssertionError("divergent cache layer lengths were accepted")
+
+
+def test_qwen3_runtime_assembles_final_logits_for_greedy_decode():
+    class RecordingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.last_row_calls = 0
+            self.argmax_calls = 0
+
+        def last_row(self, value):
+            self.last_row_calls += 1
+            return super().last_row(value)
+
+        def argmax(self, value):
+            self.argmax_calls += 1
+            return super().argmax(value)
+
+    from qwen3 import Qwen3Runtime
+
+    identity = _identity(2)
+    zero = Tensor.from_values((2, 2), (0.0, 0.0, 0.0, 0.0))
+    embedding = Tensor.from_values((3, 2), (1.0, 0.0, 0.0, 1.0, 0.0, 0.0))
+    lm_head = Tensor.from_values((3, 2), (0.0, 2.0, 0.0, 1.0, 0.0, 0.0))
+    weights = ModelWeights([
+        ModelTensor("model.embed_tokens.weight", embedding),
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", zero),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.input_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.post_attention_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.mlp.gate_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.up_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.down_proj.weight", zero),
+        ModelTensor("model.norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("lm_head.weight", lm_head),
+    ])
+    runtime = RecordingRuntime()
+    model = Qwen3Runtime(Qwen3Config(2, 2, 1, 1, 1, 3, 8, head_dim=2), weights, runtime)
+
+    generated = model.generate_greedy([0], 2)
+
+    assert generated == [0, 1, 2]
+    assert runtime.last_row_calls == 2
+    assert runtime.argmax_calls == 2
+
+
+def test_qwen3_config_rejects_nonpositive_architecture_dimensions():
+    invalid_configs = (
+        (0, 4, 1, 2, 1, 8, 16),
+        (4, 0, 1, 2, 1, 8, 16),
+        (4, 8, 0, 2, 1, 8, 16),
+        (4, 8, 1, 0, 1, 8, 16),
+        (4, 8, 1, 2, 0, 8, 16),
+        (4, 8, 1, 2, 1, 0, 16),
+        (4, 8, 1, 2, 1, 8, 0),
+    )
+    for args in invalid_configs:
+        try:
+            Qwen3Config(*args)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid Qwen3 configuration was accepted: {args}")
+
+
+def test_qwen3_config_rejects_invalid_normalization_and_rope_parameters():
+    base = (4, 8, 1, 2, 1, 8, 16)
+    invalid_options = (
+        {"rms_norm_eps": -1e-6},
+        {"rope_theta": 0.0},
+        {"rope_scaling_factor": 0.0},
+        {"original_max_position_embeddings": 0},
+    )
+    for options in invalid_options:
+        try:
+            Qwen3Config(*base, **options)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid Qwen3 options were accepted: {options}")
+
+
+
+def test_qwen3_kv_cache_append_is_transactional_when_value_append_fails():
+    class FailingRuntime(TensorRuntime):
+        def __init__(self):
+            super().__init__()
+            self.calls = 0
+
+        def append_sequence(self, existing, update):
+            self.calls += 1
+            if self.calls == 2:
+                raise RuntimeError("simulated value append failure")
+            return super().append_sequence(existing, update)
+
+    runtime = FailingRuntime()
+    cache = Qwen3KVCache.create(1, runtime)
+    key = Tensor.from_values((1, 1, 2), [1.0, 2.0], dtype="fp32")
+    value = Tensor.from_values((1, 1, 2), [3.0, 4.0], dtype="fp32")
+    cache.append(0, key, value)
+    next_key = Tensor.from_values((1, 1, 2), [5.0, 6.0], dtype="fp32")
+    next_value = Tensor.from_values((1, 1, 2), [7.0, 8.0], dtype="fp32")
+
+    try:
+        cache.append(0, next_key, next_value)
+    except RuntimeError as exc:
+        assert "simulated value append failure" in str(exc)
+    else:
+        raise AssertionError("cache append unexpectedly succeeded")
+
+    assert cache.keys[0] is key
+    assert cache.values[0] is value
+    assert cache.sequence_length == 1
+
+
+def test_qwen3_kv_cache_restore_rejects_incomplete_persisted_layer():
+    from storage import PersistentMachineImage
+
+    runtime = TensorRuntime(PersistentMachineImage())
+    runtime.save(
+        "partial_layer_0_key",
+        Tensor.from_values((1, 1, 2), [1.0, 2.0], dtype="fp32"),
+    )
+
+    try:
+        Qwen3KVCache.restore(runtime, "partial", 1)
+    except ValueError as exc:
+        assert "without a value tensor" in str(exc)
+    else:
+        raise AssertionError("restore accepted a cache layer missing its value tensor")
+
+
+def test_qwen3_kv_cache_append_rejects_dimension_or_dtype_drift():
+    cache = Qwen3KVCache.create(1)
+    key = Tensor.from_values((1, 1, 2), [1.0, 2.0], dtype="fp32")
+    value = Tensor.from_values((1, 1, 2), [3.0, 4.0], dtype="fp32")
+    cache.append(0, key, value)
+
+    invalid_updates = (
+        (
+            Tensor.from_values((2, 1, 2), [1.0, 2.0, 3.0, 4.0], dtype="fp32"),
+            Tensor.from_values((2, 1, 2), [5.0, 6.0, 7.0, 8.0], dtype="fp32"),
+        ),
+        (
+            Tensor.from_values((1, 1, 3), [1.0, 2.0, 3.0], dtype="fp32"),
+            Tensor.from_values((1, 1, 3), [4.0, 5.0, 6.0], dtype="fp32"),
+        ),
+        (
+            Tensor.from_values((1, 1, 2), [1.0, 2.0], dtype="fp64"),
+            Tensor.from_values((1, 1, 2), [3.0, 4.0], dtype="fp64"),
+        ),
+    )
+    for next_key, next_value in invalid_updates:
+        try:
+            cache.append(0, next_key, next_value)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("cache accepted append with incompatible dimensions or dtype")
+    assert cache.sequence_length == 1
+
+
+
+def test_qwen3_runtime_rejects_bad_weight_shape_before_cache_mutation():
+    from qwen3 import Qwen3Runtime
+
+    cfg = Qwen3Config(2, 2, 1, 1, 1, 3, 8, head_dim=2)
+    weights = ModelWeights([
+        ModelTensor("model.embed_tokens.weight", Tensor.from_values((3, 1), [1.0, 0.0, 0.0])),
+    ])
+    model = Qwen3Runtime(cfg, weights)
+    cache = Qwen3KVCache.create(1)
+
+    try:
+        model.forward([0], cache)
+    except ValueError as exc:
+        assert "model.embed_tokens.weight" in str(exc)
+        assert "expected (3, 2)" in str(exc)
+    else:
+        raise AssertionError("runtime accepted an embedding with the wrong shape")
+    assert cache.sequence_length == 0
+
+
+def test_qwen3_runtime_rejects_missing_required_weight_before_cache_mutation():
+    from qwen3 import Qwen3Runtime
+
+    cfg = Qwen3Config(2, 2, 1, 1, 1, 3, 8, head_dim=2)
+    model = Qwen3Runtime(
+        cfg,
+        ModelWeights([
+            ModelTensor("model.embed_tokens.weight", Tensor.from_values((3, 2), [1.0] * 6)),
+        ]),
+    )
+    cache = Qwen3KVCache.create(1)
+
+    try:
+        model.forward([0], cache)
+    except ValueError as exc:
+        assert "model.norm.weight" in str(exc) or "model.layers.0" in str(exc)
+    else:
+        raise AssertionError("runtime accepted missing required Qwen3 weights")
+    assert cache.sequence_length == 0
+
+
+def test_qwen3_greedy_decode_rejects_invalid_eos_token_before_early_return():
+    from qwen3 import Qwen3Runtime
+
+    model = Qwen3Runtime(Qwen3Config(2, 2, 1, 1, 1, 3, 8), ModelWeights([]))
+    for eos_token_id in (-1, 3):
+        try:
+            model.generate_greedy([], 0, eos_token_id=eos_token_id)
+        except ValueError as exc:
+            assert "EOS token id" in str(exc)
+        else:
+            raise AssertionError(f"invalid EOS token id was accepted: {eos_token_id}")
+
+
+def test_qwen3_greedy_decode_validates_prompt_even_when_no_tokens_requested():
+    from qwen3 import Qwen3Runtime
+
+    model = Qwen3Runtime(Qwen3Config(2, 2, 1, 1, 1, 3, 2), ModelWeights([]))
+    for prompt in ([-1], [3], [0, 1, 2]):
+        try:
+            model.generate_greedy(prompt, 0)
+        except ValueError as exc:
+            assert "token id" in str(exc) or "context length" in str(exc)
+        else:
+            raise AssertionError(f"invalid prompt was accepted: {prompt}")
+
+
+def test_qwen3_greedy_decode_zero_new_tokens_returns_valid_prompt_without_model_execution():
+    from qwen3 import Qwen3Runtime
+
+    model = Qwen3Runtime(Qwen3Config(2, 2, 1, 1, 1, 3, 2), ModelWeights([]))
+    assert model.generate_greedy([0, 2], 0) == [0, 2]
+
+
+
+def test_qwen3_kv_cache_restore_continues_identically_to_live_cache():
+    from storage import PersistentMachineImage
+
+    runtime = TensorRuntime(PersistentMachineImage())
+    live = Qwen3KVCache.create(2)
+    first_key = Tensor.from_values((1, 1, 2), [1.0, 2.0], dtype="fp32")
+    first_value = Tensor.from_values((1, 1, 2), [3.0, 4.0], dtype="fp32")
+    live.append(0, first_key, first_value)
+    live.append(1, first_key, first_value)
+    live.persist(runtime, "continuity")
+
+    restored = Qwen3KVCache.restore(runtime, "continuity", 2)
+    next_key = Tensor.from_values((1, 1, 2), [5.0, 6.0], dtype="fp32")
+    next_value = Tensor.from_values((1, 1, 2), [7.0, 8.0], dtype="fp32")
+
+    for cache in (live, restored):
+        cache.append(0, next_key, next_value, runtime)
+        cache.append(1, next_key, next_value, runtime)
+
+    assert restored.sequence_length == live.sequence_length == 2
+    for layer in range(2):
+        live_key, live_value = live.layer(layer)
+        restored_key, restored_value = restored.layer(layer)
+        assert restored_key.data == live_key.data
+        assert restored_value.data == live_value.data
+        assert restored_key.shape == live_key.shape
+        assert restored_value.shape == live_value.shape
+
+
+
+def test_qwen3_incremental_decode_matches_full_sequence_final_logits():
+    from qwen3 import Qwen3Runtime
+
+    identity = _identity(2)
+    zero = Tensor.from_values((2, 2), (0.0, 0.0, 0.0, 0.0))
+    embedding = Tensor.from_values((4, 2), (1.0, 0.0, 0.0, 1.0, 1.0, 1.0, -1.0, 0.5))
+    lm_head = Tensor.from_values((4, 2), (1.0, 0.0, 0.0, 1.0, 0.5, 0.5, -1.0, 0.25))
+    weights = ModelWeights([
+        ModelTensor("model.embed_tokens.weight", embedding),
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.input_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.post_attention_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.mlp.gate_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.up_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.down_proj.weight", zero),
+        ModelTensor("model.norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("lm_head.weight", lm_head),
+    ])
+    cfg = Qwen3Config(2, 2, 1, 1, 1, 4, 8, head_dim=2)
+    runtime = TensorRuntime()
+    model = Qwen3Runtime(cfg, weights, runtime)
+
+    full_logits = model.forward([0, 1, 2])
+    cache = Qwen3KVCache.create(cfg.num_hidden_layers, runtime)
+    model.forward([0, 1], cache)
+    incremental_logits = model.forward([2], cache)
+
+    expected = full_logits.data[-cfg.vocab_size:]
+    assert incremental_logits.shape == (1, cfg.vocab_size)
+    for actual, wanted in zip(incremental_logits.data, expected):
+        assert abs(actual - wanted) < 1e-6
+    assert cache.sequence_length == 3
+
+def test_qwen3_chunked_prefill_matches_full_sequence_logits():
+    from qwen3 import Qwen3Runtime
+
+    identity = _identity(2)
+    zero = Tensor.from_values((2, 2), (0.0, 0.0, 0.0, 0.0))
+    embedding = Tensor.from_values((4, 2), (1.0, 0.0, 0.0, 1.0, 1.0, 1.0, -1.0, 0.5))
+    lm_head = Tensor.from_values((4, 2), (1.0, 0.0, 0.0, 1.0, 0.5, 0.5, -1.0, 0.25))
+    weights = ModelWeights([
+        ModelTensor("model.embed_tokens.weight", embedding),
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.input_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.post_attention_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.mlp.gate_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.up_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.down_proj.weight", zero),
+        ModelTensor("model.norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("lm_head.weight", lm_head),
+    ])
+    cfg = Qwen3Config(2, 2, 1, 1, 1, 4, 8, head_dim=2)
+    runtime = TensorRuntime()
+    model = Qwen3Runtime(cfg, weights, runtime)
+    token_ids = [0, 1, 2, 3]
+
+    full_logits = model.forward(token_ids)
+    cache = Qwen3KVCache.create(cfg.num_hidden_layers, runtime)
+    first_chunk = model.forward(token_ids[:2], cache)
+    second_chunk = model.forward(token_ids[2:], cache)
+
+    assert first_chunk.shape == (2, cfg.vocab_size)
+    assert second_chunk.shape == (2, cfg.vocab_size)
+    chunked_logits = first_chunk.data + second_chunk.data
+    assert len(chunked_logits) == len(full_logits.data)
+    for actual, wanted in zip(chunked_logits, full_logits.data):
+        assert abs(actual - wanted) < 1e-6
+    assert cache.sequence_length == len(token_ids)
+
+def test_qwen3_greedy_decode_cache_matches_full_prefix_recomputation():
+    from qwen3 import Qwen3Runtime
+
+    identity = _identity(2)
+    zero = Tensor.from_values((2, 2), (0.0, 0.0, 0.0, 0.0))
+    embedding = Tensor.from_values((4, 2), (1.0, 0.0, 0.0, 1.0, 1.0, 1.0, -1.0, 0.5))
+    lm_head = Tensor.from_values((4, 2), (1.0, 0.0, 0.0, 1.0, 0.5, 0.5, -1.0, 0.25))
+    weights = ModelWeights([
+        ModelTensor("model.embed_tokens.weight", embedding),
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.input_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.post_attention_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.mlp.gate_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.up_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.down_proj.weight", zero),
+        ModelTensor("model.norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("lm_head.weight", lm_head),
+    ])
+    cfg = Qwen3Config(2, 2, 1, 1, 1, 4, 8, head_dim=2)
+    runtime = TensorRuntime()
+    cached_model = Qwen3Runtime(cfg, weights, runtime)
+    reference_model = Qwen3Runtime(cfg, weights, runtime)
+    prompt = [0, 1]
+    expected = list(prompt)
+
+    for _ in range(2):
+        logits = reference_model.forward(expected)
+        next_token = runtime.argmax(runtime.last_row(logits))
+        expected.append(next_token)
+
+    actual = cached_model.generate_greedy(prompt, 2)
+
+    assert actual == expected
+
+def test_qwen3_chunked_prefill_matches_full_logits_at_every_split_point():
+    from qwen3 import Qwen3Runtime
+
+    identity = _identity(2)
+    zero = Tensor.from_values((2, 2), (0.0, 0.0, 0.0, 0.0))
+    embedding = Tensor.from_values((4, 2), (1.0, 0.0, 0.0, 1.0, 1.0, 1.0, -1.0, 0.5))
+    lm_head = Tensor.from_values((4, 2), (1.0, 0.0, 0.0, 1.0, 0.5, 0.5, -1.0, 0.25))
+    weights = ModelWeights([
+        ModelTensor("model.embed_tokens.weight", embedding),
+        ModelTensor("model.layers.0.self_attn.q_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.k_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.v_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.o_proj.weight", identity),
+        ModelTensor("model.layers.0.self_attn.q_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.self_attn.k_norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.input_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.post_attention_layernorm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("model.layers.0.mlp.gate_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.up_proj.weight", zero),
+        ModelTensor("model.layers.0.mlp.down_proj.weight", zero),
+        ModelTensor("model.norm.weight", Tensor.from_values((2,), (1.0, 1.0))),
+        ModelTensor("lm_head.weight", lm_head),
+    ])
+    cfg = Qwen3Config(2, 2, 1, 1, 1, 4, 8, head_dim=2)
+    runtime = TensorRuntime()
+    model = Qwen3Runtime(cfg, weights, runtime)
+    token_ids = [0, 1, 2, 3]
+    full_logits = model.forward(token_ids)
+
+    for split in range(1, len(token_ids)):
+        cache = Qwen3KVCache.create(cfg.num_hidden_layers, runtime)
+        first = model.forward(token_ids[:split], cache)
+        second = model.forward(token_ids[split:], cache)
+        chunked = first.data + second.data
+
+        assert len(chunked) == len(full_logits.data)
+        for actual, wanted in zip(chunked, full_logits.data):
+            assert abs(actual - wanted) < 1e-6
+        assert cache.sequence_length == len(token_ids)
+
+def test_qwen3_kv_cache_persist_validates_all_layers_before_writing():
+    from storage import PersistentMachineImage
+
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    cache = Qwen3KVCache.create(2)
+    cache.append(
+        0,
+        Tensor.from_values((1, 2, 2), [1.0, 2.0, 3.0, 4.0]),
+        Tensor.from_values((1, 2, 2), [5.0, 6.0, 7.0, 8.0]),
+    )
+    cache.append(
+        1,
+        Tensor.from_values((1, 1, 2), [9.0, 10.0]),
+        Tensor.from_values((1, 1, 2), [11.0, 12.0]),
+    )
+    before = dict(image.objects)
+
+    try:
+        cache.persist(runtime, "invalid_snapshot")
+    except ValueError as exc:
+        assert "share one sequence length" in str(exc)
+    else:
+        raise AssertionError("invalid cache was persisted")
+
+    assert image.objects == before
+    assert "tensor/invalid_snapshot_layer_0_key" not in image.objects
+
+
+def test_qwen3_kv_cache_persist_rejects_runtime_rebinding_before_writing():
+    from storage import PersistentMachineImage
+
+    first_image = PersistentMachineImage()
+    second_image = PersistentMachineImage()
+    first_runtime = TensorRuntime(first_image)
+    second_runtime = TensorRuntime(second_image)
+    cache = Qwen3KVCache.create(1, first_runtime)
+    cache.append(
+        0,
+        Tensor.from_values((1, 1, 2), [1.0, 2.0]),
+        Tensor.from_values((1, 1, 2), [3.0, 4.0]),
+    )
+
+    try:
+        cache.persist(second_runtime, "wrong_runtime")
+    except ValueError as exc:
+        assert "different TensorRuntime" in str(exc)
+    else:
+        raise AssertionError("cache persistence accepted a different runtime")
+
+    assert second_image.objects == {}
+
+
+def test_tensor_runtime_load_rejects_malformed_persisted_payloads():
+    import json
+    from storage import PersistentMachineImage
+
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    malformed_payloads = (
+        b"{not-json",
+        json.dumps([]).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [2], "data": [1.0]}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [0], "data": [], "dtype": "fp32"}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [1], "data": [1.0], "dtype": "not-a-dtype"}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [1], "data": "not-a-list", "dtype": "fp32"}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [1], "data": ["1.0"], "dtype": "fp32"}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [1], "data": [True], "dtype": "fp32"}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [1], "data": [float("nan")], "dtype": "fp32"}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [1], "data": [float("inf")], "dtype": "fp32"}).encode("utf-8"),
+        json.dumps({"version": 2, "shape": [1], "data": [float("-inf")], "dtype": "fp32"}).encode("utf-8"),
+        json.dumps({"version": True, "shape": [1], "data": [1.0], "dtype": "fp32"}).encode("utf-8"),
+        json.dumps({"version": 2.0, "shape": [1], "data": [1.0], "dtype": "fp32"}).encode("utf-8"),
+    )
+    for index, payload in enumerate(malformed_payloads):
+        image.objects[f"tensor/broken_{index}"] = payload
+        try:
+            runtime.load(f"broken_{index}")
+        except ValueError as exc:
+            assert "persisted tensor payload" in str(exc)
+        else:
+            raise AssertionError(f"malformed persisted tensor payload {index} was accepted")
+
+
+def test_tensor_runtime_load_rejects_non_local_tensor_names():
+    from storage import PersistentMachineImage
+
+    runtime = TensorRuntime(PersistentMachineImage())
+    for name in ("", "../outside", "nested/tensor"):
+        try:
+            runtime.load(name)
+        except ValueError as exc:
+            assert "local name" in str(exc)
+        else:
+            raise AssertionError(f"non-local tensor name was accepted: {name!r}")
+
+
+def test_qwen3_kv_cache_restore_surfaces_corrupt_persisted_tensor():
+    from storage import PersistentMachineImage
+
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    image.objects["tensor/corrupt_layer_0_key"] = b"not-json"
+
+    try:
+        Qwen3KVCache.restore(runtime, "corrupt", 1)
+    except ValueError as exc:
+        assert "invalid persisted tensor payload" in str(exc)
+    else:
+        raise AssertionError("Qwen3 cache restore accepted a corrupt key tensor")
+
+
+def test_qwen3_kv_cache_restore_rejects_divergent_persisted_layer_lengths():
+    from storage import PersistentMachineImage
+
+    runtime = TensorRuntime(PersistentMachineImage())
+    runtime.save(
+        "divergent_layer_0_key",
+        Tensor.from_values((1, 2, 2), [1.0, 2.0, 3.0, 4.0]),
+    )
+    runtime.save(
+        "divergent_layer_0_value",
+        Tensor.from_values((1, 2, 2), [5.0, 6.0, 7.0, 8.0]),
+    )
+    runtime.save(
+        "divergent_layer_1_key",
+        Tensor.from_values((1, 1, 2), [9.0, 10.0]),
+    )
+    runtime.save(
+        "divergent_layer_1_value",
+        Tensor.from_values((1, 1, 2), [11.0, 12.0]),
+    )
+
+    try:
+        Qwen3KVCache.restore(runtime, "divergent", 2)
+    except ValueError as exc:
+        assert "share one sequence length" in str(exc)
+    else:
+        raise AssertionError("restore accepted divergent persisted cache lengths")
 

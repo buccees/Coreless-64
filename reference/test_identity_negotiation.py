@@ -88,13 +88,13 @@ def test_identity_attach_can_refresh_negotiation_without_shrinking_device_capabi
 
 def test_identity_attach_rejects_unknown_advertised_capability_bits():
     interface = CorelessHostInterface(CorelessIdentity("coreless-invalid"))
-    frame = DeviceIdentityFrame(
-        protocol_version=1,
-        architecture=ARCHITECTURE_CORELESS64,
-        device_type=DEVICE_TYPE_CORELESS64,
-        capabilities=1 << 63,
-        payload=b"coreless-invalid",
-    ).encode()
+    import struct
+    from device_protocol import FRAME_TYPE_IDENTITY, MAGIC, HEADER_SIZE
+    frame = struct.pack(
+        "<8sHHIIQII", MAGIC, 1, FRAME_TYPE_IDENTITY,
+        ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, 1 << 63,
+        len(b"coreless-invalid"), 0
+    ) + b"coreless-invalid"
 
     with pytest.raises(ValueError, match="unknown Coreless capability bits"):
         interface.attach_identity_frame(frame, HostCapabilities(display=True))

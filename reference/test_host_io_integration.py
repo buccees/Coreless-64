@@ -1,6 +1,8 @@
 import sys
 sys.path.insert(0, ".")
 
+import pytest
+
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
 from host_io import MemoryHostIO, encode_input_event
 from host_transport import HostEndpoint, MemoryHostTransportAdapter
@@ -104,3 +106,63 @@ def test_host_io_rejects_nonconforming_bundle():
         pass
     else:
         raise AssertionError("nonconforming host I/O bundle was accepted")
+
+
+
+def test_host_io_pump_propagates_transport_failures():
+    endpoint_identity = CorelessIdentity("broken-input")
+    interface = CorelessHostInterface(endpoint_identity)
+    interface.attach(endpoint_identity, HostCapabilities(input=True))
+    io = MemoryHostIO()
+    interface.bind_host_io(io, input_router=make_router())
+
+    def disconnected():
+        raise RuntimeError("input transport disconnected")
+
+    io.input.receive_event = disconnected
+    with pytest.raises(RuntimeError, match="input transport disconnected"):
+        interface.pump_host_io()
+
+
+def test_host_io_pump_preserves_outbound_packet_when_transport_send_fails(tmp_path):
+    system = CorelessSystem(memory_size=4096, storage_path=tmp_path / "host-io-failure.img")
+    system.boot()
+    identity = CorelessIdentity("outbound-failure")
+    interface = CorelessHostInterface(identity)
+    interface.attach(identity, HostCapabilities(network=True), system=system)
+    io = MemoryHostIO()
+    interface.bind_host_io(io)
+    outbound = system.machine.network.transmit(b"retry-me", "host")
+
+    def disconnected(packet):
+        raise RuntimeError("network transport disconnected")
+
+    io.network.send_packet = disconnected
+    with pytest.raises(RuntimeError, match="network transport disconnected"):
+        interface.pump_host_io()
+
+    assert system.machine.network.tx == [outbound]
+
+    # Once the transport recovers, the same queued packet is delivered and
+    # only then removed from the Coreless transmit queue.
+    io.network.send_packet = lambda packet: io.network.packets.append(bytes(packet))
+    counts = interface.pump_host_io()
+    assert counts["network_tx"] == 1
+    assert io.network.receive_packet() == b"retry-me"
+    assert system.machine.network.tx == []
+
+
+def test_host_io_pump_rejects_non_bytes_network_packet(tmp_path):
+    system = CorelessSystem(memory_size=4096, storage_path=tmp_path / "host-io-invalid-packet.img")
+    system.boot()
+    identity = CorelessIdentity("invalid-network-packet")
+    interface = CorelessHostInterface(identity)
+    interface.attach(identity, HostCapabilities(network=True), system=system)
+    io = MemoryHostIO()
+    interface.bind_host_io(io)
+    io.network.packets.append(4)
+
+    with pytest.raises(TypeError, match="host network packet must be bytes-like"):
+        interface.pump_host_io()
+
+    assert system.machine.network.rx == []

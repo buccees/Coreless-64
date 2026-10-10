@@ -2,6 +2,8 @@
 
 ## Current checkpoint
 
+The consolidated outstanding requirements and acceptance gates are tracked in [`REMAINING_REQUIREMENTS.md`](REMAINING_REQUIREMENTS.md). Use that document to distinguish the first end-to-end completion gate from later scaling and compatibility phases; keep this roadmap aligned with verified implementation evidence.
+
 The current implementation checkpoint includes the complete reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, Transformer → TensorRuntime routing, autonomous Coreless components, Hub composition, coordinated persistence, native CPU/VM component execution, Hub scheduling, and a reference plug-and-play host transport layer.
 
 ## Phase 1 — Architecture
@@ -288,3 +290,48 @@ The host transport layer now validates the transport-neutral HostIO bundle befor
 - [x] Preserve no-partial-attachment behavior on HostIO validation failure
 
 The reference test suite is green at this checkpoint. Next implementation work should proceed toward concrete platform host providers/adapters while preserving the transport-neutral boundary.
+
+
+## Documentation checkpoint — 2026-10-08: reconnect transaction hardening
+
+- [x] Reject already-closed raw socket channels at adapter construction
+- [x] Clean up newly constructed socket transports on failed connection
+- [x] Preserve a live attachment when replacement HostIO validation fails
+- [x] Cover reconnect HostIO atomicity with regression tests
+
+The latest transport-hardening reference tests are green. The next implementation step should address the next concrete transport lifecycle contract without regressing the transport-neutral HostIO/discovery boundaries.
+
+
+## Documentation checkpoint — 2026-10-08: transactional transport/session hardening
+
+- [x] Validate replacement HostIO before reconnect mutation
+- [x] Roll back host identity attachment state on failed reconnect
+- [x] Preserve a live session across failed transport channel rebinding
+- [x] Roll back partial HostIO channel binding
+- [x] Clean up failed replacement socket network transports
+- [x] Reject closed raw sockets at adapter and session validation boundaries
+- [x] Cover reconnect and closed-session lifecycle contracts with regression tests
+
+The latest transport-hardening fixes are green in GitHub Actions through runs **#1552** and **#1556**. The next implementation step should move to the next concrete transport lifecycle/provider contract while preserving the transport-neutral HostIO, discovery, command, and session boundaries.
+
+
+
+## Documentation checkpoint — 2026-10-08: session validation contract correction
+
+- [x] Keep reusable-session validation focused on attachment/identity/negotiation/liveness
+- [x] Require explicit channel completeness through `require_channels()`
+- [x] Cover missing required session channels with regression coverage
+- [x] Reject closed raw sockets consistently at session validation boundaries
+
+GitHub Actions **#1569** is green on the corrective session-validation commit. The next implementation step is the next concrete socket/transport lifecycle or platform-provider contract; do not broaden `validate()` into an implicit channel-completeness check.
+
+
+## Documentation checkpoint — 2026-10-08: socket transport hardening complete
+
+The socket-backed host transport lifecycle hardening pass is complete at the reference boundary. Replacement socket construction failures now leave an existing live session intact; a later valid reconnect can recover normally. Send/receive transport failures retire the affected socket wrapper, cleanup errors do not mask the original transport failure, scoped cleanup preserves body exceptions, and disconnect detaches the Coreless interface even when socket cleanup reports an error.
+
+Regression coverage exercises failed reconnect recovery, socket ownership across reconnects, closed-channel/session validation, transport retirement, and disconnect cleanup. **GitHub Actions run #1662 is green** for the final reconnect-recovery regression.
+
+### Transport resume point
+
+The reference socket lifecycle hardening is complete. Do not continue adding socket edge cases without a concrete contract failure. The next host-interface work is concrete cross-platform enumeration and platform display/input/network adapters.

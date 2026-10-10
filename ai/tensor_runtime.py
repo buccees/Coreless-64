@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import struct
 from dataclasses import dataclass
-from math import cos, exp, fsum, sin
+from math import cos, exp, fsum, isfinite, sin
 from typing import Iterable
 
 from .tensor import Tensor, add, dot, matmul, mul, relu, softmax, sub
@@ -218,6 +218,31 @@ class TensorRuntime:
             )
         return Tensor.from_values((heads, rows, cols), values, dtype=left.dtype)
 
+
+    def batch_matmul_shared_right(self, left: Tensor, right: Tensor) -> Tensor:
+        """Multiply each rank-2 slice of a batch by one shared rank-2 matrix."""
+        if len(left.shape) != 3 or len(right.shape) != 2:
+            raise ValueError("batch_matmul_shared_right requires rank-3 left and rank-2 right tensors")
+        if left.shape[2] != right.shape[0]:
+            raise ValueError("batch matrix dimensions do not agree")
+        batch, rows, inner = left.shape
+        cols = right.shape[1]
+        values = []
+        right_values = right.data
+        right_shape = right.shape
+        left_stride = rows * inner
+        for batch_index in range(batch):
+            start = batch_index * left_stride
+            values.extend(
+                self._matrix_matmul_contiguous(
+                    left.data[start:start + left_stride],
+                    (rows, inner),
+                    right_values,
+                    right_shape,
+                    left.dtype,
+                )
+            )
+        return Tensor.from_values((batch, rows, cols), values, dtype=left.dtype)
 
     def transpose(self, value: Tensor) -> Tensor:
         """Transpose a rank-2 tensor at the Coreless tensor boundary."""
@@ -498,10 +523,10 @@ class TensorRuntime:
             raise ValueError("attention head dimensions do not agree")
         if query_heads != kv_heads * kv_group_size:
             raise ValueError("query heads must equal key/value heads times kv_group_size")
-        outputs = []
         scale = 1.0 / (dim ** 0.5)
         # Build each KV group's key/value matrices once. Query heads in the
-        # group reuse them, avoiding repeated tensor construction and transpose.
+        # group share one right-hand matrix, so the runtime can dispatch the
+        # group as a batched matrix operation instead of one matmul per head.
         groups = []
         for kv_head in range(kv_heads):
             key = self.head_slice(k, kv_head)
@@ -516,20 +541,28 @@ class TensorRuntime:
             if causal
             else None
         )
-        for query_head in range(query_heads):
-            kv_head = query_head // kv_group_size
-            key_transposed, value = groups[kv_head]
-            query = self.head_slice(q, query_head)
-            scores = self.matmul(query, key_transposed)
-            scores = self.mul_scalar(scores, scale)
-            probabilities = (
-                self.masked_softmax_last_dim(scores, mask, float("-inf"))
-                if mask is not None
-                else self.softmax_last_dim(scores)
+        group_outputs = []
+        for kv_head, (key_transposed, value) in enumerate(groups):
+            query_start = kv_head * kv_group_size
+            query_end = query_start + kv_group_size
+            query_group = Tensor.from_values(
+                (kv_group_size, query_rows, dim),
+                q.data[query_start * query_rows * dim:query_end * query_rows * dim],
+                dtype=q.dtype,
             )
-            output = self.matmul(probabilities, value)
-            outputs.append(output)
-        head_output = self.stack_head_outputs(outputs, query_heads, query_rows, dim)
+            scores = self.batch_matmul_shared_right(query_group, key_transposed)
+            scores = self.mul_scalar(scores, scale)
+            if mask is not None:
+                probabilities = self.masked_softmax_last_dim(
+                    scores, mask, float("-inf")
+                )
+            else:
+                probabilities = self.softmax_last_dim(scores)
+            outputs = self.batch_matmul_shared_right(probabilities, value)
+            group_outputs.extend(outputs.data)
+        head_output = Tensor.from_values(
+            (query_heads, query_rows, dim), group_outputs, dtype=q.dtype
+        )
         return self.merge_heads(head_output)
 
     def attention(self, q: Tensor, k: Tensor, v: Tensor, *, causal: bool = True, key_position_offset: int = 0) -> Tensor:
@@ -560,23 +593,27 @@ class TensorRuntime:
         fill_value: float,
     ) -> Tensor:
         """Apply a mask and softmax across the final axis without a temporary tensor."""
-        if value.shape != mask.shape:
-            raise ValueError("masked_softmax_last_dim requires matching tensor shapes")
         if len(value.shape) < 2:
             raise ValueError("masked_softmax_last_dim requires a rank-2-or-higher tensor")
+        if mask.shape != value.shape and mask.shape != value.shape[-2:]:
+            raise ValueError("masked_softmax_last_dim requires a matching or broadcastable final-two-axis mask")
         rows = value.size // value.shape[-1]
         width = value.shape[-1]
+        mask_rows = mask.shape[-2]
         outputs = [0.0] * value.size
         for row in range(rows):
             start = row * width
             stop = start + width
+            mask_row = row % mask_rows
+            mask_start = mask_row * width
             maximum = fill_value
-            for index in range(start, stop):
-                if not mask.data[index] and value.data[index] > maximum:
+            for offset, index in enumerate(range(start, stop)):
+                if not mask.data[mask_start + offset] and value.data[index] > maximum:
                     maximum = value.data[index]
             total = 0.0
-            for index in range(start, stop):
-                item = value.data[index] if not mask.data[index] else fill_value
+            for offset, index in enumerate(range(start, stop)):
+                masked = bool(mask.data[mask_start + offset])
+                item = value.data[index] if not masked else fill_value
                 item = exp(item - maximum)
                 outputs[index] = item
                 total += item
@@ -957,6 +994,8 @@ class TensorRuntime:
             raise RuntimeError("tensor runtime has no persistent storage")
         if not name or "/" in name:
             raise ValueError("tensor name must be a non-empty local name")
+        if any(not isfinite(item) for item in value.data):
+            raise ValueError("tensor data must contain only finite values")
         key = f"{self.namespace}/{name}"
         payload = json.dumps(
             {"version": 2, "shape": list(value.shape), "dtype": value.dtype, "data": list(value.data)},
@@ -968,14 +1007,38 @@ class TensorRuntime:
     def load(self, name: str) -> Tensor:
         if self.storage is None:
             raise RuntimeError("tensor runtime has no persistent storage")
+        if not name or "/" in name:
+            raise ValueError("tensor name must be a non-empty local name")
         key = f"{self.namespace}/{name}"
         raw = self.storage.objects.get(key)
         if raw is None:
             raise KeyError(name)
-        payload = json.loads(raw.decode("utf-8"))
-        if payload.get("version") not in (1, 2):
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("invalid persisted tensor payload") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("invalid persisted tensor payload")
+        version = payload.get("version")
+        if type(version) is not int or version not in (1, 2):
             raise ValueError("unsupported tensor format version")
-        return Tensor.from_values(payload["shape"], payload["data"], dtype=payload.get("dtype", "fp64"))
+        shape = payload.get("shape")
+        data = payload.get("data")
+        dtype = payload.get("dtype", "fp64")
+        if (
+            not isinstance(shape, list)
+            or not shape
+            or any(type(dim) is not int or dim <= 0 for dim in shape)
+            or not isinstance(data, list)
+            or any(type(value) not in (int, float) for value in data)
+            or any(not isfinite(value) for value in data)
+            or not isinstance(dtype, str)
+        ):
+            raise ValueError("invalid persisted tensor payload")
+        try:
+            return Tensor.from_values(shape, data, dtype=dtype)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("invalid persisted tensor payload") from exc
 
 
 def test_tensor_runtime_head_layout_ops_use_contiguous_storage():

@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Mapping, Protocol
 
-from device_protocol import DeviceIdentityFrame
+from device_protocol import PROTOCOL_VERSION, DeviceIdentityFrame
 from host_interface import CorelessIdentity, HostCapabilities
 from host_transport import HostEndpoint
 
@@ -65,27 +65,52 @@ class HostDeviceEnumerator:
         return self.discover(provider.enumerate_candidates())
 
     def _decode(self, candidate: HostDiscoveryCandidate) -> HostEndpoint:
-        if not candidate.endpoint_id:
-            raise ValueError("endpoint_id must not be empty")
+        if not isinstance(candidate, HostDiscoveryCandidate):
+            raise TypeError("discovery candidates must be HostDiscoveryCandidate values")
+        if not isinstance(candidate.endpoint_id, str) or not candidate.endpoint_id.strip():
+            raise ValueError("endpoint_id must be a nonempty string")
+        if not isinstance(candidate.host_capabilities, HostCapabilities):
+            raise TypeError("host_capabilities must be HostCapabilities")
+        if candidate.channels is not None and not isinstance(candidate.channels, Mapping):
+            raise TypeError("channels must be a mapping or None")
+        channels = dict(candidate.channels or {})
+        if any(not isinstance(name, str) or not name for name in channels):
+            raise ValueError("discovery channel names must be nonempty strings")
+        if any(channel is None for channel in channels.values()):
+            raise ValueError("discovery channels must not be None")
         try:
-            frame = (
-                DeviceIdentityFrame.decode(candidate.identity_frame)
-                if isinstance(candidate.identity_frame, bytes)
-                else candidate.identity_frame
-            )
+            if isinstance(candidate.identity_frame, bytes):
+                frame = DeviceIdentityFrame.decode(candidate.identity_frame)
+            elif isinstance(candidate.identity_frame, DeviceIdentityFrame):
+                # Dataclass instances can still contain invalid runtime values;
+                # validate them through the same wire contract as byte frames.
+                frame = DeviceIdentityFrame.decode(candidate.identity_frame.encode())
+            else:
+                raise TypeError("identity_frame must be bytes or DeviceIdentityFrame")
         except (TypeError, ValueError) as exc:
             raise ValueError("invalid Coreless discovery identity frame") from exc
 
         if not frame.is_coreless64():
             raise ValueError("unsupported Coreless discovery endpoint")
-        if frame.protocol_version <= 0:
-            raise ValueError("invalid Coreless discovery protocol version")
+        if frame.protocol_version != PROTOCOL_VERSION:
+            raise ValueError("unsupported Coreless discovery protocol version")
         try:
             computer_id = frame.payload.decode("utf-8")
         except UnicodeDecodeError as exc:
             raise ValueError("invalid Coreless discovery identity payload") from exc
         if not computer_id:
             raise ValueError("Coreless discovery identity is empty")
+
+        advertised = candidate.host_capabilities.as_set()
+        missing_channels = sorted(
+            capability
+            for capability in advertised
+            if capability == "network" and capability not in channels
+        )
+        if missing_channels:
+            raise ValueError(
+                f"host discovery channels are missing: {missing_channels}"
+            )
 
         return HostEndpoint(
             endpoint_id=candidate.endpoint_id,
@@ -94,6 +119,6 @@ class HostDeviceEnumerator:
                 protocol_version=frame.protocol_version,
             ),
             capabilities=candidate.host_capabilities,
-            channels=candidate.channels,
+            channels=channels,
             device_capabilities=frame.capability_names(),
         )

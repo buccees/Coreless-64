@@ -1,6 +1,51 @@
 # Coreless-64 — Project Handoff
 
+## Latest verified checkpoint — 2026-10-09: Linux TCP discovery bootstrap
+
+Implemented a concrete configured-endpoint Linux TCP discovery provider in `reference/linux_host_network.py`. It connects only to explicitly configured `host:port` targets, sends the framed `CORELESS_DISCOVERY_V1` request, receives and validates a Coreless identity frame, and preserves the same socket-backed `SocketNetworkTransport` as the discovered network channel. Failed bootstrap attempts close their sockets and propagate errors; endpoint identity is not inferred from address or DNS.
+
+Added loopback integration and configuration tests in `reference/test_linux_host_network.py`, plus the wire/bootstrap contract and limitations in `specification/linux_tcp_discovery.md`. This is a real TCP integration path, but it is **not** automatic USB/PCIe enumeration, peer authentication, or physical Coreless hardware validation. The target peer must implement the documented handshake, and network exposure needs an explicit authentication policy before it is trusted on untrusted networks.
+
+Verified green runs:
+- [#1847 — Linux TCP provider](https://github.com/buccees/Coreless-64/actions/runs/37962102913)
+- [#1848 — provider and tests](https://github.com/buccees/Coreless-64/actions/runs/37962107266)
+- [#1849 — provider tests](https://github.com/buccees/Coreless-64/actions/runs/37962110453)
+- [#1850 — bootstrap specification](https://github.com/buccees/Coreless-64/actions/runs/37962111069)
+- [#1851 — final branch state](https://github.com/buccees/Coreless-64/actions/runs/37962116761)
+
+The previous socket hardening checkpoint remains closed and green. Do not reopen socket-only regression work without a demonstrated contract gap.
+
+### Next platform work
+1. Specify and implement peer authentication/authorization for the configured TCP bootstrap before production use on untrusted networks.
+2. Decide the first physical Coreless endpoint/bus and implement its real identity-exchange provider; TCP bootstrap does not satisfy USB/PCIe or generic physical enumeration.
+3. Select a concrete Linux display stack and input device access policy, then implement adapters with permission/hot-unplug handling.
+4. Run the full lifecycle on a real target machine and record physical I/O evidence.
+
+
+## Latest verified checkpoint — 2026-10-09: Linux host-platform target
+
+Commit `96292b978f2f73f0e6b68ccce1c7dc878a973a1c` adds `specification/linux_host_platform.md`, defining Linux userspace as the first host-platform target and laying out implementation gates. CI runs [#1843](https://github.com/buccees/Coreless-64/actions/runs/37961790772) and [#1844](https://github.com/buccees/Coreless-64/actions/runs/37961796955) passed.
+
+The target choice is Linux, but the physical Coreless endpoint/bus and the concrete identity-exchange path are not yet selected. The new specification explicitly prevents a simulated provider or inferred OS device name from being represented as physical plug-and-play. Next implementation work should first resolve the actual endpoint/bus and identity exchange, then implement a provider that reads a real identity frame and binds real channels. Platform display/input stack and permissions must be selected for the target deployment. No physical hardware validation is claimed.
+
+The previous socket transport hardening checkpoint remains closed and green. Do not reopen socket-only regression work without a demonstrated contract gap.
+
+
+## Latest verified checkpoint — 2026-10-09: socket packet validation
+
+GitHub Actions **#1770** passed on commit `c85b1cca92fff75e21aacb75f74069f8a10e3a60` (workflow: [Coreless reference tests](https://github.com/buccees/Coreless-64/actions/runs/37922079849)).
+
+The socket-backed host network adapter now treats invalid outbound packet arguments as caller-side validation failures rather than transport failures:
+- Only `bytes`, `bytearray`, and `memoryview` packets are accepted; arbitrary coercion such as `bytes(4)` is rejected.
+- Oversized outbound packets are rejected before writing to the stream.
+- These local validation failures leave a healthy socket transport usable for a subsequent valid packet.
+- Actual socket send/receive failures and invalid incoming frame lengths still retire the transport.
+
+The added regressions are in `reference/test_host_socket.py`. This is reference transport hardening only; it does not claim a physical platform network adapter is complete.
+
 ## Current state
+
+The canonical consolidated scope is [`REMAINING_REQUIREMENTS.md`](REMAINING_REQUIREMENTS.md). Use it to sequence remaining work and define exit evidence; do not treat reference CI alone as proof of physical adapters or live trained-model inference.
 
 **Status: green.** The repository is at a stable checkpoint with the Coreless-64 digital machine foundation, 314DNest control plane, persistent tensor runtime, Transformer integration, autonomous component execution, Hub scheduling, and reference host transport layer all passing CI.
 
@@ -474,3 +519,124 @@ This milestone does not claim physical USB/PCIe/display/input/network adapters. 
 ## Documentation checkpoint — 2026-10-07: atomic HostIO validation
 
 The negotiated HostIO boundary now validates the complete negotiated display/input/network bundle before channel mutation and validates the input-router contract before binding. Regression coverage preserves the no-partial-attachment invariant. The latest reference-test checkpoint is green. Resume with concrete platform host providers/adapters while preserving the transport-neutral discovery, HostIO, command, and session contracts. Physical device support remains unclaimed.
+
+
+## Documentation checkpoint — 2026-10-08: socket-backed host network transport
+
+The host transport boundary now includes a concrete socket-backed network transport in `reference/host_socket.py` and a socket-aware adapter in `reference/host_transport.py`.
+
+Implemented and covered by the reference suite:
+
+- deterministic 32-bit big-endian length framing;
+- bounded packet sizes and retirement of transports receiving oversized frames;
+- exact/partial socket reads and peer-close handling;
+- send/receive failure and close-state handling;
+- socket discovery and required network-channel validation;
+- reconnect preservation and stale socket cleanup;
+- guaranteed interface detachment when disconnect cleanup encounters a close failure;
+- reusable session validation with explicit `require_channels(...)` checks for operations that require particular negotiated channels.
+
+The latest validation-order failure was fixed in commit `2fa4433d26873e8f3b45e9c48e01a81b4f169967`: missing negotiated channels are now checked for membership before channel state is inspected, so the intended missing-channel contract error is raised instead of a `KeyError`.
+
+**Verified CI:** GitHub Actions run **#1480** is green with **664 tests passed**.
+
+### Current transport resume point
+
+Continue only with socket lifecycle hardening that has a concrete contract or regression need. The first candidate is ensuring a newly constructed socket transport is cleaned up if the superclass connect path fails after construction. Memory ownership has already been handled and should not be revisited.
+
+This milestone is limited to the host-side network transport boundary. It does **not** claim physical display/input implementation or physical USB/PCIe/bus enumeration.
+
+### Current repository checkpoint
+
+- Branch: `next-host-network-adapter`
+- PR: #17
+- Latest verified green commit: `2fa4433d26873e8f3b45e9c48e01a81b4f169967`
+- CI: run #1480, 664 passed
+
+Documentation status must not be used to infer CI status; verify GitHub Actions when resuming work.
+
+
+## Documentation checkpoint — 2026-10-08: reconnect transaction hardening
+
+Socket-backed host transport reconnect handling now validates replacement HostIO bundles before mutating an existing attachment. A failed reconnect caused by an invalid display/input/network transport or input-router contract therefore preserves the currently live session instead of clearing its channels first. Regression coverage was added in reference/test_host_transport.py.
+
+The closed-raw-socket lifecycle check was also hardened: stdlib sockets are rejected when their fileno() reports a closed descriptor, while socket-like transports retaining an explicit closed property remain supported.
+
+**Verified CI:** GitHub Actions runs #1514, #1515, #1516, #1517, #1518, and #1519 are green across the transport-hardening commits; the latest commit is 3987e1e092390fef900545dace4cfe44b3f3130b.
+
+### Current transport resume point
+
+The reconnect/HostIO atomicity checkpoint is complete. Continue with the next concrete socket lifecycle or transport-boundary contract; do not revisit memory ownership or the already-closed raw-socket regression unless a new failure requires it.
+
+
+## Documentation checkpoint — 2026-10-08: transactional transport/session hardening
+
+The reference host transport now preserves an already-live attachment across failed reconnect mutations at multiple boundaries. Replacement HostIO validation occurs before attachment mutation; host identity attachment restores its prior negotiated/host/system state on failure; transport channel rebinding restores the complete live attachment snapshot if a replacement bind fails; and HostIO channel binding restores its channel/router/HostIO/display state after a partial bind failure.
+
+Socket-backed reconnect handling also closes replacement network transports when binding fails and preserves the prior live socket session until the replacement is known to be valid. Closed raw sockets are rejected consistently at adapter and reusable-session validation boundaries using both explicit closed-state properties and the standard socket `fileno() < 0` contract.
+
+Regression coverage now exercises failed reconnect HostIO validation, channel rebinding rollback, partial HostIO channel-binding rollback, socket network rebinding rollback, and closed raw socket session validation.
+
+**Verified CI:** GitHub Actions runs **#1552** and **#1556** are green for the latest transport-hardening fixes.
+
+### Current transport resume point
+
+The reconnect and session closed-channel atomicity work is complete. Continue with the next concrete socket/transport lifecycle contract or platform-provider integration. Do not revisit memory ownership or the closed-raw-socket regression unless a new failure requires it.
+
+The host boundary remains transport-neutral above the concrete socket adapter and does not claim completed physical display/input/network hardware enumeration.
+
+
+## Documentation checkpoint — 2026-10-08: session validation contract correction
+
+The reusable transport-session validation boundary was rechecked after a regression exposed an overly strong invariant. Session `validate()` remains responsible for attachment identity, negotiated-state consistency, and detection of channels that are present but closed; it does not require every negotiated capability to currently have a bound channel. Explicit channel completeness remains the responsibility of `require_channels()`.
+
+The regression coverage for a missing negotiated channel therefore exercises `require_channels()`, preserving the established session contract while still rejecting incomplete channel requirements deterministically.
+
+**Verified CI:** GitHub Actions run **#1569** is green for commit `2cf39f92e6a9b9923a734f02d91902ea783884f0`.
+
+### Current transport resume point
+
+The corrective session-validation change is green. Continue with the next concrete socket/transport lifecycle or platform-provider contract. Preserve the distinction between session liveness validation and explicit channel requirements.
+
+
+## Documentation checkpoint — 2026-10-08: socket transport hardening complete
+
+The socket-backed host transport lifecycle hardening pass is complete at the reference boundary. Replacement socket construction failures now leave an existing live session intact; a later valid reconnect can recover normally. Send/receive transport failures retire the affected socket wrapper, cleanup errors do not mask the original transport failure, scoped cleanup preserves body exceptions, and disconnect detaches the Coreless interface even when socket cleanup reports an error.
+
+Regression coverage exercises failed reconnect recovery, socket ownership across reconnects, closed-channel/session validation, transport retirement, and disconnect cleanup. **GitHub Actions run #1662 is green** for the final reconnect-recovery regression.
+
+### Transport resume point
+
+The reference socket lifecycle hardening is complete. Do not continue adding socket edge cases without a concrete contract failure. The next host-interface work is concrete cross-platform enumeration and platform display/input/network adapters.
+
+
+## Documentation checkpoint — 2026-10-09: final socket transport hardening audit
+
+The final reference-boundary audit is complete at commit `259569c8b20a3b9ad4a0252804c96dafe1bcad2a`. GitHub Actions runs [#1839](https://github.com/buccees/Coreless-64/actions/runs/37961186663) and [#1840](https://github.com/buccees/Coreless-64/actions/runs/37961193448) both passed.
+
+The audit reviewed the socket framing implementation and adapter lifecycle against the current contract and the existing regression suite, including:
+
+- 32-bit big-endian frame boundaries, empty packets, configured size limits, partial reads, and peer EOF;
+- serialized concurrent sends and receives, plus close/error retirement during blocked I/O;
+- bytes-like input normalization and invalid receive chunks;
+- cleanup idempotency and preservation of the original transport/protocol exception when shutdown or close fails;
+- shared-socket wrapper retirement, reconnect rollback/recovery, and interface detachment after cleanup errors.
+
+No additional production-code change was justified by this audit. The recent targeted regressions for partial payload EOF, shared-socket wrapper retirement/usability, and oversized-frame errors surviving cleanup failures are green. The reference socket transport hardening task is therefore closed; do not add further isolated socket tests without a demonstrated contract gap or regression.
+
+**Important boundary:** this closes only the reference socket transport/lifecycle hardening work. P0.6 remains open for selecting a real target platform, implementing physical host/device enumeration and platform display/input/network adapters, and validating the complete lifecycle on actual platform I/O. Reference CI is not evidence that physical plug-and-play hardware support is complete.
+
+Resume with the concrete target-platform integration in `REMAINING_REQUIREMENTS.md`, not another socket-only edge-case batch.
+
+
+## Documentation checkpoint — 2026-10-09: Linux TCP discovery security gates
+
+The Linux configured-TCP discovery provider now upgrades the connection to TLS using a caller-supplied context that must require certificate validation and hostname checking. Real loopback TLS tests cover successful verified discovery and continued use of the same TLS-backed framed channel, rejection of untrusted certificates, hostname mismatch, and a trusted TLS peer advertising the wrong configured Coreless identity. Failure-path coverage also verifies cleanup when raw-socket timeout setup fails and when wrapped TLS-socket setup fails.
+
+The provider and shared HostDeviceEnumerator now reject protocol versions other than the currently supported PROTOCOL_VERSION (v1). Non-finite, zero, and negative timeout values are rejected before connecting. Regression tests cover the supported boundary and invalid configuration values.
+
+**Verified CI:** runs [#1887](https://github.com/buccees/Coreless-64/actions/runs/37965392852), [#1888](https://github.com/buccees/Coreless-64/actions/runs/37965399067), [#1889](https://github.com/buccees/Coreless-64/actions/runs/37965538836), and [#1890](https://github.com/buccees/Coreless-64/actions/runs/37965545743) are green. The wrapped TLS socket cleanup regression is green in [#1884](https://github.com/buccees/Coreless-64/actions/runs/37965199909), and TLS identity binding is green in [#1885](https://github.com/buccees/Coreless-64/actions/runs/37965287809).
+
+### Current host-platform resume point
+
+Linux userspace is the first target and the configured TCP/TLS bootstrap is a concrete reference network provider. It is not physical USB/PCIe enumeration and does not prove interoperability with a real Coreless peer. Still open: choosing the actual physical endpoint/bus contract, platform enumeration and display/input/network adapters, lifecycle validation on real platform I/O, and hot-unplug/reconnect coverage against that target. Do not reopen completed socket-only hardening without a concrete contract failure.

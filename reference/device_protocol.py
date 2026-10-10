@@ -27,8 +27,17 @@ class DeviceIdentityFrame:
     flags: int = 0
 
     def encode(self) -> bytes:
-        if self.protocol_version <= 0:
-            raise ValueError("protocol version must be positive")
+        for name, value in (
+            ("protocol_version", self.protocol_version),
+            ("architecture", self.architecture),
+            ("device_type", self.device_type),
+            ("capabilities", self.capabilities),
+            ("flags", self.flags),
+        ):
+            if type(value) is not int:
+                raise TypeError(f"{name} must be an integer")
+        if not 1 <= self.protocol_version <= 0xFFFF:
+            raise ValueError("protocol version out of range")
         if self.architecture != ARCHITECTURE_CORELESS64:
             raise ValueError("unsupported Coreless architecture")
         if not 0 <= self.device_type <= 0xFFFFFFFF:
@@ -37,11 +46,16 @@ class DeviceIdentityFrame:
             raise ValueError("capability bits out of range")
         if not 0 <= self.flags <= 0xFFFFFFFF:
             raise ValueError("flags out of range")
-        if len(self.payload) > 0xFFFFFFFF:
+        if not isinstance(self.payload, (bytes, bytearray, memoryview)):
+            raise TypeError("identity payload must be bytes-like")
+        payload = bytes(self.payload)
+        if len(payload) > 0xFFFFFFFF:
             raise ValueError("identity payload is too large")
+        # Reject unknown bits before a frame can be emitted onto a transport.
+        capability_names(self.capabilities)
         return _HEADER.pack(MAGIC, self.protocol_version, FRAME_TYPE_IDENTITY,
                             self.architecture, self.device_type, self.capabilities,
-                            len(self.payload), self.flags) + self.payload
+                            len(payload), self.flags) + payload
 
     def capability_names(self) -> frozenset[str]:
         return capability_names(self.capabilities)
@@ -55,6 +69,9 @@ class DeviceIdentityFrame:
 
     @classmethod
     def decode(cls, frame: bytes) -> "DeviceIdentityFrame":
+        if not isinstance(frame, (bytes, bytearray, memoryview)):
+            raise TypeError("Coreless identity frame must be bytes-like")
+        frame = bytes(frame)
         if len(frame) < HEADER_SIZE:
             raise ValueError("Coreless identity frame is truncated")
         magic, protocol_version, frame_type, architecture, device_type, capabilities, payload_length, flags = _HEADER.unpack(frame[:HEADER_SIZE])

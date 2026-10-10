@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, TYPE_CHECKING
 
-from host_io import HostIO, DisplayTransport, InputTransport, NetworkTransport
+from host_io import HostIO, HostIOQueueEmpty, DisplayTransport, InputTransport, NetworkTransport
 from device_protocol import (
     ARCHITECTURE_CORELESS64,
     DEVICE_TYPE_CORELESS64,
@@ -136,7 +136,13 @@ class CorelessHostInterface:
     ) -> frozenset[str]:
         """Decode and verify a transport identity frame, then attach the host."""
         try:
-            decoded = DeviceIdentityFrame.decode(frame) if isinstance(frame, bytes) else frame
+            if isinstance(frame, bytes):
+                decoded = DeviceIdentityFrame.decode(frame)
+            elif isinstance(frame, DeviceIdentityFrame):
+                # Validate object inputs against the same strict wire contract.
+                decoded = DeviceIdentityFrame.decode(frame.encode())
+            else:
+                raise TypeError("identity frame must be bytes or DeviceIdentityFrame")
         except ValueError as exc:
             if str(exc) == "unsupported Coreless device type":
                 raise ValueError("Coreless transport identity verification failed") from exc
@@ -153,9 +159,21 @@ class CorelessHostInterface:
         advertised = decoded.capability_names()
         negotiated_supported = self.supported & advertised
         original_supported = self.supported
+        original_attached = self._attached
+        original_negotiated = self._negotiated
+        original_host_capabilities = self._host_capabilities
+        original_system = self._system
         try:
             self.supported = frozenset(negotiated_supported)
             return self.attach(identity, host, system=system)
+        except Exception:
+            # Reconnect identity validation/negotiation is transactional:
+            # restore the live attachment if the replacement cannot complete.
+            self._attached = original_attached
+            self._negotiated = original_negotiated
+            self._host_capabilities = original_host_capabilities
+            self._system = original_system
+            raise
         finally:
             self.supported = original_supported
 
@@ -300,16 +318,27 @@ class CorelessHostInterface:
         if "network" in self._negotiated and not isinstance(host_io.network, NetworkTransport):
             raise TypeError("host network transport does not implement the Coreless network contract")
 
-        if "display" in self._negotiated:
-            self.bind_channel("display", host_io.display)
-        if "network" in self._negotiated:
-            self.bind_channel("network", host_io.network)
-        if "input" in self._negotiated:
-            if input_router is not None:
-                self.bind_input_router(input_router)
-            self._channels["input"] = host_io.input
-        self._host_io = host_io
-        self._last_host_display = None
+        original_channels = dict(self._channels)
+        original_input_router = self._input_router
+        original_host_io = self._host_io
+        original_last_host_display = self._last_host_display
+        try:
+            if "display" in self._negotiated:
+                self.bind_channel("display", host_io.display)
+            if "network" in self._negotiated:
+                self.bind_channel("network", host_io.network)
+            if "input" in self._negotiated:
+                if input_router is not None:
+                    self.bind_input_router(input_router)
+                self._channels["input"] = host_io.input
+            self._host_io = host_io
+            self._last_host_display = None
+        except Exception:
+            self._channels = original_channels
+            self._input_router = original_input_router
+            self._host_io = original_host_io
+            self._last_host_display = original_last_host_display
+            raise
 
     @property
     def host_io(self):
@@ -329,7 +358,7 @@ class CorelessHostInterface:
             while True:
                 try:
                     payload = self._host_io.input.receive_event()
-                except RuntimeError:
+                except HostIOQueueEmpty:
                     break
                 event = decode_input_event(payload)
                 self.submit_input(event)
@@ -341,16 +370,23 @@ class CorelessHostInterface:
             while True:
                 try:
                     packet = self._host_io.network.receive_packet()
-                except RuntimeError:
+                except HostIOQueueEmpty:
                     break
+                if not isinstance(packet, (bytes, bytearray, memoryview)):
+                    raise TypeError("host network packet must be bytes-like")
+                packet = bytes(packet)
                 if self._system is not None:
                     self._system.machine.network.receive(packet)
                 counts["network_rx"] += 1
 
             if self._system is not None:
                 while self._system.machine.network.tx:
-                    packet = self._system.machine.network.tx.pop(0)
+                    # Keep the packet queued until the transport confirms the
+                    # complete send. A disconnect must not silently discard
+                    # Coreless-owned outbound data.
+                    packet = self._system.machine.network.tx[0]
                     self._host_io.network.send_packet(packet.data)
+                    self._system.machine.network.tx.pop(0)
                     counts["network_tx"] += 1
 
         if "display" in self._negotiated and self._system is not None:

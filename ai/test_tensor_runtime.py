@@ -494,6 +494,28 @@ def test_tensor_runtime_grouped_attention_matches_repeated_kv_attention():
     assert grouped.data == repeated.data
 
 
+def test_tensor_runtime_batch_matmul_shared_right_matches_per_batch_matmul():
+    runtime = TensorRuntime()
+    left = runtime.create(
+        (2, 2, 2),
+        [1.0, 2.0, 3.0, 4.0, 2.0, 0.0, 1.0, 3.0],
+        dtype="fp32",
+    )
+    right = runtime.create(
+        (2, 2),
+        [2.0, 1.0, 0.0, 3.0],
+        dtype="fp32",
+    )
+    shared = runtime.batch_matmul_shared_right(left, right)
+    expected = runtime.create(
+        (2, 2, 2),
+        runtime.batch_matmul(left, runtime.create((2, 2, 2), right.data + right.data, dtype="fp32")).data,
+        dtype="fp32",
+    )
+    assert shared.shape == expected.shape
+    assert shared.data == expected.data
+
+
 def test_tensor_runtime_grouped_attention_reuses_each_kv_group_once():
     class RecordingRuntime(TensorRuntime):
         def __init__(self):
@@ -874,3 +896,55 @@ def test_grouped_attention_uses_merge_heads_boundary():
 
     assert result.shape == (1, 4)
     assert runtime.merge_heads_calls == 1
+
+
+def test_tensor_runtime_load_rejects_data_length_mismatch():
+    import json
+    import pytest
+
+    image = PersistentMachineImage()
+    image.objects["tensor/bad-length"] = json.dumps(
+        {"version": 2, "shape": [2, 2], "dtype": "fp32", "data": [1.0, 2.0]}
+    ).encode("utf-8")
+
+    with pytest.raises(ValueError, match="invalid persisted tensor payload"):
+        TensorRuntime(image).load("bad-length")
+
+
+def test_tensor_runtime_load_rejects_unsupported_dtype():
+    import json
+    import pytest
+
+    image = PersistentMachineImage()
+    image.objects["tensor/bad-dtype"] = json.dumps(
+        {"version": 2, "shape": [1], "dtype": "fp128", "data": [1.0]}
+    ).encode("utf-8")
+
+    with pytest.raises(ValueError, match="invalid persisted tensor payload"):
+        TensorRuntime(image).load("bad-dtype")
+
+
+def test_tensor_runtime_load_accepts_legacy_payload_without_dtype():
+    import json
+
+    image = PersistentMachineImage()
+    image.objects["tensor/legacy"] = json.dumps(
+        {"version": 1, "shape": [2], "data": [3.0, 4.0]}
+    ).encode("utf-8")
+
+    restored = TensorRuntime(image).load("legacy")
+
+    assert restored.shape == (2,)
+    assert restored.dtype == "fp64"
+    assert restored.data == (3.0, 4.0)
+
+
+def test_tensor_runtime_save_rejects_non_finite_values_before_writing():
+    import pytest
+
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    for invalid in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(ValueError, match="finite values"):
+            runtime.save("invalid", Tensor.from_values((1,), [invalid]))
+        assert "tensor/invalid" not in image.objects

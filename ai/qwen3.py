@@ -68,10 +68,14 @@ class Qwen3KVCache:
         """Persist every populated KV tensor through the Coreless tensor store."""
         if not name or "/" in name:
             raise ValueError("cache name must be a non-empty local name")
+        # Validate the entire cache before the first persistent write. This
+        # prevents malformed layer counts or divergent sequence lengths from
+        # leaving a partially updated persistent snapshot.
+        self.validate()
+        if self.runtime is not None and runtime is not self.runtime:
+            raise ValueError("Qwen3 KV cache is bound to a different TensorRuntime")
         keys: list[str] = []
         for layer_index, (key, value) in enumerate(zip(self.keys, self.values)):
-            if (key is None) != (value is None):
-                raise ValueError("Qwen3 KV cache layer must contain both key and value")
             if key is None or value is None:
                 continue
             keys.append(runtime.save(f"{name}_layer_{layer_index}_key", key))
@@ -87,12 +91,26 @@ class Qwen3KVCache:
             raise ValueError("num_layers must be positive")
         cache = cls.create(num_layers, runtime)
         for layer_index in range(num_layers):
+            key_name = f"{name}_layer_{layer_index}_key"
+            value_name = f"{name}_layer_{layer_index}_value"
             try:
-                key = runtime.load(f"{name}_layer_{layer_index}_key")
-                value = runtime.load(f"{name}_layer_{layer_index}_value")
+                key = runtime.load(key_name)
             except KeyError:
-                continue
+                try:
+                    runtime.load(value_name)
+                except KeyError:
+                    continue
+                raise ValueError(
+                    f"Qwen3 KV cache layer {layer_index} has a value tensor without a key tensor"
+                )
+            try:
+                value = runtime.load(value_name)
+            except KeyError as exc:
+                raise ValueError(
+                    f"Qwen3 KV cache layer {layer_index} has a key tensor without a value tensor"
+                ) from exc
             cache.append(layer_index, key, value)
+        cache.validate()
         return cache
 
     def layer(self, layer_index: int) -> tuple[Tensor | None, Tensor | None]:
@@ -120,24 +138,33 @@ class Qwen3KVCache:
         active_runtime = runtime or self.runtime
         if self.runtime is not None and runtime is not None and runtime is not self.runtime:
             raise ValueError("Qwen3 KV cache is bound to a different TensorRuntime")
-        if old_key is None or old_value is None:
-            self.keys[layer_index] = key
-            self.values[layer_index] = value
+        if old_key is None and old_value is None:
+            next_key, next_value = key, value
+        elif old_key is None or old_value is None:
+            raise ValueError("Qwen3 KV cache layer is only partially populated")
+        elif old_key.shape[0] != key.shape[0] or old_key.shape[2] != key.shape[2]:
+            raise ValueError("Qwen3 KV cache append must preserve batch and head dimensions")
+        elif old_key.dtype != key.dtype:
+            raise ValueError("Qwen3 KV cache append must preserve tensor dtype")
         elif active_runtime is not None:
-            self.keys[layer_index] = active_runtime.append_sequence(old_key, key)
-            self.values[layer_index] = active_runtime.append_sequence(old_value, value)
+            # Build both updates before publishing either, so a failed value append
+            # cannot leave the layer's key and value sequences out of sync.
+            next_key = active_runtime.append_sequence(old_key, key)
+            next_value = active_runtime.append_sequence(old_value, value)
         else:
-            self.keys[layer_index] = Tensor.from_values(
+            next_key = Tensor.from_values(
                 (old_key.shape[0], old_key.shape[1] + key.shape[1], old_key.shape[2]),
                 old_key.data + key.data,
                 dtype=old_key.dtype,
             )
-            self.values[layer_index] = Tensor.from_values(
+            next_value = Tensor.from_values(
                 (old_value.shape[0], old_value.shape[1] + value.shape[1], old_value.shape[2]),
                 old_value.data + value.data,
                 dtype=old_value.dtype,
             )
-        return self.keys[layer_index], self.values[layer_index]
+        self.keys[layer_index] = next_key
+        self.values[layer_index] = next_value
+        return next_key, next_value
 
 
 @dataclass(frozen=True)
@@ -156,6 +183,24 @@ class Qwen3Config:
     original_max_position_embeddings: int | None = None
 
     def __post_init__(self) -> None:
+        if min(
+            self.hidden_size,
+            self.intermediate_size,
+            self.num_hidden_layers,
+            self.num_attention_heads,
+            self.num_key_value_heads,
+            self.vocab_size,
+            self.max_position_embeddings,
+        ) <= 0:
+            raise ValueError("Qwen3 dimensions, layer count, vocabulary, and context length must be positive")
+        if self.rms_norm_eps < 0.0:
+            raise ValueError("Qwen3 RMSNorm epsilon must be non-negative")
+        if self.rope_theta <= 0.0:
+            raise ValueError("Qwen3 RoPE theta must be positive")
+        if self.rope_scaling_factor is not None and self.rope_scaling_factor <= 0.0:
+            raise ValueError("Qwen3 RoPE scaling factor must be positive")
+        if self.original_max_position_embeddings is not None and self.original_max_position_embeddings <= 0:
+            raise ValueError("Qwen3 original context length must be positive")
         head_dim = self.head_dim or (self.hidden_size // self.num_attention_heads)
         if self.hidden_size % self.num_attention_heads:
             raise ValueError("hidden_size must be divisible by num_attention_heads")
@@ -476,6 +521,44 @@ class Qwen3Runtime:
         self.weights = weights
         self.tensor_runtime = tensor_runtime
 
+    def _validate_weight_contracts(self) -> None:
+        """Fail before execution/cache mutation when model tensors violate Qwen3 shapes."""
+        cfg = self.config
+        hidden = cfg.hidden_size
+        head_width = cfg.resolved_head_dim
+        q_width = cfg.num_attention_heads * head_width
+        kv_width = cfg.num_key_value_heads * head_width
+        expected = {
+            "model.embed_tokens.weight": (cfg.vocab_size, hidden),
+            "model.norm.weight": (hidden,),
+        }
+        for layer in range(cfg.num_hidden_layers):
+            prefix = f"model.layers.{layer}"
+            expected.update({
+                f"{prefix}.input_layernorm.weight": (hidden,),
+                f"{prefix}.post_attention_layernorm.weight": (hidden,),
+                f"{prefix}.self_attn.q_proj.weight": (q_width, hidden),
+                f"{prefix}.self_attn.k_proj.weight": (kv_width, hidden),
+                f"{prefix}.self_attn.v_proj.weight": (kv_width, hidden),
+                f"{prefix}.self_attn.o_proj.weight": (hidden, q_width),
+                f"{prefix}.self_attn.q_norm.weight": (head_width,),
+                f"{prefix}.self_attn.k_norm.weight": (head_width,),
+                f"{prefix}.mlp.gate_proj.weight": (cfg.intermediate_size, hidden),
+                f"{prefix}.mlp.up_proj.weight": (cfg.intermediate_size, hidden),
+                f"{prefix}.mlp.down_proj.weight": (hidden, cfg.intermediate_size),
+            })
+        if self.weights.contains("lm_head.weight"):
+            expected["lm_head.weight"] = (cfg.vocab_size, hidden)
+        for name, shape in expected.items():
+            try:
+                tensor = self.weights.get(name)
+            except KeyError as exc:
+                raise ValueError(f"Qwen3 model is missing required tensor: {name}") from exc
+            if tensor.shape != shape:
+                raise ValueError(
+                    f"Qwen3 tensor {name} has shape {tensor.shape}; expected {shape}"
+                )
+
     def forward(
         self,
         token_ids: Sequence[int],
@@ -490,6 +573,7 @@ class Qwen3Runtime:
             raise ValueError("token sequence exceeds Qwen3 context length")
         if cache is not None and cache.layer_count != self.config.num_hidden_layers:
             raise ValueError("Qwen3 KV cache layer count does not match the model")
+        self._validate_weight_contracts()
 
         embedding = self.weights.get("model.embed_tokens.weight")
         if self.tensor_runtime is not None:
@@ -568,7 +652,13 @@ class Qwen3Runtime:
         """Generate tokens using native Coreless greedy decoding and KV cache."""
         if max_new_tokens < 0:
             raise ValueError("max_new_tokens must be non-negative")
+        if eos_token_id is not None and not 0 <= eos_token_id < self.config.vocab_size:
+            raise ValueError("EOS token id is outside the Qwen3 vocabulary")
         generated = list(token_ids)
+        if any(token_id < 0 or token_id >= self.config.vocab_size for token_id in generated):
+            raise ValueError("token id is outside the Qwen3 vocabulary")
+        if len(generated) > self.config.max_position_embeddings:
+            raise ValueError("prompt exceeds Qwen3 context length")
         if not generated or max_new_tokens == 0:
             return generated
         cache = Qwen3KVCache.create(self.config.num_hidden_layers, self.tensor_runtime)

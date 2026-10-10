@@ -83,7 +83,7 @@ Qwen3, DeepSeek, gpt-oss, Gemma and Codestral remain local model participants; G
 
 ## Documentation
 
-See `ROADMAP.md`, `TESTING.md`, `TEST_ENVIRONMENT.md`, `HANDOFF.md`, and the `specification/` directory for the current project record.
+See `REMAINING_REQUIREMENTS.md` for the consolidated remaining scope and completion gates. Also see `ROADMAP.md`, `TESTING.md`, `TEST_ENVIRONMENT.md`, `HANDOFF.md`, and the `specification/` directory for implementation status and normative contracts.
 
 Do not commit model weights, API keys or credentials.
 
@@ -118,3 +118,35 @@ This is an optimization layer over the existing Coreless machine architecture, n
 ## Persistent runtime launcher — 2026-10-07
 
 The repository now includes `scripts/coreless-run.py`, a direct launcher for a persistent Coreless machine image. It resumes the stored machine/OS state, accepts native Coreless shell commands, can advance the digital execution engine, and persists state or shutdown. The image remains the authoritative machine-state carrier and the host remains outside Coreless computational authority.
+
+
+## Host transport hardening — 2026-10-08
+
+The reference host transport now protects live reconnects from invalid replacement HostIO bundles and rejects closed raw socket channels before constructing a network transport. These boundaries are covered by green GitHub Actions runs through #1519. The transport layer remains transport-neutral above the socket adapter and does not claim physical display/input/network hardware implementation.
+
+
+## Host transport hardening — 2026-10-08: transactional reconnects and session validation
+
+The reference host transport now treats reconnect and HostIO channel binding as transactional operations. Failed replacement HostIO validation, identity attachment, channel rebinding, or partial HostIO binding no longer destroys an already-live attachment. Socket-backed reconnect failures also clean up replacement network transports without discarding the previous live session.
+
+Reusable transport-session validation now detects closed raw sockets through the standard socket descriptor state as well as explicit transport `closed` properties. Regression coverage protects these lifecycle contracts.
+
+Verified GitHub Actions runs **#1552** and **#1556** are green. This remains a transport-neutral host boundary; it does not claim completed physical display/input/network adapters or physical bus enumeration.
+
+
+## Host transport checkpoint — 2026-10-08: session validation contract
+
+Reusable host transport sessions distinguish session liveness from channel requirements: session validation checks attachment, identity, negotiated-state consistency, and closed channels that are present, while `require_channels()` explicitly rejects missing or closed requested channels. This keeps existing negotiated sessions compatible with partial channel binding while giving callers a deterministic completeness check when required.
+
+GitHub Actions run **#1569** is green for the corrective validation checkpoint.
+
+
+## Documentation checkpoint — 2026-10-08: socket transport hardening complete
+
+The socket-backed host transport lifecycle hardening pass is complete at the reference boundary. Replacement socket construction failures now leave an existing live session intact; a later valid reconnect can recover normally. Send/receive transport failures retire the affected socket wrapper, cleanup errors do not mask the original transport failure, scoped cleanup preserves body exceptions, and disconnect detaches the Coreless interface even when socket cleanup reports an error.
+
+Regression coverage exercises failed reconnect recovery, socket ownership across reconnects, closed-channel/session validation, transport retirement, and disconnect cleanup. **GitHub Actions run #1662 is green** for the final reconnect-recovery regression.
+
+### Transport resume point
+
+The reference socket lifecycle hardening is complete. Do not continue adding socket edge cases without a concrete contract failure. The next host-interface work is concrete cross-platform enumeration and platform display/input/network adapters.

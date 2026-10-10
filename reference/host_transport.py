@@ -4,7 +4,7 @@ These adapters model the host-side discovery/transport boundary without making
 the host responsible for Coreless computation.
 """
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Iterable, Mapping
 from host_interface import CorelessHostInterface, CorelessIdentity, HostCapabilities
 from host_io import HostIO
@@ -56,15 +56,36 @@ class HostTransportSession:
     def require_channels(self, capabilities: frozenset[str] | set[str]) -> None:
         """Require all requested session capabilities to have live channels."""
         self.validate()
-        if not self.interface.transport_ready(capabilities):
-            missing = sorted(
-                capability
-                for capability in capabilities
-                if capability not in self.interface.channels
-            )
+        missing = sorted(
+            capability
+            for capability in capabilities
+            if capability not in self.interface.channels
+        )
+        if missing:
             raise RuntimeError(
                 f"host transport session channels are missing: {missing}"
             )
+        closed = sorted(
+            capability
+            for capability in capabilities
+            if HostTransportSession._channel_closed(self.interface.channels[capability])
+        )
+        if closed:
+            raise RuntimeError(
+                f"host transport session channels are closed: {closed}"
+            )
+
+    @staticmethod
+    def _channel_closed(channel: object) -> bool:
+        if bool(getattr(channel, "closed", False)):
+            return True
+        fileno = getattr(channel, "fileno", None)
+        if callable(fileno):
+            try:
+                return fileno() < 0
+            except (OSError, ValueError):
+                return True
+        return False
 
     def validate(self) -> None:
         """Ensure the session still refers to its original live attachment."""
@@ -74,6 +95,16 @@ class HostTransportSession:
             raise RuntimeError("host transport session identity changed")
         if self.interface.negotiated != self.negotiated:
             raise RuntimeError("host transport session negotiation changed")
+        closed = sorted(
+            capability
+            for capability in self.negotiated
+            if capability in self.interface.channels
+            and HostTransportSession._channel_closed(self.interface.channels[capability])
+        )
+        if closed:
+            raise RuntimeError(
+                f"host transport session channels are closed: {closed}"
+            )
 
 
 class HostTransportAdapter:
@@ -106,16 +137,65 @@ class HostTransportAdapter:
         """Attach an endpoint, optionally binding its persistent system and host I/O."""
         if host_io is not None and not isinstance(host_io, HostIO):
             raise TypeError("host_io must implement the Coreless HostIO contract")
-        negotiated = interface.attach_identity_frame(
-            endpoint.identity_frame(), endpoint.capabilities, system=system
-        )
-        interface.clear_channels()
-        for capability, channel in endpoint.channel_map().items():
-            if capability in negotiated:
-                interface.bind_channel(capability, channel)
+
+        # Validate the complete replacement bundle before mutating an existing
+        # attachment. Reconnect failures must leave the current session intact.
         if host_io is not None:
-            interface.bind_host_io(host_io, input_router=input_router)
-        return negotiated
+            from host_io import DisplayTransport, InputTransport, NetworkTransport
+
+            negotiated_preview = (
+                interface.supported
+                & endpoint.device_capabilities
+                & endpoint.capabilities.as_set()
+            )
+            if "input" in negotiated_preview and input_router is None and interface.input_router is None:
+                raise RuntimeError("input capability requires a Coreless input router")
+            if input_router is not None and not hasattr(input_router, "submit"):
+                raise TypeError("input_router must implement the Coreless input router contract")
+            if "display" in negotiated_preview and not isinstance(host_io.display, DisplayTransport):
+                raise TypeError("host display transport does not implement the Coreless display contract")
+            if "input" in negotiated_preview and not isinstance(host_io.input, InputTransport):
+                raise TypeError("host input transport does not implement the Coreless input contract")
+            if "network" in negotiated_preview and not isinstance(host_io.network, NetworkTransport):
+                raise TypeError("host network transport does not implement the Coreless network contract")
+
+        # Snapshot the live attachment before any replacement mutation. The
+        # identity layer is transactional on negotiation failure, but channel
+        # binding and HostIO installation can also fail after that point.
+        original_attached = interface._attached
+        original_negotiated = interface._negotiated
+        original_host_capabilities = interface._host_capabilities
+        original_system = interface._system
+        original_hub = interface._hub
+        original_channels = dict(interface._channels)
+        original_input_router = interface._input_router
+        original_host_io = interface._host_io
+        original_last_host_display = interface._last_host_display
+        try:
+            negotiated = interface.attach_identity_frame(
+                endpoint.identity_frame(), endpoint.capabilities, system=system
+            )
+            interface.clear_channels()
+            for capability, channel in endpoint.channel_map().items():
+                if capability in negotiated:
+                    interface.bind_channel(capability, channel)
+            if host_io is not None:
+                interface.bind_host_io(host_io, input_router=input_router)
+            return negotiated
+        except Exception:
+            # Reconnects are transactional across the whole attachment
+            # boundary: restore the previously live channels and HostIO if
+            # any post-negotiation binding step fails.
+            interface._attached = original_attached
+            interface._negotiated = original_negotiated
+            interface._host_capabilities = original_host_capabilities
+            interface._system = original_system
+            interface._hub = original_hub
+            interface._channels = original_channels
+            interface._input_router = original_input_router
+            interface._host_io = original_host_io
+            interface._last_host_display = original_last_host_display
+            raise
 
     def open_session(
         self,
@@ -264,6 +344,200 @@ class HostTransportAdapter:
     def disconnect(self, interface: CorelessHostInterface) -> None:
         """End the active host attachment while preserving Coreless identity."""
         interface.detach()
+
+
+class SocketHostTransportAdapter(HostTransportAdapter):
+    """Host transport adapter using a connected socket network channel.
+
+    Discovery remains provider-driven; the provider supplies endpoint identity
+    and the connected socket through the endpoint's network channel.
+    """
+
+    def __init__(self, provider, *, max_packet_size: int | None = None) -> None:
+        self._provider = provider
+        self._max_packet_size = max_packet_size
+
+    def enumerate(self) -> tuple[HostEndpoint, ...]:
+        return self.discover_provider(self._provider)
+
+    @property
+    def provider(self):
+        return self._provider
+
+    @property
+    def max_packet_size(self) -> int | None:
+        """Return the configured maximum packet size for socket channels."""
+        return self._max_packet_size
+
+    def open_network(self, endpoint: HostEndpoint):
+        """Return the connected socket transport advertised by an endpoint."""
+        from host_socket import SocketNetworkTransport
+
+        if not endpoint.capabilities.network:
+            raise RuntimeError("host endpoint does not advertise network capability")
+        channel = endpoint.channel_map().get("network")
+        if channel is None:
+            raise RuntimeError("host endpoint has no network channel")
+        closed = bool(getattr(channel, "closed", False))
+        if not closed:
+            # Python's stdlib socket exposes closed state through fileno()
+            # rather than a public .closed property. Keep the adapter neutral
+            # for SocketNetworkTransport and socket-like test doubles while
+            # rejecting a raw socket that has already been closed.
+            fileno = getattr(channel, "fileno", None)
+            if callable(fileno):
+                try:
+                    closed = fileno() < 0
+                except (OSError, ValueError):
+                    closed = True
+        if closed:
+            raise RuntimeError("host network channel is already closed")
+        if self._max_packet_size is None:
+            return SocketNetworkTransport(channel)
+        return SocketNetworkTransport(channel, max_packet_size=self._max_packet_size)
+
+    def connect(
+        self,
+        endpoint: HostEndpoint,
+        interface: CorelessHostInterface,
+        *,
+        system=None,
+        host_io: HostIO | None = None,
+        input_router=None,
+    ) -> frozenset[str]:
+        """Attach the endpoint with its network channel wrapped by Coreless transport."""
+        from host_socket import SocketNetworkTransport
+
+        previous = interface.channels.get("network")
+        was_attached = interface.attached
+        original_negotiated = interface._negotiated
+        original_host_capabilities = interface._host_capabilities
+        original_system = interface._system
+        original_hub = interface._hub
+        original_channels = dict(interface._channels)
+        original_input_router = interface._input_router
+        original_host_io = interface._host_io
+        original_last_host_display = interface._last_host_display
+        network_transport = None
+        if endpoint.capabilities.network:
+            # A negotiated network capability must always have a concrete socket
+            # channel. Validate and construct the replacement before mutating the
+            # current attachment so a bad reconnect leaves the live session intact.
+            if "network" not in endpoint.channel_map():
+                raise RuntimeError("host endpoint has no network channel")
+            network_transport = self.open_network(endpoint)
+        shares_previous_socket = (
+            isinstance(previous, SocketNetworkTransport)
+            and network_transport is not None
+            and previous.socket is network_transport.socket
+        )
+        try:
+            negotiated = super().connect(
+                endpoint,
+                interface,
+                system=system,
+                host_io=host_io,
+                input_router=input_router,
+            )
+        except Exception:
+            # The replacement socket is not attached until the base connection
+            # succeeds. Retire it if validation or attachment fails so a
+            # failed reconnect cannot leak a live host socket. Cleanup failure
+            # must never mask the original connection failure.
+            if network_transport is not None:
+                try:
+                    if shares_previous_socket:
+                        network_transport.retire_without_closing_socket()
+                    else:
+                        network_transport.close()
+                except Exception:
+                    pass
+            # A fresh attachment may have been partially established before
+            # channel binding failed. Roll it back, but never destroy an
+            # already-live attachment during a failed reconnect.
+            if not was_attached and interface.attached:
+                try:
+                    interface.detach()
+                except Exception:
+                    pass
+            raise
+        if network_transport is not None:
+            if "network" in negotiated:
+                try:
+                    interface.bind_channel("network", network_transport)
+                except Exception:
+                    if shares_previous_socket:
+                        # The replacement wrapper never became attached. Retire
+                        # it without closing the socket still owned by the live
+                        # previous wrapper.
+                        network_transport.retire_without_closing_socket()
+                    else:
+                        try:
+                            network_transport.close()
+                        except Exception:
+                            pass
+                    # The base connection has already attached the interface.
+                    # A network bind failure must preserve a previously live
+                    # reconnect target just like any other post-attachment
+                    # binding failure.
+                    if was_attached:
+                        interface._attached = was_attached
+                        interface._negotiated = original_negotiated
+                        interface._host_capabilities = original_host_capabilities
+                        interface._system = original_system
+                        interface._hub = original_hub
+                        interface._channels = original_channels
+                        interface._input_router = original_input_router
+                        interface._host_io = original_host_io
+                        interface._last_host_display = original_last_host_display
+                    else:
+                        try:
+                            interface.detach()
+                        except Exception:
+                            pass
+                    raise
+            else:
+                # The endpoint supplied a socket, but negotiation may decline
+                # network support on the Coreless side. Do not leave that
+                # newly-created transport live when it cannot be attached.
+                # Cleanup is best-effort because successful attachment state
+                # must not be replaced by a close error from an unused wrapper.
+                try:
+                    network_transport.close()
+                except Exception:
+                    pass
+        if isinstance(previous, SocketNetworkTransport) and previous is not network_transport:
+            if network_transport is not None and previous.socket is network_transport.socket:
+                # Reconnect created a new wrapper around the same host socket.
+                # Retire the stale wrapper without closing the socket now owned
+                # by the replacement wrapper.
+                previous.retire_without_closing_socket()
+            else:
+                # The new attachment is already established. Failure to retire
+                # the superseded socket must not roll back or mask a successful
+                # reconnect; the transport's own close state records cleanup
+                # failure without invalidating the new session.
+                try:
+                    previous.close()
+                except Exception:
+                    pass
+        return negotiated
+
+    def disconnect(self, interface: CorelessHostInterface) -> None:
+        """Close socket transports before ending the host attachment."""
+        channel = interface.channels.get("network")
+        close_error = None
+        try:
+            if channel is not None and hasattr(channel, "close"):
+                channel.close()
+        except Exception as exc:
+            close_error = exc
+        finally:
+            # Detach even if the host socket reports a close error. The
+            # transport boundary must never leave a stale Coreless attachment.
+            super().disconnect(interface)
+        if close_error is not None:
+            raise close_error
 
 
 class ProviderHostTransportAdapter(HostTransportAdapter):
