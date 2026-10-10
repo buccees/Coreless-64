@@ -220,6 +220,25 @@ def test_decode_input_event_rejects_nonfinite_numeric_fields(field, literal):
     ("pressure", float("inf")),
     ("metadata", {"nested": [float("-inf")]}),
 ])
+def test_encode_input_event_rejects_non_string_metadata_keys():
+    from host_io import encode_input_event
+    from input import CoordinateFrame, InputEvent, InputEventType
+
+    event = InputEvent(
+        abi_version=1,
+        event_type=InputEventType.POINTER_MOVE,
+        device_id="mouse-1",
+        timestamp_ns=10,
+        sequence=1,
+        coordinate_frame=CoordinateFrame.CORELESS,
+        x=1.0,
+        y=2.0,
+        metadata={"nested": {1: "would be silently coerced by json"}},
+    )
+    with pytest.raises(ValueError, match="object keys must be strings"):
+        encode_input_event(event)
+
+
 def test_encode_input_event_rejects_nonfinite_numbers(field, value):
     from host_io import encode_input_event
     from input import CoordinateFrame, InputEvent, InputEventType

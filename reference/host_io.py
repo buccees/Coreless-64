@@ -55,6 +55,17 @@ class NetworkTransport(Protocol):
 
 def encode_input_event(event: InputEvent) -> bytes:
     """Encode one Coreless input event for the host input transport."""
+    def validate_metadata(item, path="metadata") -> None:
+        if isinstance(item, dict):
+            for key, nested in item.items():
+                if not isinstance(key, str):
+                    raise ValueError(f"{path} object keys must be strings")
+                validate_metadata(nested, f"{path}.{key}")
+        elif isinstance(item, (list, tuple)):
+            for index, nested in enumerate(item):
+                validate_metadata(nested, f"{path}[{index}]")
+
+    validate_metadata(dict(event.metadata))
     payload = {
         "abi_version": event.abi_version,
         "event_type": event.event_type.value,
