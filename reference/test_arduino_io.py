@@ -1,0 +1,149 @@
+import json
+import sys
+sys.path.insert(0, ".")
+
+import pytest
+
+from arduino_io import (
+    MAX_FRAME_BYTES,
+    ArduinoSerialIO,
+    decode_message,
+    encode_message,
+)
+
+
+class FakeSerial:
+    def __init__(self):
+        self.writes = []
+        self.reads = []
+
+    def write(self, data):
+        self.writes.append(bytes(data))
+        return len(data)
+
+    def readline(self):
+        if not self.reads:
+            raise RuntimeError("no queued serial input")
+        return self.reads.pop(0)
+
+
+def frame(kind="event", device_id="arduino-1", sequence=0, payload=None):
+    return encode_message(kind, device_id, sequence, payload or {})
+
+
+def test_arduino_serial_io_encodes_digital_write_and_increments_sequence():
+    serial = FakeSerial()
+    bridge = ArduinoSerialIO(serial, "arduino-1")
+
+    assert bridge.send_command("digital_write", pin=13, value=1) == 0
+    assert bridge.send_command("analog_write", pin=9, value=127) == 1
+
+    first = decode_message(serial.writes[0], expected_device_id="arduino-1")
+    second = decode_message(serial.writes[1], expected_device_id="arduino-1")
+    assert first["payload"] == {"op": "digital_write", "pin": 13, "value": 1}
+    assert second["sequence"] == 1
+    assert second["payload"]["value"] == 127
+
+
+def test_arduino_serial_io_accepts_pin_mode_and_read_commands():
+    serial = FakeSerial()
+    bridge = ArduinoSerialIO(serial, "arduino-1")
+
+    bridge.send_command("pin_mode", pin=4, value="input_pullup")
+    bridge.send_command("analog_read", pin=2)
+
+    assert decode_message(serial.writes[0])["payload"]["value"] == "input_pullup"
+    assert decode_message(serial.writes[1])["payload"] == {"op": "analog_read", "pin": 2}
+
+
+@pytest.mark.parametrize(
+    ("operation", "pin", "value", "message"),
+    [
+        ("erase_all", 13, 1, "unsupported Arduino operation"),
+        ("digital_write", -1, 1, "pin is out of range"),
+        ("digital_write", 13, 2, "value is out of range"),
+        ("analog_write", 9, 256, "value is out of range"),
+        ("pin_mode", 4, "invalid", "pin_mode value is unsupported"),
+        ("digital_read", 3, 1, "read operations do not accept a value"),
+        ("digital_write", True, 1, "pin must be an integer"),
+    ],
+)
+def test_arduino_serial_io_rejects_invalid_commands(operation, pin, value, message):
+    bridge = ArduinoSerialIO(FakeSerial(), "arduino-1")
+    with pytest.raises(ValueError, match=message):
+        bridge.send_command(operation, pin=pin, value=value)
+
+
+def test_arduino_serial_io_rejects_short_write_without_advancing_sequence():
+    class ShortWrite(FakeSerial):
+        def write(self, data):
+            self.writes.append(bytes(data))
+            return len(data) - 1
+
+    bridge = ArduinoSerialIO(ShortWrite(), "arduino-1")
+    with pytest.raises(IOError, match="short write"):
+        bridge.send_command("digital_write", pin=13, value=1)
+    assert bridge.send_command("digital_write", pin=13, value=0) == 0
+
+
+def test_arduino_serial_io_receives_sensor_event_and_checks_identity():
+    serial = FakeSerial()
+    serial.reads.append(frame(payload={"sensor": "temperature", "value": 23}))
+    bridge = ArduinoSerialIO(serial, "arduino-1")
+
+    message = bridge.receive_event()
+    assert message["kind"] == "event"
+    assert message["payload"]["value"] == 23
+
+    serial.reads.append(frame(device_id="other-device", sequence=1))
+    with pytest.raises(ValueError, match="identity mismatch"):
+        bridge.receive_message()
+
+
+@pytest.mark.parametrize(
+    ("raw", "message"),
+    [
+        (b'{"protocol":1}\n', "JSON object"),
+        (b"not-json\n", "invalid Arduino JSON frame"),
+        (b'{"protocol":1,"kind":"event","device_id":"x","sequence":0,"payload":{}}', "newline terminated"),
+        (b'{"protocol":true,"kind":"event","device_id":"x","sequence":0,"payload":{}}\n', "protocol version"),
+        (b'{"protocol":1,"kind":"event","device_id":"x","sequence":false,"payload":{}}\n', "sequence must be an integer"),
+    ],
+)
+def test_arduino_decoder_rejects_malformed_frames(raw, message):
+    with pytest.raises((TypeError, ValueError), match=message):
+        decode_message(raw)
+
+
+def test_arduino_decoder_enforces_frame_limit():
+    raw = b'{"protocol":1,"kind":"event","device_id":"x","sequence":0,"payload":{"v":"' + b"a" * MAX_FRAME_BYTES + b'"}}\n'
+    with pytest.raises(ValueError, match="maximum frame size"):
+        decode_message(raw)
+
+
+def test_arduino_serial_io_rejects_replayed_or_out_of_order_messages():
+    serial = FakeSerial()
+    serial.reads.extend([frame(sequence=3), frame(sequence=2)])
+    bridge = ArduinoSerialIO(serial, "arduino-1")
+    assert bridge.receive_event()["sequence"] == 3
+    with pytest.raises(ValueError, match="not increasing"):
+        bridge.receive_message()
+
+
+def test_arduino_serial_io_separates_acknowledgements_from_events():
+    serial = FakeSerial()
+    serial.reads.append(frame(kind="ack", payload={"ok": True}))
+    bridge = ArduinoSerialIO(serial, "arduino-1")
+    assert bridge.receive_message()["kind"] == "ack"
+
+    serial.reads.append(frame(kind="ack", sequence=1))
+    with pytest.raises(ValueError, match="not an event"):
+        bridge.receive_event()
+
+
+def test_arduino_serial_io_surfaces_device_errors():
+    serial = FakeSerial()
+    serial.reads.append(frame(kind="error", payload={"message": "pin unavailable"}))
+    bridge = ArduinoSerialIO(serial, "arduino-1")
+    with pytest.raises(RuntimeError, match="pin unavailable"):
+        bridge.receive_message()
