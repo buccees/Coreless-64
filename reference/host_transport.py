@@ -39,6 +39,7 @@ class HostTransportSession:
     endpoint: HostEndpoint
     interface: CorelessHostInterface
     negotiated: frozenset[str]
+    channel_snapshot: tuple[tuple[str, int], ...] | None = None
 
     @property
     def endpoint_id(self) -> str:
@@ -74,6 +75,12 @@ class HostTransportSession:
             raise RuntimeError("host transport session identity changed")
         if self.interface.negotiated != self.negotiated:
             raise RuntimeError("host transport session negotiation changed")
+        if self.channel_snapshot is not None:
+            current = tuple(
+                sorted((name, id(channel)) for name, channel in self.interface.channels.items())
+            )
+            if current != self.channel_snapshot:
+                raise RuntimeError("host transport session channels changed")
 
 
 class HostTransportAdapter:
@@ -130,7 +137,10 @@ class HostTransportAdapter:
         negotiated = self.connect(
             endpoint, interface, system=system, host_io=host_io, input_router=input_router
         )
-        return HostTransportSession(endpoint, interface, negotiated)
+        channel_snapshot = tuple(
+            sorted((name, id(channel)) for name, channel in interface.channels.items())
+        )
+        return HostTransportSession(endpoint, interface, negotiated, channel_snapshot)
 
     def exchange(
         self,
