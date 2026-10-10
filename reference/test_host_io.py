@@ -233,7 +233,9 @@ def test_encode_input_event_rejects_nonfinite_numbers(field, value):
         "coordinate_frame": CoordinateFrame.CORELESS,
     }
     fields[field] = value
-    if field == "metadata":
+    if field == "x":
+        fields["y"] = 2.0
+    elif field == "metadata":
         fields["x"] = 1.0
         fields["y"] = 2.0
     event = InputEvent(**fields)
