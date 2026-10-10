@@ -215,6 +215,32 @@ def test_decode_input_event_rejects_nonfinite_numeric_fields(field, literal):
     with pytest.raises(ValueError, match=f"{field} must be finite"):
         decode_input_event(payload)
 
+@pytest.mark.parametrize("field,value", [
+    ("x", float("nan")),
+    ("pressure", float("inf")),
+    ("metadata", {"nested": [float("-inf")]}),
+])
+def test_encode_input_event_rejects_nonfinite_numbers(field, value):
+    from host_io import encode_input_event
+    from input import CoordinateFrame, InputEvent, InputEventType
+
+    fields = {
+        "abi_version": 1,
+        "event_type": InputEventType.POINTER_MOVE,
+        "device_id": "mouse-1",
+        "timestamp_ns": 10,
+        "sequence": 1,
+        "coordinate_frame": CoordinateFrame.CORELESS,
+    }
+    fields[field] = value
+    if field == "metadata":
+        fields["x"] = 1.0
+        fields["y"] = 2.0
+    event = InputEvent(**fields)
+    with pytest.raises(ValueError):
+        encode_input_event(event)
+
+
 @pytest.mark.parametrize("literal", ["1e999", "-1e999"])
 def test_decode_input_event_rejects_nonfinite_numbers_nested_in_metadata(literal):
     from host_io import decode_input_event
