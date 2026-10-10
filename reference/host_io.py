@@ -56,14 +56,23 @@ class NetworkTransport(Protocol):
 def encode_input_event(event: InputEvent) -> bytes:
     """Encode one Coreless input event for the host input transport."""
     def validate_metadata(item, path="metadata") -> None:
+        if item is None or isinstance(item, (str, bool, int)):
+            return
+        if isinstance(item, float):
+            if not math.isfinite(item):
+                raise ValueError(f"{path} must contain only finite numbers")
+            return
         if isinstance(item, dict):
             for key, nested in item.items():
                 if not isinstance(key, str):
                     raise ValueError(f"{path} object keys must be strings")
                 validate_metadata(nested, f"{path}.{key}")
-        elif isinstance(item, (list, tuple)):
+            return
+        if isinstance(item, list):
             for index, nested in enumerate(item):
                 validate_metadata(nested, f"{path}[{index}]")
+            return
+        raise ValueError(f"{path} contains unsupported metadata type: {type(item).__name__}")
 
     validate_metadata(dict(event.metadata))
     payload = {

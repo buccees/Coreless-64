@@ -215,6 +215,29 @@ def test_decode_input_event_rejects_nonfinite_numeric_fields(field, literal):
     with pytest.raises(ValueError, match=f"{field} must be finite"):
         decode_input_event(payload)
 
+@pytest.mark.parametrize("metadata", [
+    {"nested": (1, 2)},
+    {"nested": object()},
+])
+def test_encode_input_event_rejects_metadata_values_that_change_or_fail_json_encoding(metadata):
+    from host_io import encode_input_event
+    from input import CoordinateFrame, InputEvent, InputEventType
+
+    event = InputEvent(
+        abi_version=1,
+        event_type=InputEventType.POINTER_MOVE,
+        device_id="mouse-1",
+        timestamp_ns=10,
+        sequence=1,
+        coordinate_frame=CoordinateFrame.CORELESS,
+        x=1.0,
+        y=2.0,
+        metadata=metadata,
+    )
+    with pytest.raises(ValueError, match="unsupported metadata type"):
+        encode_input_event(event)
+
+
 def test_encode_input_event_rejects_non_string_metadata_keys():
     from host_io import encode_input_event
     from input import CoordinateFrame, InputEvent, InputEventType
