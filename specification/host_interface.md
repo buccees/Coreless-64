@@ -202,3 +202,21 @@ The reference sketch uses 115200 baud, a bounded line buffer, device identity ma
 ### Arduino event integration
 
 `ArduinoInputAdapter` bridges `ArduinoSerialIO` to the existing Coreless host input transport. It converts device events into versioned `InputEvent` records and forwards them using `encode_input_event`, so the existing `CorelessHostInterface.pump_host_io()` path can route them through the standard Coreless input router. Unclassified sensor/GPIO reports become `DEVICE_STATE` events with source metadata; firmware may send a recognized `event_type` for pointer/touch/stylus-style events. Acknowledgements are counted and ignored by the input stream. Invalid event types, partial coordinates, non-finite numeric values, stale sequences, and identity mismatches are rejected.
+
+
+### Arduino USB serial discovery and hardware bring-up
+
+The optional `discover_serial_devices()` helper enumerates serial-port metadata without opening ports or requiring pyserial at import time. Callers may inject a port provider for tests, and may filter by USB vendor ID, product ID, and serial number. It does not assume one VID/PID is shared by every Arduino-compatible board, does not auto-connect, and does not send commands during discovery. The application remains responsible for selecting a port and opening it with the configured baud rate.
+
+Hardware bring-up checklist:
+
+1. Select the exact board and confirm its USB serial port and any required USB-serial driver.
+2. Install ArduinoJson 6.x and compile `firmware/arduino/coreless_arduino_bridge.ino` for that board.
+3. Set the sketch's `DEVICE_ID` uniquely and confirm host/firmware use 115200 baud.
+4. Connect the board with outputs disconnected or otherwise made safe; avoid attaching motors, relays, or other loads during first tests.
+5. Verify newline-delimited JSON events, then issue a low-risk `pin_mode`, `digital_read`, and `analog_read` command.
+6. Verify acknowledgements correlate to the host request sequence and that events carry the expected device identity.
+7. Test unplug/replug, malformed input, sequence reset after board reboot, and repeated port enumeration.
+8. Only then test output pins with a current-limited LED/resistor or suitable driver; never power motors or high-current loads directly from GPIO pins.
+
+**Validation boundary:** software tests cover discovery filtering and the serial protocol. Real-board compilation, electrical behavior, port reconnection, and timing remain hardware validation tasks until run on a physical board.
