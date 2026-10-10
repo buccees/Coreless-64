@@ -94,12 +94,13 @@ class LinuxTCPDiscoveryProvider:
         """Connect to each configured peer and validate its identity response."""
         candidates = []
         for endpoint in self._endpoints:
-            raw_socket = socket.create_connection(
-                (endpoint.host, endpoint.port), timeout=self._timeout
-            )
+            raw_socket = None
             transport = None
             tls_socket = None
             try:
+                raw_socket = socket.create_connection(
+                    (endpoint.host, endpoint.port), timeout=self._timeout
+                )
                 # Keep every post-connect setup operation inside the cleanup
                 # boundary so a timeout-configuration failure cannot leak the
                 # newly opened host socket.
@@ -150,10 +151,20 @@ class LinuxTCPDiscoveryProvider:
                         tls_socket.close()
                     except Exception:
                         pass
-                else:
+                elif raw_socket is not None:
                     try:
                         raw_socket.close()
                     except Exception:
                         pass
+                # Discovery is all-or-nothing: a later endpoint failure must
+                # not leak transports already opened for earlier candidates.
+                for candidate in candidates:
+                    for channel in candidate.channels.values():
+                        close = getattr(channel, "close", None)
+                        if callable(close):
+                            try:
+                                close()
+                            except Exception:
+                                pass
                 raise
         return tuple(candidates)

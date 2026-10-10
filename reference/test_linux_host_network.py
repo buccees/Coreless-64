@@ -424,3 +424,63 @@ def test_linux_tcp_provider_rejects_identity_mismatch_after_verified_tls(tmp_pat
     assert not errors
     assert seen == [DISCOVERY_REQUEST]
 
+
+
+def test_linux_tcp_provider_closes_prior_channels_if_later_connect_fails(monkeypatch):
+    import linux_host_network
+
+    opened = []
+
+    class FakeSocket:
+        def __init__(self):
+            self.closed = False
+
+        def settimeout(self, timeout):
+            pass
+
+        def close(self):
+            self.closed = True
+
+    class FakeTransport:
+        def __init__(self, sock, *, max_packet_size):
+            self.sock = sock
+            self.closed = False
+            self.calls = 0
+            opened.append(self)
+
+        def send_packet(self, packet):
+            assert packet == DISCOVERY_REQUEST
+
+        def receive_packet(self):
+            self.calls += 1
+            return identity_frame("first-peer")
+
+        def close(self):
+            self.closed = True
+
+    raw = FakeSocket()
+    calls = 0
+
+    def fake_create_connection(address, *, timeout):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return raw
+        raise OSError("second peer is unreachable")
+
+    monkeypatch.setattr(linux_host_network.socket, "create_connection", fake_create_connection)
+    monkeypatch.setattr(linux_host_network, "SocketNetworkTransport", FakeTransport)
+    provider = LinuxTCPDiscoveryProvider(
+        [
+            LinuxTCPEndpoint("first.example", 1234, "first-peer"),
+            LinuxTCPEndpoint("second.example", 1235, "second-peer"),
+        ],
+        ssl_context=make_test_tls_context(),
+    )
+
+    with pytest.raises(OSError, match="second peer is unreachable"):
+        provider.enumerate_candidates()
+
+    assert raw.closed is False  # ownership transferred to the first transport
+    assert len(opened) == 1
+    assert opened[0].closed
