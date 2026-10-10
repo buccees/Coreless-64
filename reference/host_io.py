@@ -108,6 +108,18 @@ def decode_input_event(payload: bytes) -> InputEvent:
     if not isinstance(metadata, dict):
         raise ValueError("metadata must be a JSON object")
 
+    def validate_finite_metadata(item, path="metadata"):
+        if isinstance(item, float) and not math.isfinite(item):
+            raise ValueError(f"{path} must contain only finite numbers")
+        if isinstance(item, dict):
+            for key, nested in item.items():
+                validate_finite_metadata(nested, f"{path}.{key}")
+        elif isinstance(item, list):
+            for index, nested in enumerate(item):
+                validate_finite_metadata(nested, f"{path}[{index}]")
+
+    validate_finite_metadata(metadata)
+
     for name in ("contact_id", "button"):
         item = value.get(name)
         if item is not None and type(item) is not int:
