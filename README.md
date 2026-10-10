@@ -124,4 +124,7 @@ The repository now includes `scripts/coreless-run.py`, a direct launcher for a p
 
 Coreless now has an initial Arduino serial bridge in `reference/arduino_io.py`. It defines a bounded, versioned newline-delimited JSON protocol for pin commands and device events, with device identity checks, monotonically increasing receive sequences, allowlisted GPIO operations, strict value ranges, and malformed-frame rejection. The adapter accepts a serial-port object, so applications may use pyserial without making it a mandatory dependency of the reference runtime.
 
-Initial command set: `pin_mode`, `digital_write`, `analog_write`, `digital_read`, and `analog_read`. The bridge is a software protocol and host-side adapter, not yet a claim of tested physical Arduino hardware support; a matching firmware sketch and hardware validation are the next steps.
+Initial command set: `pin_mode`, `digital_write`, `analog_write`, `digital_read`, and `analog_read`. The matching reference firmware sketch is in `firmware/arduino/coreless_arduino_bridge.ino` and uses ArduinoJson 6.x. It demonstrates pin commands plus a periodic A0 sensor event. Physical-board validation and platform-specific serial-port discovery remain open.
+
+
+The reference Arduino sketch uses a 115200-baud serial connection and a small line buffer suitable for low-RAM boards. Change its `DEVICE_ID` to match the host adapter's configured ID. Install ArduinoJson 6.x through the Arduino Library Manager before compiling.
