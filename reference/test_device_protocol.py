@@ -146,3 +146,53 @@ def test_identity_frame_rejects_unknown_capability_bits():
     ).encode()
     with pytest.raises(ValueError, match="unknown Coreless capability bits"):
         DeviceIdentityFrame.decode(frame)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("protocol_version", True),
+    ("protocol_version", 1.5),
+    ("architecture", True),
+    ("device_type", "1"),
+    ("capabilities", False),
+    ("flags", 1.0),
+])
+def test_coreless_identity_frame_rejects_non_integer_header_fields(field, value):
+    fields = {
+        "protocol_version": 1,
+        "architecture": ARCHITECTURE_CORELESS64,
+        "device_type": DEVICE_TYPE_CORELESS64,
+        "capabilities": 0,
+        "payload": b"id",
+        "flags": 0,
+    }
+    fields[field] = value
+    with pytest.raises(TypeError, match=f"{field} must be an integer"):
+        DeviceIdentityFrame(**fields).encode()
+
+
+@pytest.mark.parametrize("version", [0, 0x10000])
+def test_coreless_identity_frame_rejects_protocol_version_out_of_wire_range(version):
+    frame = DeviceIdentityFrame(version, ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, 0)
+    with pytest.raises(ValueError, match="protocol version out of range"):
+        frame.encode()
+
+
+@pytest.mark.parametrize("payload", ["text", 3, None])
+def test_coreless_identity_frame_rejects_non_bytes_payload(payload):
+    frame = DeviceIdentityFrame(1, ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, 0, payload)
+    with pytest.raises(TypeError, match="identity payload must be bytes-like"):
+        frame.encode()
+
+
+def test_coreless_identity_frame_normalizes_bytes_like_payload_and_frame():
+    payload = bytearray(b"plug-and-play")
+    frame = DeviceIdentityFrame(1, ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, 0, payload)
+    encoded = frame.encode()
+    assert encoded.endswith(b"plug-and-play")
+    assert DeviceIdentityFrame.decode(memoryview(encoded)).payload == b"plug-and-play"
+
+
+@pytest.mark.parametrize("frame", [None, "not bytes", 42])
+def test_coreless_identity_frame_rejects_non_bytes_decode_input(frame):
+    with pytest.raises(TypeError, match="Coreless identity frame must be bytes-like"):
+        DeviceIdentityFrame.decode(frame)
