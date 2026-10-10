@@ -136,7 +136,13 @@ class CorelessHostInterface:
     ) -> frozenset[str]:
         """Decode and verify a transport identity frame, then attach the host."""
         try:
-            decoded = DeviceIdentityFrame.decode(frame) if isinstance(frame, bytes) else frame
+            if isinstance(frame, bytes):
+                decoded = DeviceIdentityFrame.decode(frame)
+            elif isinstance(frame, DeviceIdentityFrame):
+                # Validate object inputs against the same strict wire contract.
+                decoded = DeviceIdentityFrame.decode(frame.encode())
+            else:
+                raise TypeError("identity frame must be bytes or DeviceIdentityFrame")
         except ValueError as exc:
             if str(exc) == "unsupported Coreless device type":
                 raise ValueError("Coreless transport identity verification failed") from exc

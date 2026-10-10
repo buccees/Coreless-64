@@ -140,10 +140,12 @@ def test_identity_frame_rejects_non_coreless_device_type():
 
 
 def test_identity_frame_rejects_unknown_capability_bits():
-    from device_protocol import DeviceIdentityFrame, DEVICE_TYPE_CORELESS64, ARCHITECTURE_CORELESS64
-    frame = DeviceIdentityFrame(
-        1, ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, 1 << 63, b"id"
-    ).encode()
+    import struct
+    from device_protocol import FRAME_TYPE_IDENTITY, DeviceIdentityFrame
+    frame = struct.pack(
+        "<8sHHIIQII", MAGIC, 1, FRAME_TYPE_IDENTITY,
+        ARCHITECTURE_CORELESS64, DEVICE_TYPE_CORELESS64, 1 << 63, 2, 0
+    ) + b"id"
     with pytest.raises(ValueError, match="unknown Coreless capability bits"):
         DeviceIdentityFrame.decode(frame)
 
