@@ -214,6 +214,7 @@ class CorelessInputRouter:
         self.vigil_enabled = vigil is not None
         self._raw_events: list[InputEvent] = []
         self._interpreted_events: list[InterpretedInputEvent] = []
+        self._last_sequence_by_device: dict[str, int] = {}
 
     @property
     def raw_events(self) -> tuple[InputEvent, ...]:
@@ -227,17 +228,36 @@ class CorelessInputRouter:
         self.vigil_enabled = enabled
 
     def submit(self, event: InputEvent) -> tuple[InterpretedInputEvent, ...]:
-        device = self.devices.bound_device()
-        if device is None:
-            raise RuntimeError("no pointing device is bound")
-        if event.device_id != device.device_id:
-            raise PermissionError("event device is not the bound pointing device")
+        # Device-state telemetry can originate from any discovered device;
+        # interactive pointer/touch events remain restricted to the designated
+        # input device so a sensor board cannot steal keyboard/mouse focus.
+        if event.event_type is InputEventType.DEVICE_STATE:
+            device = next(
+                (candidate for candidate in self.devices.devices
+                 if candidate.device_id == event.device_id),
+                None,
+            )
+            if device is None:
+                raise PermissionError("event device is not a discovered Coreless input device")
+        else:
+            device = self.devices.bound_device()
+            if device is None:
+                raise RuntimeError("no pointing device is bound")
+            if event.device_id != device.device_id:
+                raise PermissionError("event device is not the bound pointing device")
+
         if not device.capabilities.supports(event.event_type):
             raise ValueError("event type is not supported by the device")
-        if self._raw_events and event.sequence <= self._raw_events[-1].sequence:
+        previous_sequence = self._last_sequence_by_device.get(event.device_id, -1)
+        if event.sequence <= previous_sequence:
             raise ValueError("input event sequence must increase monotonically")
+        self._last_sequence_by_device[event.device_id] = event.sequence
         self._raw_events.append(event)
 
+        # Device-state telemetry is retained as raw state and is not interpreted
+        # as a pointer/touch gesture by VIGIL.
+        if event.event_type is InputEventType.DEVICE_STATE:
+            return ()
         if not self.vigil_enabled or self.vigil is None or not self.vigil.available():
             return ()
 
