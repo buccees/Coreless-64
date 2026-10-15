@@ -131,3 +131,12 @@ The reference Arduino sketch uses a 115200-baud serial connection and a small li
 
 
 The host-side `ArduinoInputAdapter` in `reference/arduino_io.py` now translates Arduino event frames into the existing Coreless `InputEvent` ABI and forwards them through the negotiated host input transport. Sensor/GPIO events default to `DEVICE_STATE`; firmware can emit supported typed input events with validated coordinates and fields. Acknowledgements are consumed without creating fake input events. Regression tests cover sensor forwarding, pointer events, acknowledgements, and malformed numeric data.
+
+
+## Virtual Arduino lifecycle checkpoint — 2026-10-15
+
+The protocol-level simulator in `reference/arduino_simulator.py` provides deterministic software-only testing for the Arduino bridge lifecycle, including command validation, sequence replay protection, sensor events, safe output reset on disconnect, and guarded reconnect behavior. Its regression suite is `reference/test_arduino_simulator.py`.
+
+**Current state: GREEN — HOLD.** CI run [#1983](https://github.com/buccees/Coreless-64/actions/runs/38763124759) passed with **691 tests**. Work remains on [PR #18](https://github.com/buccees/Coreless-64/pull/18); the main branch is unchanged by this feature branch.
+
+This is not hardware validation. A physical Arduino, electrical behavior, real serial timing, and platform-specific serial-port discovery remain untested. Further transport/session integration is on hold pending explicit resume.
