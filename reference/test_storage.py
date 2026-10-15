@@ -214,3 +214,51 @@ def test_machine_image_sync_fsyncs_directory_after_atomic_replace(monkeypatch, t
     assert fsync_indices[0] < replace_index < fsync_indices[1]
     reopened = storage_module.PersistentMachineImage(disk)
     assert reopened.get("durability/probe") == b"persisted"
+
+
+import pytest
+
+
+@pytest.mark.parametrize(
+    ("failure_stage", "expected_value"),
+    [
+        ("file_fsync", b"old"),
+        ("replace", b"old"),
+        # Directory fsync happens after replace, so the new complete image is
+        # visible even though durability confirmation fails.
+        ("directory_fsync", b"new"),
+    ],
+)
+def test_machine_image_sync_failures_leave_a_reopenable_image(
+    monkeypatch, tmp_path, failure_stage, expected_value
+):
+    import os
+    import storage as storage_module
+
+    disk = tmp_path / "failure-stage.img"
+    image = storage_module.PersistentMachineImage(disk)
+    image.put("durability/value", b"old")
+    original_fsync = storage_module.os.fsync
+    original_replace = storage_module.os.replace
+    fsync_calls = 0
+
+    def injected_fsync(fd):
+        nonlocal fsync_calls
+        fsync_calls += 1
+        target_call = 1 if failure_stage == "file_fsync" else 2
+        if failure_stage in ("file_fsync", "directory_fsync") and fsync_calls == target_call:
+            raise OSError(f"injected {failure_stage} failure")
+        return original_fsync(fd)
+
+    def injected_replace(source, destination):
+        if failure_stage == "replace":
+            raise OSError("injected replace failure")
+        return original_replace(source, destination)
+
+    monkeypatch.setattr(storage_module.os, "fsync", injected_fsync)
+    monkeypatch.setattr(storage_module.os, "replace", injected_replace)
+    with pytest.raises(OSError, match=f"injected {failure_stage} failure"):
+        image.put("durability/value", b"new")
+
+    reopened = storage_module.PersistentMachineImage(disk)
+    assert reopened.get("durability/value") == expected_value
