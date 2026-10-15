@@ -296,8 +296,8 @@ The reference test suite is green at this checkpoint. Next implementation work s
 - [x] Lifecycle regression coverage in `reference/test_arduino_simulator.py`
 - [x] Validate command/read acknowledgements, sensor events, malformed frames, sequence replay rejection, disconnected I/O, safe output reset, reconnect guard, and oversized input
 - [x] Integrate `ArduinoSerialIO` with `VirtualArduino` using a deterministic in-memory serial shim in `reference/test_arduino_integration.py`
-- [x] Exercise command/ack round trips, analog/digital reads, sensor event delivery, disconnect safe-state reset, and reconnect sequence guard
-- [x] Green CI: [GitHub Actions run #1993](https://github.com/buccees/Coreless-64/actions/runs/38789247661), **694 passed**
+- [x] Exercise command/ack round trips, analog/digital reads, sensor event delivery, disconnect safe-state reset, reconnect sequence guard, and failed-write sequence preservation
+- [x] Green CI: [GitHub Actions run #2000](https://github.com/buccees/Coreless-64/actions/runs/38790306130), **695 passed**
 - [ ] Physical Arduino board and serial-link validation
 - [ ] Cross-platform serial-port discovery and hardware-in-the-loop tests
 
