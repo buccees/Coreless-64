@@ -145,6 +145,14 @@ class PersistentMachineImage:
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp, self.path)
+            # The file contents are durable after the file fsync, but the
+            # rename itself is not guaranteed durable until the parent
+            # directory entry is fsynced too (Linux/POSIX host target).
+            dir_fd = os.open(directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
         finally:
             if os.path.exists(tmp):
                 os.unlink(tmp)
