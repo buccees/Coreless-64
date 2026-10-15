@@ -2,11 +2,11 @@
 
 ## Lifecycle Hardening checkpoint — 2026-10-15
 
-**Status: GREEN — HOLD.** The virtual Arduino lifecycle simulator and its reference tests are committed on the feature branch. GitHub Actions workflow run [#1983](https://github.com/buccees/Coreless-64/actions/runs/38763124759) passed: **691 tests passed**. Fix commit: `19ef9e5f5c9522c35b0367e231aa5f2555e379d1`; pull request: [#18](https://github.com/buccees/Coreless-64/pull/18).
+**Status: GREEN — software integration verified; hardware pending.** The virtual Arduino simulator and bridge-to-simulator integration tests are on the feature branch. GitHub Actions run [#1993](https://github.com/buccees/Coreless-64/actions/runs/38789247661) passed: **694 tests passed** (including the 3 new integration tests). Integration test commit: `354d7c551ab25bcb8fe1ab107f1c833cf92bae1c`; pull request: [#18](https://github.com/buccees/Coreless-64/pull/18).
 
 Scope validated in software: newline-delimited protocol v1 handling, command acknowledgements and read values, sensor events, malformed/invalid frames, duplicate/out-of-order host sequence rejection, configured virtual inputs, disconnect output-safe reset, disconnected I/O rejection, reconnect without stale-command replay, and oversized-line rejection.
 
-**Hold point:** do not begin transport/session integration until explicitly resumed. The simulator is a protocol-level software model; no physical Arduino board, electrical behavior, real serial timing, or physical device discovery has been validated. Do not merge based on this software pass alone.
+**Verified in software:** `reference/test_arduino_integration.py` joins `ArduinoSerialIO` to `VirtualArduino` using an in-memory serial shim and checks command/ack round trips, digital/analog reads, sensor events, disconnect safe-state reset, and reconnect sequence replay protection. The simulator remains a protocol-level model; no physical Arduino board, electrical behavior, real serial timing, or platform-specific serial discovery has been validated. Keep PR #18 unmerged until the intended review/merge decision; do not present this CI pass as hardware validation.
 
 ## Current state
 
@@ -482,3 +482,8 @@ This milestone does not claim physical USB/PCIe/display/input/network adapters. 
 ## Documentation checkpoint — 2026-10-07: atomic HostIO validation
 
 The negotiated HostIO boundary now validates the complete negotiated display/input/network bundle before channel mutation and validates the input-router contract before binding. Regression coverage preserves the no-partial-attachment invariant. The latest reference-test checkpoint is green. Resume with concrete platform host providers/adapters while preserving the transport-neutral discovery, HostIO, command, and session contracts. Physical device support remains unclaimed.
+
+
+## Bridge integration checkpoint — 2026-10-15
+
+The bridge-to-simulator integration is now covered by three tests in `reference/test_arduino_integration.py`. GitHub Actions run [#1993](https://github.com/buccees/Coreless-64/actions/runs/38789247661) is green at 694 tests. `main` remains untouched and PR #18 remains open. Next: review the integration boundary and error-path coverage, then define the real-board bring-up checklist. No Arduino hardware is available yet, so physical validation remains explicitly pending.
