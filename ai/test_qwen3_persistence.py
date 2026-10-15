@@ -147,3 +147,31 @@ def test_restore_rejects_corrupt_committed_tensor_payload():
     with pytest.raises(ValueError, match="invalid persisted tensor payload"):
         Qwen3KVCache.restore(runtime, "session", 2)
 
+def test_first_manifest_sync_failure_leaves_no_committed_snapshot(monkeypatch, tmp_path):
+    path = tmp_path / "first-save.json"
+    image = PersistentMachineImage(path)
+    runtime = TensorRuntime(image)
+    original_sync = image.sync
+
+    def fail_manifest_sync():
+        if "tensor/session_manifest" in image.objects:
+            raise OSError("injected first manifest durability failure")
+        return original_sync()
+
+    monkeypatch.setattr(image, "sync", fail_manifest_sync)
+    with pytest.raises(OSError, match="injected first manifest durability failure"):
+        _cache(runtime, 300).persist(runtime, "session")
+
+    assert "tensor/session_manifest" not in image.objects
+    # No manifest means restore must not discover orphaned generation tensors.
+    restored = Qwen3KVCache.restore(runtime, "session", 2)
+    assert restored.sequence_length == 0
+    assert restored.keys == [None, None]
+    assert restored.values == [None, None]
+
+    reopened = PersistentMachineImage(path)
+    reopened_cache = Qwen3KVCache.restore(TensorRuntime(reopened), "session", 2)
+    assert reopened_cache.sequence_length == 0
+    assert reopened_cache.keys == [None, None]
+    assert reopened_cache.values == [None, None]
+
