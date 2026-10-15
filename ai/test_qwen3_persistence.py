@@ -228,4 +228,7 @@ def test_manifest_rollback_sync_failure_is_reported(monkeypatch):
     monkeypatch.setattr(image, "sync", fail_commit_and_rollback)
     with pytest.raises(RuntimeError, match="rollback could not be made durable") as exc:
         _cache(runtime, 500).persist(runtime, "session")
+    # Tensor writes are staged without sync; these two calls are specifically
+    # the manifest commit and the attempted durable rollback.
+    assert calls == 2
     assert isinstance(exc.value.__cause__, OSError)
