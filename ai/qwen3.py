@@ -65,30 +65,112 @@ class Qwen3KVCache:
         return self.validate()
 
     def persist(self, runtime: TensorRuntime, name: str) -> tuple[str, ...]:
-        """Persist every populated KV tensor through the Coreless tensor store."""
+        """Persist a complete KV snapshot, publishing its manifest only at commit."""
+        import json
+
         if not name or "/" in name:
             raise ValueError("cache name must be a non-empty local name")
-        # Validate the entire cache before the first persistent write. This
-        # prevents malformed layer counts or divergent sequence lengths from
-        # leaving a partially updated persistent snapshot.
-        self.validate()
+        sequence_length = self.validate()
         if self.runtime is not None and runtime is not self.runtime:
             raise ValueError("Qwen3 KV cache is bound to a different TensorRuntime")
+        if runtime.storage is None:
+            raise RuntimeError("tensor runtime has no persistent storage")
+
+        manifest_name = f"{name}_manifest"
+        manifest_key = f"{runtime.namespace}/{manifest_name}"
+        previous = runtime.storage.objects.get(manifest_key)
+        generation = 1
+        if previous is not None:
+            try:
+                manifest = json.loads(previous.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise ValueError("invalid Qwen3 KV cache manifest") from exc
+            if (
+                not isinstance(manifest, dict)
+                or manifest.get("version") != 1
+                or type(manifest.get("generation")) is not int
+                or manifest["generation"] < 1
+            ):
+                raise ValueError("invalid Qwen3 KV cache manifest")
+            generation = manifest["generation"] + 1
+
+        # Each attempt writes to fresh names. If any tensor write fails, the
+        # committed manifest still names the previous complete snapshot.
+        layers: list[int] = []
         keys: list[str] = []
         for layer_index, (key, value) in enumerate(zip(self.keys, self.values)):
             if key is None or value is None:
                 continue
-            keys.append(runtime.save(f"{name}_layer_{layer_index}_key", key))
-            keys.append(runtime.save(f"{name}_layer_{layer_index}_value", value))
+            snapshot = f"{name}_snapshot_{generation}_layer_{layer_index}"
+            keys.append(runtime.save(f"{snapshot}_key", key))
+            keys.append(runtime.save(f"{snapshot}_value", value))
+            layers.append(layer_index)
+
+        committed = {
+            "version": 1,
+            "generation": generation,
+            "num_layers": len(self.keys),
+            "sequence_length": sequence_length,
+            "layers": layers,
+        }
+        # This single pointer update is the commit point. Orphaned tensors
+        # from a failed attempt are harmless because restore never discovers
+        # snapshots by scanning storage; it follows only the committed manifest.
+        runtime.storage.put(
+            manifest_key,
+            json.dumps(committed, separators=(",", ":"), sort_keys=True).encode("utf-8"),
+            sync=False,
+        )
         return tuple(keys)
 
     @classmethod
     def restore(cls, runtime: TensorRuntime, name: str, num_layers: int) -> "Qwen3KVCache":
-        """Restore a KV cache from Coreless tensor-backed persistent state."""
+        """Restore the committed KV snapshot, with support for legacy tensor names."""
+        import json
+
         if not name or "/" in name:
             raise ValueError("cache name must be a non-empty local name")
         if num_layers < 1:
             raise ValueError("num_layers must be positive")
+        if runtime.storage is None:
+            raise RuntimeError("tensor runtime has no persistent storage")
+
+        manifest_key = f"{runtime.namespace}/{name}_manifest"
+        raw_manifest = runtime.storage.objects.get(manifest_key)
+        if raw_manifest is not None:
+            try:
+                manifest = json.loads(raw_manifest.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise ValueError("invalid Qwen3 KV cache manifest") from exc
+            if (
+                not isinstance(manifest, dict)
+                or manifest.get("version") != 1
+                or type(manifest.get("generation")) is not int
+                or manifest["generation"] < 1
+                or manifest.get("num_layers") != num_layers
+                or type(manifest.get("sequence_length")) is not int
+                or manifest["sequence_length"] < 0
+                or not isinstance(manifest.get("layers"), list)
+                or any(type(index) is not int or index < 0 or index >= num_layers
+                       for index in manifest["layers"])
+                or len(set(manifest["layers"])) != len(manifest["layers"])
+            ):
+                raise ValueError("invalid Qwen3 KV cache manifest")
+            cache = cls.create(num_layers, runtime)
+            generation = manifest["generation"]
+            for layer_index in manifest["layers"]:
+                snapshot = f"{name}_snapshot_{generation}_layer_{layer_index}"
+                try:
+                    key = runtime.load(f"{snapshot}_key")
+                    value = runtime.load(f"{snapshot}_value")
+                except KeyError as exc:
+                    raise ValueError("committed Qwen3 KV cache snapshot is incomplete") from exc
+                cache.append(layer_index, key, value)
+            if cache.sequence_length != manifest["sequence_length"]:
+                raise ValueError("committed Qwen3 KV cache sequence length does not match manifest")
+            return cache
+
+        # Backward compatibility for snapshots written before manifests existed.
         cache = cls.create(num_layers, runtime)
         for layer_index in range(num_layers):
             key_name = f"{name}_layer_{layer_index}_key"
