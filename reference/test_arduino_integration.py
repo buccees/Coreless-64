@@ -2,6 +2,7 @@
 import sys
 sys.path.insert(0, ".")
 
+import pytest
 from arduino_io import ArduinoSerialIO, decode_message
 from arduino_simulator import VirtualArduino
 
@@ -85,3 +86,20 @@ def test_disconnect_safe_state_and_reconnect_keep_command_sequence_guard():
     assert replay["kind"] == "error"
     assert replay["payload"]["message"] == "command sequence is not increasing"
     assert device.digital_outputs[13] == 1
+
+
+def test_failed_write_while_disconnected_does_not_consume_sequence():
+    device = VirtualArduino()
+    serial = VirtualSerialPort(device)
+    bridge = ArduinoSerialIO(serial, device.device_id)
+    device.disconnect()
+
+    with pytest.raises(RuntimeError, match="virtual Arduino is disconnected"):
+        bridge.send_command("digital_write", pin=5, value=1)
+
+    device.reconnect()
+    assert bridge.send_command("digital_write", pin=5, value=1) == 0
+    ack = bridge.receive_message()
+    assert ack["kind"] == "ack"
+    assert ack["payload"]["request_sequence"] == 0
+    assert device.digital_outputs[5] == 1
