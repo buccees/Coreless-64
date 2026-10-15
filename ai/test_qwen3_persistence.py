@@ -88,3 +88,32 @@ def test_kv_cache_restore_rejects_corrupt_manifest():
     image.put("tensor/session_manifest", b'{"version":1,"generation":"bad"}')
     with pytest.raises(ValueError, match="invalid Qwen3 KV cache manifest"):
         Qwen3KVCache.restore(TensorRuntime(image), "session", 2)
+
+def test_manifest_sync_failure_rolls_back_published_pointer(monkeypatch):
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    old_cache = _cache(runtime, 7)
+    old_cache.persist(runtime, "session")
+    old_manifest = image.objects["tensor/session_manifest"]
+
+    original_sync = image.sync
+
+    def fail_new_manifest_sync():
+        raw = image.objects.get("tensor/session_manifest", b"")
+        try:
+            generation = json.loads(raw.decode("utf-8")).get("generation")
+        except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
+            generation = None
+        if generation == 2:
+            raise OSError("injected manifest durability failure")
+        return original_sync()
+
+    monkeypatch.setattr(image, "sync", fail_new_manifest_sync)
+    with pytest.raises(OSError, match="injected manifest durability failure"):
+        _cache(runtime, 200).persist(runtime, "session")
+
+    assert image.objects["tensor/session_manifest"] == old_manifest
+    restored = Qwen3KVCache.restore(runtime, "session", 2)
+    assert [item.data for item in restored.keys] == [item.data for item in old_cache.keys]
+    assert [item.data for item in restored.values] == [item.data for item in old_cache.values]
+
