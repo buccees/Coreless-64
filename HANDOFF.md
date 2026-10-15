@@ -1,5 +1,13 @@
 # Coreless-64 — Project Handoff
 
+## Lifecycle Hardening checkpoint — 2026-10-15
+
+**Status: GREEN — HOLD.** The virtual Arduino lifecycle simulator and its reference tests are committed on the feature branch. GitHub Actions workflow run [#1983](https://github.com/buccees/Coreless-64/actions/runs/38763124759) passed: **691 tests passed**. Fix commit: `19ef9e5f5c9522c35b0367e231aa5f2555e379d1`; pull request: [#18](https://github.com/buccees/Coreless-64/pull/18).
+
+Scope validated in software: newline-delimited protocol v1 handling, command acknowledgements and read values, sensor events, malformed/invalid frames, duplicate/out-of-order host sequence rejection, configured virtual inputs, disconnect output-safe reset, disconnected I/O rejection, reconnect without stale-command replay, and oversized-line rejection.
+
+**Hold point:** do not begin transport/session integration until explicitly resumed. The simulator is a protocol-level software model; no physical Arduino board, electrical behavior, real serial timing, or physical device discovery has been validated. Do not merge based on this software pass alone.
+
 ## Current state
 
 **Status: green.** The repository is at a stable checkpoint with the Coreless-64 digital machine foundation, 314DNest control plane, persistent tensor runtime, Transformer integration, autonomous component execution, Hub scheduling, and reference host transport layer all passing CI.
