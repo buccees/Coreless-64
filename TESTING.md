@@ -93,3 +93,18 @@ This is an optimization layer over the existing Coreless machine architecture, n
 - worker sizing never exceeds executable resource capacity;
 - single-item dispatch avoids unnecessary worker-pool setup;
 - queue behavior preserves input/result ordering and fallback semantics.
+
+## Physical Arduino bring-up checklist (pending hardware)
+
+This checklist is prepared for the first real-board session; **none of these hardware checks have been run yet**.
+
+1. Record the exact board model, MCU/logic voltage, firmware revision, host OS, serial-port name, and USB/serial adapter details.
+2. Confirm the board's documented voltage limits and pin capabilities before wiring. Begin with external loads disconnected; use only a known-safe onboard LED or a correctly current-limited indicator circuit for the first output check. Do not drive motors, relays, or other high-current loads directly from GPIO.
+3. Build and upload the reference sketch for the exact board. Confirm the configured serial rate (115200 baud) at both ends and verify the expected device identity/protocol version.
+4. Start with one digital output and verify its acknowledgement and physical state. Then test a digital input and an analog input using a known-safe voltage within that board's specified input range.
+5. Verify malformed commands are rejected without unintended pin changes. Record the response and resulting pin state for each case.
+6. Disconnect the serial link and confirm the physical output behavior matches the documented firmware safe-state policy. Reconnect and verify that stale commands are not replayed and fresh commands work.
+7. Repeat unplug/replug and reset tests; capture logs and record any differences between the real device and VirtualArduino.
+8. Only after the basic checks pass, consider additional pins or external circuitry, with the relevant electrical protection and load drivers in place.
+
+**Exit criteria:** attach test logs, board/firmware details, and observed electrical behavior before changing the hardware-validation status from pending. Software CI alone cannot satisfy this checklist.
