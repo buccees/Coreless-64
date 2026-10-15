@@ -89,8 +89,9 @@ def test_kv_cache_restore_rejects_corrupt_manifest():
     with pytest.raises(ValueError, match="invalid Qwen3 KV cache manifest"):
         Qwen3KVCache.restore(TensorRuntime(image), "session", 2)
 
-def test_manifest_sync_failure_rolls_back_published_pointer(monkeypatch):
-    image = PersistentMachineImage()
+def test_manifest_sync_failure_rolls_back_published_pointer(monkeypatch, tmp_path):
+    path = tmp_path / "machine.json"
+    image = PersistentMachineImage(path)
     runtime = TensorRuntime(image)
     old_cache = _cache(runtime, 7)
     old_cache.persist(runtime, "session")
@@ -116,6 +117,12 @@ def test_manifest_sync_failure_rolls_back_published_pointer(monkeypatch):
     restored = Qwen3KVCache.restore(runtime, "session", 2)
     assert [item.data for item in restored.keys] == [item.data for item in old_cache.keys]
     assert [item.data for item in restored.values] == [item.data for item in old_cache.values]
+
+    # The failed commit must not replace the durable manifest on disk either.
+    reopened = PersistentMachineImage(path)
+    reopened_cache = Qwen3KVCache.restore(TensorRuntime(reopened), "session", 2)
+    assert [item.data for item in reopened_cache.keys] == [item.data for item in old_cache.keys]
+    assert [item.data for item in reopened_cache.values] == [item.data for item in old_cache.values]
 
 def test_restore_rejects_committed_snapshot_with_missing_tensor():
     image = PersistentMachineImage()
