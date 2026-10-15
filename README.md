@@ -137,6 +137,6 @@ The host-side `ArduinoInputAdapter` in `reference/arduino_io.py` now translates 
 
 The protocol-level simulator in `reference/arduino_simulator.py` provides deterministic software-only testing for the Arduino bridge lifecycle, including command validation, sequence replay protection, sensor events, safe output reset on disconnect, and guarded reconnect behavior. Its regression suite is `reference/test_arduino_simulator.py`.
 
-**Current state: GREEN — HOLD.** CI run [#1983](https://github.com/buccees/Coreless-64/actions/runs/38763124759) passed with **691 tests**. Work remains on [PR #18](https://github.com/buccees/Coreless-64/pull/18); the main branch is unchanged by this feature branch.
+**Current state: GREEN — software integration complete; hardware pending.** CI run [#2007](https://github.com/buccees/Coreless-64/actions/runs/38790610629) passed with **695 tests**. Work remains on [PR #18](https://github.com/buccees/Coreless-64/pull/18); the main branch is unchanged by this feature branch.
 
-This is not hardware validation. A physical Arduino, electrical behavior, real serial timing, and platform-specific serial-port discovery remain untested. Further transport/session integration is on hold pending explicit resume.
+This is not hardware validation. A physical Arduino, electrical behavior, real serial timing, and platform-specific serial-port discovery remain untested. The bridge-to-simulator integration is complete for this phase. Real-board validation and platform-specific serial discovery remain pending until hardware is available.
