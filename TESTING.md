@@ -25,7 +25,7 @@ Reference/CI testing validates the software implementation. It does not by itsel
 
 ## Virtual Arduino lifecycle simulator
 
-`reference/arduino_simulator.py` provides a deterministic software model of the newline-delimited Arduino bridge protocol. Its lifecycle regression tests are in `reference/test_arduino_simulator.py`. The passing CI checkpoint is [workflow run #1983](https://github.com/buccees/Coreless-64/actions/runs/38763124759), with 691 tests passing.
+`reference/arduino_simulator.py` provides a deterministic software model of the newline-delimited Arduino bridge protocol. Simulator tests are in `reference/test_arduino_simulator.py`; bridge-to-simulator integration tests are in `reference/test_arduino_integration.py`. GitHub Actions [run #1993](https://github.com/buccees/Coreless-64/actions/runs/38789247661) passed with **694 tests**. The three integration tests cover command acknowledgements and sequence correlation, digital/analog reads, sensor events, disconnect safe-state reset, and reconnect replay protection.
 
 The simulator validates protocol behavior only. It does not validate electrical behavior, physical serial timing, a real Arduino board, or platform-specific serial discovery. Those remain open.
 
