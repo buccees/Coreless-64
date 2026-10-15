@@ -117,3 +117,26 @@ def test_manifest_sync_failure_rolls_back_published_pointer(monkeypatch):
     assert [item.data for item in restored.keys] == [item.data for item in old_cache.keys]
     assert [item.data for item in restored.values] == [item.data for item in old_cache.values]
 
+def test_restore_rejects_committed_snapshot_with_missing_tensor():
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    _cache(runtime, 9).persist(runtime, "session")
+    manifest = json.loads(image.objects["tensor/session_manifest"].decode("utf-8"))
+    generation = manifest["generation"]
+    image.objects.pop(f"tensor/session_snapshot_{generation}_layer_1_value")
+
+    with pytest.raises(ValueError, match="committed Qwen3 KV cache snapshot is incomplete"):
+        Qwen3KVCache.restore(runtime, "session", 2)
+
+
+def test_restore_rejects_corrupt_committed_tensor_payload():
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    _cache(runtime, 13).persist(runtime, "session")
+    manifest = json.loads(image.objects["tensor/session_manifest"].decode("utf-8"))
+    generation = manifest["generation"]
+    image.objects[f"tensor/session_snapshot_{generation}_layer_0_key"] = b"{not-json"
+
+    with pytest.raises(ValueError, match="invalid persisted tensor payload"):
+        Qwen3KVCache.restore(runtime, "session", 2)
+
