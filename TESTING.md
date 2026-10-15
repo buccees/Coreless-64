@@ -21,10 +21,18 @@ Reference/CI testing validates the software implementation. It does not by itsel
 - Transformer → TensorRuntime routing
 - autonomous component identity, lifecycle, fault isolation, hub workload dispatch, native CPU/VM execution, and multi-vCPU Hub scheduling
 - reference host enumeration, capability negotiation, channel binding, and transport readiness
+- virtual Arduino protocol v1 lifecycle: command/read acknowledgements, sensor events, malformed frames, sequence replay rejection, disconnect safe-state behavior, reconnect sequence guard, and virtual input values
+
+## Virtual Arduino lifecycle simulator
+
+`reference/arduino_simulator.py` provides a deterministic software model of the newline-delimited Arduino bridge protocol. Its lifecycle regression tests are in `reference/test_arduino_simulator.py`. The passing CI checkpoint is [workflow run #1983](https://github.com/buccees/Coreless-64/actions/runs/38763124759), with 691 tests passing.
+
+The simulator validates protocol behavior only. It does not validate electrical behavior, physical serial timing, a real Arduino board, or platform-specific serial discovery. Those remain open.
 
 ## Not yet validated
 
 - concrete cross-platform host enumeration and physical display/input/network transports
+- physical Arduino board, electrical behavior, serial timing, and platform-specific serial-port discovery
 - tensor-backed Qwen3 KV cache and fully native head reshape/repeat/data movement
 - official trained Qwen3-0.6B end-to-end inference
 - complete persistent-storage-hosted Coreless runtime environment
