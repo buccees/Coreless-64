@@ -295,9 +295,11 @@ The reference test suite is green at this checkpoint. Next implementation work s
 - [x] Deterministic virtual Arduino protocol simulator in `reference/arduino_simulator.py`
 - [x] Lifecycle regression coverage in `reference/test_arduino_simulator.py`
 - [x] Validate command/read acknowledgements, sensor events, malformed frames, sequence replay rejection, disconnected I/O, safe output reset, reconnect guard, and oversized input
-- [x] Green CI: [GitHub Actions run #1983](https://github.com/buccees/Coreless-64/actions/runs/38763124759), **691 passed**
+- [x] Integrate `ArduinoSerialIO` with `VirtualArduino` using a deterministic in-memory serial shim in `reference/test_arduino_integration.py`
+- [x] Exercise command/ack round trips, analog/digital reads, sensor event delivery, disconnect safe-state reset, and reconnect sequence guard
+- [x] Green CI: [GitHub Actions run #1993](https://github.com/buccees/Coreless-64/actions/runs/38789247661), **694 passed**
 - [ ] Physical Arduino board and serial-link validation
 - [ ] Cross-platform serial-port discovery and hardware-in-the-loop tests
 
-**Current subproject state: GREEN — HOLD.** Keep changes on [PR #18](https://github.com/buccees/Coreless-64/pull/18). Do not start the next integration step until explicitly resumed. The simulator is a protocol-level model, not evidence of physical hardware behavior.
+**Current subproject state: GREEN — software integration verified; hardware pending.** Keep changes on [PR #18](https://github.com/buccees/Coreless-64/pull/18). The simulator is a protocol-level model, not evidence of physical hardware behavior.
 
