@@ -262,3 +262,37 @@ def test_machine_image_sync_failures_leave_a_reopenable_image(
 
     reopened = storage_module.PersistentMachineImage(disk)
     assert reopened.get("durability/value") == expected_value
+
+
+def test_large_sparse_machine_image_reopens_and_resumes_state(tmp_path):
+    disk = tmp_path / "large-coreless.img"
+    memory_size = 16 * 1024 * 1024
+    first = CorelessMachine(memory_size, storage_path=disk)
+    first.boot()
+
+    # Touch the first and final RAM pages without materializing the whole RAM.
+    first.cpu.memory[0:4] = b"BOOT"
+    first.cpu.memory[memory_size - 4:memory_size] = b"TAIL"
+    first.cpu.memory.flush()
+    first.cpu.r[12] = 0xC064
+    first.cpu.pc = memory_size - 4
+    first.save_state()
+
+    reopened = CorelessMachine(memory_size, storage_path=disk)
+    assert reopened.booted is True
+    assert reopened.cpu.memory.size == memory_size
+    assert bytes(reopened.cpu.memory[0:4]) == b"BOOT"
+    assert bytes(reopened.cpu.memory[memory_size - 4:memory_size]) == b"TAIL"
+    assert reopened.cpu.r[12] == 0xC064
+    assert reopened.cpu.pc == memory_size - 4
+    assert sum(name.startswith("ram/ram/") for name in reopened.storage.objects) == 2
+
+
+def test_reopen_rejects_ram_size_mismatch(tmp_path):
+    disk = tmp_path / "ram-size-mismatch.img"
+    machine = CorelessMachine(16 * 1024 * 1024, storage_path=disk)
+    machine.cpu.memory[0:4] = b"BOOT"
+    machine.cpu.memory.flush()
+
+    with pytest.raises(ValueError, match="RAM size does not match machine image"):
+        CorelessMachine(8 * 1024 * 1024, storage_path=disk)
