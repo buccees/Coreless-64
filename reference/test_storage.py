@@ -184,3 +184,33 @@ def test_application_and_shell_state_persist(tmp_path):
     os2 = CorelessOS(second)
     assert os2.init_pid == 1
     assert os2.application_state[app.pid]["path"] == "/app"
+
+
+def test_machine_image_sync_fsyncs_directory_after_atomic_replace(monkeypatch, tmp_path):
+    import storage as storage_module
+
+    disk = tmp_path / "durable.img"
+    image = storage_module.PersistentMachineImage(disk)
+    events = []
+    original_fsync = storage_module.os.fsync
+    original_replace = storage_module.os.replace
+
+    def record_fsync(fd):
+        events.append(("fsync", os.fstat(fd).st_mode))
+        return original_fsync(fd)
+
+    def record_replace(source, destination):
+        events.append(("replace", str(destination)))
+        return original_replace(source, destination)
+
+    import os
+    monkeypatch.setattr(storage_module.os, "fsync", record_fsync)
+    monkeypatch.setattr(storage_module.os, "replace", record_replace)
+    image.put("durability/probe", b"persisted")
+
+    replace_index = next(i for i, event in enumerate(events) if event[0] == "replace")
+    fsync_indices = [i for i, event in enumerate(events) if event[0] == "fsync"]
+    assert len(fsync_indices) == 2
+    assert fsync_indices[0] < replace_index < fsync_indices[1]
+    reopened = storage_module.PersistentMachineImage(disk)
+    assert reopened.get("durability/probe") == b"persisted"
