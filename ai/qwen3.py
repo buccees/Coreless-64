@@ -124,12 +124,22 @@ class Qwen3KVCache:
         ).encode("utf-8")
         try:
             runtime.storage.put(manifest_key, committed_manifest, sync=True)
-        except Exception:
+        except Exception as commit_error:
             if previous is None:
                 runtime.storage.objects.pop(manifest_key, None)
             else:
                 runtime.storage.objects[manifest_key] = previous
-            raise
+            # A sync can fail after the underlying atomic replacement already
+            # happened. Persist the rollback too, rather than assuming a raised
+            # exception means the on-disk image was left untouched.
+            try:
+                runtime.storage.sync()
+            except Exception as rollback_error:
+                raise RuntimeError(
+                    "Qwen3 KV cache manifest commit failed and rollback could "
+                    "not be made durable"
+                ) from rollback_error
+            raise commit_error
         return tuple(keys)
 
     @classmethod
