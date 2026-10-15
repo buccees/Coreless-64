@@ -2,7 +2,7 @@
 
 ## Lifecycle Hardening checkpoint — 2026-10-15
 
-**Status: GREEN — software integration verified; hardware pending.** The virtual Arduino simulator and bridge-to-simulator integration tests are on the feature branch. GitHub Actions run [#2000](https://github.com/buccees/Coreless-64/actions/runs/38790306130) passed: **695 tests passed** (including the 4 integration tests). Integration test commit: `354d7c551ab25bcb8fe1ab107f1c833cf92bae1c`; pull request: [#18](https://github.com/buccees/Coreless-64/pull/18).
+**Status: GREEN — software integration verified; hardware pending.** The virtual Arduino simulator and bridge-to-simulator integration tests are on the feature branch. GitHub Actions run [#2007](https://github.com/buccees/Coreless-64/actions/runs/38790610629) passed: **695 tests passed** (including the 4 integration tests). Integration test commit: `354d7c551ab25bcb8fe1ab107f1c833cf92bae1c`; pull request: [#18](https://github.com/buccees/Coreless-64/pull/18).
 
 Scope validated in software: newline-delimited protocol v1 handling, command acknowledgements and read values, sensor events, malformed/invalid frames, duplicate/out-of-order host sequence rejection, configured virtual inputs, disconnect output-safe reset, disconnected I/O rejection, reconnect without stale-command replay, and oversized-line rejection.
 
@@ -486,4 +486,4 @@ The negotiated HostIO boundary now validates the complete negotiated display/inp
 
 ## Bridge integration checkpoint — 2026-10-15
 
-The bridge-to-simulator integration is now covered by four tests in `reference/test_arduino_integration.py`. GitHub Actions run [#2000](https://github.com/buccees/Coreless-64/actions/runs/38790306130) is green at 695 tests. `main` remains untouched and PR #18 remains open. Next: review the integration boundary and error-path coverage, then define the real-board bring-up checklist. No Arduino hardware is available yet, so physical validation remains explicitly pending.
+The bridge-to-simulator integration is now covered by four tests in `reference/test_arduino_integration.py`. GitHub Actions run [#2007](https://github.com/buccees/Coreless-64/actions/runs/38790610629) is green at 695 tests. `main` remains untouched and PR #18 remains open. Software-phase exit: bridge integration and error-path coverage are documented, and the real-board bring-up checklist is prepared. No Arduino hardware is available yet, so physical validation remains explicitly pending.
