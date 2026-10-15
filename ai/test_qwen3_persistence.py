@@ -175,3 +175,57 @@ def test_first_manifest_sync_failure_leaves_no_committed_snapshot(monkeypatch, t
     assert reopened_cache.keys == [None, None]
     assert reopened_cache.values == [None, None]
 
+
+def test_manifest_sync_that_fails_after_disk_replace_rolls_back_durably(monkeypatch, tmp_path):
+    path = tmp_path / "ambiguous-commit.json"
+    image = PersistentMachineImage(path)
+    runtime = TensorRuntime(image)
+    old_cache = _cache(runtime, 17)
+    old_cache.persist(runtime, "session")
+    old_manifest = image.objects["tensor/session_manifest"]
+    original_sync = image.sync
+    failed_once = False
+
+    def sync_then_report_failure():
+        nonlocal failed_once
+        if not failed_once:
+            raw = image.objects.get("tensor/session_manifest", b"")
+            try:
+                generation = json.loads(raw.decode("utf-8")).get("generation")
+            except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
+                generation = None
+            if generation == 2:
+                failed_once = True
+                original_sync()  # Simulate replacement succeeding before error.
+                raise OSError("injected post-replace durability error")
+        return original_sync()
+
+    monkeypatch.setattr(image, "sync", sync_then_report_failure)
+    with pytest.raises(OSError, match="post-replace durability error"):
+        _cache(runtime, 400).persist(runtime, "session")
+
+    assert image.objects["tensor/session_manifest"] == old_manifest
+    reopened = PersistentMachineImage(path)
+    restored = Qwen3KVCache.restore(TensorRuntime(reopened), "session", 2)
+    assert [item.data for item in restored.keys] == [item.data for item in old_cache.keys]
+    assert [item.data for item in restored.values] == [item.data for item in old_cache.values]
+
+
+def test_manifest_rollback_sync_failure_is_reported(monkeypatch):
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    _cache(runtime, 19).persist(runtime, "session")
+    original_sync = image.sync
+    calls = 0
+
+    def fail_commit_and_rollback():
+        nonlocal calls
+        calls += 1
+        if calls <= 2:
+            raise OSError("injected sync failure")
+        return original_sync()
+
+    monkeypatch.setattr(image, "sync", fail_commit_and_rollback)
+    with pytest.raises(RuntimeError, match="rollback could not be made durable") as exc:
+        _cache(runtime, 500).persist(runtime, "session")
+    assert isinstance(exc.value.__cause__, OSError)
