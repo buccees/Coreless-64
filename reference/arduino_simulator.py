@@ -124,7 +124,8 @@ class VirtualArduino:
             "op": operation,
             "ok": True,
         }
-        if value is not None:
+        # Match the firmware: acknowledgements include a value for reads only.
+        if operation in ("digital_read", "analog_read") and value is not None:
             ack_payload["value"] = value
         return self._encode("ack", ack_payload)
 
