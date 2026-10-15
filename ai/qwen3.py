@@ -116,11 +116,20 @@ class Qwen3KVCache:
         # This single pointer update is the commit point. Orphaned tensors
         # from a failed attempt are harmless because restore never discovers
         # snapshots by scanning storage; it follows only the committed manifest.
-        runtime.storage.put(
-            manifest_key,
-            json.dumps(committed, separators=(",", ":"), sort_keys=True).encode("utf-8"),
-            sync=False,
-        )
+        # Publish the pointer durably only after every tensor write has completed.
+        # PersistentMachineImage updates its in-memory object before syncing, so
+        # restore the previous in-memory pointer if the durable commit fails.
+        committed_manifest = json.dumps(
+            committed, separators=(",", ":"), sort_keys=True
+        ).encode("utf-8")
+        try:
+            runtime.storage.put(manifest_key, committed_manifest, sync=True)
+        except Exception:
+            if previous is None:
+                runtime.storage.objects.pop(manifest_key, None)
+            else:
+                runtime.storage.objects[manifest_key] = previous
+            raise
         return tuple(keys)
 
     @classmethod
