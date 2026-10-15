@@ -232,3 +232,44 @@ def test_manifest_rollback_sync_failure_is_reported(monkeypatch):
     # the manifest commit and the attempted durable rollback.
     assert calls == 2
     assert isinstance(exc.value.__cause__, OSError)
+
+
+def test_manifest_rollback_directory_fsync_failure_reports_uncertain_durability(monkeypatch, tmp_path):
+    import os
+    import storage as storage_module
+
+    path = tmp_path / "rollback-directory-fsync.json"
+    image = PersistentMachineImage(path)
+    runtime = TensorRuntime(image)
+    old_cache = _cache(runtime, 23)
+    old_cache.persist(runtime, "session")
+    old_manifest = image.objects["tensor/session_manifest"]
+
+    original_fsync = storage_module.os.fsync
+    fsync_calls = 0
+
+    def fail_commit_and_rollback_directory_fsync(fd):
+        nonlocal fsync_calls
+        fsync_calls += 1
+        # Each sync fsyncs the temporary file, replaces the image, then
+        # fsyncs the parent directory. Fail after both replacements so the
+        # caller cannot claim either rename was durably confirmed.
+        if fsync_calls in (2, 4):
+            raise OSError("injected directory fsync failure")
+        return original_fsync(fd)
+
+    monkeypatch.setattr(storage_module.os, "fsync", fail_commit_and_rollback_directory_fsync)
+    with pytest.raises(RuntimeError, match="rollback could not be made durable") as exc:
+        _cache(runtime, 600).persist(runtime, "session")
+
+    assert fsync_calls == 4
+    assert isinstance(exc.value.__cause__, OSError)
+    assert image.objects["tensor/session_manifest"] == old_manifest
+
+    # The rollback replacement reached the filesystem, although its directory
+    # durability could not be confirmed; reopening should still parse the image
+    # and select the old, committed generation in this injected scenario.
+    reopened = PersistentMachineImage(path)
+    restored = Qwen3KVCache.restore(TensorRuntime(reopened), "session", 2)
+    assert [item.data for item in restored.keys] == [item.data for item in old_cache.keys]
+    assert [item.data for item in restored.values] == [item.data for item in old_cache.values]
