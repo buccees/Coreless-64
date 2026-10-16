@@ -306,10 +306,10 @@ def test_storage_region_policy_rejects_cross_region_name_collisions():
     policy.register_region("state", ("state/",), mutable=True)
 
     assert policy.region_for("model/qwen3/weights.bin") == "model"
-    assert policy.region_for("state/session-1") == "state"\n    assert policy.validate_write("state/session-1") == "state"
+    assert policy.region_for("state/session-1") == "state"
+    assert policy.validate_write("state/session-1") == "state"
     with pytest.raises(PermissionError, match="immutable"):
         policy.validate_write("model/qwen3/weights.bin")
-    policy.validate_write("state/session-1")
     with pytest.raises(ValueError, match="overlap"):
         policy.register_region("overlap", ("model/", "state/"), mutable=True)
 
