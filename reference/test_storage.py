@@ -296,3 +296,28 @@ def test_reopen_rejects_ram_size_mismatch(tmp_path):
 
     with pytest.raises(ValueError, match="RAM size does not match machine image"):
         CorelessMachine(8 * 1024 * 1024, storage_path=disk)
+
+
+def test_storage_region_policy_rejects_cross_region_name_collisions():
+    from storage import StorageRegionPolicy
+
+    policy = StorageRegionPolicy()
+    policy.register_region("model", ("model/",), mutable=False)
+    policy.register_region("state", ("state/",), mutable=True)
+
+    assert policy.region_for("model/qwen3/weights.bin") == "model"
+    assert policy.region_for("state/session-1") == "state"
+    with pytest.raises(PermissionError, match="immutable"):
+        policy.validate_write("model/qwen3/weights.bin")
+    policy.validate_write("state/session-1")
+    with pytest.raises(ValueError, match="overlap"):
+        policy.register_region("overlap", ("model/", "state/"), mutable=True)
+
+
+def test_storage_region_policy_rejects_unclassified_objects():
+    from storage import StorageRegionPolicy
+
+    policy = StorageRegionPolicy()
+    policy.register_region("config", ("config/",), mutable=True)
+    with pytest.raises(ValueError, match="no registered storage region"):
+        policy.region_for("random/unclassified")
