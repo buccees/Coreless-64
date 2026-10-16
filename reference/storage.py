@@ -156,3 +156,53 @@ class PersistentMachineImage:
         finally:
             if os.path.exists(tmp):
                 os.unlink(tmp)
+
+
+class StorageRegionPolicy:
+    """Explicit namespace policy for Coreless-managed storage objects.
+
+    This policy classifies logical object names only. It does not reserve
+    physical blocks or enforce quotas in the host filesystem.
+    """
+
+    def __init__(self):
+        self._regions = {}
+
+    def register_region(self, name, prefixes, *, mutable):
+        if not isinstance(name, str) or not name or name in self._regions:
+            raise ValueError("storage region name must be unique and non-empty")
+        normalized = tuple(prefixes)
+        if not normalized or any(
+            not isinstance(prefix, str) or not prefix or not prefix.endswith("/")
+            for prefix in normalized
+        ):
+            raise ValueError("storage region prefixes must be non-empty directory prefixes")
+        for existing_name, (existing_prefixes, _) in self._regions.items():
+            if any(
+                prefix.startswith(old) or old.startswith(prefix)
+                for prefix in normalized
+                for old in existing_prefixes
+            ):
+                raise ValueError(
+                    f"storage region prefixes overlap with region {existing_name!r}"
+                )
+        self._regions[name] = (normalized, bool(mutable))
+
+    def region_for(self, object_name):
+        if not isinstance(object_name, str) or not object_name:
+            raise ValueError("storage object name must be non-empty")
+        matches = [
+            name for name, (prefixes, _) in self._regions.items()
+            if any(object_name.startswith(prefix) for prefix in prefixes)
+        ]
+        if not matches:
+            raise ValueError(f"no registered storage region for object {object_name!r}")
+        if len(matches) != 1:
+            raise ValueError(f"ambiguous storage region for object {object_name!r}")
+        return matches[0]
+
+    def validate_write(self, object_name):
+        region = self.region_for(object_name)
+        if not self._regions[region][1]:
+            raise PermissionError(f"storage region {region!r} is immutable")
+        return region
