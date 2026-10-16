@@ -97,3 +97,12 @@ This establishes a tested 16 MiB sparse-image case, **not a maximum supported im
 - Push validation for the same commit: GitHub Actions **#2042** — success.
 - Added tests: `test_large_sparse_machine_image_reopens_and_resumes_state` and `test_reopen_rejects_ram_size_mismatch`.
 - Physical hardware and official trained-model execution remain unvalidated.
+
+
+## Logical storage-region policy — 2026-10-16
+
+The reference storage layer now exposes `StorageRegionPolicy` for explicit logical namespace classification. A region is registered with non-overlapping directory prefixes and an immutable/writable policy. Unknown object names fail closed; writes to immutable regions are rejected.
+
+Reference tests cover region classification, immutable-region rejection, writable-region acceptance, overlapping-prefix rejection, and unclassified-name rejection.
+
+**Scope limit:** this is a logical policy primitive, not yet integrated into every storage write path. It does not reserve physical blocks, enforce per-region capacity, implement block reuse/reclamation, or guarantee transactionally isolated checkpoint generations. Those remain follow-on work; file-backed CI is not physical-storage validation.
