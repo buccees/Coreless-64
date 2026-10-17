@@ -180,7 +180,7 @@ class StorageRegionPolicy:
     def __init__(self):
         self._regions = {}
 
-    def register_region(self, name, prefixes, *, mutable):
+    def register_region(self, name, prefixes, *, mutable, object_names=()):
         if not isinstance(name, str) or not name or name in self._regions:
             raise ValueError("storage region name must be unique and non-empty")
         normalized = tuple(prefixes)
@@ -189,23 +189,43 @@ class StorageRegionPolicy:
             for prefix in normalized
         ):
             raise ValueError("storage region prefixes must be non-empty directory prefixes")
-        for existing_name, (existing_prefixes, _) in self._regions.items():
-            if any(
+        exact_names = tuple(object_names)
+        if any(
+            not isinstance(object_name, str) or not object_name or "/" in object_name
+            for object_name in exact_names
+        ):
+            raise ValueError("storage object names must be non-empty root-level names")
+        if len(set(exact_names)) != len(exact_names):
+            raise ValueError("storage object names must be unique")
+        for existing_name, (existing_prefixes, existing_names, _) in self._regions.items():
+            prefixes_overlap = any(
                 prefix.startswith(old) or old.startswith(prefix)
                 for prefix in normalized
                 for old in existing_prefixes
-            ):
+            )
+            names_overlap = bool(set(exact_names) & set(existing_names))
+            names_hit_prefix = any(
+                object_name.startswith(prefix)
+                for object_name in exact_names
+                for prefix in existing_prefixes
+            ) or any(
+                object_name.startswith(prefix)
+                for object_name in existing_names
+                for prefix in normalized
+            )
+            if prefixes_overlap or names_overlap or names_hit_prefix:
                 raise ValueError(
-                    f"storage region prefixes overlap with region {existing_name!r}"
+                    f"storage region names or prefixes overlap with region {existing_name!r}"
                 )
-        self._regions[name] = (normalized, bool(mutable))
+        self._regions[name] = (normalized, exact_names, bool(mutable))
 
     def region_for(self, object_name):
         if not isinstance(object_name, str) or not object_name:
             raise ValueError("storage object name must be non-empty")
         matches = [
-            name for name, (prefixes, _) in self._regions.items()
-            if any(object_name.startswith(prefix) for prefix in prefixes)
+            name for name, (prefixes, exact_names, _) in self._regions.items()
+            if object_name in exact_names
+            or any(object_name.startswith(prefix) for prefix in prefixes)
         ]
         if not matches:
             raise ValueError(f"no registered storage region for object {object_name!r}")
@@ -215,6 +235,6 @@ class StorageRegionPolicy:
 
     def validate_write(self, object_name):
         region = self.region_for(object_name)
-        if not self._regions[region][1]:
+        if not self._regions[region][2]:
             raise PermissionError(f"storage region {region!r} is immutable")
         return region
