@@ -187,6 +187,7 @@ def test_application_and_shell_state_persist(tmp_path):
 
 
 def test_machine_image_sync_fsyncs_directory_after_atomic_replace(monkeypatch, tmp_path):
+    import stat
     import storage as storage_module
 
     disk = tmp_path / "durable.img"
@@ -208,10 +209,20 @@ def test_machine_image_sync_fsyncs_directory_after_atomic_replace(monkeypatch, t
     monkeypatch.setattr(storage_module.os, "replace", record_replace)
     image.put("durability/probe", b"persisted")
 
-    replace_index = next(i for i, event in enumerate(events) if event[0] == "replace")
-    fsync_indices = [i for i, event in enumerate(events) if event[0] == "fsync"]
-    assert len(fsync_indices) == 2
-    assert fsync_indices[0] < replace_index < fsync_indices[1]
+    replace_index = next(
+        i for i, event in enumerate(events)
+        if event[0] == "replace" and event[1] == str(disk)
+    )
+    # The staged image file is synced before replacement, and the parent
+    # directory is synced after replacement before the transaction is finalized.
+    assert any(
+        event[0] == "fsync" and not stat.S_ISDIR(event[1])
+        for event in events[:replace_index]
+    )
+    assert any(
+        event[0] == "fsync" and stat.S_ISDIR(event[1])
+        for event in events[replace_index + 1:]
+    )
     reopened = storage_module.PersistentMachineImage(disk)
     assert reopened.get("durability/probe") == b"persisted"
 
@@ -245,7 +256,7 @@ def test_machine_image_sync_failures_leave_a_reopenable_image(
     def injected_fsync(fd):
         nonlocal fsync_calls
         fsync_calls += 1
-        target_call = 1 if failure_stage == "file_fsync" else 2
+        target_call = 1 if failure_stage == "file_fsync" else (6 if failure_stage == "directory_fsync" else 2)
         if failure_stage in ("file_fsync", "directory_fsync") and fsync_calls == target_call:
             raise OSError(f"injected {failure_stage} failure")
         return original_fsync(fd)
