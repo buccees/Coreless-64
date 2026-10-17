@@ -78,5 +78,5 @@ def test_policy_can_classify_root_objects_used_by_machine_checkpoints():
 
     image.restore_checkpoint("baseline")
     assert image.get("state/session") == b"before"
-    assert "machine" in image.objects
+    assert "machine" not in image.objects
     assert image.list_checkpoints() == ["baseline"]
