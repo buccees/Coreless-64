@@ -290,3 +290,15 @@ def test_restore_rejects_boolean_manifest_schema_integers(field, invalid_value):
     with pytest.raises(ValueError, match="invalid Qwen3 KV cache manifest"):
         Qwen3KVCache.restore(runtime, "session", 1)
 
+def test_persist_rejects_boolean_manifest_version():
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    _cache(runtime, 29).persist(runtime, "session")
+
+    manifest_key = "tensor/session_manifest"
+    manifest = json.loads(image.objects[manifest_key].decode("utf-8"))
+    manifest["version"] = True
+    image.objects[manifest_key] = json.dumps(manifest).encode("utf-8")
+
+    with pytest.raises(ValueError, match="invalid Qwen3 KV cache manifest"):
+        _cache(runtime, 39).persist(runtime, "session")
