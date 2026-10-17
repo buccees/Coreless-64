@@ -273,3 +273,20 @@ def test_manifest_rollback_directory_fsync_failure_reports_uncertain_durability(
     restored = Qwen3KVCache.restore(TensorRuntime(reopened), "session", 2)
     assert [item.data for item in restored.keys] == [item.data for item in old_cache.keys]
     assert [item.data for item in restored.values] == [item.data for item in old_cache.values]
+
+@pytest.mark.parametrize(("field", "invalid_value"), [("version", True), ("num_layers", True)])
+def test_restore_rejects_boolean_manifest_schema_integers(field, invalid_value):
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    cache = Qwen3KVCache.create(1, runtime)
+    cache.append(0, _tensor(31), _tensor(41))
+    cache.persist(runtime, "session")
+
+    manifest_key = "tensor/session_manifest"
+    manifest = json.loads(image.objects[manifest_key].decode("utf-8"))
+    manifest[field] = invalid_value
+    image.objects[manifest_key] = json.dumps(manifest).encode("utf-8")
+
+    with pytest.raises(ValueError, match="invalid Qwen3 KV cache manifest"):
+        Qwen3KVCache.restore(runtime, "session", 1)
+
