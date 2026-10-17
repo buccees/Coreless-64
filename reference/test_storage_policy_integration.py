@@ -29,8 +29,11 @@ def test_put_and_ram_page_enforce_policy_before_mutating_objects():
         image.put("models/qwen3/weights.bin", b"no", sync=False)
     with pytest.raises(ValueError, match="no registered storage region"):
         image.put("unclassified/object", b"no", sync=False)
+    immutable_ram_policy = StorageRegionPolicy()
+    immutable_ram_policy.register_region("ram", ("ram/",), mutable=False)
+    immutable_ram = PersistentMachineImage(policy=immutable_ram_policy)
     with pytest.raises(PermissionError, match="immutable"):
-        image.put_ram_page("models", 0, bytes(4096), sync=False)
+        immutable_ram.put_ram_page("main", 0, bytes(4096), sync=False)
 
     assert "models/qwen3/weights.bin" not in image.objects
     assert "unclassified/object" not in image.objects
@@ -47,6 +50,7 @@ def test_checkpoint_restore_policy_rejection_is_atomic(tmp_path):
     policy = StorageRegionPolicy()
     policy.register_region("state", ("state/",), mutable=True)
     policy.register_region("models", ("models/",), mutable=False)
+    image.objects.pop("machine", None)
     image.policy = policy
     image.put("models/weights", b"protected", sync=False)
     before_objects = dict(image.objects)
