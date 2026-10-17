@@ -302,3 +302,26 @@ def test_persist_rejects_boolean_manifest_version():
 
     with pytest.raises(ValueError, match="invalid Qwen3 KV cache manifest"):
         _cache(runtime, 39).persist(runtime, "session")
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid_value"),
+    [
+        ("num_layers", True),
+        ("sequence_length", True),
+        ("layers", [2]),
+        ("layers", [0, 0]),
+    ],
+)
+def test_persist_rejects_malformed_existing_manifest_schema(field, invalid_value):
+    image = PersistentMachineImage()
+    runtime = TensorRuntime(image)
+    _cache(runtime, 51).persist(runtime, "session")
+
+    manifest_key = "tensor/session_manifest"
+    manifest = json.loads(image.objects[manifest_key].decode("utf-8"))
+    manifest[field] = invalid_value
+    image.objects[manifest_key] = json.dumps(manifest).encode("utf-8")
+
+    with pytest.raises(ValueError, match="invalid Qwen3 KV cache manifest"):
+        _cache(runtime, 61).persist(runtime, "session")
