@@ -91,6 +91,18 @@ class Qwen3KVCache:
                 or manifest["version"] != 1
                 or type(manifest.get("generation")) is not int
                 or manifest["generation"] < 1
+                or type(manifest.get("num_layers")) is not int
+                or manifest["num_layers"] < 1
+                or type(manifest.get("sequence_length")) is not int
+                or manifest["sequence_length"] < 0
+                or not isinstance(manifest.get("layers"), list)
+                or any(
+                    type(index) is not int
+                    or index < 0
+                    or index >= manifest["num_layers"]
+                    for index in manifest["layers"]
+                )
+                or len(set(manifest["layers"])) != len(manifest["layers"])
             ):
                 raise ValueError("invalid Qwen3 KV cache manifest")
             generation = manifest["generation"] + 1
