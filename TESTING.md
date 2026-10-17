@@ -85,3 +85,24 @@ This is an optimization layer over the existing Coreless machine architecture, n
 - worker sizing never exceeds executable resource capacity;
 - single-item dispatch avoids unnecessary worker-pool setup;
 - queue behavior preserves input/result ordering and fallback semantics.
+
+
+## Persistent image sizing and reopen evidence — 2026-10-15
+
+Reference tests exercise a **16 MiB sparse-RAM machine image** by writing data at the first and final RAM pages, saving machine state, reopening the image, and verifying RAM and CPU state resume. The test also verifies that reopening the same image with a different configured RAM size is rejected.
+
+This establishes a tested 16 MiB sparse-image case, **not a maximum supported image size**, a performance guarantee, physical block-allocation control, or proof of a full end-to-end Coreless machine on hardware. The file-backed image serializes its object map as JSON/base64; larger-image performance and practical limits still need measurement.
+
+- PR validation: GitHub Actions **#2043**, commit `fd021749558cb980f0d5fb8389816d06da7678e7` — success.
+- Push validation for the same commit: GitHub Actions **#2042** — success.
+- Added tests: `test_large_sparse_machine_image_reopens_and_resumes_state` and `test_reopen_rejects_ram_size_mismatch`.
+- Physical hardware and official trained-model execution remain unvalidated.
+
+
+## Logical storage-region policy — 2026-10-16
+
+The reference storage layer now exposes `StorageRegionPolicy` for explicit logical namespace classification. A region is registered with non-overlapping directory prefixes and an immutable/writable policy. Unknown object names fail closed; writes to immutable regions are rejected.
+
+Reference tests cover region classification, immutable-region rejection, writable-region acceptance, overlapping-prefix rejection, and unclassified-name rejection.
+
+**Scope limit:** this is a logical policy primitive, not yet integrated into every storage write path. It does not reserve physical blocks, enforce per-region capacity, implement block reuse/reclamation, or guarantee transactionally isolated checkpoint generations. Those remain follow-on work; file-backed CI is not physical-storage validation.

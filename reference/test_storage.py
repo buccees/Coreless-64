@@ -184,3 +184,151 @@ def test_application_and_shell_state_persist(tmp_path):
     os2 = CorelessOS(second)
     assert os2.init_pid == 1
     assert os2.application_state[app.pid]["path"] == "/app"
+
+
+def test_machine_image_sync_fsyncs_directory_after_atomic_replace(monkeypatch, tmp_path):
+    import stat
+    import storage as storage_module
+
+    disk = tmp_path / "durable.img"
+    image = storage_module.PersistentMachineImage(disk)
+    events = []
+    original_fsync = storage_module.os.fsync
+    original_replace = storage_module.os.replace
+
+    def record_fsync(fd):
+        events.append(("fsync", os.fstat(fd).st_mode))
+        return original_fsync(fd)
+
+    def record_replace(source, destination):
+        events.append(("replace", str(destination)))
+        return original_replace(source, destination)
+
+    import os
+    monkeypatch.setattr(storage_module.os, "fsync", record_fsync)
+    monkeypatch.setattr(storage_module.os, "replace", record_replace)
+    image.put("durability/probe", b"persisted")
+
+    replace_index = next(
+        i for i, event in enumerate(events)
+        if event[0] == "replace" and event[1] == str(disk)
+    )
+    # The staged image file is synced before replacement, and the parent
+    # directory is synced after replacement before the transaction is finalized.
+    assert any(
+        event[0] == "fsync" and not stat.S_ISDIR(event[1])
+        for event in events[:replace_index]
+    )
+    assert any(
+        event[0] == "fsync" and stat.S_ISDIR(event[1])
+        for event in events[replace_index + 1:]
+    )
+    reopened = storage_module.PersistentMachineImage(disk)
+    assert reopened.get("durability/probe") == b"persisted"
+
+
+import pytest
+
+
+@pytest.mark.parametrize(
+    ("failure_stage", "expected_value"),
+    [
+        ("file_fsync", b"old"),
+        ("replace", b"old"),
+        # A failed directory sync leaves the transaction journal in place;
+        # reopening rolls back to the last committed image.
+        ("directory_fsync", b"old"),
+    ],
+)
+def test_machine_image_sync_failures_leave_a_reopenable_image(
+    monkeypatch, tmp_path, failure_stage, expected_value
+):
+    import os
+    import storage as storage_module
+
+    disk = tmp_path / "failure-stage.img"
+    image = storage_module.PersistentMachineImage(disk)
+    image.put("durability/value", b"old")
+    original_fsync = storage_module.os.fsync
+    original_replace = storage_module.os.replace
+    fsync_calls = 0
+
+    def injected_fsync(fd):
+        nonlocal fsync_calls
+        fsync_calls += 1
+        target_call = 1 if failure_stage == "file_fsync" else (6 if failure_stage == "directory_fsync" else 2)
+        if failure_stage in ("file_fsync", "directory_fsync") and fsync_calls == target_call:
+            raise OSError(f"injected {failure_stage} failure")
+        return original_fsync(fd)
+
+    def injected_replace(source, destination):
+        if failure_stage == "replace":
+            raise OSError("injected replace failure")
+        return original_replace(source, destination)
+
+    monkeypatch.setattr(storage_module.os, "fsync", injected_fsync)
+    monkeypatch.setattr(storage_module.os, "replace", injected_replace)
+    with pytest.raises(OSError, match=f"injected {failure_stage} failure"):
+        image.put("durability/value", b"new")
+
+    reopened = storage_module.PersistentMachineImage(disk)
+    assert reopened.get("durability/value") == expected_value
+
+
+def test_large_sparse_machine_image_reopens_and_resumes_state(tmp_path):
+    disk = tmp_path / "large-coreless.img"
+    memory_size = 16 * 1024 * 1024
+    first = CorelessMachine(memory_size, storage_path=disk)
+    first.boot()
+
+    # Touch the first and final RAM pages without materializing the whole RAM.
+    first.cpu.memory[0:4] = b"BOOT"
+    first.cpu.memory[memory_size - 4:memory_size] = b"TAIL"
+    first.cpu.memory.flush()
+    first.cpu.r[12] = 0xC064
+    first.cpu.pc = memory_size - 4
+    first.save_state()
+
+    reopened = CorelessMachine(memory_size, storage_path=disk)
+    assert reopened.booted is True
+    assert reopened.cpu.memory.size == memory_size
+    assert bytes(reopened.cpu.memory[0:4]) == b"BOOT"
+    assert bytes(reopened.cpu.memory[memory_size - 4:memory_size]) == b"TAIL"
+    assert reopened.cpu.r[12] == 0xC064
+    assert reopened.cpu.pc == memory_size - 4
+    assert sum(name.startswith("ram/ram/") for name in reopened.storage.objects) == 2
+
+
+def test_reopen_rejects_ram_size_mismatch(tmp_path):
+    disk = tmp_path / "ram-size-mismatch.img"
+    machine = CorelessMachine(16 * 1024 * 1024, storage_path=disk)
+    machine.cpu.memory[0:4] = b"BOOT"
+    machine.cpu.memory.flush()
+
+    with pytest.raises(ValueError, match="RAM size does not match machine image"):
+        CorelessMachine(8 * 1024 * 1024, storage_path=disk)
+
+
+def test_storage_region_policy_rejects_cross_region_name_collisions():
+    from storage import StorageRegionPolicy
+
+    policy = StorageRegionPolicy()
+    policy.register_region("model", ("model/",), mutable=False)
+    policy.register_region("state", ("state/",), mutable=True)
+
+    assert policy.region_for("model/qwen3/weights.bin") == "model"
+    assert policy.region_for("state/session-1") == "state"
+    assert policy.validate_write("state/session-1") == "state"
+    with pytest.raises(PermissionError, match="immutable"):
+        policy.validate_write("model/qwen3/weights.bin")
+    with pytest.raises(ValueError, match="overlap"):
+        policy.register_region("overlap", ("model/", "state/"), mutable=True)
+
+
+def test_storage_region_policy_rejects_unclassified_objects():
+    from storage import StorageRegionPolicy
+
+    policy = StorageRegionPolicy()
+    policy.register_region("config", ("config/",), mutable=True)
+    with pytest.raises(ValueError, match="no registered storage region"):
+        policy.region_for("random/unclassified")
