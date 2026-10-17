@@ -12,14 +12,20 @@ PAGE_SIZE = 4096
 class PersistentMachineImage:
     FORMAT = 3
 
-    def __init__(self, path=None):
+    def __init__(self, path=None, *, policy=None):
         self.path = os.fspath(path) if path is not None else None
+        self.policy = policy
         self.objects = {}
         self.metadata = {"format": self.FORMAT}
         if self.path and os.path.exists(self.path):
             self._load()
 
+    def _validate_write(self, name):
+        if self.policy is not None:
+            self.policy.validate_write(name)
+
     def put(self, name, data, sync=True):
+        self._validate_write(name)
         self.objects[name] = data.encode() if isinstance(data, str) else bytes(data)
         if sync:
             self.sync()
@@ -58,17 +64,25 @@ class PersistentMachineImage:
         snapshot = json.loads(raw.decode("utf-8"))
         if snapshot.get("format") != self.FORMAT:
             raise ValueError("unsupported Coreless checkpoint format")
-        self.metadata = dict(snapshot.get("metadata", {}))
-        self.metadata["format"] = self.FORMAT
+        restored_objects = {
+            key: base64.b64decode(value.encode("ascii"))
+            for key, value in snapshot.get("objects", {}).items()
+        }
         checkpoints = {
             key: value for key, value in self.objects.items()
             if key.startswith("checkpoint/")
         }
-        self.objects = {
-            key: base64.b64decode(value.encode("ascii"))
-            for key, value in snapshot.get("objects", {}).items()
-        }
-        self.objects.update(checkpoints)
+        restored_objects.update(checkpoints)
+        # Validate every changed, added, or removed object before mutating the
+        # live image. This keeps a policy rejection from partially restoring.
+        if self.policy is not None:
+            for key in self.objects.keys() | restored_objects.keys():
+                if self.objects.get(key) != restored_objects.get(key):
+                    self._validate_write(key)
+        restored_metadata = dict(snapshot.get("metadata", {}))
+        restored_metadata["format"] = self.FORMAT
+        self.metadata = restored_metadata
+        self.objects = restored_objects
         self.sync()
         return hashlib.sha256(raw).hexdigest()
 
@@ -104,9 +118,7 @@ class PersistentMachineImage:
         data = bytes(data)
         if len(data) != PAGE_SIZE:
             raise ValueError("Coreless RAM pages must be 4096 bytes")
-        self.objects[f"ram/{name}/{page}"] = data
-        if sync:
-            self.sync()
+        self.put(f"ram/{name}/{page}", data, sync=sync)
 
     def manifest(self):
         return {
