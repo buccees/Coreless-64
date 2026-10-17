@@ -63,3 +63,20 @@ def test_checkpoint_restore_policy_rejection_is_atomic(tmp_path):
 
     assert image.objects == before_objects
     assert image.metadata == before_metadata
+
+ 
+def test_policy_can_classify_root_objects_used_by_machine_checkpoints():
+    policy = StorageRegionPolicy()
+    policy.register_region(
+        "state", ("state/",), mutable=True, object_names=("machine", "filesystem")
+    )
+    policy.register_region("checkpoints", ("checkpoint/",), mutable=True)
+    image = PersistentMachineImage(policy=policy)
+    image.put("state/session", b"before", sync=False)
+    image.create_checkpoint("baseline")
+    image.put("state/session", b"after", sync=False)
+
+    image.restore_checkpoint("baseline")
+    assert image.get("state/session") == b"before"
+    assert "machine" in image.objects
+    assert image.list_checkpoints() == ["baseline"]
