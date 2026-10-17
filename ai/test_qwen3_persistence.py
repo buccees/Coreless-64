@@ -234,8 +234,36 @@ def test_manifest_rollback_sync_failure_is_reported(monkeypatch):
     assert isinstance(exc.value.__cause__, OSError)
 
 
-def test_manifest_rollback_directory_fsync_failure_reports_uncertain_durability(monkeypatch, tmp_path):
+def test_interrupted_machine_image_commit_recovers_previous_snapshot(tmp_path):
+    path = tmp_path / "interrupted-commit.json"
+    image = PersistentMachineImage(path)
+    runtime = TensorRuntime(image)
+    old_cache = _cache(runtime, 23)
+    old_cache.persist(runtime, "session")
+    old_image_bytes = path.read_bytes()
+
+    # Publish a newer image, then emulate power loss after replacing the main
+    # image but before removing the transaction journal.
+    _cache(runtime, 600).persist(runtime, "session")
+    assert json.loads(image.objects["tensor/session_manifest"].decode("utf-8"))["generation"] == 2
+    path.with_suffix(path.suffix + ".prev").write_bytes(old_image_bytes)
+    path.with_suffix(path.suffix + ".txn").write_text(
+        json.dumps({"had_previous": True}), encoding="utf-8"
+    )
+
+    reopened = PersistentMachineImage(path)
+    restored = Qwen3KVCache.restore(TensorRuntime(reopened), "session", 2)
+
+    assert json.loads(reopened.objects["tensor/session_manifest"].decode("utf-8"))["generation"] == 1
+    assert [item.data for item in restored.keys] == [item.data for item in old_cache.keys]
+    assert [item.data for item in restored.values] == [item.data for item in old_cache.values]
+    assert not path.with_suffix(path.suffix + ".txn").exists()
+    assert not path.with_suffix(path.suffix + ".prev").exists()
+
+
+def test_directory_fsync_failure_during_image_commit_rolls_back(monkeypatch, tmp_path):
     import os
+    import stat
     import storage as storage_module
 
     path = tmp_path / "rollback-directory-fsync.json"
@@ -246,29 +274,26 @@ def test_manifest_rollback_directory_fsync_failure_reports_uncertain_durability(
     old_manifest = image.objects["tensor/session_manifest"]
 
     original_fsync = storage_module.os.fsync
-    fsync_calls = 0
+    directory_fsyncs = 0
+    failed = False
 
-    def fail_commit_and_rollback_directory_fsync(fd):
-        nonlocal fsync_calls
-        fsync_calls += 1
-        # Each sync fsyncs the temporary file, replaces the image, then
-        # fsyncs the parent directory. Fail after both replacements so the
-        # caller cannot claim either rename was durably confirmed.
-        if fsync_calls in (2, 4):
-            raise OSError("injected directory fsync failure")
+    def fail_primary_directory_fsync_once(fd):
+        nonlocal directory_fsyncs, failed
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            directory_fsyncs += 1
+            # Existing-image sync fsyncs the backup directory, journal
+            # directory, then the replaced primary image directory.
+            if directory_fsyncs == 3 and not failed:
+                failed = True
+                raise OSError("injected primary directory fsync failure")
         return original_fsync(fd)
 
-    monkeypatch.setattr(storage_module.os, "fsync", fail_commit_and_rollback_directory_fsync)
-    with pytest.raises(RuntimeError, match="rollback could not be made durable") as exc:
+    monkeypatch.setattr(storage_module.os, "fsync", fail_primary_directory_fsync_once)
+    with pytest.raises(OSError, match="primary directory fsync failure"):
         _cache(runtime, 600).persist(runtime, "session")
 
-    assert fsync_calls == 4
-    assert isinstance(exc.value.__cause__, OSError)
+    assert failed
     assert image.objects["tensor/session_manifest"] == old_manifest
-
-    # The rollback replacement reached the filesystem, although its directory
-    # durability could not be confirmed; reopening should still parse the image
-    # and select the old, committed generation in this injected scenario.
     reopened = PersistentMachineImage(path)
     restored = Qwen3KVCache.restore(TensorRuntime(reopened), "session", 2)
     assert [item.data for item in restored.keys] == [item.data for item in old_cache.keys]
