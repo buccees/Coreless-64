@@ -17,8 +17,10 @@ class PersistentMachineImage:
         self.policy = policy
         self.objects = {}
         self.metadata = {"format": self.FORMAT}
-        if self.path and os.path.exists(self.path):
-            self._load()
+        if self.path:
+            self._recover_transaction()
+            if os.path.exists(self.path):
+                self._load()
 
     def _validate_write(self, name):
         if self.policy is not None:
@@ -138,6 +140,64 @@ class PersistentMachineImage:
             for name, data in image.get("objects", {}).items()
         }
 
+    def _fsync_directory(self, directory):
+        dir_fd = os.open(directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+
+    def _write_durable_file(self, path, data, directory):
+        fd, tmp = tempfile.mkstemp(prefix=".coreless-", suffix=".tmp", dir=directory)
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(data)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+            self._fsync_directory(directory)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+
+    def _recover_transaction(self):
+        """Recover the last committed image if a sync was interrupted.
+
+        The journal remains present until the new image's rename is durable
+        and the commit is finalized. If startup finds the journal, it restores
+        the previous image rather than guessing that an interrupted write
+        committed successfully.
+        """
+        if not self.path:
+            return
+        directory = os.path.dirname(os.path.abspath(self.path))
+        journal = self.path + ".txn"
+        previous = self.path + ".prev"
+        if not os.path.exists(journal):
+            return
+        try:
+            with open(journal, "r", encoding="utf-8") as f:
+                transaction = json.load(f)
+            had_previous = transaction.get("had_previous") is True
+            if had_previous:
+                if not os.path.exists(previous):
+                    raise RuntimeError("machine image recovery journal has no previous image")
+                with open(previous, "rb") as f:
+                    old_payload = f.read()
+                # Keep .prev until the journal removal itself is durable, so
+                # recovery can safely retry after another interruption.
+                self._write_durable_file(self.path, old_payload, directory)
+            elif os.path.exists(self.path):
+                os.unlink(self.path)
+                self._fsync_directory(directory)
+            os.unlink(journal)
+            self._fsync_directory(directory)
+            if os.path.exists(previous):
+                os.unlink(previous)
+                self._fsync_directory(directory)
+        except Exception as exc:
+            raise RuntimeError("machine image transaction recovery could not be made durable") from exc
+
     def sync(self):
         if not self.path:
             return
@@ -150,24 +210,48 @@ class PersistentMachineImage:
                 for name, data in sorted(self.objects.items())
             },
         }
-        fd, tmp = tempfile.mkstemp(prefix=".coreless-", suffix=".tmp", dir=directory)
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        previous = self.path + ".prev"
+        journal = self.path + ".txn"
+        had_previous = os.path.exists(self.path)
+        tmp = None
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(payload, f, sort_keys=True, separators=(",", ":"))
+            # Preserve the last committed image before making the transaction
+            # visible. The journal makes an interrupted replacement recover
+            # to this image on the next open.
+            if had_previous:
+                with open(self.path, "rb") as old_file:
+                    self._write_durable_file(previous, old_file.read(), directory)
+            marker = json.dumps({"had_previous": had_previous}, sort_keys=True).encode("utf-8")
+            self._write_durable_file(journal, marker, directory)
+
+            fd, tmp = tempfile.mkstemp(prefix=".coreless-", suffix=".tmp", dir=directory)
+            with os.fdopen(fd, "wb") as f:
+                f.write(encoded)
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp, self.path)
-            # The file contents are durable after the file fsync, but the
-            # rename itself is not guaranteed durable until the parent
-            # directory entry is fsynced too (Linux/POSIX host target).
-            dir_fd = os.open(directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-            try:
-                os.fsync(dir_fd)
-            finally:
-                os.close(dir_fd)
-        finally:
-            if os.path.exists(tmp):
+            tmp = None
+            self._fsync_directory(directory)
+
+            # Removing the journal is the commit point. If a crash occurs
+            # earlier, startup rolls back using .prev.
+            os.unlink(journal)
+            self._fsync_directory(directory)
+            if os.path.exists(previous):
+                os.unlink(previous)
+                self._fsync_directory(directory)
+        except Exception as sync_error:
+            if tmp is not None and os.path.exists(tmp):
                 os.unlink(tmp)
+            if os.path.exists(journal):
+                try:
+                    self._recover_transaction()
+                except Exception as recovery_error:
+                    raise RuntimeError(
+                        "machine image sync failed and rollback durability is uncertain"
+                    ) from recovery_error
+            raise sync_error
 
 
 class StorageRegionPolicy:
