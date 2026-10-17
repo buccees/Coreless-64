@@ -235,9 +235,9 @@ import pytest
     [
         ("file_fsync", b"old"),
         ("replace", b"old"),
-        # Directory fsync happens after replace, so the new complete image is
-        # visible even though durability confirmation fails.
-        ("directory_fsync", b"new"),
+        # A failed directory sync leaves the transaction journal in place;
+        # reopening rolls back to the last committed image.
+        ("directory_fsync", b"old"),
     ],
 )
 def test_machine_image_sync_failures_leave_a_reopenable_image(
