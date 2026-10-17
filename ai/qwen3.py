@@ -163,10 +163,12 @@ class Qwen3KVCache:
                 raise ValueError("invalid Qwen3 KV cache manifest") from exc
             if (
                 not isinstance(manifest, dict)
-                or manifest.get("version") != 1
+                or type(manifest.get("version")) is not int
+                or manifest["version"] != 1
                 or type(manifest.get("generation")) is not int
                 or manifest["generation"] < 1
-                or manifest.get("num_layers") != num_layers
+                or type(manifest.get("num_layers")) is not int
+                or manifest["num_layers"] != num_layers
                 or type(manifest.get("sequence_length")) is not int
                 or manifest["sequence_length"] < 0
                 or not isinstance(manifest.get("layers"), list)
