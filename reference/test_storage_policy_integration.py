@@ -51,8 +51,9 @@ def test_checkpoint_restore_policy_rejection_is_atomic(tmp_path):
     policy.register_region("state", ("state/",), mutable=True)
     policy.register_region("models", ("models/",), mutable=False)
     image.objects.pop("machine", None)
+    # Simulate an existing model object loaded before the policy was enabled.
+    image.objects["models/weights"] = b"protected"
     image.policy = policy
-    image.put("models/weights", b"protected", sync=False)
     before_objects = dict(image.objects)
     before_metadata = dict(image.metadata)
 
