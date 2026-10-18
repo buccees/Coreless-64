@@ -19,12 +19,12 @@ from ai.tensor_runtime import TensorRuntime
 class CorelessMachine:
     STATE_VERSION = 3
 
-    def __init__(self, memory_size=1 << 20, cpu_count=1, storage_path=None):
+    def __init__(self, memory_size=1 << 20, cpu_count=1, storage_path=None, storage_policy=None):
         if cpu_count < 1:
             raise ValueError("cpu_count must be positive")
         if memory_size < 4096 or memory_size % 4096:
             raise ValueError("Coreless RAM size must be a positive 4 KiB multiple")
-        self.storage = PersistentMachineImage(storage_path)
+        self.storage = PersistentMachineImage(storage_path, policy=storage_policy)
         # All CPUs observe one Coreless RAM instance.  The reference machine
         # therefore has one architectural memory, not one cache per CPU.
         from memory import VirtualRAM
