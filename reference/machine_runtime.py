@@ -325,9 +325,10 @@ class CorelessMachine:
         rising = self.motherboard.clock_tick()
         if rising != 1:
             raise RuntimeError("motherboard clock did not produce a rising edge")
-        result = cpu.step()
-        self.motherboard.clock_tick()
-        return result
+        try:
+            return cpu.step()
+        finally:
+            self.motherboard.clock_tick()  # restore idle-low clock even on CPU faults
 
     def step(self, cpu_id=0):
         if not self.booted:
