@@ -231,6 +231,7 @@ Apply these requirements to every track above:
 
 ## Physical power detection and automatic power-on boot
 
+- [ ] Complete the integrated path review against `specification/integrated_motherboard_path_trace.md`; resolve the listed hardware facts before pin-level design.
 - [ ] Trace the motherboard's digital switches as explicit control/routing elements, with canonical state ownership and shortest valid signal paths.
 - [ ] Define the existing intended motherboard AI chipset's power, reset, local data/control bus, boot readiness, and driver/firmware integration contracts after confirming its exact part/interface.
 - [ ] Keep deterministic hardware power supervision and reset safety independent of AI/software state; AI activity is gated until rails are valid.
