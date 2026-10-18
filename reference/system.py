@@ -13,7 +13,6 @@ from pathlib import Path
 from machine_runtime import CorelessMachine
 from os_runtime import CorelessOS
 from ai.machine_runtime import PersistentAIRuntime
-from virtual_motherboard import VirtualMotherboard
 
 
 class CorelessSystem:
@@ -43,7 +42,7 @@ class CorelessSystem:
         self.ai = PersistentAIRuntime(self.machine.storage)
         self.ai.restore()
         self.machine.attach_ai_registry(self.ai.registry)
-        self.motherboard = VirtualMotherboard()
+        self.motherboard = self.machine.motherboard
         self._restore_boot_manifest()
 
     def _boot_manifest(self, init_path: str) -> dict[str, object]:
