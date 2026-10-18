@@ -111,3 +111,35 @@ def test_motherboard_snapshot_reports_peripheral_state():
         "transitions": [1],
     }
 
+@pytest.mark.parametrize(
+    ("index", "name"),
+    [(1, "activity_led"), (2, "buzzer"), (3, "fault_led")],
+)
+def test_each_gpio_output_drives_its_mapped_peripheral(index, name):
+    motherboard = VirtualMotherboard()
+    peripheral = motherboard.peripherals[name]
+    motherboard.set_gpio_mode(index, PinMode.OUTPUT)
+
+    motherboard.digital_write(index, 1)
+    assert motherboard.digital_read(index) == 1
+    assert peripheral.level == 1
+    assert peripheral.energized is True
+    assert peripheral.transitions == [1]
+
+    motherboard.digital_write(index, 0)
+    assert motherboard.digital_read(index) == 0
+    assert peripheral.level == 0
+    assert peripheral.energized is False
+    assert peripheral.transitions == [1, 0]
+
+
+def test_gpio_peripherals_only_record_resolved_level_transitions():
+    motherboard = VirtualMotherboard()
+    motherboard.set_gpio_mode(1, PinMode.OUTPUT)
+    motherboard.digital_write(1, 1)
+    motherboard.digital_write(1, 1)
+    assert motherboard.peripherals["activity_led"].transitions == [1]
+    assert set(motherboard.snapshot()["peripherals"]) == {
+        "status_led", "activity_led", "buzzer", "fault_led"
+    }
+
