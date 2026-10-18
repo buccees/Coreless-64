@@ -118,6 +118,7 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 - [ ] Implement the device drivers required by the selected target.
 - [ ] Complete Coreless-owned networking beyond the current network-controller/reference transport foundations.
 - [ ] Implement the initial GUI/display environment.
+- [ ] Add a compact simulated status-LED dot to the desktop system tray beside the battery indicator; clicking/tapping it opens a menu showing live GPIO0/status-LED state and transitions from the canonical virtual motherboard. First locate and reuse the existing desktop/system-tray implementation; do not create a duplicate shell or a permanently visible LED widget.
 - [ ] Implement remote display and input.
 - [ ] Complete the application environment and document the supported application ABI/runtime.
 
