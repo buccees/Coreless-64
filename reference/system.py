@@ -13,6 +13,7 @@ from pathlib import Path
 from machine_runtime import CorelessMachine
 from os_runtime import CorelessOS
 from ai.machine_runtime import PersistentAIRuntime
+from virtual_motherboard import VirtualMotherboard
 
 
 class CorelessSystem:
@@ -42,6 +43,7 @@ class CorelessSystem:
         self.ai = PersistentAIRuntime(self.machine.storage)
         self.ai.restore()
         self.machine.attach_ai_registry(self.ai.registry)
+        self.motherboard = VirtualMotherboard()
         self._restore_boot_manifest()
 
     def _boot_manifest(self, init_path: str) -> dict[str, object]:
@@ -77,12 +79,34 @@ class CorelessSystem:
         )
 
     def boot(self, init_path: str = "/init"):
-        """Power on/resume the complete Coreless operating environment."""
-        self._save_boot_manifest(init_path)
-        self.os.boot()
-        self.ai.save()
-        self.machine.save_state()
+        """Boot Coreless with a modeled active-low motherboard reset cycle."""
+        self.motherboard.set_reset(True)
+        try:
+            self._save_boot_manifest(init_path)
+            self.os.boot()
+            self.ai.save()
+            self.machine.save_state()
+        except Exception:
+            # Keep reset asserted if the software boot sequence fails.
+            raise
+        self.motherboard.set_reset(False)
         return self
+
+    def gpio_mode(self, index: int, mode, pull="none") -> None:
+        """Configure one virtual Arduino GPIO pin on the motherboard netlist."""
+        self.motherboard.set_gpio_mode(index, mode, pull)
+
+    def gpio_write(self, index: int, level: int) -> None:
+        """Drive a virtual GPIO signal through the motherboard wire model."""
+        self.motherboard.digital_write(index, level)
+
+    def gpio_read(self, index: int) -> int:
+        """Read a Coreless-side GPIO pin after digital net resolution."""
+        return self.motherboard.digital_read(index)
+
+    def set_external_interrupt(self, asserted: bool) -> None:
+        """Drive or release the modeled motherboard interrupt input."""
+        self.motherboard.set_interrupt(asserted)
 
     def run(self, max_steps: int = 100000) -> int:
         """Run ready Coreless processes through the digital execution engine."""
@@ -158,6 +182,7 @@ class CorelessSystem:
         status = self.os.status()
         status["system_version"] = self.VERSION
         status["boot_manifest"] = self.boot_manifest
+        status["motherboard"] = self.motherboard.snapshot()
         status["ai"] = self.ai.status()
         status["ai"]["machine_resources"] = tuple(
             resource_id
