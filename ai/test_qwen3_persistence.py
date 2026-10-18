@@ -369,3 +369,60 @@ def test_persist_rejects_malformed_existing_manifest_schema(field, invalid_value
 
     with pytest.raises(ValueError, match="invalid Qwen3 KV cache manifest"):
         _cache(runtime, 61).persist(runtime, "session")
+
+
+def test_manifest_commit_and_rollback_sync_failures_reopen_complete_disk_state(
+    monkeypatch, tmp_path
+):
+    """A reported commit failure can still have committed before rollback fails.
+
+    Reopen the real disk image to prove this ambiguous outcome is a complete
+    snapshot, not corruption. The RuntimeError remains important: callers must
+    treat the persistence result as uncertain when both sync attempts fail.
+    """
+    path = tmp_path / "commit-and-rollback-failures.json"
+    image = PersistentMachineImage(path)
+    runtime = TensorRuntime(image)
+    old_cache = _cache(runtime, 71)
+    old_cache.persist(runtime, "session")
+    original_sync = image.sync
+    calls = 0
+
+    def commit_then_fail_rollback():
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            # Simulate the disk replacement completing before the commit path
+            # reports an error to Qwen3KVCache.persist().
+            original_sync()
+            raise OSError("injected post-commit sync error")
+        if calls == 2:
+            raise OSError("injected rollback sync error")
+        return original_sync()
+
+    monkeypatch.setattr(image, "sync", commit_then_fail_rollback)
+    with pytest.raises(
+        RuntimeError, match="rollback could not be made durable"
+    ) as exc:
+        _cache(runtime, 700).persist(runtime, "session")
+
+    assert calls == 2
+    assert isinstance(exc.value.__cause__, OSError)
+
+    # The initial sync completed its disk transaction before raising, so the
+    # rollback attempt failed while the disk still contains generation 2.
+    # Verify that reopening yields one complete, valid generation, and make
+    # the ambiguity explicit rather than silently claiming rollback succeeded.
+    reopened = PersistentMachineImage(path)
+    restored = Qwen3KVCache.restore(TensorRuntime(reopened), "session", 2)
+    expected_new = _cache(TensorRuntime(reopened), 700)
+    assert json.loads(
+        reopened.objects["tensor/session_manifest"].decode("utf-8")
+    )["generation"] == 2
+    assert restored.sequence_length == expected_new.sequence_length
+    assert [item.data for item in restored.keys] == [
+        item.data for item in expected_new.keys
+    ]
+    assert [item.data for item in restored.values] == [
+        item.data for item in expected_new.values
+    ]
