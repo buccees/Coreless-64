@@ -17,6 +17,7 @@ def test_status_led_tray_dot_opens_live_menu():
     assert initial["state"] == "UNDRIVEN"
     assert initial["transitions"] == []
 
+    machine.motherboard.set_gpio_mode(0, "output")
     machine.motherboard.digital_write(0, 1)
     on = desktop.status_led_menu()
     assert on["state"] == "ON"
