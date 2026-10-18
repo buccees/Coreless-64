@@ -104,7 +104,8 @@ class TkDesktopHost:
         self._transition_label.pack(anchor="w", padx=12, pady=(4, 10))
         self._menu.protocol("WM_DELETE_WINDOW", self._close_menu)
         self._refresh_menu()
-        self._refresh_dot()
+        status_color = "#65ff65" if status["state"] == "ON" else ("#647064" if status["state"] == "OFF" else "#d4b35d")
+        self._dot.configure(fg=status_color)
 
     def _refresh_menu(self):
         if self._menu is None or not self._menu.winfo_exists():
