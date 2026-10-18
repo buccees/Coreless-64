@@ -98,11 +98,12 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 ### P1.4 — Virtual motherboard and digital circuit simulation
 - [x] Add a deterministic software netlist model for named nets, ideal-wire continuity, GPIO input/output modes, pull-up/pull-down behavior, and high-impedance output release.
 - [x] Detect floating inputs, conflicting active drivers, and fixed-rail shorts rather than silently choosing a logic value.
-- [ ] Verify the simulator and fault cases in the latest CI run.
+- [x] Define a canonical digital motherboard netlist with logical VCC/GND, active-low reset, clock, interrupt, and four GPIO signal paths.
+- [x] Add a virtual Arduino GPIO boundary that drives and reads the Coreless-side pins through explicit net joins; reset, clock edges, and interrupt assertion/release also propagate through the netlist.
+- [ ] Verify the simulator, motherboard topology, and fault cases in CI after the latest commits.
+- [ ] Bind the modeled Coreless-side pins to the actual machine/device runtime; the current motherboard boundary is a standalone reference model, not yet a live CPU execution dependency.
+- [ ] Add deterministic scenario tests for open circuits, shorts, wrong pin assignments, power loss, and peripheral faults.
 - [ ] Extend the model with component-specific electrical contracts (voltage limits, current/load constraints, protection behavior, and peripheral timing) before claiming those behaviors are simulated.
-- [ ] Define and test the virtual motherboard topology, including power/ground, reset, clock, bus, interrupt, and peripheral I/O nets.
-- [ ] Connect the virtual Arduino/GPIO boundary to this netlist so pin-level device actions propagate through simulated circuitry.
-- [ ] Add deterministic scenario tests for normal operation, open circuits, shorts, wrong pin assignments, reset, power loss, and peripheral faults.
 
 **Scope boundary:** this is a software-only digital circuit model. It does not yet simulate analog waveforms, current/thermal effects, component tolerances, signal integrity, or prove a physical board works. No physical wires or hardware are required for this phase; any later physical validation must be recorded separately.
 
