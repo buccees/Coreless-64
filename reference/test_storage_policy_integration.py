@@ -81,3 +81,25 @@ def test_policy_can_classify_root_objects_used_by_machine_checkpoints():
     assert image.get("state/session") == b"before"
     assert "machine" not in image.objects
     assert image.list_checkpoints() == ["baseline"]
+
+
+def test_machine_runtime_wires_policy_through_ram_and_filesystem(tmp_path):
+    from machine_runtime import CorelessMachine
+
+    policy = StorageRegionPolicy()
+    policy.register_region("ram", ("ram/",), mutable=True)
+    policy.register_region("state", ("machine/",), mutable=True, object_names=("filesystem",))
+    policy.register_region("models", ("models/",), mutable=False)
+
+    machine = CorelessMachine(8192, storage_path=tmp_path / "policy.img", storage_policy=policy)
+    machine.boot()
+    machine.cpu.memory[0:4] = b"POLY"
+    machine.cpu.memory.flush()
+    machine.filesystem.write("/policy-check", b"allowed")
+
+    reopened = CorelessMachine(8192, storage_path=tmp_path / "policy.img", storage_policy=policy)
+    assert bytes(reopened.cpu.memory[0:4]) == b"POLY"
+    assert reopened.filesystem.read("/policy-check") == b"allowed"
+    with pytest.raises(PermissionError, match="immutable"):
+        reopened.storage.put("models/qwen3/weights.bin", b"blocked", sync=False)
+    assert "models/qwen3/weights.bin" not in reopened.storage.objects
