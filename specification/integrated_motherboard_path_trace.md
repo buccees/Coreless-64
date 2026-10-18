@@ -111,9 +111,9 @@ Shortest hop count is a design target, not a latency measurement. Keep protocol 
 2. **Keep hardware and software reset responsibilities distinct:** the supervisor/reset gate protects electrical safety; the software lifecycle consumes one qualified startup event.
 3. **Keep the current canonical object graph:** `CorelessSystem` -> its one `CorelessMachine` -> its one `VirtualMotherboard`; the AI registry/fabric is integrated into that machine, not instantiated as a parallel machine.
 4. **Do not use TCP as a substitute for local USB:** retain TCP only for real network peers. Add a USB provider after selecting the physical USB device controller and wire protocol.
-5. **Add physical hardware contracts before component selection:** connector and USB mode, permitted current/inrush, power-path behavior, every regulated rail and supervisor threshold, switch truth tables/defaults, AI chipset exact part and interface, reset polarity, and fault-safe states.
-6. **Verify boot/resume semantics before claiming automatic resume:** inspect how persistent machine state and OS state are restored and ensure a power-start event cannot accidentally create a second machine or overwrite the selected image.
-7. **Measure the path after implementation:** trace event timestamps and latency across detector -> reset -> startup event -> boot -> USB enumeration -> first host I/O; optimize only demonstrated extra hops.
+5. **Attach the AI chipset at the existing compute boundary:** implement a backend against `AIComputeResource`, register it in the existing fabric/scheduler, and expose only verified capabilities. Follow `specification/ai_chipset_integration.md`; do not add a parallel runtime.\n6. **Add physical hardware contracts before component selection:** connector and USB mode, permitted current/inrush, power-path behavior, every regulated rail and supervisor threshold, switch truth tables/defaults, AI chipset exact part and interface, reset polarity, and fault-safe states.
+7. **Verify boot/resume semantics before claiming automatic resume:** inspect how persistent machine state and OS state are restored and ensure a power-start event cannot accidentally create a second machine or overwrite the selected image.
+8. **Measure the path after implementation:** trace event timestamps and latency across detector -> reset -> startup event -> boot -> USB enumeration -> first host I/O; optimize only demonstrated extra hops.
 
 ## Open design facts blocking pin-level implementation
 
