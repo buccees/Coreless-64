@@ -81,3 +81,19 @@ def test_input_pin_cannot_be_written_and_duplicate_pins_are_rejected():
         board.write("mcu.in", 1)
     with pytest.raises(ValueError, match="duplicate pin"):
         board.add_pin("mcu.in", "other")
+
+
+def test_fixed_rail_follows_wire_and_conflicting_rails_cannot_be_joined():
+    board = CircuitBoard()
+    board.add_pin("gpio", "gpio-net", PinMode.OUTPUT)
+    board.add_pin("ground", "ground-net", PinMode.INPUT)
+    board.set_rail("ground-net", 0)
+    board.connect_pins("gpio", "ground")
+    with pytest.raises(ShortCircuitError):
+        board.write("gpio", 1)
+
+    other = CircuitBoard()
+    other.set_rail("ground", 0)
+    other.set_rail("vcc", 1)
+    with pytest.raises(ShortCircuitError, match="conflicting fixed rails"):
+        other.connect("ground", "vcc")
