@@ -32,3 +32,38 @@ def test_coreless_system_rejects_reading_an_undriven_gpio():
     system = CorelessSystem()
     with pytest.raises(FloatingSignalError):
         system.gpio_read(2)
+
+def test_system_and_machine_share_one_authoritative_motherboard():
+    system = CorelessSystem()
+    assert system.motherboard is system.machine.motherboard
+
+
+def test_machine_execution_is_gated_by_motherboard_reset():
+    system = CorelessSystem()
+    machine = system.machine
+    machine.boot()
+    calls = []
+    machine.cpu.step = lambda: calls.append("step") or True
+    machine.motherboard.set_reset(True)
+
+    assert machine.run(3) == 0
+    assert calls == []
+
+    machine.motherboard.set_reset(False)
+    assert machine.run(2) == 2
+    assert calls == ["step", "step"]
+    assert machine.motherboard.board.read("core.clock") == 0
+
+
+def test_motherboard_interrupt_reaches_existing_cpu_pending_interrupts():
+    system = CorelessSystem()
+    machine = system.machine
+    machine.boot()
+    machine.cpu.step = lambda: True
+    system.set_external_interrupt(True)
+
+    assert machine.run(1) == 1
+    assert machine.cpu.pending_interrupts & (1 << 2)
+
+    system.set_external_interrupt(False)
+    assert machine.motherboard.interrupt_asserted is False
