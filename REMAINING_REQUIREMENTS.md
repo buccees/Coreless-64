@@ -94,6 +94,18 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 
 ## P1 — Operating environment and interaction
 
+
+### P1.4 — Virtual motherboard and digital circuit simulation
+- [x] Add a deterministic software netlist model for named nets, ideal-wire continuity, GPIO input/output modes, pull-up/pull-down behavior, and high-impedance output release.
+- [x] Detect floating inputs, conflicting active drivers, and fixed-rail shorts rather than silently choosing a logic value.
+- [ ] Verify the simulator and fault cases in the latest CI run.
+- [ ] Extend the model with component-specific electrical contracts (voltage limits, current/load constraints, protection behavior, and peripheral timing) before claiming those behaviors are simulated.
+- [ ] Define and test the virtual motherboard topology, including power/ground, reset, clock, bus, interrupt, and peripheral I/O nets.
+- [ ] Connect the virtual Arduino/GPIO boundary to this netlist so pin-level device actions propagate through simulated circuitry.
+- [ ] Add deterministic scenario tests for normal operation, open circuits, shorts, wrong pin assignments, reset, power loss, and peripheral faults.
+
+**Scope boundary:** this is a software-only digital circuit model. It does not yet simulate analog waveforms, current/thermal effects, component tolerances, signal integrity, or prove a physical board works. No physical wires or hardware are required for this phase; any later physical validation must be recorded separately.
+
 ### P1.1 — Coreless OS/device services
 - [ ] Implement the device drivers required by the selected target.
 - [ ] Complete Coreless-owned networking beyond the current network-controller/reference transport foundations.
