@@ -108,16 +108,16 @@ Shortest hop count is a design target, not a latency measurement. Keep protocol 
 ## Small improvements with low architectural risk
 
 1. **Define one power event contract** with separate `POWER_PRESENT`, `POWER_GOOD`, `USB_ENUMERATED`, `BOOTING`, `RUNNING`, and `FAULT/RESET_HELD` states. Do not treat them as synonyms.
-2. **Keep hardware and software reset responsibilities distinct:** the supervisor/reset gate protects electrical safety; the software lifecycle consumes one qualified startup event.
+2. **Keep any future physical reset supervisor distinct from software controller reset:** this software chipset reset only clears controller state and does not release motherboard reset.
 3. **Keep the current canonical object graph:** `CorelessSystem` -> its one `CorelessMachine` -> its one `VirtualMotherboard`; the AI registry/fabric is integrated into that machine, not instantiated as a parallel machine.
 4. **Do not use TCP as a substitute for local USB:** retain TCP only for real network peers. Add a USB provider after selecting the physical USB device controller and wire protocol.
-5. **Implement the digital AI chipset:** add a deterministic control/status interface to the canonical virtual motherboard and connect it directly to the existing AI fabric/scheduler. Follow `specification/ai_chipset_integration.md`; do not add a parallel runtime.\n6. **Add physical hardware contracts before component selection:** connector and USB mode, permitted current/inrush, power-path behavior, every regulated rail and supervisor threshold, switch truth tables/defaults, AI chipset exact part and interface, reset polarity, and fault-safe states.
+5. **Implement the digital AI chipset:** add a deterministic control/status interface to the canonical virtual motherboard and connect it directly to the existing AI fabric/scheduler. Follow `specification/ai_chipset_integration.md`; do not add a parallel runtime.\n6. **Keep physical-interface work explicitly separate:** connector/USB mode, current budget, regulated rails, supervisor thresholds, and physical switch truth tables remain future hardware requirements; they are not requirements for the digital AI controller.
 7. **Verify boot/resume semantics before claiming automatic resume:** inspect how persistent machine state and OS state are restored and ensure a power-start event cannot accidentally create a second machine or overwrite the selected image.
 8. **Measure the path after implementation:** trace event timestamps and latency across detector -> reset -> startup event -> boot -> USB enumeration -> first host I/O; optimize only demonstrated extra hops.
 
 ## Open design facts blocking pin-level implementation
 
-- Digital chipset controller contract: named control/status signals, supported operations, state transitions, and fault/reset behavior.
+- Digital chipset control/status behavior is implemented in `reference/digital_ai_chipset.py`; remaining work is broader integration verification and UI exposure, not inventing a physical AI-chip contract.
 - Digital-switch inventory: which function each switch controls, signal polarity, default/fail-safe state, electrical rating, and whether it is a physical switch IC/transistor network or a logical switch in the digital model.
 - USB connector/type and device-controller choice; USB 5 V input current budget and whether simultaneous PC/adapter power is allowed.
 - Full internal rail list, tolerances, sequencing, brownout thresholds, and measured hold-up time.
