@@ -33,15 +33,13 @@ def test_chipset_dispatch_uses_existing_ai_fabric_and_preserves_provenance():
     request = AIRequest("request-1", "hello")
     work = ComputeWork("work-1", "ai.infer", request, "test-model")
 
-    result, allocation = machine.ai_chipset.dispatch(work)
+    result = machine.ai_chipset.dispatch(work)
 
     assert result.work_id == "work-1"
     assert result.operation == "ai.infer"
     assert result.model_id == "test-model"
     assert result.result.text == "ok"
-    assert allocation.resource_id == "ai:test-model"
-    assert allocation.kind == "ai"
-    assert allocation.fallback_used is False
+    assert machine.ai_chipset.snapshot()["last_resource_id"] == "ai:test-model"
     assert machine.ai_chipset.snapshot()["completed_work"] == 1
     assert machine.motherboard.ai_chipset_status()["busy"] is False
 
