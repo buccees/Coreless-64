@@ -106,7 +106,7 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 - [x] Gate machine CPU stepping while the modeled active-low reset is asserted; execute CPU steps on deterministic motherboard rising edges and return the modeled clock to idle-low.
 - [x] Forward an asserted motherboard IRQ into the CPU's existing pending-interrupt bit (code 2); releasing the line stops new level-triggered requests but does not erase an already-pending CPU interrupt.
 - [ ] Define and implement architectural CPU reset-state semantics without bypassing CPU identity, OS trap handlers, shared memory, or process context.
-- [ ] Connect GPIO nets to real modeled device/peripheral contracts so pin transitions cause device behavior, not only readable signal levels.
+- [x] Connect GPIO0 through resolved motherboard net state to a modeled status-LED peripheral; record level changes and expose peripheral state in snapshots. GPIO1–GPIO3 still need specified peripheral contracts.
 - [ ] Make power/fault state govern execution and test power loss, open circuits, shorts, wrong pin assignments, and peripheral failures.
 - [ ] Verify the integrated runtime and fault cases in CI after the latest commits.
 - [ ] Add deterministic scenario tests for open circuits, shorts, wrong pin assignments, power loss, and peripheral faults.
