@@ -98,6 +98,13 @@ class CircuitBoard:
         canonical = roots[0]
         for root in roots[1:]:
             if root != canonical:
+                left_rail = self._rails.get(canonical)
+                right_rail = self._rails.get(root)
+                if left_rail is not None and right_rail is not None and left_rail != right_rail:
+                    raise ShortCircuitError("connecting nets would short conflicting fixed rails")
+                if left_rail is None and right_rail is not None:
+                    self._rails[canonical] = right_rail
+                self._rails.pop(root, None)
                 self._parent[root] = canonical
 
     def connect_pins(self, *pin_names: str) -> None:
