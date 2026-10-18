@@ -43,6 +43,7 @@ class CorelessSystem:
         self.ai.restore()
         self.machine.attach_ai_registry(self.ai.registry)
         self.motherboard = self.machine.motherboard
+        self.ai_chipset = self.machine.ai_chipset
         self._restore_boot_manifest()
 
     def _boot_manifest(self, init_path: str) -> dict[str, object]:
@@ -183,6 +184,7 @@ class CorelessSystem:
         status["boot_manifest"] = self.boot_manifest
         status["motherboard"] = self.motherboard.snapshot()
         status["ai"] = self.ai.status()
+        status["ai_chipset"] = self.ai_chipset.snapshot()
         status["ai"]["machine_resources"] = tuple(
             resource_id
             for resource_id in self.machine.scheduler.resources()
