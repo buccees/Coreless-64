@@ -4,7 +4,7 @@
 
 ## Design rule
 
-Preserve the intended architecture: digital switches are the control/routing elements; the motherboard AI chipset is a local compute component; Coreless owns machine execution and persistent state; external equipment provides power and host I/O. Prefer the shortest direct path that preserves safety, protocol validation, and one canonical owner for state.
+Preserve the intended architecture: digital switches are the control/routing elements; the digital AI chipset is a programmable local control/dispatch component; Coreless owns machine execution and persistent state; external equipment provides power and host I/O. Prefer the shortest direct path that preserves safety, protocol validation, and one canonical owner for state.
 
 ## End-to-end path
 
@@ -73,7 +73,7 @@ This diagram intentionally separates the electrical power path from the USB data
 - `CorelessMachine` creates an `AIComputeFabric` and a machine scheduler.
 - `CorelessSystem` restores `PersistentAIRuntime`, attaches its registry to the machine, and exposes AI compute/analysis entry points.
 - Registered AI cores can be exposed to the scheduler as native Coreless resources; the scheduler/work distributor chooses a resource according to the declared capability and preference contract.
-- This is the existing software AI path. The repository evidence inspected for this trace does not identify a specific physical AI chipset part, package, pinout, bus, power rails, or driver. The intended motherboard chipset must attach through the shortest supported local interface, but exact wiring cannot be asserted until those details are confirmed.
+- This is the existing software AI path. No physical AI chip is assumed. The digital chipset is to be programmed as a first-class controller connected directly to the existing AI fabric/scheduler and the canonical virtual motherboard. The controller itself remains to be implemented.
 - Keep AI as a local compute resource behind Coreless policy. Do not make it the authority for safe power detection, reset release, or electrical protection.
 
 ### 4. Host discovery and USB boundary
@@ -111,13 +111,13 @@ Shortest hop count is a design target, not a latency measurement. Keep protocol 
 2. **Keep hardware and software reset responsibilities distinct:** the supervisor/reset gate protects electrical safety; the software lifecycle consumes one qualified startup event.
 3. **Keep the current canonical object graph:** `CorelessSystem` -> its one `CorelessMachine` -> its one `VirtualMotherboard`; the AI registry/fabric is integrated into that machine, not instantiated as a parallel machine.
 4. **Do not use TCP as a substitute for local USB:** retain TCP only for real network peers. Add a USB provider after selecting the physical USB device controller and wire protocol.
-5. **Attach the AI chipset at the existing compute boundary:** implement a backend against `AIComputeResource`, register it in the existing fabric/scheduler, and expose only verified capabilities. Follow `specification/ai_chipset_integration.md`; do not add a parallel runtime.\n6. **Add physical hardware contracts before component selection:** connector and USB mode, permitted current/inrush, power-path behavior, every regulated rail and supervisor threshold, switch truth tables/defaults, AI chipset exact part and interface, reset polarity, and fault-safe states.
+5. **Implement the digital AI chipset:** add a deterministic control/status interface to the canonical virtual motherboard and connect it directly to the existing AI fabric/scheduler. Follow `specification/ai_chipset_integration.md`; do not add a parallel runtime.\n6. **Add physical hardware contracts before component selection:** connector and USB mode, permitted current/inrush, power-path behavior, every regulated rail and supervisor threshold, switch truth tables/defaults, AI chipset exact part and interface, reset polarity, and fault-safe states.
 7. **Verify boot/resume semantics before claiming automatic resume:** inspect how persistent machine state and OS state are restored and ensure a power-start event cannot accidentally create a second machine or overwrite the selected image.
 8. **Measure the path after implementation:** trace event timestamps and latency across detector -> reset -> startup event -> boot -> USB enumeration -> first host I/O; optimize only demonstrated extra hops.
 
 ## Open design facts blocking pin-level implementation
 
-- Exact AI chipset part number and its supported local interface, pinout, supply rails/current, reset/boot sequence, and driver/firmware contract.
+- Digital chipset controller contract: named control/status signals, supported operations, state transitions, and fault/reset behavior.
 - Digital-switch inventory: which function each switch controls, signal polarity, default/fail-safe state, electrical rating, and whether it is a physical switch IC/transistor network or a logical switch in the digital model.
 - USB connector/type and device-controller choice; USB 5 V input current budget and whether simultaneous PC/adapter power is allowed.
 - Full internal rail list, tolerances, sequencing, brownout thresholds, and measured hold-up time.
