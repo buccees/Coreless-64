@@ -9,6 +9,32 @@ from __future__ import annotations
 from circuit_simulator import CircuitBoard, PinMode, Pull
 
 
+class VirtualGPIOPeripheral:
+    """Minimal digital peripheral contract: GPIO level controls an attached LED."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.level: int | None = None
+        self.energized = False
+        self.transitions: list[int] = []
+
+    def drive(self, level: int) -> None:
+        if level not in (0, 1):
+            raise ValueError("peripheral level must be 0 or 1")
+        if self.level != level:
+            self.transitions.append(level)
+        self.level = level
+        self.energized = level == 1
+
+    def snapshot(self) -> dict[str, object]:
+        return {
+            "name": self.name,
+            "level": self.level,
+            "energized": self.energized,
+            "transitions": list(self.transitions),
+        }
+
+
 class VirtualMotherboard:
     """A deterministic digital motherboard netlist with virtual Arduino I/O."""
 
@@ -51,6 +77,9 @@ class VirtualMotherboard:
 
         board.write("arduino.reset_n", 1)
         self._clock_level = 0
+        # GPIO0 is wired to a modeled status LED; the remaining pins are
+        # available for future explicitly specified peripheral contracts.
+        self.peripherals = {"status_led": VirtualGPIOPeripheral("status_led")}
 
     def set_gpio_mode(self, index: int, mode: PinMode | str, pull: Pull | str = Pull.NONE) -> None:
         self._check_gpio(index)
@@ -59,6 +88,9 @@ class VirtualMotherboard:
     def digital_write(self, index: int, level: int) -> None:
         self._check_gpio(index)
         self.board.write(f"arduino.D{index}", level)
+        if index == 0:
+            # Resolve through the netlist before notifying the peripheral.
+            self.peripherals["status_led"].drive(self.board.read("core.gpio0"))
 
     def digital_read(self, index: int) -> int:
         self._check_gpio(index)
@@ -111,6 +143,10 @@ class VirtualMotherboard:
             "continuity": self.continuity_report(),
             "reset_asserted": self.reset_asserted,
             "interrupt_asserted": self.interrupt_asserted,
+            "peripherals": {
+                name: peripheral.snapshot()
+                for name, peripheral in self.peripherals.items()
+            },
         }
 
     def _check_gpio(self, index: int) -> None:
