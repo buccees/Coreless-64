@@ -231,6 +231,11 @@ Apply these requirements to every track above:
 
 ## Physical power detection and automatic power-on boot
 
+- [ ] Support USB adapter standalone/mobile mode: qualify input and rails, then boot the configured persistent machine without waiting for a data host.
+- [ ] Support a data-capable PC USB connection: enumerate the configured Coreless identity and attach the host I/O path after power-good.
+- [ ] Keep USB power-present, internal rail power-good, and successful PC USB enumeration as separate states.
+- [ ] Define USB connector/data-interface choice, current budget, inrush, and allowed source combinations; do not assume USB-PD voltages without negotiated PD support.
+- [ ] Prevent VBUS back-feed if adapter and PC power can be present together; implement a specified protected power path or explicitly disallow simultaneous connection.
 - [ ] Define the real input-supply voltage range and every monitored rail before selecting components.
 - [ ] Implement a correctly rated, isolated power-present detector where required by the supply topology.
 - [ ] Implement voltage supervision/power-good for all required rails, including brownout response, hysteresis, and startup qualification.
@@ -238,6 +243,7 @@ Apply these requirements to every track above:
 - [ ] Implement a safe power-fail/reset path and measure available hold-up time before promising graceful persistence flush.
 - [ ] Integrate physical power events with the canonical persistent-machine identity, discovery, and boot/resume lifecycle.
 - [ ] Bench-test the detector and integrated boot path, including missing rail, unstable supply, brownout, abrupt power loss, and sensor/wire faults.
+- [ ] Test adapter-only boot, PC USB enumeration, charge-only cable behavior, data disconnect/reconnect, source switching, current limits, and back-feed protection on the bench.
 - [ ] Keep physical validation distinct from virtual GPIO tests and software-only CI.
 
-**Specification:** `specification/physical_power_detection.md`. Physical detection, board-level implementation, and bench validation remain pending; the virtual motherboard does not sense actual voltage.
+**Specification:** `specification/physical_power_detection.md`. USB adapter mode and PC-connected mode are required design targets; physical detection, USB device enumeration, board-level implementation, and bench validation remain pending; the virtual motherboard does not sense actual voltage.
