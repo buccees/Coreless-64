@@ -105,7 +105,7 @@ def test_machine_runtime_wires_policy_through_ram_and_filesystem(tmp_path):
     machine.cpu.memory.flush()
     machine.filesystem.write("/policy-check", b"after")
     machine.restore_checkpoint("policy-baseline")
-    assert bytes(machine.cpu.memory[0:4]) == b"DIFF"  # reload below reflects the restored image
+    assert bytes(machine.cpu.memory[0:4]) == b"POLY"
     reopened = CorelessMachine(8192, storage_path=tmp_path / "policy.img", storage_policy=policy)
     assert bytes(reopened.cpu.memory[0:4]) == b"POLY"
     assert reopened.filesystem.read("/policy-check") == b"before"
