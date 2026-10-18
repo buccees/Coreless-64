@@ -251,3 +251,6 @@ Apply these requirements to every track above:
 - [ ] Keep physical validation distinct from virtual GPIO tests and software-only CI.
 
 **Specification:** `specification/physical_power_detection.md`. USB adapter mode and PC-connected mode are required design targets. Digital switches and a motherboard AI chipset are part of the intended architecture, but exact chipset/interface and physical integration are not yet verified. Physical detection, USB device enumeration, board-level implementation, and bench validation remain pending; the virtual motherboard does not sense actual voltage.
+
+
+**AI chipset attachment contract:** `specification/ai_chipset_integration.md` defines the physical backend insertion point in the existing `AIComputeResource` → `AIComputeFabric` → scheduler path. Software AI integration exists; the physical driver and chipset-specific validation remain pending until the exact part/interface is identified.
