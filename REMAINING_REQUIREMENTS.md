@@ -233,7 +233,7 @@ Apply these requirements to every track above:
 
 - [ ] Complete the integrated path review against `specification/integrated_motherboard_path_trace.md`; resolve the listed hardware facts before pin-level design.
 - [ ] Trace the motherboard's digital switches as explicit control/routing elements, with canonical state ownership and shortest valid signal paths.
-- [ ] Define the existing intended motherboard AI chipset's power, reset, local data/control bus, boot readiness, and driver/firmware integration contracts after confirming its exact part/interface.
+- [ ] Implement the programmable digital AI chipset as a first-class virtual-motherboard component, directly connected to the existing AI compute fabric and scheduler; define control/status signals, readiness, supported operations, reset, and fault behavior. No physical chip is assumed.
 - [ ] Keep deterministic hardware power supervision and reset safety independent of AI/software state; AI activity is gated until rails are valid.
 - [ ] Support USB adapter standalone/mobile mode: qualify input and rails, then boot the configured persistent machine without waiting for a data host.
 - [ ] Support a data-capable PC USB connection: enumerate the configured Coreless identity and attach the host I/O path after power-good.
@@ -250,7 +250,7 @@ Apply these requirements to every track above:
 - [ ] Test adapter-only boot, PC USB enumeration, charge-only cable behavior, data disconnect/reconnect, source switching, current limits, and back-feed protection on the bench.
 - [ ] Keep physical validation distinct from virtual GPIO tests and software-only CI.
 
-**Specification:** `specification/physical_power_detection.md`. USB adapter mode and PC-connected mode are required design targets. Digital switches and a motherboard AI chipset are part of the intended architecture, but exact chipset/interface and physical integration are not yet verified. Physical detection, USB device enumeration, board-level implementation, and bench validation remain pending; the virtual motherboard does not sense actual voltage.
+**Specification:** `specification/physical_power_detection.md`. USB adapter mode and PC-connected mode are required design targets. Digital switches and a programmable digital AI chipset are part of the intended architecture. The chipset controller is software to be implemented; no physical AI chip is assumed. Physical detection, USB device enumeration, board-level implementation, and bench validation remain pending; the virtual motherboard does not sense actual voltage.
 
 
 **AI chipset attachment contract:** `specification/ai_chipset_integration.md` defines the physical backend insertion point in the existing `AIComputeResource` → `AIComputeFabric` → scheduler path. Software AI integration exists; the physical driver and chipset-specific validation remain pending until the exact part/interface is identified.
