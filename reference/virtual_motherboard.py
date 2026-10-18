@@ -77,9 +77,19 @@ class VirtualMotherboard:
 
         board.write("arduino.reset_n", 1)
         self._clock_level = 0
-        # GPIO0 is wired to a modeled status LED; the remaining pins are
-        # available for future explicitly specified peripheral contracts.
-        self.peripherals = {"status_led": VirtualGPIOPeripheral("status_led")}
+        # Each modeled output peripheral is driven only after its GPIO level
+        # has resolved through the netlist. These are digital behavior
+        # contracts, not current/voltage or physical-load simulations.
+        self._gpio_peripherals = {
+            0: "status_led",
+            1: "activity_led",
+            2: "buzzer",
+            3: "fault_led",
+        }
+        self.peripherals = {
+            name: VirtualGPIOPeripheral(name)
+            for name in self._gpio_peripherals.values()
+        }
 
     def set_gpio_mode(self, index: int, mode: PinMode | str, pull: Pull | str = Pull.NONE) -> None:
         self._check_gpio(index)
@@ -88,9 +98,11 @@ class VirtualMotherboard:
     def digital_write(self, index: int, level: int) -> None:
         self._check_gpio(index)
         self.board.write(f"arduino.D{index}", level)
-        if index == 0:
-            # Resolve through the netlist before notifying the peripheral.
-            self.peripherals["status_led"].drive(self.board.read("core.gpio0"))
+        # Resolve through the netlist before notifying the peripheral.
+        peripheral_name = self._gpio_peripherals[index]
+        self.peripherals[peripheral_name].drive(
+            self.board.read(f"core.gpio{index}")
+        )
 
     def digital_read(self, index: int) -> int:
         self._check_gpio(index)
