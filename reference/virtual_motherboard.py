@@ -75,6 +75,14 @@ class VirtualMotherboard:
             board.add_pin(core_pin, f"CORE_GPIO{index}", PinMode.INPUT)
             board.connect_pins(arduino_pin, core_pin)
 
+        # Digital AI chipset status bus: controller outputs are resolved by the
+        # same netlist and observed at the Coreless-side input pins.
+        for signal in ("ready", "busy", "fault", "enabled"):
+            board.add_pin(f"ai_chipset.{signal}", f"AI_CHIPSET_{signal.upper()}", PinMode.OUTPUT)
+            board.add_pin(f"core.ai_{signal}", f"CORE_AI_{signal.upper()}", PinMode.INPUT, Pull.DOWN)
+            board.connect_pins(f"ai_chipset.{signal}", f"core.ai_{signal}")
+            board.write(f"ai_chipset.{signal}", 0)
+
         board.write("arduino.reset_n", 1)
         self._clock_level = 0
         # Each modeled output peripheral is driven only after its GPIO level
@@ -133,6 +141,19 @@ class VirtualMotherboard:
     def interrupt_asserted(self) -> bool:
         return self.board.read("core.irq") == 1
 
+    def set_ai_chipset_status(self, *, ready: bool, busy: bool, fault: bool, enabled: bool) -> None:
+        """Drive chipset status bits through the canonical logical netlist."""
+        values = {"ready": ready, "busy": busy, "fault": fault, "enabled": enabled}
+        for signal, value in values.items():
+            self.board.write(f"ai_chipset.{signal}", int(bool(value)))
+
+    def ai_chipset_status(self) -> dict[str, bool]:
+        """Read resolved chipset status at the Coreless-side pins."""
+        return {
+            signal: bool(self.board.read(f"core.ai_{signal}"))
+            for signal in ("ready", "busy", "fault", "enabled")
+        }
+
     def continuity_report(self) -> dict[str, bool]:
         """Report required logical wire joins in the canonical netlist."""
         pairs = {
@@ -140,6 +161,10 @@ class VirtualMotherboard:
             "clock": ("CORE_CLOCK", "ARDUINO_CLOCK"),
             "interrupt": ("CORE_IRQ", "ARDUINO_IRQ"),
         }
+        pairs.update({
+            f"ai_{signal}": (f"AI_CHIPSET_{signal.upper()}", f"CORE_AI_{signal.upper()}")
+            for signal in ("ready", "busy", "fault", "enabled")
+        })
         pairs.update({
             f"gpio{index}": (f"CORE_GPIO{index}", f"ARDUINO_D{index}")
             for index in range(self.GPIO_COUNT)
@@ -155,6 +180,7 @@ class VirtualMotherboard:
             "continuity": self.continuity_report(),
             "reset_asserted": self.reset_asserted,
             "interrupt_asserted": self.interrupt_asserted,
+            "ai_chipset": self.ai_chipset_status(),
             "peripherals": {
                 name: peripheral.snapshot()
                 for name, peripheral in self.peripherals.items()
