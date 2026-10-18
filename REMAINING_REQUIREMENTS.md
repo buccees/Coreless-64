@@ -102,7 +102,13 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 - [x] Add a virtual Arduino GPIO boundary that drives and reads the Coreless-side pins through explicit net joins; reset, clock edges, and interrupt assertion/release also propagate through the netlist.
 - [ ] Verify the simulator, motherboard topology, and fault cases in CI after the latest commits.
 - [x] Attach the motherboard model to `CorelessSystem`; expose netlist status and GPIO read/write/configuration APIs, and cycle the modeled active-low reset during boot.
-- [ ] Connect clock, interrupt, GPIO, and power/reset semantics to the actual CPU/device runtime so simulated pin state governs machine behavior rather than only the reference boundary.
+- [x] Make `CorelessMachine` own the canonical motherboard instance and have `CorelessSystem` expose that same instance (no parallel netlist).
+- [x] Gate machine CPU stepping while the modeled active-low reset is asserted; execute CPU steps on deterministic motherboard rising edges and return the modeled clock to idle-low.
+- [x] Forward an asserted motherboard IRQ into the CPU's existing pending-interrupt bit (code 2); releasing the line stops new level-triggered requests but does not erase an already-pending CPU interrupt.
+- [ ] Define and implement architectural CPU reset-state semantics without bypassing CPU identity, OS trap handlers, shared memory, or process context.
+- [ ] Connect GPIO nets to real modeled device/peripheral contracts so pin transitions cause device behavior, not only readable signal levels.
+- [ ] Make power/fault state govern execution and test power loss, open circuits, shorts, wrong pin assignments, and peripheral failures.
+- [ ] Verify the integrated runtime and fault cases in CI after the latest commits.
 - [ ] Add deterministic scenario tests for open circuits, shorts, wrong pin assignments, power loss, and peripheral faults.
 - [ ] Extend the model with component-specific electrical contracts (voltage limits, current/load constraints, protection behavior, and peripheral timing) before claiming those behaviors are simulated.
 
