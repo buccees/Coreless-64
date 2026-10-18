@@ -23,7 +23,7 @@ class CorelessOS:
         self.firmware = Firmware(machine)
         self.processes = ProcessManager(machine)
         self.network = NetworkStack(machine.network)
-        self.desktop = Desktop(machine.graphics)
+        self.desktop = Desktop(machine.graphics, motherboard=getattr(machine, "motherboard", None))
         self.shell = Shell(machine, os=self)
         self.current_pid = 0
         self.init_pid = 0
