@@ -55,3 +55,29 @@ The physical controller should report a normalized, timestamped power event to t
 
 Required event/state model: `ABSENT → PRESENT_UNQUALIFIED → POWER_GOOD → BOOTING → RUNNING`, with fault/power-loss transitions to `RESET_HELD` and safe recovery. Record fault cause and transition times for diagnostics. Physical power state and software machine state must be reported separately.
 
+
+## Required USB operating modes
+
+Coreless-64 must support two intended connection scenarios through a USB interface, without assuming the same cable provides both power and data:
+
+1. **USB adapter / mobile standalone mode:** a compatible USB power adapter supplies the device. Detect input power, qualify all internal rails, then automatically boot the configured persistent Coreless identity. A power-only adapter does not provide a PC host, so local/standalone operation must not wait indefinitely for USB data enumeration.
+2. **PC-connected mode:** a PC USB host supplies power when available and enumerates Coreless through a real USB device/data interface. After power-good, expose the configured device identity and capabilities, then attach the host I/O path. Power-present alone is not evidence that enumeration succeeded.
+
+### USB design constraints
+
+- Start with a **USB 5 V input baseline** unless the power budget later proves it insufficient. Do not assume a USB-C adapter provides 9 V, 12 V, or another USB-PD voltage without a correctly designed PD sink/controller and negotiated contract.
+- Use a data-capable USB connector and a compliant device-side interface for PC connection. A charge-only cable/adapter can power the device but cannot enumerate it.
+- Treat USB input attach/presence, rail `POWER_GOOD`, and PC USB enumeration as three separate states/events.
+- Prevent back-feeding power from one source into another. If the design allows an adapter and PC connection at the same time, specify and implement a protected power-path/ideal-diode or equivalent power mux; do not directly tie two VBUS sources together.
+- Define current budget and startup inrush against the actual adapter/PC-port limits. Keep loads gated until the input source's permitted current and all local rails are valid.
+- If the device later needs more than the agreed 5 V USB input budget, choose a documented USB-PD sink design and verify voltage/current negotiation and fallback behavior. Battery operation is not implied by "mobile"; an internal battery and charging circuit would be a separate requirement.
+
+### USB mode acceptance tests
+
+- USB adapter with no data host: power-good qualifies and the selected persistent machine boots automatically.
+- PC USB port: power-good qualifies, the device enumerates with the configured identity, and the host communication path attaches.
+- Data-capable PC cable versus charge-only cable: power behavior is reported accurately; only the data-capable path is expected to enumerate.
+- Power-only adapter does not produce a false enumeration-success status.
+- Connecting/disconnecting the PC data path does not corrupt persistent state or cause repeated boot while power remains stable.
+- Simultaneous or switched sources cannot back-feed each other; source transitions, current limits, and brownouts fail safely.
+- Physical bench validation is required; virtual tests can validate the event/state contract but cannot establish USB electrical compliance.
