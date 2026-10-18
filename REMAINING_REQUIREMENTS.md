@@ -231,6 +231,9 @@ Apply these requirements to every track above:
 
 ## Physical power detection and automatic power-on boot
 
+- [ ] Trace the motherboard's digital switches as explicit control/routing elements, with canonical state ownership and shortest valid signal paths.
+- [ ] Define the existing intended motherboard AI chipset's power, reset, local data/control bus, boot readiness, and driver/firmware integration contracts after confirming its exact part/interface.
+- [ ] Keep deterministic hardware power supervision and reset safety independent of AI/software state; AI activity is gated until rails are valid.
 - [ ] Support USB adapter standalone/mobile mode: qualify input and rails, then boot the configured persistent machine without waiting for a data host.
 - [ ] Support a data-capable PC USB connection: enumerate the configured Coreless identity and attach the host I/O path after power-good.
 - [ ] Keep USB power-present, internal rail power-good, and successful PC USB enumeration as separate states.
@@ -246,4 +249,4 @@ Apply these requirements to every track above:
 - [ ] Test adapter-only boot, PC USB enumeration, charge-only cable behavior, data disconnect/reconnect, source switching, current limits, and back-feed protection on the bench.
 - [ ] Keep physical validation distinct from virtual GPIO tests and software-only CI.
 
-**Specification:** `specification/physical_power_detection.md`. USB adapter mode and PC-connected mode are required design targets; physical detection, USB device enumeration, board-level implementation, and bench validation remain pending; the virtual motherboard does not sense actual voltage.
+**Specification:** `specification/physical_power_detection.md`. USB adapter mode and PC-connected mode are required design targets. Digital switches and a motherboard AI chipset are part of the intended architecture, but exact chipset/interface and physical integration are not yet verified. Physical detection, USB device enumeration, board-level implementation, and bench validation remain pending; the virtual motherboard does not sense actual voltage.
