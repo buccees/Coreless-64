@@ -1,75 +1,43 @@
-# Coreless-64 motherboard AI chipset attachment contract
+# Coreless-64 digital AI chipset integration contract
 
-**Status:** the AI runtime and compute fabric already exist. The digital AI chipset itself is a programmable software component to implement on the virtual motherboard; no physical AI chip is assumed.
+**Status:** the first software implementation is integrated into the existing machine runtime and virtual motherboard. This is a programmable digital controller, not a physical AI chip and not a second AI runtime.
 
-## Correct insertion point
-
-The digital AI chipset is a first-class motherboard control/dispatch component—not a second AI runtime, a physical part, or an authority over Coreless policy.
+## Canonical execution path
 
 ```text
 PersistentAIRuntime / AICoreRegistry
           |
-          | model/session policy and request contract
           v
-CorelessMachine -> AIComputeFabric -> MachineScheduler -> MachineWorkDistributor
-                         ^
-                         |
-           programmable DigitalAIChipset
-                         |
-          direct logical motherboard signals
+CorelessMachine -> DigitalAIChipset control gate
+          |                    |
+          v                    v
+MachineScheduler -> AIComputeFabric -> registered AI core
+          |
+          v
+VirtualMotherboard logical status nets -> Coreless-side status inputs
 ```
 
-The existing `AIComputeFabric`, `MachineScheduler`, `AICoreRegistry`, and `PersistentAIRuntime` are the execution backend. Implement a `DigitalAIChipset` controller with explicit control/status state and connect it directly to the existing fabric/scheduler and canonical `VirtualMotherboard`. Do not create a parallel machine, registry, scheduler, or AI runtime.
+The controller lives in `reference/digital_ai_chipset.py`. The machine owns one instance at `CorelessMachine.ai_chipset`; `CorelessSystem.ai_chipset` aliases that same instance. Status bits are driven through the canonical `VirtualMotherboard` netlist. The controller does not create a new model runtime, registry, fabric, scheduler, or motherboard.
+
+## Control and status
+
+- Stable identity: `coreless.digital-ai-chipset`; interface version 1.
+- Controls: enable, disable, reset controller state, and clear fault.
+- Status: ready, busy, fault, enabled, registered models, last work/resource IDs, and completed/failed work counts.
+- Status outputs `ready`, `busy`, `fault`, and `enabled` are resolved through named logical motherboard nets and readable at Coreless-side input pins.
+- Readiness requires the controller to be enabled, not faulted, and at least one AI resource to be registered.
+- Reset clears controller fault/last-work state only. It does not erase AI sessions, model state, or machine persistence.
 
 ## Dispatch contract
 
-- Give the hardware backend a stable resource ID and explicitly declared operation/capability set. Never advertise tensor or inference operations the device/driver cannot execute.
-- Keep Coreless as owner of scheduling, permissions, request validation, model identity, persistent sessions, result provenance, and fallback policy.
-- Define fallback explicitly per operation. For operations that require the physical accelerator, fail clearly if it is unavailable; do not silently claim the hardware ran when a software core handled the work.
-- Translate requests/results at one driver boundary. Use the chipset's shortest supported local interface; do not route on-board transactions through TCP, a remote AI service, or an unnecessary serialization broker.
-- Keep device discovery, reset, timeout, error reporting, and removal/recovery in the backend adapter. Device loss must release scheduler capacity and must not corrupt the persistent AI session.
-- The hardware driver may report health and readiness, but must not decide whether supply rails are electrically safe or release the machine's hardware reset.
+- The controller accepts only the operations explicitly declared in `SUPPORTED_OPERATIONS`.
+- Work must identify a registered model. The controller dispatches through the existing `MachineScheduler` with `ai_only` and fallback disabled; it does not call a model directly or silently substitute conventional CPU execution.
+- The returned result must identify the requested work, operation, and model, and the scheduler allocation must identify the expected AI resource. Dispatch errors increment the failed count and latch a fault until cleared/reset.
+- Coreless retains policy, authorization, model identity, persistent sessions, scheduling, and result provenance. AI output is not authorization.
+- Local components communicate by direct in-process calls. No TCP, network broker, physical bus, chip pinout, or electrical model is implied.
 
-## Power, reset, and readiness
+## Verification
 
-The chipset power-enable/reset path is governed by the board's power supervisor and sequencing contract, independently of the AI runtime. The backend becomes dispatchable only after all of these are true:
+`reference/test_digital_ai_chipset.py` covers canonical motherboard wiring/status, dispatch through the existing fabric and scheduler, provenance, unsupported operations, and controller enable/reset/fault controls. `reference/test_virtual_motherboard.py` verifies the new logical signal continuity alongside existing reset/clock/IRQ/GPIO paths.
 
-1. Required rails are power-good and the chipset's documented power sequence has completed.
-2. The chipset reset/boot protocol reports ready according to its datasheet.
-3. The driver has identified the expected device and negotiated/validated its interface.
-4. The backend has registered its actual supported operations and capacity with the Coreless scheduler.
-
-On brownout, reset, timeout, or disconnect, stop dispatch to the device and report unavailable. Any orderly model/session checkpoint is best-effort software behavior, not a substitute for hardware power-fail protection.
-
-## Digital chipset implementation contract
-
-- Stable chipset identity and interface version.
-- Explicit enable/disable, reset, clear-fault, and status operations.
-- Readiness, busy, fault, selected resource, and completed/failed work status.
-- Supported-operation validation; unsupported work fails deterministically.
-- Preserve work ID, operation, model ID, result provenance, and errors across dispatch.
-- Reset controller state without erasing AI sessions or machine persistence.
-- Keep policy and authorization in Coreless; the chipset is not an authority.
-- Use direct in-process calls for local components and named logical signals on the single canonical virtual motherboard.
-
-## Physical hardware is not part of this implementation
-
-The digital chipset is a software component in the virtual machine. No physical part, pinout, electrical bus, or physical AI driver is required for this stage.
-
-- Manufacturer, exact part number, silicon revision, package, and datasheet.
-- Supported local interface and electrical signaling: for example PCIe, USB, SPI, I2C, or a documented proprietary interface. Do not assume one.
-- Pinout, voltage domains, I/O tolerance, rail current/inrush, sequencing, reset polarity/timing, clock requirements, and thermal limits.
-- Boot firmware, runtime/driver API, command and result formats, memory/DMA rules, interrupt behavior, and error/recovery protocol.
-- Supported operations, numerical constraints, concurrency/capacity, and whether the device runs an entire model or only selected kernels.
-- Board switch/routing inventory and default/fail-safe state for power, reset, bus isolation, and device enable.
-
-No pin mapping, part selection, voltage, or timing value should be guessed in advance of these facts.
-
-## Acceptance tests
-
-- Software contract test registers a backend, dispatches supported work, preserves work/model IDs and result provenance, and rejects unsupported operations.
-- Scheduler test proves unavailable/reset devices receive no new work and are removed from eligible capacity; recovery requires revalidation before dispatch resumes.
-- Explicit hardware-only preference fails rather than silently using a different backend when hardware is absent.
-- Power/reset safety remains functional with the OS, desktop, registry, or AI process stopped.
-- Bench acceptance measures rails, sequencing, reset, bus signal integrity, readiness, sustained workload, thermal behavior, disconnect, and brownout with the selected part.
-- Software tests validate the adapter contract only; they do not count as physical chipset validation.
+These tests validate software control logic and digital netlist behavior only. They do not validate physical power detection, USB enumeration, real electrical behavior, or trained-model quality.
