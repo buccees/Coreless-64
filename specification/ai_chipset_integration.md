@@ -1,10 +1,10 @@
 # Coreless-64 motherboard AI chipset attachment contract
 
-**Status:** software compute integration exists; physical chipset attachment is pending identification and implementation.
+**Status:** the AI runtime and compute fabric already exist. The digital AI chipset itself is a programmable software component to implement on the virtual motherboard; no physical AI chip is assumed.
 
 ## Correct insertion point
 
-The intended physical AI chipset is a compute backend for the existing Coreless machine, not a second AI runtime and not a direct authority over the motherboard's safety controls.
+The digital AI chipset is a first-class motherboard control/dispatch component—not a second AI runtime, a physical part, or an authority over Coreless policy.
 
 ```text
 PersistentAIRuntime / AICoreRegistry
@@ -14,14 +14,12 @@ PersistentAIRuntime / AICoreRegistry
 CorelessMachine -> AIComputeFabric -> MachineScheduler -> MachineWorkDistributor
                          ^
                          |
-           physical AI backend adapter
+           programmable DigitalAIChipset
                          |
-              shortest supported local bus
-                         |
-                motherboard AI chipset
+          direct logical motherboard signals
 ```
 
-The software model already has `AIComputeResource` in `ai/compute_fabric.py` as the resource contract and `AIComputeSchedulerResource` in `scheduler.py` as the scheduler-facing adapter. Registered software AI cores currently enter through `CorelessMachine.attach_ai_registry()`. A physical backend should implement the existing compute-resource contract and be registered through the same fabric/scheduler path; do not create a parallel machine, registry, or scheduler.
+The existing `AIComputeFabric`, `MachineScheduler`, `AICoreRegistry`, and `PersistentAIRuntime` are the execution backend. Implement a `DigitalAIChipset` controller with explicit control/status state and connect it directly to the existing fabric/scheduler and canonical `VirtualMotherboard`. Do not create a parallel machine, registry, scheduler, or AI runtime.
 
 ## Dispatch contract
 
@@ -43,7 +41,20 @@ The chipset power-enable/reset path is governed by the board's power supervisor 
 
 On brownout, reset, timeout, or disconnect, stop dispatch to the device and report unavailable. Any orderly model/session checkpoint is best-effort software behavior, not a substitute for hardware power-fail protection.
 
-## Facts required before implementing a real driver or schematic
+## Digital chipset implementation contract
+
+- Stable chipset identity and interface version.
+- Explicit enable/disable, reset, clear-fault, and status operations.
+- Readiness, busy, fault, selected resource, and completed/failed work status.
+- Supported-operation validation; unsupported work fails deterministically.
+- Preserve work ID, operation, model ID, result provenance, and errors across dispatch.
+- Reset controller state without erasing AI sessions or machine persistence.
+- Keep policy and authorization in Coreless; the chipset is not an authority.
+- Use direct in-process calls for local components and named logical signals on the single canonical virtual motherboard.
+
+## Physical hardware is not part of this implementation
+
+The digital chipset is a software component in the virtual machine. No physical part, pinout, electrical bus, or physical AI driver is required for this stage.
 
 - Manufacturer, exact part number, silicon revision, package, and datasheet.
 - Supported local interface and electrical signaling: for example PCIe, USB, SPI, I2C, or a documented proprietary interface. Do not assume one.
