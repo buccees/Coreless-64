@@ -15,6 +15,7 @@ from machine_work_distribution import MachineWorkDistributor
 from scheduler import MachineScheduler, ConventionalComputeResource, AIComputeSchedulerResource
 from ai.tensor_runtime import TensorRuntime
 from virtual_motherboard import VirtualMotherboard
+from digital_ai_chipset import DigitalAIChipset
 
 
 class CorelessMachine:
@@ -54,6 +55,8 @@ class CorelessMachine:
         self.telemetry = TelemetryProvider()
         self.scheduler = MachineScheduler(telemetry=self.telemetry)
         self.work_distributor = MachineWorkDistributor(self.scheduler)
+        # One digital controller owns AI control/status; compute remains in the existing fabric.
+        self.ai_chipset = DigitalAIChipset(self)
         self.scheduler.register(ConventionalComputeResource(
             "cpu",
             self._conventional_compute,
@@ -167,6 +170,7 @@ class CorelessMachine:
                 ),
             ))
         self.ai_registry = registry
+        self.ai_chipset._publish()
         return self.ai_fabric.resources()
 
     def ai_compute(self, work: ComputeWork, model_id: str) -> ComputeResult:
