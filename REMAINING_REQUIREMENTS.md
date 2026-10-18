@@ -101,7 +101,8 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 - [x] Define a canonical digital motherboard netlist with logical VCC/GND, active-low reset, clock, interrupt, and four GPIO signal paths.
 - [x] Add a virtual Arduino GPIO boundary that drives and reads the Coreless-side pins through explicit net joins; reset, clock edges, and interrupt assertion/release also propagate through the netlist.
 - [ ] Verify the simulator, motherboard topology, and fault cases in CI after the latest commits.
-- [ ] Bind the modeled Coreless-side pins to the actual machine/device runtime; the current motherboard boundary is a standalone reference model, not yet a live CPU execution dependency.
+- [x] Attach the motherboard model to `CorelessSystem`; expose netlist status and GPIO read/write/configuration APIs, and cycle the modeled active-low reset during boot.
+- [ ] Connect clock, interrupt, GPIO, and power/reset semantics to the actual CPU/device runtime so simulated pin state governs machine behavior rather than only the reference boundary.
 - [ ] Add deterministic scenario tests for open circuits, shorts, wrong pin assignments, power loss, and peripheral faults.
 - [ ] Extend the model with component-specific electrical contracts (voltage limits, current/load constraints, protection behavior, and peripheral timing) before claiming those behaviors are simulated.
 
