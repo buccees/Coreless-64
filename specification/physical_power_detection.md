@@ -95,3 +95,13 @@ Treat directness as a system-wide architecture requirement, subject to safety, c
 - **Safety boundary:** never bypass voltage supervision, reset gating, electrical protection, protocol validation, or required isolation to reduce path length.
 
 Acceptance: architecture review lists the path for power event, boot request, USB enumeration, host command, GPIO/LED update, and desktop display update; unnecessary hops and duplicate state are removed where tests show equivalence; timing and failure tests confirm no correctness regression.
+
+## Digital-switch control and motherboard AI chipset
+
+The intended motherboard architecture uses digital switches as the explicit control/routing elements for system functions. Model their state and connections as named, inspectable digital control paths: commands/events should reach the relevant switch/control endpoint by the shortest valid route, and switch state must have one canonical owner. Do not introduce analog behavior into the digital reference model unless a separate electrical specification requires it.
+
+The motherboard design also includes an intended AI chipset/component. Treat its motherboard attachment, power domain, data/control interface, boot readiness, and resource access as first-class architecture items—not as a new parallel computer or a remote service by default. Prefer a direct local interface to the canonical Coreless runtime and memory/bus fabric where the selected chipset and board actually support it. The exact chipset identity, package, bus, pinout, voltage rails, current budget, reset/boot requirements, and driver/firmware interface must be confirmed before electrical implementation; this note does not claim those physical details are already validated.
+
+**Control/safety boundary:** digital switches and the AI chipset may participate in system orchestration, but hardware power supervision and reset safety must remain deterministic and able to hold the system off regardless of AI/software state. The AI chipset must not be required to decide whether input voltage is safe or whether a rail is within tolerance. Gate its activity until required rails and reset sequencing are valid.
+
+Acceptance: architecture traces identify each digital switch's controlled function, signal owner, and shortest path; the AI chipset has a defined local data/control/power/reset contract; and fault tests prove that AI/software failure cannot defeat power-good or reset safety. Physical pin-level and timing validation remains pending until the actual chipset and board design are specified and tested.
