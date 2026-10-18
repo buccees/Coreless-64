@@ -81,3 +81,17 @@ Coreless-64 must support two intended connection scenarios through a USB interfa
 - Connecting/disconnecting the PC data path does not corrupt persistent state or cause repeated boot while power remains stable.
 - Simultaneous or switched sources cannot back-feed each other; source transitions, current limits, and brownouts fail safely.
 - Physical bench validation is required; virtual tests can validate the event/state contract but cannot establish USB electrical compliance.
+
+## Shortest-path communication requirement
+
+Treat directness as a system-wide architecture requirement, subject to safety, correctness, and observable failure handling. Prefer the shortest path that preserves the interface contract; do not add a broker, network hop, duplicate state store, polling loop, or extra serialization layer when a direct signal, shared-memory interface, or native bus endpoint is sufficient.
+
+- **Power detection to reset control:** use a direct hardware supervisor/reset path. Do not make safe reset release depend on a desktop process, USB enumeration, or periodic software polling.
+- **Power-good to startup:** hardware readiness gates reset; once the controller reports a stable ready event, software routes it into the one canonical machine lifecycle. Debounce/sequence in the controller, not through repeated host polling.
+- **USB data path:** route the USB device controller to the Coreless host-interface/transport adapter through the minimum required driver and protocol layers. USB enumeration and identity validation remain explicit; do not invent direct USB device support until target hardware and controller are selected.
+- **Internal components:** prefer direct calls for in-process operations, shared memory or a local IPC primitive for same-host isolation needs, and a native bus for physical peripherals. Use network transport only when the endpoints are actually remote or the interface requires it.
+- **State ownership:** keep one canonical owner for machine, power, GPIO, and desktop-visible state. Observers subscribe/read from that owner rather than maintaining divergent shadow state.
+- **Traceability:** document each hop in the communication path, why it exists, and its expected latency/error behavior. Measure end-to-end latency before optimizing; shortest hop count is a design preference, not proof of lowest latency.
+- **Safety boundary:** never bypass voltage supervision, reset gating, electrical protection, protocol validation, or required isolation to reduce path length.
+
+Acceptance: architecture review lists the path for power event, boot request, USB enumeration, host command, GPIO/LED update, and desktop display update; unnecessary hops and duplicate state are removed where tests show equivalence; timing and failure tests confirm no correctness regression.
