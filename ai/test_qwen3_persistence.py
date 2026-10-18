@@ -211,27 +211,41 @@ def test_manifest_sync_that_fails_after_disk_replace_rolls_back_durably(monkeypa
     assert [item.data for item in restored.values] == [item.data for item in old_cache.values]
 
 
-def test_manifest_rollback_sync_failure_is_reported(monkeypatch):
-    image = PersistentMachineImage()
+def test_manifest_rollback_sync_failure_is_reported(monkeypatch, tmp_path):
+    path = tmp_path / "manifest-rollback-sync-failure.json"
+    image = PersistentMachineImage(path)
     runtime = TensorRuntime(image)
-    _cache(runtime, 19).persist(runtime, "session")
+    old_cache = _cache(runtime, 19)
+    old_cache.persist(runtime, "session")
     original_sync = image.sync
     calls = 0
 
     def fail_commit_and_rollback():
         nonlocal calls
         calls += 1
-        if calls <= 2:
-            raise OSError("injected sync failure")
+        if calls == 1:
+            # Simulate an ambiguous commit: the new image reaches disk, but
+            # the caller receives an error after sync has returned internally.
+            original_sync()
+            raise OSError("injected post-commit sync failure")
+        if calls == 2:
+            raise OSError("injected rollback sync failure")
         return original_sync()
 
     monkeypatch.setattr(image, "sync", fail_commit_and_rollback)
     with pytest.raises(RuntimeError, match="rollback could not be made durable") as exc:
         _cache(runtime, 500).persist(runtime, "session")
-    # Tensor writes are staged without sync; these two calls are specifically
-    # the manifest commit and the attempted durable rollback.
     assert calls == 2
     assert isinstance(exc.value.__cause__, OSError)
+
+    # Reopening must yield a complete, parseable committed snapshot, not a
+    # partially written manifest/tensor set. The old-or-new outcome is
+    # explicitly uncertain when both commit and rollback report failure.
+    reopened = PersistentMachineImage(path)
+    restored = Qwen3KVCache.restore(TensorRuntime(reopened), "session", 2)
+    assert restored.sequence_length == 1
+    assert [item.data for item in restored.keys] == [_tensor(500).data]
+    assert [item.data for item in restored.values] == [_tensor(600).data]
 
 
 def test_interrupted_machine_image_commit_recovers_previous_snapshot(tmp_path):
