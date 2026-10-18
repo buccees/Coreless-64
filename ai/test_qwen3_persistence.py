@@ -232,9 +232,10 @@ def test_manifest_rollback_sync_failure_is_reported(monkeypatch, tmp_path):
             raise OSError("injected rollback sync failure")
         return original_sync()
 
+    attempted_cache = _cache(runtime, 500)
     monkeypatch.setattr(image, "sync", fail_commit_and_rollback)
     with pytest.raises(RuntimeError, match="rollback could not be made durable") as exc:
-        _cache(runtime, 500).persist(runtime, "session")
+        attempted_cache.persist(runtime, "session")
     assert calls == 2
     assert isinstance(exc.value.__cause__, OSError)
 
@@ -243,9 +244,13 @@ def test_manifest_rollback_sync_failure_is_reported(monkeypatch, tmp_path):
     # explicitly uncertain when both commit and rollback report failure.
     reopened = PersistentMachineImage(path)
     restored = Qwen3KVCache.restore(TensorRuntime(reopened), "session", 2)
-    assert restored.sequence_length == 1
-    assert [item.data for item in restored.keys] == [_tensor(500).data]
-    assert [item.data for item in restored.values] == [_tensor(600).data]
+    assert restored.sequence_length == attempted_cache.sequence_length
+    assert [item.data for item in restored.keys] == [
+        item.data for item in attempted_cache.keys
+    ]
+    assert [item.data for item in restored.values] == [
+        item.data for item in attempted_cache.values
+    ]
 
 
 def test_interrupted_machine_image_commit_recovers_previous_snapshot(tmp_path):
