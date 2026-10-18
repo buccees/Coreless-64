@@ -78,3 +78,36 @@ def test_snapshot_includes_wiring_and_line_state():
     assert all(snapshot["continuity"].values())
     assert snapshot["reset_asserted"] is False
     assert snapshot["interrupt_asserted"] is False
+
+
+def test_gpio0_transitions_drive_modeled_status_led_peripheral():
+    motherboard = VirtualMotherboard()
+    led = motherboard.peripherals["status_led"]
+    assert led.level is None
+    assert led.energized is False
+
+    motherboard.set_gpio_mode(0, PinMode.OUTPUT)
+    motherboard.digital_write(0, 1)
+    assert motherboard.digital_read(0) == 1
+    assert led.level == 1
+    assert led.energized is True
+
+    motherboard.digital_write(0, 1)
+    assert led.transitions == [1]
+    motherboard.digital_write(0, 0)
+    assert led.level == 0
+    assert led.energized is False
+    assert led.transitions == [1, 0]
+
+
+def test_motherboard_snapshot_reports_peripheral_state():
+    motherboard = VirtualMotherboard()
+    motherboard.set_gpio_mode(0, PinMode.OUTPUT)
+    motherboard.digital_write(0, 1)
+    assert motherboard.snapshot()["peripherals"]["status_led"] == {
+        "name": "status_led",
+        "level": 1,
+        "energized": True,
+        "transitions": [1],
+    }
+
