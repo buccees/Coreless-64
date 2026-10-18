@@ -227,3 +227,17 @@ Apply these requirements to every track above:
 - Do not claim live trained-model inference from CI or synthetic weights.
 - Do not re-open completed socket lifecycle work without a concrete uncovered contract or regression.
 - Keep model weights, secrets, and credentials out of the repository.
+
+
+## Physical power detection and automatic power-on boot
+
+- [ ] Define the real input-supply voltage range and every monitored rail before selecting components.
+- [ ] Implement a correctly rated, isolated power-present detector where required by the supply topology.
+- [ ] Implement voltage supervision/power-good for all required rails, including brownout response, hysteresis, and startup qualification.
+- [ ] Hold hardware reset until all required rails are stable; produce one automatic startup event after power-good.
+- [ ] Implement a safe power-fail/reset path and measure available hold-up time before promising graceful persistence flush.
+- [ ] Integrate physical power events with the canonical persistent-machine identity, discovery, and boot/resume lifecycle.
+- [ ] Bench-test the detector and integrated boot path, including missing rail, unstable supply, brownout, abrupt power loss, and sensor/wire faults.
+- [ ] Keep physical validation distinct from virtual GPIO tests and software-only CI.
+
+**Specification:** `specification/physical_power_detection.md`. Physical detection, board-level implementation, and bench validation remain pending; the virtual motherboard does not sense actual voltage.
