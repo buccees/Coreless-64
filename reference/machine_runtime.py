@@ -14,6 +14,7 @@ from ai.telemetry import TelemetryProvider
 from machine_work_distribution import MachineWorkDistributor
 from scheduler import MachineScheduler, ConventionalComputeResource, AIComputeSchedulerResource
 from ai.tensor_runtime import TensorRuntime
+from virtual_motherboard import VirtualMotherboard
 
 
 class CorelessMachine:
@@ -35,6 +36,7 @@ class CorelessMachine:
         for i, cpu in enumerate(self.cpus):
             cpu.csrs[0x00A] = i
             cpu.csrs[0x00B] = cpu_count
+        self.motherboard = VirtualMotherboard()
         self.interrupts = InterruptController(cpu_count)
         self.devices = DeviceFabric()
         self.devices.attach_interrupt_controller(self.interrupts)
@@ -106,7 +108,8 @@ class CorelessMachine:
         if work.operation == "cpu.step":
             count = max(1, int(work.request.context.get("count", 1)))
             for _ in range(count):
-                self.cpu.step()
+                if not self._clocked_step(0):
+                    break
             return ComputeResult(
                 work.work_id, work.operation, "cpu",
                 AIResult(
@@ -306,10 +309,32 @@ class CorelessMachine:
         self.save_state()
         return result
 
+    def _clocked_step(self, cpu_id=0):
+        """Execute one CPU step only when motherboard signals permit it.
+
+        This is deterministic digital-edge integration, not electrical or
+        cycle-accurate hardware simulation. External IRQ is level-sensitive.
+        """
+        if self.motherboard.reset_asserted:
+            return False
+        if self.motherboard.board.read("rail.vcc") != 1 or self.motherboard.board.read("rail.gnd") != 0:
+            return False
+        cpu = self.cpus[cpu_id]
+        if self.motherboard.interrupt_asserted:
+            cpu.request_interrupt(2)
+        rising = self.motherboard.clock_tick()
+        if rising != 1:
+            raise RuntimeError("motherboard clock did not produce a rising edge")
+        result = cpu.step()
+        self.motherboard.clock_tick()
+        return result
+
     def step(self, cpu_id=0):
         if not self.booted:
             raise RuntimeError("machine not booted")
-        result = self.cpus[cpu_id].step()
+        if self.motherboard.reset_asserted:
+            raise RuntimeError("motherboard reset is asserted")
+        result = self._clocked_step(cpu_id)
         self.cpus[cpu_id].memory.flush()
         self.save_state()
         return result
@@ -317,9 +342,13 @@ class CorelessMachine:
     def run(self, max_steps=100000, cpu_id=0):
         if not self.booted:
             raise RuntimeError("machine not booted")
+        if max_steps < 0:
+            raise ValueError("max_steps must be non-negative")
         steps = 0
         while steps < max_steps and not self.cpus[cpu_id].halted:
-            self.cpus[cpu_id].step()
+            if self.motherboard.reset_asserted:
+                break
+            self._clocked_step(cpu_id)
             steps += 1
         for cpu in self.cpus:
             cpu.memory.flush()
