@@ -10,9 +10,34 @@ class _Descriptor:
 
 
 class _Component:
-    def __init__(self, model_id, healthy=True):
+    def __init__(self, model_id, healthy=True, running=True):
         self.descriptor = _Descriptor(model_id)
         self.healthy = healthy
+        self._running = running
+
+    def ai_status(self):
+        return {"bound": True, "running": self._running}
+
+
+class _Result:
+    def __init__(self, model_id):
+        self.model_id = model_id
+
+
+class _ComputeResult:
+    def __init__(self, model_id):
+        self.model_id = model_id
+        self.result = _Result(model_id)
+
+
+class _Runtime:
+    def __init__(self, router):
+        self.function_router = router
+        self.calls = []
+
+    def compute(self, machine, text, **kwargs):
+        self.calls.append((machine, text, kwargs))
+        return (_ComputeResult(kwargs["model_id"]),)
 
 
 class _Core:
@@ -122,3 +147,42 @@ def test_execution_path_registry_rejects_duplicate_owner_on_restore():
                 {"path_id": "b", "component_id": "cpu-0", "function_id": "reason", "model_id": "deepseek"},
             ],
         })
+
+
+
+def test_execute_dispatches_only_registered_model_and_checks_provenance():
+    router = _router("qwen3", "deepseek")
+    router.assign("cpu_intelligence", "qwen3")
+    paths = ExecutionPathRegistry()
+    paths.register(ExecutionPath("cpu.primary", "cpu-0", "cpu_intelligence", "qwen3"))
+    runtime = _Runtime(router)
+    machine = object()
+
+    result = paths.execute(
+        "cpu.primary",
+        components={"cpu-0": _Component("qwen3")},
+        runtime=runtime,
+        machine=machine,
+        text="inspect CPU workload",
+    )
+
+    assert result.model_id == "qwen3"
+    assert len(runtime.calls) == 1
+    assert runtime.calls[0][2]["model_id"] == "qwen3"
+    assert runtime.calls[0][2]["context"]["execution_path_id"] == "cpu.primary"
+
+
+def test_execute_fails_closed_when_component_ai_is_not_running():
+    router = _router("qwen3")
+    router.assign("cpu_intelligence", "qwen3")
+    paths = ExecutionPathRegistry()
+    paths.register(ExecutionPath("cpu.primary", "cpu-0", "cpu_intelligence", "qwen3"))
+
+    with pytest.raises(RuntimeError, match="AI is not running"):
+        paths.execute(
+            "cpu.primary",
+            components={"cpu-0": _Component("qwen3", running=False)},
+            runtime=_Runtime(router),
+            machine=object(),
+            text="must not dispatch",
+        )
