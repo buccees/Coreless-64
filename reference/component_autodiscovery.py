@@ -119,7 +119,7 @@ class LinuxMountedComponentDiscoveryProvider:
         import re
 
         return re.sub(
-            r"\\\\([0-7]{3})",
+            r"\\([0-7]{3})",
             lambda match: chr(int(match.group(1), 8)),
             value,
         )
