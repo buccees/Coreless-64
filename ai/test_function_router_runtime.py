@@ -29,6 +29,7 @@ def test_function_assignment_routes_live_analysis_and_persists():
     runtime.registry.register(StubCore("qwen3"))
     runtime.registry.register(StubCore("codestral"))
 
+    runtime.declare_model_functions("codestral", ("code_generation",))
     runtime.assign_function("code_generation", "codestral")
     result = runtime.analyze_for_function("code_generation", "write a function")
 
