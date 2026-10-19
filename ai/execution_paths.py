@@ -135,6 +135,28 @@ class ExecutionPathRegistry:
             path_id, components=components, function_router=function_router
         )
         component = components[path.component_id]
+        resident_runtime = getattr(component, "ai_runtime", None)
+        registry = getattr(runtime, "registry", None)
+        get_core = getattr(registry, "get_core", None)
+        if resident_runtime is not None and callable(get_core):
+            registered_core = get_core(path.model_id)
+            bound_core = getattr(resident_runtime, "core", resident_runtime)
+            if bound_core is not registered_core:
+                raise RuntimeError(
+                    f"execution-path component {path.component_id!r} is not bound "
+                    f"to the registered runtime for model {path.model_id!r}"
+                )
+            runtime_model_id = getattr(bound_core, "model_id", None)
+            if runtime_model_id != path.model_id:
+                raise RuntimeError(
+                    f"execution-path component {path.component_id!r} has mismatched "
+                    f"resident runtime identity {runtime_model_id!r}"
+                )
+        else:
+            raise RuntimeError(
+                f"execution-path component {path.component_id!r} has no verifiable "
+                "binding to the registered AI runtime"
+            )
         ai_status = getattr(component, "ai_status", None)
         if not callable(ai_status):
             raise TypeError("execution-path component does not expose AI lifecycle status")
