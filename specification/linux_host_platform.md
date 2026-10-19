@@ -108,3 +108,17 @@ virtual-device system. It creates the kernel network interface but does not yet
 forward TAP packets to/from the Coreless network controller; that packet data path
 must be implemented and tested before the adapter is usable for Coreless traffic.
 Graphics, input, storage, and other device classes still need their own OS backends.
+
+
+### Automatic mounted-volume discovery
+
+`LinuxMountedComponentDiscoveryProvider` now re-reads Linux's mounted-filesystem
+table during each discovery scan, considers standard Coreless install roots
+(`/opt/coreless/components`, `/var/lib/coreless/components`) and real mounted
+volumes, and delegates safe manifest-only inspection to the directory provider.
+This allows a component package on a newly mounted SSD/data volume to be discovered
+by the running poller without manually assigning it a task or restarting discovery.
+
+This detects **mounted** volumes, not raw physical arrival before the OS mounts the
+drive. The polling service must be started by the integrating runtime, and a
+platform device backend must be selected for actual OS-visible registration.
