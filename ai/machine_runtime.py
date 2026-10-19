@@ -91,6 +91,57 @@ class PersistentAIRuntime:
         model_ids = self.function_router.models_for(function)
         return self.analyze(text, actor=actor, context=context, model_ids=model_ids)
 
+    def compute_for_function(
+        self,
+        machine: Any,
+        function: str,
+        text: str,
+        *,
+        actor: str = "human",
+        context: Mapping[str, object] | None = None,
+        operation: str = "ai.infer",
+    ):
+        """Execute assigned models through the machine's digital AI chipset and scheduler.
+
+        Models run in declared assignment order. No conventional-CPU fallback or
+        unassigned model substitution is permitted.
+        """
+        from .compute_fabric import ComputeWork
+
+        model_ids = self.function_router.models_for(function)
+        chipset = getattr(machine, "ai_chipset", None)
+        dispatch = getattr(chipset, "dispatch", None)
+        if not callable(dispatch):
+            raise TypeError("machine does not expose the digital AI chipset dispatch contract")
+
+        request = self.request(text, actor=actor)
+        if context:
+            request = type(request)(
+                request_id=request.request_id,
+                prompt=request.prompt,
+                context={**request.context, **dict(context)},
+                authority=request.authority,
+            )
+        request_number = request.request_id.rsplit(":", 1)[-1]
+        results = []
+        for index, model_id in enumerate(model_ids):
+            work = ComputeWork(
+                work_id=f"{self.session.session_id}:function:{function}:{request_number}:{index}",
+                operation=operation,
+                request=request,
+                model_id=model_id,
+            )
+            result = dispatch(work, model_id=model_id)
+            ai_result = getattr(result, "result", None)
+            if ai_result is None or getattr(ai_result, "model_id", None) != model_id:
+                raise RuntimeError(
+                    f"AI chipset returned invalid result provenance for function {function!r}"
+                )
+            self.session.record_result(ai_result)
+            results.append(result)
+        self.save()
+        return tuple(results)
+
     def compute(
         self,
         machine: Any,
