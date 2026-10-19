@@ -171,10 +171,23 @@ class PersistentAIRuntime:
             request=request,
             model_id=model_id,
         )
-        result = machine.schedule_compute(work, preference="ai", allow_fallback=False)
-        self.session.record_result(result[0].result)
+        chipset = getattr(machine, "ai_chipset", None)
+        dispatch = getattr(chipset, "dispatch", None)
+        if not callable(dispatch):
+            raise TypeError("machine does not expose the digital AI chipset dispatch contract")
+        result = dispatch(work, model_id=model_id)
+        ai_result = getattr(result, "result", None)
+        if (
+            getattr(result, "model_id", None) != model_id
+            or ai_result is None
+            or getattr(ai_result, "model_id", None) != model_id
+        ):
+            raise RuntimeError(
+                f"digital AI chipset returned invalid result provenance for model {model_id!r}"
+            )
+        self.session.record_result(ai_result)
         self.save()
-        return result
+        return (result,)
     def save(self) -> None:
         self.registry.save(self.storage, self.REGISTRY_KEY)
         self.session.save(self.storage, self.SESSION_KEY)
