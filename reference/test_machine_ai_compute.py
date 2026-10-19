@@ -347,3 +347,39 @@ def test_component_resident_ai_binding_rejects_a_different_existing_runtime():
     )
     with pytest.raises(RuntimeError, match="already bound to a different AI runtime"):
         component.bind_registered_ai(registry)
+
+
+def test_hub_resident_binding_prevalidates_before_mutating_any_component():
+    import pytest
+    from components import ComponentDescriptor, CorelessComponent, CorelessHub
+    from ai.registry import AICoreRegistry
+
+    registry = AICoreRegistry()
+    qwen = FakeCore()
+    class DeepSeekCore:
+        model_id = "deepseek"
+        def infer(self, request):
+            return AIResult(
+                model_id=self.model_id, request_id=request.request_id, text="deepseek"
+            )
+    registry.register(qwen)
+    registered_deepseek = DeepSeekCore()
+    registry.register(registered_deepseek)
+
+    cpu = CorelessComponent(ComponentDescriptor(
+        component_id="cpu-atomic", role="cpu", capabilities=frozenset(),
+        ai_model_id="qwen3",
+    ))
+    wrong_deepseek = DeepSeekCore()
+    reasoning = CorelessComponent(ComponentDescriptor(
+        component_id="reasoning-atomic", role="reasoning", capabilities=frozenset(),
+        ai_model_id="deepseek",
+    ), ai_runtime=wrong_deepseek)
+    hub = CorelessHub("resident-binding-atomicity")
+    hub.connect(cpu)
+    hub.connect(reasoning)
+
+    with pytest.raises(RuntimeError, match="different AI runtime"):
+        hub.bind_resident_ai_components(registry)
+    assert cpu.ai_runtime is None
+    assert reasoning.ai_runtime is wrong_deepseek
