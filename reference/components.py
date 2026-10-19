@@ -88,6 +88,7 @@ class CorelessComponent:
         self._hub_id: str | None = None
         self._healthy = True
         self._fault: str | None = None
+        self._ai_running = False
 
     @property
     def component_id(self) -> str:
@@ -327,8 +328,7 @@ class CorelessComponent:
             starter()
         elif hasattr(self.ai_runtime, "running"):
             self.ai_runtime.running = True
-        else:
-            raise TypeError("bound AI runtime does not expose a Coreless lifecycle")
+        self._ai_running = True
         return self.ai_runtime
 
     def stop_ai(self):
@@ -340,8 +340,7 @@ class CorelessComponent:
             stopper()
         elif hasattr(self.ai_runtime, "running"):
             self.ai_runtime.running = False
-        else:
-            raise TypeError("bound AI runtime does not expose a Coreless lifecycle")
+        self._ai_running = False
         return self.ai_runtime
 
     def ai_status(self) -> dict[str, object]:
@@ -351,12 +350,16 @@ class CorelessComponent:
                 "bound": False,
                 "running": False,
                 "model_id": self.descriptor.ai_model_id,
+                "runtime_model_id": None,
                 "role": self.descriptor.role,
             }
         return {
             "bound": True,
-            "running": bool(getattr(self.ai_runtime, "running", False)),
+            "running": self._ai_running and bool(getattr(self.ai_runtime, "running", True)),
             "model_id": self.descriptor.ai_model_id,
+            "runtime_model_id": getattr(
+                getattr(self.ai_runtime, "core", self.ai_runtime), "model_id", None
+            ),
             "role": self.descriptor.role,
         }
 
