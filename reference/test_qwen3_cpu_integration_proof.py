@@ -191,3 +191,48 @@ def test_qwen3_cpu_bridge_rejects_unassigned_capability():
                 required_capabilities=("filesystem.write",),
             )
         )
+
+
+def test_qwen3_executes_through_machine_ai_chipset_scheduler_and_cpu_tensor_runtime():
+    from ai.compute_fabric import ComputeWork
+    from ai.interfaces import AIRequest
+    from ai.registry import AICoreRegistry
+    from machine_runtime import CorelessMachine
+
+    config, weights = _tiny_qwen3_weights()
+    machine = CorelessMachine(memory_size=4096)
+    adapter = Qwen3CPUAdapter(
+        config,
+        weights,
+        tensor_runtime=machine.tensor_runtime,
+    )
+    registry = AICoreRegistry()
+    registry.register(adapter)
+    assert machine.attach_ai_registry(registry) == ("qwen3",)
+
+    request = AIRequest(
+        request_id="qwen3-cpu-proof-1",
+        prompt="",
+        context={"token_ids": [0, 1]},
+    )
+    work = ComputeWork(
+        work_id="qwen3-cpu-work-1",
+        operation="ai.infer",
+        request=request,
+        model_id="qwen3",
+    )
+    result = machine.ai_chipset.dispatch(work)
+
+    assert result.work_id == "qwen3-cpu-work-1"
+    assert result.operation == "ai.infer"
+    assert result.model_id == "qwen3"
+    assert result.result.request_id == "qwen3-cpu-proof-1"
+    assert result.result.model_id == "qwen3"
+    assert result.result.metadata["runtime"] == "native-qwen3"
+    assert result.result.metadata["logit_shape"] == (2, config.vocab_size)
+    assert result.result.metadata["input_tokens"] == 2
+    assert machine.ai_chipset.snapshot()["last_resource_id"] == "ai:qwen3"
+    assert machine.ai_chipset.snapshot()["completed_work"] == 1
+    assert adapter.tensor_runtime is machine.tensor_runtime
+    assert adapter.tensor_runtime.cpu is machine.cpu
+    assert machine.motherboard.ai_chipset_status()["busy"] is False
