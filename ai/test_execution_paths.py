@@ -10,13 +10,14 @@ class _Descriptor:
 
 
 class _Component:
-    def __init__(self, model_id, healthy=True, running=True):
+    def __init__(self, model_id, healthy=True, running=True, ai_runtime=None):
         self.descriptor = _Descriptor(model_id)
         self.healthy = healthy
         self._running = running
+        self.ai_runtime = ai_runtime
 
     def ai_status(self):
-        return {"bound": True, "running": self._running}
+        return {"bound": self.ai_runtime is not None, "running": self._running}
 
 
 class _Result:
@@ -33,6 +34,7 @@ class _ComputeResult:
 class _Runtime:
     def __init__(self, router):
         self.function_router = router
+        self.registry = router.registry
         self.calls = []
 
     def compute(self, machine, text, **kwargs):
@@ -169,7 +171,9 @@ def test_execute_dispatches_only_registered_model_and_checks_provenance():
 
     result = paths.execute(
         "cpu.primary",
-        components={"cpu-0": _Component("qwen3")},
+        components={"cpu-0": _Component(
+            "qwen3", ai_runtime=router.registry.get_core("qwen3")
+        )},
         runtime=runtime,
         machine=machine,
         text="inspect CPU workload",
@@ -181,6 +185,25 @@ def test_execute_dispatches_only_registered_model_and_checks_provenance():
     assert runtime.calls[0][2]["context"]["execution_path_id"] == "cpu.primary"
 
 
+
+def test_execute_rejects_component_bound_to_different_registered_core():
+    router = _router("qwen3", "deepseek")
+    router.assign("cpu_intelligence", "qwen3")
+    paths = ExecutionPathRegistry()
+    paths.register(ExecutionPath("cpu.primary", "cpu-0", "cpu_intelligence", "qwen3"))
+    component = _Component(
+        "qwen3", ai_runtime=router.registry.get_core("deepseek")
+    )
+    with pytest.raises(RuntimeError, match="not bound to the registered runtime"):
+        paths.execute(
+            "cpu.primary",
+            components={"cpu-0": component},
+            runtime=_Runtime(router),
+            machine=object(),
+            text="must reject mismatched resident runtime",
+        )
+
+
 def test_execute_fails_closed_when_component_ai_is_not_running():
     router = _router("qwen3")
     router.assign("cpu_intelligence", "qwen3")
@@ -190,7 +213,9 @@ def test_execute_fails_closed_when_component_ai_is_not_running():
     with pytest.raises(RuntimeError, match="AI is not running"):
         paths.execute(
             "cpu.primary",
-            components={"cpu-0": _Component("qwen3", running=False)},
+            components={"cpu-0": _Component(
+                "qwen3", running=False, ai_runtime=router.registry.get_core("qwen3")
+            )},
             runtime=_Runtime(router),
             machine=object(),
             text="must not dispatch",
