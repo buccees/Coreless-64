@@ -39,7 +39,11 @@ def test_function_router_selects_only_explicitly_assigned_models():
     assert router.models_for("code_generation") == ("codestral",)
     assert router.models_for("general_reasoning") == ("qwen3",)
     assert router.models_for("code_review") == ("codestral",)
-    assert router.assignments()["codestral"] if False else True
+    assert router.assignments() == {
+        "code_generation": ("codestral",),
+        "code_review": ("codestral",),
+        "general_reasoning": ("qwen3",),
+    }
 
 
 def test_function_router_can_assign_multiple_models_in_declared_order():
