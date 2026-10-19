@@ -92,6 +92,7 @@ class ComponentAutoDiscoveryService:
         interval: float = 1.0,
         attach_options: Mapping[str, object] | None = None,
         on_error=None,
+        device_bridge: object | None = None,
     ) -> None:
         if isinstance(interval, bool) or not isinstance(interval, (int, float)) or interval <= 0:
             raise ValueError("discovery interval must be positive")
@@ -100,6 +101,7 @@ class ComponentAutoDiscoveryService:
         self.interval = float(interval)
         self.attach_options = dict(attach_options or {})
         self.on_error = on_error
+        self.device_bridge = device_bridge
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -107,7 +109,14 @@ class ComponentAutoDiscoveryService:
         discover = getattr(self.hub, "discover_and_attach", None)
         if not callable(discover):
             raise TypeError("Coreless Hub must expose discover_and_attach()")
-        return discover(self.provider, **self.attach_options)
+        attached = discover(self.provider, **self.attach_options)
+        if self.device_bridge is not None:
+            reconcile = getattr(self.device_bridge, "reconcile", None)
+            components = getattr(self.hub, "components", None)
+            if not callable(reconcile) or not callable(components):
+                raise TypeError("device bridge requires reconcile() and Hub components()")
+            reconcile(components())
+        return attached
 
     def start(self) -> None:
         if self._thread is not None and self._thread.is_alive():
