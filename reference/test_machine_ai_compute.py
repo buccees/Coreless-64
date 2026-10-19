@@ -115,4 +115,5 @@ def test_hub_owned_ai_path_runs_through_real_machine_scheduler_and_fabric():
     assert result.model_id == "qwen3"
     assert result.result.model_id == "qwen3"
     assert result.result.text == "ai-computed"
-    assert runtime.session.events()[-1].result.text == "ai-computed"
+    assert runtime.session.events()[-1].kind == "result"
+    assert runtime.session.events()[-1].payload["text"] == "ai-computed"
