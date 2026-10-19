@@ -197,7 +197,9 @@ class CorelessComponent:
             ai_functions=frozenset(descriptor.get("ai_functions", ())),
         )
 
-    def export_portable_manifest(self) -> bytes:
+    def export_portable_manifest(
+        self, *, required_capabilities: frozenset[str] | set[str] = frozenset()
+    ) -> bytes:
         """Export portable identity/configuration, excluding machine-local handles.
 
         The manifest is a component package descriptor, not a disk image or a
@@ -208,6 +210,7 @@ class CorelessComponent:
             "format": "coreless.component-manifest",
             "manifest_version": 1,
             "descriptor": self.descriptor.to_dict(),
+            "required_capabilities": sorted(required_capabilities),
         }
         return json.dumps(
             payload, sort_keys=True, separators=(",", ":")
@@ -267,8 +270,13 @@ class CorelessComponent:
                     f"required resident AI model is unavailable on destination: "
                     f"{descriptor.ai_model_id}"
                 )
+        required = payload.get("required_capabilities", ())
+        if not isinstance(required, (list, tuple)) or any(
+            not isinstance(item, str) or not item for item in required
+        ):
+            raise ValueError("portable component required_capabilities is invalid")
         if supported_capabilities is not None:
-            missing = descriptor.capabilities - frozenset(supported_capabilities)
+            missing = frozenset(required) - frozenset(supported_capabilities)
             if missing:
                 raise RuntimeError(
                     "destination lacks required component capabilities: "
