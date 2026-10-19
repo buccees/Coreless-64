@@ -1,5 +1,22 @@
 # Coreless-64 — Project Handoff
 
+## Latest implementation checkpoint — 2026-10-19: function-based AI routing
+
+Added `ai/function_router.py` and integrated it with `PersistentAIRuntime`:
+- Deployments explicitly assign registered model IDs to named functions; the router never guesses a function from a model name.
+- A function can have multiple models, kept in declaration order.
+- Routing excludes disabled models and fails closed when no enabled model is assigned.
+- Assignments persist under `ai/function-routing`, restore with the runtime, and appear in runtime status.
+- `PersistentAIRuntime.analyze_for_function()` sends analysis only to the assigned enabled models through the existing coordinator, registry, session, and save path.
+- Added focused tests in `ai/test_function_router.py` and `ai/test_function_router_runtime.py`, plus `specification/ai_function_routing.md`.
+
+**Verification status:** this change has been committed to `feature/qwen3-kv-cache-atomic-persistence`, but no fresh CI result has been confirmed for these commits. The earlier 883-test run predates this implementation and is not evidence that these changes pass. Do not merge on the strength of the older run.
+
+**Design rule:** model function assignment must follow evaluated functionality and the intended system design. Do not infer that Qwen3, DeepSeek, GPT-OSS, Gemma, or Codestral belongs to a particular CPU, chipset, GPU, or communications role from its name. The router is now an actual function-based dispatch path, but it does not itself prove model quality, trained artifact availability, or native Coreless instruction execution.
+
+---
+
+
 ## Latest verified checkpoint — 2026-10-09: Linux TCP discovery bootstrap
 
 Implemented a concrete configured-endpoint Linux TCP discovery provider in `reference/linux_host_network.py`. It connects only to explicitly configured `host:port` targets, sends the framed `CORELESS_DISCOVERY_V1` request, receives and validates a Coreless identity frame, and preserves the same socket-backed `SocketNetworkTransport` as the discovered network channel. Failed bootstrap attempts close their sockets and propagate errors; endpoint identity is not inferred from address or DNS.
