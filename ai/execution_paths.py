@@ -99,6 +99,14 @@ class ExecutionPathRegistry:
                 f"execution path model {path.model_id!r} does not match component "
                 f"{path.component_id!r} resident model {resident_model!r}"
             )
+        # Model-level capability is not permission for every component to use
+        # that function. Each resident-AI component must declare its own scope.
+        allowed_functions = getattr(descriptor, "ai_functions", None)
+        if not allowed_functions or path.function_id not in allowed_functions:
+            raise PermissionError(
+                f"execution path function {path.function_id!r} is outside "
+                f"component {path.component_id!r} declared AI scope"
+            )
         models_for = getattr(function_router, "models_for", None)
         if not callable(models_for):
             raise TypeError("function router does not expose models_for")
