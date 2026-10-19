@@ -110,6 +110,69 @@ class ExecutionPathRegistry:
             )
         return path
 
+
+    def execute(
+        self,
+        path_id: str,
+        *,
+        components: Mapping[str, object],
+        runtime: object,
+        machine: object,
+        text: str,
+        actor: str = "hardware",
+        context: Mapping[str, object] | None = None,
+    ) -> object:
+        """Execute one owned path through the existing machine AI dispatch stack.
+
+        This method does not create/register a model instance. It validates the
+        live component and sole router assignment, then asks PersistentAIRuntime
+        to dispatch exactly the path's model through the machine scheduler.
+        """
+        function_router = getattr(runtime, "function_router", None)
+        if function_router is None:
+            raise TypeError("AI runtime does not expose its function router")
+        path = self.validate_binding(
+            path_id, components=components, function_router=function_router
+        )
+        component = components[path.component_id]
+        ai_status = getattr(component, "ai_status", None)
+        if not callable(ai_status):
+            raise TypeError("execution-path component does not expose AI lifecycle status")
+        status = ai_status()
+        if not status.get("bound") or not status.get("running"):
+            raise RuntimeError(
+                f"execution-path component AI is not running: {path.component_id}"
+            )
+        compute = getattr(runtime, "compute", None)
+        if not callable(compute):
+            raise TypeError("AI runtime does not expose compute")
+        results = compute(
+            machine,
+            text,
+            model_id=path.model_id,
+            actor=actor,
+            context={
+                **dict(context or {}),
+                "execution_path_id": path.path_id,
+                "component_id": path.component_id,
+                "function_id": path.function_id,
+            },
+            operation=path.operation,
+        )
+        if not isinstance(results, (tuple, list)) or len(results) != 1:
+            raise RuntimeError(
+                f"execution path {path.path_id!r} expected exactly one result"
+            )
+        result = results[0]
+        if (
+            getattr(result, "model_id", None) != path.model_id
+            or getattr(getattr(result, "result", None), "model_id", None) != path.model_id
+        ):
+            raise RuntimeError(
+                f"execution path {path.path_id!r} returned mismatched model provenance"
+            )
+        return result
+
     def to_state(self) -> dict[str, object]:
         return {
             "version": self.STATE_VERSION,
