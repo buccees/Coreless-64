@@ -47,9 +47,9 @@ The Linux mount-field decoder's regex was matching **two literal backslashes** b
 
 ## Remaining engineering work
 
-1. **Reconcile all project paperwork** so README, handoff, roadmap, remaining requirements, testing guidance, and normative specifications agree on branch, tested capabilities, evidence, and limitations.
+1. **Finish the documentation audit** by checking the normative specifications and environment/setup instructions for stale status, inconsistent role assignments, and claims stronger than the available evidence. The main overview, handoff, roadmap, requirements, and test guide now carry the current verified checkpoint, but this audit is not yet complete.
 2. **Wire auto-discovery into the actual integrating runtime/service entry point** so the poller is started and stopped deliberately, with errors observable.
-4. **Complete host-facing virtual-device integration.** The bridge's role mapping is not sufficient by itself: validate actual OS device behavior and connect the Linux TAP interface to Coreless's packet-processing path. Implement other OS backends only with their appropriate driver/device interfaces.
+3. **Complete host-facing virtual-device integration.** The bridge's role mapping is not sufficient by itself: validate actual OS device behavior and connect the Linux TAP interface to Coreless's packet-processing path. Implement other OS backends only with their appropriate driver/device interfaces.
 5. **Implement safe removal handling** for disappeared media/devices, distinguishing a stable removal from transient enumeration errors and honoring active workload leases.
 6. **Validate role and dependency negotiation across machines.** Portable manifests must not carry source-machine runtime pointers, VM handles, or transport sessions. Rebind destination-local runtime/transport state; fail clearly when required dependencies are missing and report optional capabilities that are unavailable.
 7. **Prove Qwen3 CPU execution end to end** with a test that distinguishes configuration from actual model inference. A configured model identifier or endpoint alone is not proof of live inference.
