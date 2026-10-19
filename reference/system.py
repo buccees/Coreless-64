@@ -118,7 +118,7 @@ class CorelessSystem:
                     "model_id": item.model_id,
                     "part_id": item.part_id,
                     "native_architecture": item.native_architecture,
-                    "available_capabilities": list(available),
+                    "available_capabilities": list(item.required_capabilities + item.retained_optional_capabilities),
                     "role_contract": {
                         "role": item.role_contract.role.value,
                         "mandatory_capabilities": list(item.role_contract.mandatory_capabilities),
