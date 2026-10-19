@@ -69,8 +69,13 @@ class PersistentAIRuntime:
         self.save()
         return result
 
+    def declare_model_functions(self, model_id: str, functions: tuple[str, ...]) -> None:
+        """Record functions validated for a model; names are never used as evidence."""
+        self.function_router.declare_capabilities(model_id, functions)
+        self.function_router.save(self.storage)
+
     def assign_function(self, function: str, model_id: str) -> None:
-        """Assign a registered model to an explicitly declared function."""
+        """Assign a model only after its function capability has been declared."""
         self.function_router.assign(function, model_id)
         self.function_router.save(self.storage)
 
