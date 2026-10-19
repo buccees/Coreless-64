@@ -67,15 +67,14 @@ def test_machine_ai_resources_advertise_explicit_capabilities():
     assert "unknown.operation" not in resource.capabilities
 
 def test_hub_owned_ai_path_runs_through_real_machine_scheduler_and_fabric():
-    from types import SimpleNamespace
-
     from ai.execution_paths import ExecutionPath, ExecutionPathRegistry
     from ai.machine_runtime import PersistentAIRuntime
     from components import ComponentDescriptor, CorelessComponent, CorelessHub
 
     machine = CorelessMachine(memory_size=4096)
     runtime = PersistentAIRuntime(machine.storage, local_cores=False)
-    runtime.registry.register(FakeCore())
+    core = FakeCore()
+    runtime.registry.register(core)
     assert machine.attach_ai_registry(runtime.registry) == ("qwen3",)
     runtime.function_router.declare_capabilities("qwen3", ("cpu_intelligence",))
     runtime.function_router.assign("cpu_intelligence", "qwen3")
@@ -87,8 +86,9 @@ def test_hub_owned_ai_path_runs_through_real_machine_scheduler_and_fabric():
             capabilities=frozenset(),
             ai_model_id="qwen3",
         ),
-        ai_runtime=SimpleNamespace(running=True),
+        ai_runtime=core,
     )
+    component.start_ai()
     hub = CorelessHub("integration-test-hub")
     hub.connect(component)
 
@@ -119,15 +119,14 @@ def test_hub_owned_ai_path_runs_through_real_machine_scheduler_and_fabric():
     assert runtime.session.events()[-1].payload["text"] == "ai-computed"
 
 def _owned_ai_path_system():
-    from types import SimpleNamespace
-
     from ai.execution_paths import ExecutionPath, ExecutionPathRegistry
     from ai.machine_runtime import PersistentAIRuntime
     from components import ComponentDescriptor, CorelessComponent, CorelessHub
 
     machine = CorelessMachine(memory_size=4096)
     runtime = PersistentAIRuntime(machine.storage, local_cores=False)
-    runtime.registry.register(FakeCore())
+    core = FakeCore()
+    runtime.registry.register(core)
     machine.attach_ai_registry(runtime.registry)
     runtime.function_router.declare_capabilities("qwen3", ("cpu_intelligence",))
     runtime.function_router.assign("cpu_intelligence", "qwen3")
@@ -138,8 +137,9 @@ def _owned_ai_path_system():
             capabilities=frozenset(),
             ai_model_id="qwen3",
         ),
-        ai_runtime=SimpleNamespace(running=True),
+        ai_runtime=core,
     )
+    component.start_ai()
     hub = CorelessHub("fault-recovery-test-hub")
     hub.connect(component)
     paths = ExecutionPathRegistry()
