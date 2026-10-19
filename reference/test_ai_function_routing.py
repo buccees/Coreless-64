@@ -38,6 +38,9 @@ def test_function_routing_executes_only_the_assigned_enabled_model():
     assert runtime.status()["function_assignments"] == {
         "code_generation": ("codestral",)
     }
+    assert runtime.status()["model_function_capabilities"] == {
+        "codestral": ("code_generation",)
+    }
 
 
 def test_function_routing_restores_and_fails_closed_for_unassigned_function():
