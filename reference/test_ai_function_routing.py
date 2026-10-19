@@ -58,3 +58,36 @@ def test_function_routing_restores_and_fails_closed_for_unassigned_function():
         assert "no enabled model" in str(exc)
     else:
         raise AssertionError("unassigned function was routed to an arbitrary model")
+
+def test_function_routing_preserves_declared_model_order():
+    runtime = PersistentAIRuntime(_FunctionRoutingStorage(), local_cores=False)
+    runtime.registry.register(_FunctionRoutingCore("qwen3"))
+    runtime.registry.register(_FunctionRoutingCore("codestral"))
+    runtime.declare_model_functions("qwen3", ("analysis",))
+    runtime.declare_model_functions("codestral", ("analysis",))
+    runtime.assign_function("analysis", "codestral")
+    runtime.assign_function("analysis", "qwen3")
+    assert runtime.function_router.models_for("analysis") == ("codestral", "qwen3")
+
+
+def test_function_routing_excludes_disabled_models():
+    runtime = PersistentAIRuntime(_FunctionRoutingStorage(), local_cores=False)
+    runtime.registry.register(_FunctionRoutingCore("qwen3"))
+    runtime.registry.register(_FunctionRoutingCore("codestral"))
+    runtime.declare_model_functions("qwen3", ("coding",))
+    runtime.declare_model_functions("codestral", ("coding",))
+    runtime.assign_function("coding", "qwen3")
+    runtime.assign_function("coding", "codestral")
+    runtime.registry.set_enabled("qwen3", False)
+    assert runtime.function_router.models_for("coding") == ("codestral",)
+
+
+def test_function_routing_rejects_assignment_without_capability_declaration():
+    runtime = PersistentAIRuntime(_FunctionRoutingStorage(), local_cores=False)
+    runtime.registry.register(_FunctionRoutingCore("qwen3"))
+    try:
+        runtime.assign_function("coding", "qwen3")
+    except ValueError as exc:
+        assert "no declared capability" in str(exc)
+    else:
+        raise AssertionError("assignment without a function capability was accepted")
