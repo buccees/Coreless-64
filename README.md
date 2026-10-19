@@ -76,7 +76,7 @@ The immediate bug-fix gate is closed: the Linux mount-table octal escape regress
 
 ## Digital AI chipset and model roles
 
-**Current verification:** GitHub Actions run [#2289](https://github.com/buccees/Coreless-64/actions/runs/39246599926) passed 889 tests in 39.78s after the function-router, chipset-dispatch, and runtime-status changes. The earlier 883-test checkpoint predates these changes.
+**Latest reference-suite verification:** [GitHub Actions run 39266027119](https://github.com/buccees/Coreless-64/actions/runs/39266027119) passed 925 tests in 21.49s on commit [`9d226f9`](https://github.com/buccees/Coreless-64/commit/9d226f90d9ee6d06371de4768900b84247920ac1). Historical checkpoints below are retained as dated history, not current status.
 
 The programmable digital AI-chipset controller is integrated with the canonical virtual motherboard, machine scheduler, and existing AI compute fabric. It is software control logic; no physical AI chip is assumed. Its status and dispatch contracts are documented in `specification/ai_chipset_integration.md`.
 
