@@ -234,9 +234,9 @@ Apply these requirements to every track above:
 ## AI-role integration status
 
 - The runtime currently registers five local model identities (`qwen3`, `deepseek`, `gpt-oss`, `gemma`, `codestral`) and can coordinate them through `NestCoordinator`.
-- `ai/model_part.py` defines `CPU`, `GPU`, `COMMUNICATION`, and `OTHER` role contracts plus a `HardwareAssignmentRegistry` API.
-- The five model identities are **not currently mapped by a verified default configuration** to CPU/GPU/communications roles, and the role registry is not proof of live model-part execution. Do not invent a mapping from model names. The original named-model assignment plan must be recovered/confirmed before committing identity-to-role defaults.
-- Still open: integrate validated model-part assignments with real Coreless execution targets, enforce the ABI/capability boundary, and prove live trained-model execution. The digital AI chipset controller is a separate control/dispatch component and does not itself assign a model to the CPU role.
+- `ai/model_part.py` defines `CPU`, `CHIPSET`, `GPU`, `COMMUNICATION`, and `OTHER` role contracts plus a `HardwareAssignmentRegistry` API. The `CHIPSET` contract is now represented explicitly in the role taxonomy.
+- `HANDOFF.md` explicitly designates Qwen3 for the **CPU intelligence role**. That designation is documented, but the live binding to Coreless-64 instruction execution remains unfinished. The other four model identities do not have a verified role mapping in the source inspected. Do not infer their roles from model names; preserve the original plan when those assignments are recovered.
+- Still open: integrate validated model-part assignments with real Coreless execution targets, enforce the ABI/capability boundary, and prove live trained-model execution. The digital AI chipset controller is a separate deterministic control/dispatch component. It does not by itself implement the Qwen3 CPU-intelligence role or prove that any model-derived hardware part is executing as a CPU.
 
 ## Physical power detection and automatic power-on boot
 
