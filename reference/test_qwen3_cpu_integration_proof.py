@@ -147,3 +147,47 @@ def test_qwen3_cpu_role_rejects_wrong_target_before_execution():
                 payload=(0,),
             )
         )
+
+
+def test_qwen3_cpu_bridge_rejects_unassigned_capability():
+    config, weights = _tiny_qwen3_weights()
+    role = RoleContract(
+        role=ComponentRole.CPU,
+        mandatory_capabilities=("qwen3.infer",),
+    )
+    part = ModelPart(
+        part_id="qwen3.cpu.main",
+        architecture="Qwen3",
+        task_contract=TaskContract(
+            task_id="qwen3.cpu.inference",
+            capabilities=(Capability("qwen3.infer"),),
+        ),
+        role_contract=role,
+    )
+    assignment = HardwareAssignmentRegistry().assign(
+        model_id="qwen3",
+        part_id=part.part_id,
+        role_contract=role,
+        native_architecture="Qwen3",
+    )
+    bridge = CorelessCPUBridge(
+        CorelessCPUHardware(
+            part=part,
+            assignment=assignment,
+            adapter=Qwen3CPUAdapter(config, weights),
+            available_capabilities=("qwen3.infer",),
+        )
+    )
+
+    import pytest
+
+    with pytest.raises(PermissionError, match="does not expose requested capabilities"):
+        bridge.handle(
+            HardwareRequest(
+                source="coreless.cpu.scheduler",
+                target=part.part_id,
+                operation="cpu.infer",
+                payload=(0,),
+                required_capabilities=("filesystem.write",),
+            )
+        )
