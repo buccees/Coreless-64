@@ -22,10 +22,12 @@ class Qwen3CPUAdapter(CPUModelExecutionAdapter):
         self,
         config: Qwen3Config,
         weights: ModelWeights,
-        tensor_runtime: TensorRuntime | None = None,
+        tensor_runtime: TensorRuntime,
         tokenizer: Any | None = None,
     ) -> None:
-        self.tensor_runtime = tensor_runtime or TensorRuntime()
+        if tensor_runtime.cpu is None:
+            raise ValueError("Qwen3 CPU adapter requires a TensorRuntime bound to a Coreless CPU")
+        self.tensor_runtime = tensor_runtime
         self.runtime = Qwen3Runtime(config, weights, self.tensor_runtime)
         self.tokenizer = tokenizer
 
