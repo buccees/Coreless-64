@@ -430,7 +430,7 @@ class TensorRuntime:
                 as_ = self._vector_binary_chunk(a_data, s.data, value.dtype, 0x02)
                 bc = self._vector_binary_chunk(b_data, c.data, value.dtype, 0x02)
                 values.extend(
-                    self._vector_binary_chunk(ac, bs, value.dtype, 0x03)
+                    self._vector_binary_chunk(ac, bs, value.dtype, 0x01)
                 )
                 values.extend(
                     self._vector_binary_chunk(as_, bc, value.dtype, 0x01)
