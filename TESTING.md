@@ -2,7 +2,7 @@
 
 ## Current checkpoint
 
-## Verified integration status — 2026-10-19
+**Verified integration status — 2026-10-19**
 
 - **Working branch:** `integration/qwen3-cpu-execution-proof`.
 - **Latest verified code fix:** commit [`9d226f9`](https://github.com/buccees/Coreless-64/commit/9d226f90d9ee6d06371de4768900b84247920ac1) corrected Linux mount-table octal decoding. The prior attempt failed because its regular expression matched two backslashes instead of the single backslash present in mount-table fields.
