@@ -2,7 +2,7 @@
 
 **Working branch:** `integration/qwen3-cpu-execution-proof`  
 **Last updated:** 2026-10-19  
-**Current priority:** verify automatic component recognition and continue toward host-visible virtual hardware.
+**Current priority:** use the passing mount-path regression fix as the new baseline; reconcile paperwork, then continue the end-to-end completion gates.
 
 ## Product intent
 
@@ -32,7 +32,7 @@ The current implementation includes:
 
 These features are software implementation work; they do **not** yet establish that every host OS natively enumerates all component types as physical hardware.
 
-## Latest test failure and fix awaiting verification
+## Latest test failure and verified fix
 
 A GitHub Actions run for commit `e88f1fffb820d349d68531c0c5f6d33f7fdfc4e7` reported **924 passed, 1 failed**. The failure was:
 
@@ -43,13 +43,12 @@ The Linux mount-field decoder's regex was matching **two literal backslashes** b
 - Failed attempt: `bf29c8414c4abbaadd29e3bbc9c5eb0f3dcf6ae1` (CI run 39265693109 failed: 1 failed, 924 passed).
 - Corrective commit: `9d226f90d9ee6d06371de4768900b84247920ac1`; regex now matches the actual single-backslash octal escape.
 - Previous failed CI run: https://github.com/buccees/Coreless-64/actions/runs/39265693109
-- **Status at handoff:** corrective commit just pushed; check its CI run and do not mark verified until the full suite passes.
+- **Verified result:** [GitHub Actions run 39266027119](https://github.com/buccees/Coreless-64/actions/runs/39266027119) passed **925 tests in 21.49 seconds** on commit `9d226f90d9ee6d06371de4768900b84247920ac1`.
 
 ## Remaining engineering work
 
-1. **Verify the octal mount-path fix** using the linked GitHub Actions run and record the final result.
-2. **Run and review the complete test suite** after the fix, not only the single regression test.
-3. **Wire auto-discovery into the actual integrating runtime/service entry point** so the poller is started and stopped deliberately, with errors observable.
+1. **Reconcile all project paperwork** so README, handoff, roadmap, remaining requirements, testing guidance, and normative specifications agree on branch, tested capabilities, evidence, and limitations.
+2. **Wire auto-discovery into the actual integrating runtime/service entry point** so the poller is started and stopped deliberately, with errors observable.
 4. **Complete host-facing virtual-device integration.** The bridge's role mapping is not sufficient by itself: validate actual OS device behavior and connect the Linux TAP interface to Coreless's packet-processing path. Implement other OS backends only with their appropriate driver/device interfaces.
 5. **Implement safe removal handling** for disappeared media/devices, distinguishing a stable removal from transient enumeration errors and honoring active workload leases.
 6. **Validate role and dependency negotiation across machines.** Portable manifests must not carry source-machine runtime pointers, VM handles, or transport sessions. Rebind destination-local runtime/transport state; fail clearly when required dependencies are missing and report optional capabilities that are unavailable.
