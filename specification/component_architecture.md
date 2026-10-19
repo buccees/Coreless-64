@@ -154,3 +154,36 @@ The host-interface contract is specified in `specification/host_interface.md`.
 The autonomous component/hub architecture is exposed to external equipment through the separate host transport boundary. A composed Hub may therefore be discovered and attached through a transport-neutral identity and command session while component execution remains inside Coreless.
 
 Transport sessions carry negotiated host services and correlated command frames; they do not turn autonomous components into host peripherals or move CPU, VM, AI, memory, or architectural authority into the host.
+
+
+## Resident-AI role confinement
+
+A component's resident AI is part of that component's virtual-hardware identity; it is
+not a general-purpose assistant available to every subsystem. Each component manifest
+must declare its role, resident model identity, supported capabilities, and the
+explicit AI execution paths it owns. The hub may connect components, but must not
+broaden a component's AI authority merely because another model or capability exists
+elsewhere in the composed machine.
+
+- **CPU component:** Qwen3 is the primary CPU-intelligence path. It is not a general
+  training coordinator and does not inherit chipset, communications, graphics, or
+  code-maintenance paths.
+- **AI chipset component:** GPT-OSS assists with chipset-facing request interpretation.
+  Deterministic chipset logic retains switching, scheduling, authorization, and safety.
+- **Reasoning/planning component:** DeepSeek handles only explicitly routed reasoning
+  and technical-planning functions. Multiple functions share one model identity.
+- **Communication/input component:** Gemma is bound to the communication-facing
+  component and its existing host network-adapter path. It handles only declared
+  communication/input-interface functions; it is not a fallback for unrelated work.
+- **Code/firmware component:** Codestral handles code generation and review only.
+  It cannot approve or execute its own proposals.
+
+An execution path is valid only when its declared owner component, resident model,
+function assignment, health/lifecycle state, and result provenance all agree. Requests
+outside the owning component's declared functions must fail closed or be handed off
+explicitly through the Hub to the component that owns that function. The Hub transports
+and composes; it does not merge component roles or fan requests out to every AI.
+
+These role assignments are architectural bindings, not proof that the configured model
+artifact is installed, reachable, or capability-approved. Live inference evaluation and
+physical-device validation remain separate gates.
