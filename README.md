@@ -73,6 +73,12 @@ The normative target is documented in `specification/host_interface.md`. The ref
 5. Extend native model runtimes and bind validated model parts to live Coreless resources.
 6. Complete final ISA, persistence, capability, AI-control, host-interface, and end-to-end conformance audit.
 
+## Digital AI chipset and model roles
+
+The programmable digital AI-chipset controller is integrated with the canonical virtual motherboard, machine scheduler, and existing AI compute fabric. It is software control logic; no physical AI chip is assumed. Its status and dispatch contracts are documented in `specification/ai_chipset_integration.md`.
+
+The five local AI identities are registered, and `HANDOFF.md` designates Qwen3 for the CPU-intelligence role. The live Qwen3-to-instruction-execution binding and other named-model hardware-role assignments remain unfinished; do not confuse role contracts with a working model-derived CPU/GPU/communications component.
+
 ## 314DNest
 
 314DNest is the local System Fabric coordinating AI cores with Coreless resources. AI output is never authorization:
