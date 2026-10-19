@@ -8,7 +8,11 @@ OS-visible virtual device (for example, through a Linux kernel/device API).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Mapping, Protocol
+import fcntl
+import hashlib
+import os
+import struct
+from typing import Iterable, Protocol
 
 
 @dataclass(frozen=True)
