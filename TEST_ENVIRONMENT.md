@@ -37,7 +37,7 @@ This is distinct from ordinary Python/CI execution.
 
 ## Next
 
-The immediate engineering targets are the **native Coreless execution boundary** and the **plug-and-play host interface**. Then validate a real official trained Qwen3-0.6B artifact and establish live runtime inference.
+The reference runtime launcher and software execution boundaries exist, but the complete persistent-storage-hosted machine has not been validated end to end. Prioritize the remaining host-platform I/O integration and unified component lifecycle; then validate an official trained Qwen3-0.6B artifact through the intended Coreless runtime path. Keep reference tests, full-machine validation, physical adapters, and live trained-model inference as separate acceptance gates.
 
 
 ## Documentation checkpoint — 2026-10-06: scheduler and dispatch throughput
