@@ -28,6 +28,7 @@ def test_function_routing_executes_only_the_assigned_enabled_model():
     runtime = PersistentAIRuntime(_FunctionRoutingStorage(), local_cores=False)
     runtime.registry.register(_FunctionRoutingCore("qwen3"))
     runtime.registry.register(_FunctionRoutingCore("codestral"))
+    runtime.declare_model_functions("codestral", ("code_generation",))
     runtime.assign_function("code_generation", "codestral")
 
     result = runtime.analyze_for_function("code_generation", "write a function")
@@ -42,6 +43,7 @@ def test_function_routing_restores_and_fails_closed_for_unassigned_function():
     storage = _FunctionRoutingStorage()
     runtime = PersistentAIRuntime(storage, local_cores=False)
     runtime.registry.register(_FunctionRoutingCore("qwen3"))
+    runtime.declare_model_functions("qwen3", ("reasoning",))
     runtime.assign_function("reasoning", "qwen3")
     runtime.save()
 
