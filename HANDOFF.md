@@ -1,5 +1,13 @@
 # Coreless-64 — Project Handoff
 
+## Next AI integration checkpoint — 2026-10-19: model capability evaluation
+
+Added `specification/model_capability_evaluation.md` on the working branch (commit `f4cafc87e6f2c0d76ff706432c4169eace74d70a`). It defines stable application-function identifiers, evidence required to approve a capability, identity/behavior/quality/boundary gates, and a minimum versioned smoke suite.
+
+The five configured entries in `ai/local_runtime.py` are IDs and default endpoint model-name strings only: `qwen3` → `qwen3`, `deepseek` → `deepseek-r1`, `gpt-oss` → `gpt-oss:20b`, `gemma` → `gemma3`, and `codestral` → `codestral`. None is yet capability-approved by evaluation evidence. In particular, a configured string does not prove the artifact is installed, reachable, or immutable.
+
+**Next execution gate:** inspect the configured local model endpoint and run real per-model inference/evaluation, recording artifact identity, task results, failures, and thresholds. Only then declare and assign supported functions. The evaluation specification is paperwork/contract only; no live model evaluation or new CI run is claimed by this update.
+
 ## Latest implementation checkpoint — 2026-10-19: function-based AI routing
 
 Added `ai/function_router.py` and integrated it with `PersistentAIRuntime`:
