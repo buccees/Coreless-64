@@ -75,12 +75,13 @@ The normative target is documented in `specification/host_interface.md`. The ref
 
 ## Digital AI chipset and model roles
 
-**Current verification checkpoint (2026-10-19):** the full reference CI suite passes 883 tests (run `39244936362`). Persistent, capability-validated model-role assignment metadata is now integrated into `CorelessSystem`; live model-part execution bindings and physical hardware validation remain open.
+**Last verified baseline (2026-10-19):** reference CI run `39244936362` passed 883 tests before the function-routing changes below. Those new changes require a fresh CI run; do not treat the earlier result as verification of them.
 
 The programmable digital AI-chipset controller is integrated with the canonical virtual motherboard, machine scheduler, and existing AI compute fabric. It is software control logic; no physical AI chip is assumed. Its status and dispatch contracts are documented in `specification/ai_chipset_integration.md`.
 
-The five local AI identities are registered, and `HANDOFF.md` designates Qwen3 for the CPU-intelligence role. The live Qwen3-to-instruction-execution binding and other named-model hardware-role assignments remain unfinished; do not confuse role contracts with a working model-derived CPU/GPU/communications component.
+Function-based routing is now wired into `PersistentAIRuntime` through `ai/function_router.py`: deployments explicitly assign registered models to functions, assignments persist under `ai/function-routing`, and `analyze_for_function()` dispatches only to enabled models assigned to that function. Unassigned functions fail closed. See `specification/ai_function_routing.md`.
 
+The router deliberately does not guess assignments for Qwen3, DeepSeek, GPT-OSS, Gemma, or Codestral from their names. Functional assignments must be based on evaluated capability evidence and the intended design. Function routing is now an execution path; model quality, artifact availability, live trained-model execution, native instruction execution bindings, and physical hardware validation remain separate gates.
 ## 314DNest
 
 314DNest is the local System Fabric coordinating AI cores with Coreless resources. AI output is never authorization:
