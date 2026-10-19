@@ -1,5 +1,6 @@
 """End-to-end checks for function-based routing through the persistent AI runtime."""
 from ai.interfaces import AIResult
+from ai.compute_fabric import ComputeResult
 from ai.machine_runtime import PersistentAIRuntime
 
 
@@ -91,3 +92,40 @@ def test_function_routing_rejects_assignment_without_capability_declaration():
         assert "no declared capability" in str(exc)
     else:
         raise AssertionError("assignment without a function capability was accepted")
+
+class _FunctionRoutingChipset:
+    def __init__(self):
+        self.dispatched = []
+
+    def dispatch(self, work, *, model_id=None):
+        selected = model_id or work.model_id
+        self.dispatched.append((work.operation, selected))
+        return ComputeResult(
+            work.work_id,
+            work.operation,
+            selected,
+            AIResult(work.request.request_id, selected, f"result from {selected}"),
+        )
+
+
+class _FunctionRoutingMachine:
+    def __init__(self):
+        self.ai_chipset = _FunctionRoutingChipset()
+
+
+def test_function_routing_dispatches_through_machine_chipset_and_checks_provenance():
+    storage = _FunctionRoutingStorage()
+    runtime = PersistentAIRuntime(storage, local_cores=False)
+    runtime.registry.register(_FunctionRoutingCore("qwen3"))
+    runtime.registry.register(_FunctionRoutingCore("codestral"))
+    runtime.declare_model_functions("codestral", ("code_generation",))
+    runtime.assign_function("code_generation", "codestral")
+    machine = _FunctionRoutingMachine()
+
+    results = runtime.compute_for_function(
+        machine, "code_generation", "write a function"
+    )
+
+    assert len(results) == 1
+    assert machine.ai_chipset.dispatched == [("ai.infer", "codestral")]
+    assert runtime.session.events()[-1].result.model_id == "codestral"
