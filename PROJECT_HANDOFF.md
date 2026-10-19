@@ -2,7 +2,7 @@
 
 **Working branch:** `integration/qwen3-cpu-execution-proof`  
 **Last updated:** 2026-10-19  
-**Current priority:** use the passing mount-path regression fix as the new baseline; reconcile paperwork, then continue the end-to-end completion gates.
+**Current priority:** finish the targeted audit of normative specifications and setup/environment instructions. Keep design assignments distinct from artifact-verified capabilities and software/reference evidence distinct from full-machine or physical validation. Once the audit is reconciled, choose the next engineering gate from `REMAINING_REQUIREMENTS.md`; do not implement requirements merely because they appear in documentation.
 
 ## Product intent
 
