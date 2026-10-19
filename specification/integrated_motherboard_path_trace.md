@@ -73,7 +73,8 @@ This diagram intentionally separates the electrical power path from the USB data
 - `CorelessMachine` creates an `AIComputeFabric` and a machine scheduler.
 - `CorelessSystem` restores `PersistentAIRuntime`, attaches its registry to the machine, and exposes AI compute/analysis entry points.
 - Registered AI cores can be exposed to the scheduler as native Coreless resources; the scheduler/work distributor chooses a resource according to the declared capability and preference contract.
-- This is the existing software AI path. No physical AI chip is assumed. The digital chipset is to be programmed as a first-class controller connected directly to the existing AI fabric/scheduler and the canonical virtual motherboard. The controller itself remains to be implemented.
+- `reference/digital_ai_chipset.py` now provides the first-class programmable software controller. `CorelessMachine.ai_chipset` owns it; `CorelessSystem.ai_chipset` aliases it. Its `ready`, `busy`, `fault`, and `enabled` outputs connect through named logical motherboard nets, and dispatch uses the existing scheduler with AI-only selection and fallback disabled.
+- The controller is software control logic, not a physical AI chip or a new AI runtime. CI run `39149659070` passed 881 tests after the integration. This proves the reference software path only.
 - Keep AI as a local compute resource behind Coreless policy. Do not make it the authority for safe power detection, reset release, or electrical protection.
 
 ### 4. Host discovery and USB boundary
@@ -87,8 +88,9 @@ This diagram intentionally separates the electrical power path from the USB data
 
 ### 5. Desktop and GPIO status
 
-- `reference/desktop_host.py` renders the top-right status dot and reads the desktop model's status-LED menu state. Its 250 ms refresh is UI rendering refresh, not the hardware power detector and not a reason to poll power-good in software.
-- GPIO state should remain owned by the canonical motherboard/device state; the desktop is an observer/controller surface, not another machine or duplicate GPIO authority.
+- `reference/desktop_host.py` renders the top-right status dot beside the battery and opens a transient menu for GPIO0/status-LED state and transition history. It refreshes from the existing desktop model every 250 ms.
+- The desktop status-dot/menu implementation is present; it is a GPIO/status-LED view, not a physical power detector or a display of AI-chipset readiness. If the UI later needs AI status, expose that as a separate explicit status field rather than conflating GPIO0 with chipset `ready`.
+- GPIO state remains owned by the canonical motherboard/device state; the desktop is an observer/controller surface, not another machine or duplicate GPIO authority.
 
 ## Shortest-path decisions
 
