@@ -3,7 +3,7 @@
 ## Latest implementation checkpoint — 2026-10-19: function-based AI routing
 
 Added `ai/function_router.py` and integrated it with `PersistentAIRuntime`:
-- Deployments explicitly assign registered model IDs to named functions; the router never guesses a function from a model name.
+- Deployments declare evaluated model functions before assigning registered model IDs; assignment is rejected without a matching declared capability, and the router never guesses a function from a model name.
 - A function can have multiple models, kept in declaration order.
 - Routing excludes disabled models and fails closed when no enabled model is assigned.
 - Assignments persist under `ai/function-routing`, restore with the runtime, and appear in runtime status.
