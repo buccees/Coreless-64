@@ -81,6 +81,78 @@ class DirectoryComponentDiscoveryProvider:
         return tuple(found[key] for key in sorted(found))
 
 
+class LinuxMountedComponentDiscoveryProvider:
+    """Discover components across standard install roots and mounted data volumes.
+
+    Mounts are re-read on every scan, so newly mounted SSDs/removable volumes
+    become eligible without restarting the polling service. The filesystem root
+    itself is not recursively searched; conventional Coreless install roots are
+    included explicitly. Only manifest files are read.
+    """
+
+    _PSEUDO_FILESYSTEMS = frozenset({
+        "proc", "sysfs", "devtmpfs", "devpts", "tmpfs", "cgroup", "cgroup2",
+        "overlay", "squashfs", "securityfs", "pstore", "debugfs", "tracefs",
+        "configfs", "fusectl", "mqueue", "hugetlbfs", "rpc_pipefs",
+    })
+
+    def __init__(
+        self,
+        *,
+        mount_table: str | Path = "/proc/self/mounts",
+        install_roots: Iterable[str | Path] = (
+            "/opt/coreless/components",
+            "/var/lib/coreless/components",
+        ),
+        additional_roots: Iterable[str | Path] = (),
+    ) -> None:
+        self.mount_table = Path(mount_table)
+        self.install_roots = tuple(Path(root) for root in install_roots)
+        self.additional_roots = tuple(Path(root) for root in additional_roots)
+
+    @staticmethod
+    def _unescape_mount_field(value: str) -> str:
+        # /proc/*/mounts uses octal escapes for whitespace and backslashes.
+        return (value.replace("\\\\134", "\\\\")
+                     .replace("\\\\040", " ")
+                     .replace("\\\\011", "\\t")
+                     .replace("\\\\012", "\\n"))
+
+    def _mounted_roots(self) -> tuple[Path, ...]:
+        roots: set[Path] = set()
+        for root in (*self.install_roots, *self.additional_roots):
+            if root.exists() and root.is_dir() and not root.is_symlink():
+                roots.add(root)
+        try:
+            lines = self.mount_table.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            lines = []
+        for line in lines:
+            fields = line.split()
+            if len(fields) < 3:
+                continue
+            mountpoint = Path(self._unescape_mount_field(fields[1]))
+            filesystem = fields[2]
+            if filesystem in self._PSEUDO_FILESYSTEMS or str(mountpoint) == "/":
+                continue
+            # Avoid probing transient kernel namespaces. Real mounted data
+            # volumes elsewhere (including a separately mounted SSD) are kept.
+            if str(mountpoint) in {"/proc", "/sys", "/dev", "/run/lock"}:
+                continue
+            try:
+                if mountpoint.is_dir() and not mountpoint.is_symlink():
+                    roots.add(mountpoint)
+            except OSError:
+                continue
+        return tuple(sorted(roots, key=str))
+
+    def enumerate_candidates(self) -> tuple[PortableComponentCandidate, ...]:
+        roots = self._mounted_roots()
+        if not roots:
+            return ()
+        return DirectoryComponentDiscoveryProvider(roots).enumerate_candidates()
+
+
 class ComponentAutoDiscoveryService:
     """Poll a discovery provider and auto-attach newly available peripherals."""
 
