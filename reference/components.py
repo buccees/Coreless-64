@@ -524,6 +524,39 @@ class CorelessHub:
         component.recover()
         return self.connect(component)
 
+    def bind_resident_ai_components(self, registry: object) -> Mapping[str, str]:
+        """Bind every connected AI-declaring component to its registered model.
+
+        The full set is prevalidated before mutation. Model objects are reused
+        by identity; this method never creates or registers model runtimes.
+        Components without a declared resident model are left unchanged.
+        """
+        get_core = getattr(registry, "get_core", None)
+        if not callable(get_core):
+            raise TypeError("AI registry does not expose get_core")
+        targets = [
+            component for component in self.components()
+            if component.descriptor.ai_model_id is not None
+        ]
+        resolved: dict[str, object] = {}
+        for component in targets:
+            model_id = component.descriptor.ai_model_id
+            core = get_core(model_id)
+            existing = component.ai_runtime
+            if existing is not None and getattr(existing, "core", existing) is not core:
+                raise RuntimeError(
+                    f"component {component.component_id!r} is already bound to "
+                    "a different AI runtime"
+                )
+            resolved[component.component_id] = core
+        # All bindings are validated; now apply them as one hub-level operation.
+        for component in targets:
+            component.bind_registered_ai(registry)
+        return {
+            component_id: getattr(core, "model_id")
+            for component_id, core in resolved.items()
+        }
+
     def dispatch_ai_path(
         self,
         path_id: str,
