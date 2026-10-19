@@ -187,3 +187,46 @@ and composes; it does not merge component roles or fan requests out to every AI.
 These role assignments are architectural bindings, not proof that the configured model
 artifact is installed, reachable, or capability-approved. Live inference evaluation and
 physical-device validation remain separate gates.
+
+
+## Portable component package and reattachment contract
+
+A component is intended to be removable and attachable to a differently configured
+Coreless machine. Its identity and specialization travel with the component package;
+they must not depend on the source Hub's in-memory registry or on the destination
+machine having the same composition.
+
+A portable component package must carry or unambiguously reference:
+
+- stable component identity, package/schema version, and declared hardware role;
+- the component's own Coreless executable/VM boundary and persistent state;
+- its resident AI binding contract, model/runtime identity, and any required model
+  artifact reference or installation manifest;
+- role-scoped capabilities and execution-path/function declarations;
+- versioned interfaces, resource requirements, and dependency declarations;
+- state/configuration migration rules and a compatibility range.
+
+On attachment to a new machine, the Hub must rediscover the component from its own
+manifest, validate identity and package integrity, negotiate interface versions and
+capabilities, check available resources/dependencies, and create fresh destination-
+local runtime bindings. Destination-local object references, registry entries, VM
+handles, and transport sessions must never be treated as portable identity. Persisted
+configuration must be portable data, not a serialized pointer to an object from the
+old machine.
+
+The component keeps its role when the destination is configured differently. The
+Hub may negotiate optional capabilities or disable an unavailable function, but it
+must not silently reassign the resident AI to unrelated work, borrow another
+component's identity, or claim successful attachment when required dependencies are
+missing. Required incompatibilities must produce a clear attach failure; optional
+capability differences must be reported explicitly. A component can be attached to a
+new Hub only after its old Hub attachment and transient channels have been detached.
+
+**Model identity versus function count:** one model identity means one logical model
+artifact/runtime identity may serve more than one explicitly declared function within
+its component's role. It does not mean the model is welded to one particular machine,
+that its in-memory runtime object is portable, or that a destination must expose the
+same functions. Reattachment resolves the component's declared model identity against
+the destination's available/verified runtime and artifact, then validates the component's
+function contract. If the required model is unavailable or incompatible, the component
+must remain unready rather than silently substituting another model.
