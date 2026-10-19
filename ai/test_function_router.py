@@ -33,6 +33,8 @@ def make_router():
 
 def test_function_router_selects_only_explicitly_assigned_models():
     registry, router = make_router()
+    router.declare_capabilities("codestral", ("code_generation", "code_review"))
+    router.declare_capabilities("qwen3", ("general_reasoning",))
     router.assign("code_generation", "codestral")
     router.assign("general_reasoning", "qwen3")
     router.assign("code_review", "codestral")
@@ -48,6 +50,8 @@ def test_function_router_selects_only_explicitly_assigned_models():
 
 def test_function_router_can_assign_multiple_models_in_declared_order():
     _, router = make_router()
+    router.declare_capabilities("qwen3", ("analysis",))
+    router.declare_capabilities("gemma", ("analysis",))
     router.assign("analysis", "qwen3")
     router.assign("analysis", "gemma")
     router.assign("analysis", "qwen3")
@@ -56,6 +60,7 @@ def test_function_router_can_assign_multiple_models_in_declared_order():
 
 def test_function_router_skips_disabled_models_and_fails_closed():
     registry, router = make_router()
+    router.declare_capabilities("gemma", ("communication",))
     router.assign("communication", "gemma")
     registry.set_enabled("gemma", False)
     try:
@@ -68,6 +73,8 @@ def test_function_router_skips_disabled_models_and_fails_closed():
 
 def test_function_router_persists_assignments_and_restores():
     registry, router = make_router()
+    router.declare_capabilities("codestral", ("code_generation",))
+    router.declare_capabilities("qwen3", ("analysis",))
     router.assign("code_generation", "codestral")
     router.assign("analysis", "qwen3")
     storage = MemoryStorage()
@@ -95,3 +102,12 @@ def test_function_router_rejects_unknown_models_and_empty_functions():
         pass
     else:
         raise AssertionError("empty function was accepted")
+
+def test_function_router_rejects_assignment_without_declared_functionality():
+    _, router = make_router()
+    try:
+        router.assign("code_generation", "qwen3")
+    except ValueError as exc:
+        assert "no declared capability" in str(exc)
+    else:
+        raise AssertionError("model was assigned without a declared function capability")
