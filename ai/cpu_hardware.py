@@ -7,8 +7,8 @@ this module never substitutes a generic Transformer for the assigned model.
 from dataclasses import dataclass
 from typing import Any, Protocol, Sequence
 
-from model_part import ComponentRole, HardwareAssignment, ModelPart
-from hardware_runtime import HardwareRequest, HardwareResponse
+from .hardware_runtime import HardwareRequest, HardwareResponse
+from .model_part import ComponentRole, HardwareAssignment, ModelPart
 
 
 class CPUModelExecutionAdapter(Protocol):
