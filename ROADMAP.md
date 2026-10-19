@@ -92,7 +92,8 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] TensorRuntime RMSNorm, scalar broadcast, and transpose primitives
 - [x] Qwen3 rotary/masking/scalar-scale/argmax paths routed through TensorRuntime
 - [x] TensorRuntime-backed Qwen3 KV-cache storage and native head reshape/repeat/data-movement boundary
-- [x] Actual persistent-storage-hosted Coreless runtime environment
+- [x] Persistent runtime launcher/reference environment
+- [ ] End-to-end validation of the complete persistent-storage-hosted Coreless runtime
 - [ ] Live five-core inference on Coreless
 - [ ] End-to-end local AI execution on Coreless resources
 
