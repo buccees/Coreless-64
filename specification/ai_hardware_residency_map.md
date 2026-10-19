@@ -80,7 +80,7 @@ The role table above is the intended assignment baseline. The following is the r
 ### Wiring gap checklist
 
 - [x] Create an explicit, persisted execution-path registry linking path IDs to component IDs, functions, and a single owner model.
-- [x] Bind the component AI lifecycle to the already-registered resident model object; execution paths verify object identity before dispatch. VM lifecycle binding and startup validation remain separate.
+- [x] `CorelessHub.bind_resident_ai_components(registry)` prevalidates and binds every connected AI-declaring component to the already-registered resident model object; it never creates runtimes and rejects conflicting bindings before mutating any component. Execution paths verify object identity before dispatch. VM lifecycle binding and startup validation remain separate.
 - [x] Route owned component AI paths through the existing function router/chipset/scheduler/fabric with no fallback or fan-out.
 - [ ] Add startup validation for missing components, missing VMs, absent model registrations, duplicate path ownership, and unsupported function declarations.
 - [ ] Extend tests to every assigned path and model provenance: reference CI now covers all five simulated resident roles, eight explicit paths, single-model dispatch, and DeepSeek/Gemma multi-function identity reuse. Component fault/disconnect and restart recovery are covered; persisted all-component binding and bounded concurrency remain open.
