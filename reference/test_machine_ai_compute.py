@@ -216,3 +216,125 @@ def test_owned_ai_path_does_not_record_success_when_chipset_dispatch_fails(monke
 
     result_events = [event for event in runtime.session.events() if event.kind == "result"]
     assert result_events == []
+
+
+def test_all_resident_ai_components_bind_once_and_route_only_their_assigned_model():
+    from ai.execution_paths import ExecutionPath, ExecutionPathRegistry
+    from ai.machine_runtime import PersistentAIRuntime
+    from components import ComponentDescriptor, CorelessComponent, CorelessHub
+
+    class RecordingCore:
+        def __init__(self, model_id):
+            self.model_id = model_id
+            self.calls = 0
+
+        def infer(self, request):
+            self.calls += 1
+            return AIResult(
+                model_id=self.model_id,
+                request_id=request.request_id,
+                text=f"executed:{self.model_id}",
+                metadata={"test_double": True},
+            )
+
+    machine = CorelessMachine(memory_size=4096)
+    runtime = PersistentAIRuntime(machine.storage, local_cores=False)
+    model_ids = ("qwen3", "gpt-oss", "deepseek", "gemma", "codestral")
+    cores = {model_id: RecordingCore(model_id) for model_id in model_ids}
+    for core in cores.values():
+        runtime.registry.register(core)
+    assert machine.attach_ai_registry(runtime.registry) == tuple(sorted(model_ids))
+
+    role_bindings = {
+        "cpu-0": ("cpu", "qwen3", ("cpu_intelligence",)),
+        "chipset-0": ("chipset", "gpt-oss", ("chipset_request_interpretation",)),
+        "reasoning-0": ("reasoning", "deepseek", ("deep_reasoning", "technical_planning")),
+        "input-0": ("communication", "gemma", ("input_context", "communication_response")),
+        "code-0": ("other", "codestral", ("code_generation", "code_review")),
+    }
+    hub = CorelessHub("all-resident-ai-components")
+    components = {}
+    for component_id, (role, model_id, functions) in role_bindings.items():
+        component = CorelessComponent(ComponentDescriptor(
+            component_id=component_id,
+            role=role,
+            capabilities=frozenset(functions),
+            ai_model_id=model_id,
+        ))
+        bound = component.bind_registered_ai(runtime.registry)
+        assert bound is cores[model_id]
+        assert component.bind_registered_ai(runtime.registry) is bound
+        component.start_services()
+        hub.connect(component)
+        components[component_id] = component
+        for function in functions:
+            runtime.function_router.declare_capabilities(model_id, (function,))
+            runtime.function_router.assign(function, model_id)
+
+    # Each function gets one explicit path. Multiple functions reuse one resident
+    # DeepSeek/Gemma object rather than duplicating a model registration.
+    paths = ExecutionPathRegistry()
+    path_specs = (
+        ("cpu.primary", "cpu-0", "cpu_intelligence", "qwen3"),
+        ("chipset.ai", "chipset-0", "chipset_request_interpretation", "gpt-oss"),
+        ("reasoning.deep", "reasoning-0", "deep_reasoning", "deepseek"),
+        ("reasoning.plan", "reasoning-0", "technical_planning", "deepseek"),
+        ("input.context", "input-0", "input_context", "gemma"),
+        ("input.response", "input-0", "communication_response", "gemma"),
+        ("code.generate", "code-0", "code_generation", "codestral"),
+        ("code.review", "code-0", "code_review", "codestral"),
+    )
+    for path_id, component_id, function_id, model_id in path_specs:
+        paths.register(ExecutionPath(path_id, component_id, function_id, model_id))
+
+    for path_id, _component_id, _function_id, model_id in path_specs:
+        result = hub.dispatch_ai_path(
+            path_id,
+            execution_paths=paths,
+            runtime=runtime,
+            machine=machine,
+            text=f"test assigned route {path_id}",
+        )
+        assert result.model_id == model_id
+        assert result.result.model_id == model_id
+        assert result.result.text == f"executed:{model_id}"
+
+    assert len(runtime.registry.descriptors()) == 5
+    assert machine.ai_fabric.resources() == tuple(sorted(model_ids))
+    assert {model_id: core.calls for model_id, core in cores.items()} == {
+        "qwen3": 1,
+        "gpt-oss": 1,
+        "deepseek": 2,
+        "gemma": 2,
+        "codestral": 2,
+    }
+
+
+def test_component_resident_ai_binding_rejects_a_different_existing_runtime():
+    import pytest
+    from components import ComponentDescriptor, CorelessComponent
+    from ai.registry import AICoreRegistry
+
+    registry = AICoreRegistry()
+    registered = FakeCore()
+    registry.register(registered)
+
+    class DifferentCore:
+        model_id = "qwen3"
+
+        def infer(self, request):
+            return AIResult(
+                model_id=self.model_id, request_id=request.request_id, text="wrong core"
+            )
+
+    component = CorelessComponent(
+        ComponentDescriptor(
+            component_id="cpu-mismatch",
+            role="cpu",
+            capabilities=frozenset(),
+            ai_model_id="qwen3",
+        ),
+        ai_runtime=DifferentCore(),
+    )
+    with pytest.raises(RuntimeError, match="already bound to a different AI runtime"):
+        component.bind_registered_ai(registry)
