@@ -265,6 +265,14 @@ The mismatched weights were removed during troubleshooting, and restoring the ex
 
 Do not commit large model weights.
 
+## Digital AI chipset and role-assignment checkpoint — 2026-10-19
+
+The software `DigitalAIChipset` is now attached to the canonical `CorelessMachine`, uses the existing AI scheduler/fabric with AI-only routing and fallback disabled, and publishes ready/busy/fault/enabled over the canonical virtual motherboard. `CorelessSystem` exposes the same controller. This is digital control logic, not a physical AI chip or a second AI runtime.
+
+Model-part role contracts now include `CHIPSET` in addition to `CPU`, `GPU`, `COMMUNICATION`, and `OTHER`. `CorelessSystem.assign_ai_hardware_role()` validates registered model identity and declared capabilities, persists the assignment in the machine image, restores it after reopening, and exposes the result in status. This records a validated designation; it does **not** by itself bind a model to live CPU/GPU/communications execution.
+
+`Qwen3` is the documented CPU-intelligence designation. Its binding to Coreless-64 instruction execution remains open. No verified named-model mapping for the other local models was found in the current source, so do not guess those assignments. The software controller is implemented; physical power sensing and any future physical accelerator remain separate work.
+
 ## Model-as-hardware-component architecture
 
 The intended lifecycle remains:
