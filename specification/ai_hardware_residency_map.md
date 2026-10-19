@@ -1,6 +1,6 @@
 # Coreless-64 AI-to-Hardware Residency Map
 
-**Status:** proposed role assignment baseline committed for architecture work; exact artifact capability approval and runtime bindings remain separate implementation gates.
+**Status:** component-scoped AI role boundary baseline. Resident object binding is implemented; exact artifact capability approval, live inference, and physical validation remain separate gates.
 
 ## Purpose
 
@@ -20,16 +20,16 @@ The host's deterministic control logic remains authoritative for enable/disable,
 |---|---|---|---|
 | `qwen3` | Coreless CPU — primary CPU-intelligence model | Main CPU intelligence for Coreless execution: interpret CPU-level work and provide the primary AI reasoning path for that work. It is not a training coordinator. | One model identity; CPU role is the confirmed baseline. |
 | `gpt-oss` / `gpt-oss:20b` | Digital AI chipset — resident chipset AI service | Chipset-facing AI support for interpreting and organizing requests presented to the chipset gate. It does **not** replace the deterministic chipset controller, scheduler, policy checks, or dispatch authorization. | Single assigned role. |
-| `deepseek` / `deepseek-r1` | Reasoning service attached to the CPU-side request path | Deep reasoning; technical planning for tasks explicitly routed to the reasoning service. Return results to the requesting component rather than taking over CPU control. | Two assigned functions; one runtime/model identity. |
-| `gemma` / `gemma3` | Input/interaction service | Input and context interpretation; communication-facing response formulation for requests routed to this service. Do not assume vision or other multimodal features until the exact artifact is verified. | Two assigned functions; one runtime/model identity. |
+| `deepseek` / `deepseek-r1` | Dedicated reasoning/planning component attached to the CPU-side request path | Deep reasoning and technical planning only, when explicitly routed to this component. It returns results to the requester and never takes over CPU control, chipset control, communication, graphics, or code-generation responsibilities. | Two functions within one component role; one runtime/model identity. |
+| `gemma` / `gemma3` | Dedicated communication/input interface component connected to the existing host network-adapter path | Communication-side interpretation and response formulation for traffic handled by this component only. It may interpret incoming interaction context only where that context is part of the communication interface contract. It must not perform general reasoning/planning, chipset control, graphics processing, or code/firmware work. Do not assume vision or other multimodal features until the exact artifact is verified. | One component role with explicitly bounded communication functions; one runtime/model identity. |
 | `codestral` | Code/firmware development service | Code generation and code review for Coreless software, firmware, and integration changes. It proposes code; repository checks and deterministic runtime controls decide what is accepted or executed. | Single assigned role. |
 
 ### Why these roles are separated
 
 - **Qwen3** remains the primary CPU AI, as already established in the project direction.
 - **GPT-OSS** is assigned as the chipset's resident AI model because the chipset needs an integrated model. The deterministic digital chipset remains the control gate; this assignment does not create a second runtime or grant the model hardware authority.
-- **DeepSeek-R1** is assigned reasoning and technical-planning work, not the CPU's primary intelligence role.
-- **Gemma** handles input/context interpretation and communication-facing work. Multimodal/vision work is not assumed without verifying the deployed artifact.
+- **DeepSeek-R1** is integrated into the dedicated reasoning/planning component and is limited to its declared reasoning/planning interfaces; it is not the CPU's primary intelligence and cannot assume other component roles.
+- **Gemma** is integrated into the communication/input component, including the existing host network-adapter path. Its scope is limited to communication-interface functions; it is not a general-purpose fallback model. Multimodal/vision work is not assumed without verifying the deployed artifact.
 - **Codestral** is kept focused on code and firmware tasks.
 
 These assignments establish the design baseline for implementation. If prior project records later surface a more specific user-approved assignment, reconcile it explicitly rather than silently discarding it. In particular, preserve the two multi-function assignments above as single model identities; do not duplicate registrations to represent the second function.
@@ -69,8 +69,9 @@ The role table above is the intended assignment baseline. The following is the r
 ### Required invariants for wiring
 
 1. Give each component a stable component ID, role, VM ID, and at most one resident model ID for its primary AI binding. If a component legitimately exposes multiple execution-path sets, declare each path explicitly rather than assigning overlapping ownership.
-2. Each execution path must declare its capability, input/output contract, owning component, assigned model ID, and deterministic executor/authorization boundary.
-3. Resolve every AI dispatch as **path ID -> owning component -> declared function -> one assigned model identity -> existing registry/scheduler/fabric**. Validate model provenance on return.
+2. **Component-purpose confinement:** a component's resident AI may only receive requests through functions declared for that component's role. A model being registered or capable of answering a request does not authorize another component to use it as a fallback. Cross-component work must be an explicit hub-routed handoff to the owning component, with result provenance preserved.
+3. Each execution path must declare its capability, input/output contract, owning component, assigned model ID, and deterministic executor/authorization boundary.
+4. Resolve every AI dispatch as **path ID -> owning component -> declared function -> one assigned model identity -> existing registry/scheduler/fabric**. Validate model provenance on return.
 4. A request must not fan out to all registered AIs. For a single-owner path, reject ambiguous multi-model assignments instead of silently selecting one. Any deliberate collaboration must be a separately declared pipeline with distinct stages and explicit result handoff.
 5. Keep the AI binding available for the lifetime of an operational component, but only schedule inference for actual work. Do not load duplicate model registrations to represent multiple functions.
 6. Component fault/isolation, VM shutdown, or disconnect must make its paths unavailable; recovery/rejoin must revalidate the binding before dispatch resumes.
