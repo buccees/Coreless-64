@@ -1329,3 +1329,50 @@ def test_start_services_fails_closed_and_rolls_back_vm_when_resident_ai_fails():
     assert vm.running is False
     assert component.status()["ai_bound"] is True
     assert component.status()["ai_running"] is False
+
+
+
+def test_hub_ai_path_dispatch_uses_live_component_membership():
+    class FakeExecutionPaths:
+        def execute(self, path_id, *, components, runtime, machine, text, actor, context):
+            if "cpu-0" not in components:
+                raise LookupError("execution path component is unavailable: cpu-0")
+            return {
+                "path_id": path_id,
+                "component_id": "cpu-0",
+                "text": text,
+                "context": context,
+            }
+
+    hub = CorelessHub()
+    cpu = CorelessComponent(
+        ComponentDescriptor(
+            component_id="cpu-0",
+            role="cpu-intelligence",
+            capabilities=frozenset({"inference"}),
+            ai_model_id="qwen3",
+        )
+    )
+    hub.connect(cpu)
+    paths = FakeExecutionPaths()
+
+    result = hub.dispatch_ai_path(
+        "cpu.primary",
+        execution_paths=paths,
+        runtime=object(),
+        machine=object(),
+        text="trace this request",
+        context={"trace_id": "test-1"},
+    )
+    assert result["component_id"] == "cpu-0"
+    assert result["path_id"] == "cpu.primary"
+
+    hub.disconnect("cpu-0")
+    with pytest.raises(LookupError, match="component is unavailable"):
+        hub.dispatch_ai_path(
+            "cpu.primary",
+            execution_paths=paths,
+            runtime=object(),
+            machine=object(),
+            text="must fail after disconnect",
+        )
