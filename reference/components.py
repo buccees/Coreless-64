@@ -217,14 +217,30 @@ class CorelessComponent:
         return self
 
     def start_services(self) -> None:
-        """Start the component-local VM and AI services when they are bound."""
+        """Start the bound VM and resident AI as one component lifecycle.
+
+        If the AI service cannot start, roll back a VM started by this call and
+        propagate the failure. A component must not appear operational while
+        its declared resident AI failed to start.
+        """
+        vm_was_running = bool(getattr(self.vm, "running", False)) if self.vm is not None else False
         if self.vm is not None:
             self.start_vm()
-        if self.ai_runtime is not None:
-            try:
+        try:
+            if self.ai_runtime is not None:
                 self.start_ai()
-            except (RuntimeError, TypeError):
-                pass
+            elif self.descriptor.ai_model_id is not None:
+                raise RuntimeError(
+                    f"component {self.component_id} declares resident AI "
+                    f"{self.descriptor.ai_model_id!r} but has no bound AI runtime"
+                )
+        except Exception:
+            if self.vm is not None and not vm_was_running:
+                try:
+                    self.stop_vm()
+                except (RuntimeError, TypeError):
+                    pass
+            raise
 
     def stop_services(self) -> None:
         """Stop component-local AI and VM services without destroying identity."""
@@ -405,10 +421,14 @@ class CorelessComponent:
             "healthy": self.healthy,
             "fault": self.fault,
             "system_integrated": self.system is not None,
-            "ai_integrated": self.ai_runtime is not None
-            or self.descriptor.ai_model_id is not None,
-            "vm_integrated": self.vm is not None
-            or self.descriptor.vm_id is not None,
+            "ai_declared": self.descriptor.ai_model_id is not None,
+            "ai_bound": self.ai_runtime is not None,
+            "ai_running": bool(getattr(self.ai_runtime, "running", False)),
+            "ai_integrated": self.ai_runtime is not None,
+            "vm_declared": self.descriptor.vm_id is not None,
+            "vm_bound": self.vm is not None,
+            "vm_running": bool(getattr(self.vm, "running", False)),
+            "vm_integrated": self.vm is not None,
             "capacity": self.descriptor.capacity,
         }
 
