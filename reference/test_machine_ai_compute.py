@@ -267,8 +267,8 @@ def test_all_resident_ai_components_bind_once_and_route_only_their_assigned_mode
         component.start_services()
         hub.connect(component)
         components[component_id] = component
+        runtime.function_router.declare_capabilities(model_id, functions)
         for function in functions:
-            runtime.function_router.declare_capabilities(model_id, (function,))
             runtime.function_router.assign(function, model_id)
 
     # Each function gets one explicit path. Multiple functions reuse one resident
