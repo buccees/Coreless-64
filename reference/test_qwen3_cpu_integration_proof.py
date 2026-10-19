@@ -10,8 +10,8 @@ from ai.model_weights import ModelWeights
 from ai.qwen3 import Qwen3Config
 from ai.qwen3_cpu import Qwen3CPUAdapter
 from ai.tensor import Tensor
-from hardware_runtime import HardwareRequest
-from model_part import (
+from ai.hardware_runtime import HardwareRequest
+from ai.model_part import (
     Capability,
     ComponentRole,
     HardwareAssignmentRegistry,
