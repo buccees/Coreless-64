@@ -231,9 +231,9 @@ class LinuxTapHostDeviceProvider:
         interface_name = f"cl64{digest}"[:15]
         fd = os.open("/dev/net/tun", os.O_RDWR)
         try:
-            request = struct.pack("16sH", interface_name.encode("ascii"), self.IFF_TAP | self.IFF_NO_PI)
-            response = fcntl.ioctl(fd, self.TUNSETIFF, request)
-            actual_name = struct.unpack("16sH", response[:18])[0].split(b"\\0", 1)[0].decode("ascii")
+            request = bytearray(struct.pack("16sH", interface_name.encode("ascii"), self.IFF_TAP | self.IFF_NO_PI))
+            fcntl.ioctl(fd, self.TUNSETIFF, request, True)
+            actual_name = struct.unpack("16sH", request[:18])[0].split(b"\\0", 1)[0].decode("ascii")
             return LinuxTapHandle(descriptor.component_id, actual_name, fd)
         except Exception:
             os.close(fd)
