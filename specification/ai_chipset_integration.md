@@ -36,6 +36,10 @@ The controller lives in `reference/digital_ai_chipset.py`. The machine owns one 
 - Coreless retains policy, authorization, model identity, persistent sessions, scheduling, and result provenance. AI output is not authorization.
 - Local components communicate by direct in-process calls. No TCP, network broker, physical bus, chip pinout, or electrical model is implied.
 
+## Separation from model-to-hardware roles
+
+The digital AI chipset is the controller/gate for dispatch; it is not itself a model-derived CPU, GPU, or communications component. The repository also defines `ComponentRole` and `HardwareAssignmentRegistry` in `ai/model_part.py`, but no verified default mapping from the five local model IDs (`qwen3`, `deepseek`, `gpt-oss`, `gemma`, `codestral`) to those roles is established by this controller. Role assignment must remain explicit and capability-validated; do not infer the user's intended mapping from model names. Binding model parts to CPU instruction execution, graphics/device execution, and the user-session layer remains a separate unfinished integration track.
+
 ## Verification
 
 `reference/test_digital_ai_chipset.py` covers canonical motherboard wiring/status, dispatch through the existing fabric and scheduler, provenance, unsupported operations, and controller enable/reset/fault controls. `reference/test_virtual_motherboard.py` verifies the new logical signal continuity alongside existing reset/clock/IRQ/GPIO paths.
