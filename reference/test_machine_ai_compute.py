@@ -467,3 +467,124 @@ def test_portable_component_manifest_rejects_unknown_format_version():
     }
     with pytest.raises(ValueError, match="unsupported portable component manifest version"):
         CorelessComponent.from_portable_manifest(json.dumps(payload))
+
+
+
+def test_hub_plug_and_play_attach_resolves_destination_ai_and_activates_component():
+    from components import ComponentDescriptor, CorelessComponent, CorelessHub
+
+    class DestinationAI:
+        model_id = "gemma"
+        running = False
+
+        def start(self):
+            self.running = True
+
+        def stop(self):
+            self.running = False
+
+    source = CorelessComponent(ComponentDescriptor(
+        component_id="portable-input",
+        role="communication-input",
+        capabilities=frozenset({"network.message"}),
+        ai_model_id="gemma",
+        ai_functions=frozenset({"communication_response"}),
+    ))
+    manifest = source.export_portable_manifest(
+        required_capabilities={"network.transport.v1"}
+    )
+    destination_ai = DestinationAI()
+    destination = CorelessHub("destination-hub")
+
+    attached = destination.attach_portable(
+        manifest,
+        available_models={"gemma", "qwen3"},
+        supported_capabilities={"network.transport.v1"},
+        runtime_resolver=lambda model_id: destination_ai if model_id == "gemma" else None,
+    )
+
+    assert attached.component_id == "portable-input"
+    assert destination.component("portable-input") is attached
+    assert attached.hub_id == "destination-hub"
+    assert attached.ai_runtime is destination_ai
+    assert attached.ai_status()["running"] is True
+
+    detached = destination.detach_portable("portable-input")
+    assert detached is attached
+    assert attached.standalone
+    assert attached.ai_status()["running"] is False
+    assert destination.components() == ()
+
+
+def test_hub_plug_and_play_attach_rolls_back_if_activation_fails():
+    import pytest
+    from components import ComponentDescriptor, CorelessComponent, CorelessHub
+
+    class BrokenDestinationAI:
+        model_id = "gemma"
+        running = False
+
+        def start(self):
+            raise RuntimeError("destination runtime failed to start")
+
+        def stop(self):
+            self.running = False
+
+    source = CorelessComponent(ComponentDescriptor(
+        component_id="portable-input-fail",
+        role="communication-input",
+        capabilities=frozenset({"network.message"}),
+        ai_model_id="gemma",
+        ai_functions=frozenset({"communication_response"}),
+    ))
+    hub = CorelessHub("destination-fail-hub")
+
+    with pytest.raises(RuntimeError, match="destination runtime failed"):
+        hub.attach_portable(
+            source.export_portable_manifest(),
+            available_models={"gemma"},
+            runtime_resolver=lambda _model_id: BrokenDestinationAI(),
+        )
+
+    assert hub.components() == ()
+
+
+def test_safe_hot_unplug_timeout_leaves_busy_component_attached():
+    import threading
+    import pytest
+    from components import ComponentDescriptor, CorelessComponent, CorelessHub, Workload
+
+    started = threading.Event()
+    release = threading.Event()
+
+    def execute(payload):
+        started.set()
+        assert release.wait(2)
+        return payload
+
+    hub = CorelessHub("safe-unplug-hub")
+    component = CorelessComponent(
+        ComponentDescriptor("busy-device", "storage", frozenset({"storage.read"})),
+        workload_executor=execute,
+    )
+    hub.connect(component)
+    results = []
+    worker = threading.Thread(
+        target=lambda: results.append(
+            hub.dispatch(Workload("read-1", "storage.read", "block-1"))
+        )
+    )
+    worker.start()
+    assert started.wait(1)
+
+    with pytest.raises(TimeoutError, match="active workloads"):
+        hub.detach_portable("busy-device", timeout=0.01)
+    assert hub.component("busy-device") is component
+    assert component.hub_id == "safe-unplug-hub"
+
+    release.set()
+    worker.join(timeout=1)
+    assert not worker.is_alive()
+    detached = hub.detach_portable("busy-device", timeout=1)
+    assert detached is component
+    assert component.standalone
