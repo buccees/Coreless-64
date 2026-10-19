@@ -1271,3 +1271,61 @@ def test_hub_dispatch_does_not_release_load_into_rejoined_component():
     replacement_result = hub.dispatch(Workload("w2", "compute", "replacement"))
     assert replacement_result.component_id == "cpu-0"
     assert replacement_result.result == "replacement"
+
+
+
+def test_declared_resident_ai_is_not_misreported_as_bound():
+    component = CorelessComponent(
+        ComponentDescriptor(
+            "chipset-0",
+            "chipset",
+            frozenset({"ai_dispatch"}),
+            ai_model_id="gpt-oss:20b",
+        )
+    )
+
+    status = component.status()
+    assert status["ai_declared"] is True
+    assert status["ai_bound"] is False
+    assert status["ai_integrated"] is False
+    assert status["ai_running"] is False
+
+
+def test_start_services_fails_closed_and_rolls_back_vm_when_resident_ai_fails():
+    class FakeVM:
+        running = False
+
+        def run(self):
+            self.running = True
+
+        def stop(self):
+            self.running = False
+
+    class BrokenAI:
+        running = False
+
+        def start(self):
+            raise RuntimeError("model runtime unavailable")
+
+        def stop(self):
+            self.running = False
+
+    vm = FakeVM()
+    component = CorelessComponent(
+        ComponentDescriptor(
+            "chipset-0",
+            "chipset",
+            frozenset({"ai_dispatch"}),
+            ai_model_id="gpt-oss:20b",
+            vm_id="chipset-vm",
+        ),
+        vm=vm,
+        ai_runtime=BrokenAI(),
+    )
+
+    with pytest.raises(RuntimeError, match="model runtime unavailable"):
+        component.start_services()
+
+    assert vm.running is False
+    assert component.status()["ai_bound"] is True
+    assert component.status()["ai_running"] is False
