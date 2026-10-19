@@ -10,6 +10,7 @@ from typing import Any, Mapping
 
 from .coordinator import CoordinationResult, NestCoordinator
 from .interfaces import AIResult, AuthorityLevel, GroupResult
+from .function_router import FunctionalModelRouter
 from .local_runtime import register_default_local_cores
 from .registry import AICoreRegistry
 from .session import AISession, TerminalMessage
@@ -36,6 +37,7 @@ class PersistentAIRuntime:
             register_default_local_cores(self.registry, endpoint=endpoint, timeout=timeout)
         self.session = AISession(session_id, authority=authority)
         self.coordinator = NestCoordinator(self.registry)
+        self.function_router = FunctionalModelRouter(self.registry)
 
     def request(self, text: str, *, actor: str = "human"):
         return self.session.request(TerminalMessage(
@@ -66,6 +68,23 @@ class PersistentAIRuntime:
         self.session.record_group(result.group)
         self.save()
         return result
+
+    def assign_function(self, function: str, model_id: str) -> None:
+        """Assign a registered model to an explicitly declared function."""
+        self.function_router.assign(function, model_id)
+        self.function_router.save(self.storage)
+
+    def analyze_for_function(
+        self,
+        function: str,
+        text: str,
+        *,
+        actor: str = "human",
+        context: Mapping[str, object] | None = None,
+    ) -> CoordinationResult:
+        """Run analysis only on enabled models assigned to the requested function."""
+        model_ids = self.function_router.models_for(function)
+        return self.analyze(text, actor=actor, context=context, model_ids=model_ids)
 
     def compute(
         self,
@@ -101,10 +120,15 @@ class PersistentAIRuntime:
     def save(self) -> None:
         self.registry.save(self.storage, self.REGISTRY_KEY)
         self.session.save(self.storage, self.SESSION_KEY)
+        self.function_router.save(self.storage)
 
     def restore(self) -> None:
         try:
             self.registry.load(self.storage, self.REGISTRY_KEY)
+        except KeyError:
+            pass
+        try:
+            self.function_router.load(self.storage)
         except KeyError:
             pass
         try:
@@ -119,6 +143,7 @@ class PersistentAIRuntime:
             "version": self.STATE_VERSION,
             "session": self.session.to_state(),
             "registry": self.registry.to_state(),
+            "function_router": self.function_router.to_state(),
         }
 
     def restore_state(self, state: Mapping[str, object]) -> None:
@@ -130,6 +155,11 @@ class PersistentAIRuntime:
             raise ValueError("persistent AI runtime state is incomplete")
         self.session = AISession.from_state(session_state)
         self.registry.restore_state(registry_state)
+        routing_state = state.get("function_router")
+        if routing_state is not None:
+            if not isinstance(routing_state, Mapping):
+                raise ValueError("persistent AI runtime function routing is invalid")
+            self.function_router.restore_state(routing_state)
 
     def status(self) -> dict[str, object]:
         return {
@@ -139,5 +169,6 @@ class PersistentAIRuntime:
             "authority": self.session.authority.value,
             "registered_cores": self.registry.descriptors(),
             "enabled_cores": self.registry.enabled_cores(),
+            "function_assignments": self.function_router.assignments(),
             "event_count": len(self.session.events()),
         }
