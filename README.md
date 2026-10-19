@@ -79,7 +79,7 @@ The normative target is documented in `specification/host_interface.md`. The ref
 
 The programmable digital AI-chipset controller is integrated with the canonical virtual motherboard, machine scheduler, and existing AI compute fabric. It is software control logic; no physical AI chip is assumed. Its status and dispatch contracts are documented in `specification/ai_chipset_integration.md`.
 
-Function-based routing is now wired into `PersistentAIRuntime` through `ai/function_router.py`: deployments explicitly assign registered models to functions, assignments persist under `ai/function-routing`, and `analyze_for_function()` dispatches only to enabled models assigned to that function. Unassigned functions fail closed. See `specification/ai_function_routing.md`.
+Function-based routing is now wired into `PersistentAIRuntime` through `ai/function_router.py`: deployments declare evaluated model functions before assigning models, assignments persist under `ai/function-routing`, and `analyze_for_function()` dispatches only to enabled models assigned to that function. Unassigned functions fail closed. See `specification/ai_function_routing.md`.
 
 The router deliberately does not guess assignments for Qwen3, DeepSeek, GPT-OSS, Gemma, or Codestral from their names. Functional assignments must be based on evaluated capability evidence and the intended design. Function routing is now an execution path; model quality, artifact availability, live trained-model execution, native instruction execution bindings, and physical hardware validation remain separate gates.
 ## 314DNest
