@@ -2,6 +2,14 @@
 
 ## Current checkpoint
 
+## Verified integration status — 2026-10-19
+
+- **Working branch:** `integration/qwen3-cpu-execution-proof`.
+- **Latest verified code fix:** commit [`9d226f9`](https://github.com/buccees/Coreless-64/commit/9d226f90d9ee6d06371de4768900b84247920ac1) corrected Linux mount-table octal decoding. The prior attempt failed because its regular expression matched two backslashes instead of the single backslash present in mount-table fields.
+- **Automated verification:** [GitHub Actions run 39266027119](https://github.com/buccees/Coreless-64/actions/runs/39266027119) passed **925 tests in 21.49 seconds** on commit `9d226f9`.
+- **Scope of that evidence:** this is the repository's reference test suite, not proof of physical plug-and-play, cross-platform native device enumeration, a complete deployed Coreless machine, or live trained-model inference.
+- **Immediate next work:** inspect and reconcile all project documents against the current branch; then continue from the acceptance gates below rather than restarting the design.
+
 The consolidated outstanding requirements and acceptance gates are tracked in [`REMAINING_REQUIREMENTS.md`](REMAINING_REQUIREMENTS.md). Use that document to distinguish the first end-to-end completion gate from later scaling and compatibility phases; keep this roadmap aligned with verified implementation evidence.
 
 The current implementation checkpoint includes the complete reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, Transformer → TensorRuntime routing, autonomous Coreless components, Hub composition, coordinated persistence, native CPU/VM component execution, Hub scheduling, and a reference plug-and-play host transport layer.
