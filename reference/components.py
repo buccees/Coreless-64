@@ -722,6 +722,58 @@ class CorelessHub:
             component.stop_services()
         return self.disconnect(component_id)
 
+    def discover_and_attach(
+        self, provider: object, *, available_models=None, supported_capabilities=None,
+        runtime_resolver=None, vm_resolver=None, workload_executor=None, activate=True,
+    ) -> tuple[CorelessComponent, ...]:
+        """Automatically recognize and attach manifests exposed by a discovery provider."""
+        enumerate_candidates = getattr(provider, "enumerate_candidates", None)
+        if not callable(enumerate_candidates):
+            raise TypeError("component discovery provider must expose enumerate_candidates()")
+        attached = []
+        seen_endpoints = set()
+        for candidate in enumerate_candidates():
+            endpoint_id = getattr(candidate, "endpoint_id", None)
+            manifest = getattr(candidate, "manifest", None)
+            if not isinstance(endpoint_id, str) or not endpoint_id.strip():
+                raise ValueError("discovered component endpoint_id must be nonempty")
+            if endpoint_id in seen_endpoints:
+                raise ValueError(f"duplicate discovered component endpoint: {endpoint_id}")
+            seen_endpoints.add(endpoint_id)
+            try:
+                if isinstance(manifest, bytes):
+                    payload = json.loads(manifest.decode("utf-8"))
+                elif isinstance(manifest, str):
+                    payload = json.loads(manifest)
+                elif isinstance(manifest, Mapping):
+                    payload = dict(manifest)
+                else:
+                    raise TypeError("manifest must be bytes, string, or mapping")
+            except (TypeError, ValueError, UnicodeDecodeError) as exc:
+                raise ValueError(f"invalid component manifest from {endpoint_id!r}") from exc
+            descriptor_data = payload.get("descriptor") if isinstance(payload, dict) else None
+            if not isinstance(descriptor_data, dict):
+                raise ValueError(f"component endpoint {endpoint_id!r} has no descriptor")
+            component_id = descriptor_data.get("component_id")
+            if not isinstance(component_id, str) or not component_id:
+                raise ValueError(f"component endpoint {endpoint_id!r} has no component identity")
+            existing = self._components.get(component_id)
+            if existing is not None:
+                candidate_component = CorelessComponent.from_portable_manifest(
+                    payload, available_models=available_models,
+                    supported_capabilities=supported_capabilities,
+                )
+                if existing.descriptor != candidate_component.descriptor:
+                    raise ValueError(f"discovered component identity conflicts: {component_id}")
+                attached.append(existing)
+                continue
+            attached.append(self.attach_portable(
+                payload, available_models=available_models,
+                supported_capabilities=supported_capabilities,
+                runtime_resolver=runtime_resolver, vm_resolver=vm_resolver,
+                workload_executor=workload_executor, activate=activate,
+            ))
+        return tuple(attached)
     def bind_resident_ai_components(self, registry: object) -> Mapping[str, str]:
         """Bind every connected AI-declaring component to its registered model.
 
