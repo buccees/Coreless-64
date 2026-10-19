@@ -261,15 +261,24 @@ def test_all_resident_ai_components_bind_once_and_route_only_their_assigned_mode
             capabilities=frozenset(functions),
             ai_model_id=model_id,
         ))
-        bound = component.bind_registered_ai(runtime.registry)
-        assert bound is cores[model_id]
-        assert component.bind_registered_ai(runtime.registry) is bound
-        component.start_services()
         hub.connect(component)
         components[component_id] = component
         runtime.function_router.declare_capabilities(model_id, functions)
         for function in functions:
             runtime.function_router.assign(function, model_id)
+
+    assert hub.bind_resident_ai_components(runtime.registry) == {
+        "cpu-0": "qwen3",
+        "chipset-0": "gpt-oss",
+        "reasoning-0": "deepseek",
+        "input-0": "gemma",
+        "code-0": "codestral",
+    }
+    for component_id, (_role, model_id, _functions) in role_bindings.items():
+        component = components[component_id]
+        assert component.ai_runtime is cores[model_id]
+        assert component.bind_registered_ai(runtime.registry) is cores[model_id]
+        component.start_services()
 
     # Each function gets one explicit path. Multiple functions reuse one resident
     # DeepSeek/Gemma object rather than duplicating a model registration.
