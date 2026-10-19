@@ -75,6 +75,8 @@ The normative target is documented in `specification/host_interface.md`. The ref
 
 ## Digital AI chipset and model roles
 
+**Current verification checkpoint (2026-10-19):** the full reference CI suite passes 883 tests (run `39244936362`). Persistent, capability-validated model-role assignment metadata is now integrated into `CorelessSystem`; live model-part execution bindings and physical hardware validation remain open.
+
 The programmable digital AI-chipset controller is integrated with the canonical virtual motherboard, machine scheduler, and existing AI compute fabric. It is software control logic; no physical AI chip is assumed. Its status and dispatch contracts are documented in `specification/ai_chipset_integration.md`.
 
 The five local AI identities are registered, and `HANDOFF.md` designates Qwen3 for the CPU-intelligence role. The live Qwen3-to-instruction-execution binding and other named-model hardware-role assignments remain unfinished; do not confuse role contracts with a working model-derived CPU/GPU/communications component.
