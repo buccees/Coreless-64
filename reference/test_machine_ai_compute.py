@@ -65,3 +65,54 @@ def test_machine_ai_resources_advertise_explicit_capabilities():
     assert "transformer.attention" in resource.capabilities
     assert "ai.infer" in resource.capabilities
     assert "unknown.operation" not in resource.capabilities
+
+def test_hub_owned_ai_path_runs_through_real_machine_scheduler_and_fabric():
+    from types import SimpleNamespace
+
+    from ai.execution_paths import ExecutionPath, ExecutionPathRegistry
+    from ai.machine_runtime import PersistentAIRuntime
+    from components import ComponentDescriptor, CorelessComponent, CorelessHub
+
+    machine = CorelessMachine(memory_size=4096)
+    runtime = PersistentAIRuntime(machine.storage, local_cores=False)
+    runtime.registry.register(FakeCore())
+    assert machine.attach_ai_registry(runtime.registry) == ("qwen3",)
+    runtime.function_router.declare_capabilities("qwen3", ("cpu_intelligence",))
+    runtime.function_router.assign("cpu_intelligence", "qwen3")
+
+    component = CorelessComponent(
+        ComponentDescriptor(
+            component_id="cpu-0",
+            role="cpu",
+            capabilities=frozenset(),
+            ai_model_id="qwen3",
+        ),
+        ai_runtime=SimpleNamespace(running=True),
+    )
+    hub = CorelessHub("integration-test-hub")
+    hub.connect(component)
+
+    paths = ExecutionPathRegistry()
+    paths.register(
+        ExecutionPath(
+            path_id="cpu.primary",
+            component_id="cpu-0",
+            function_id="cpu_intelligence",
+            model_id="qwen3",
+        )
+    )
+
+    result = hub.dispatch_ai_path(
+        "cpu.primary",
+        execution_paths=paths,
+        runtime=runtime,
+        machine=machine,
+        text="execute the CPU intelligence path",
+    )
+
+    assert result.work_id.startswith("default:work:")
+    assert result.operation == "ai.infer"
+    assert result.model_id == "qwen3"
+    assert result.result.model_id == "qwen3"
+    assert result.result.text == "ai-computed"
+    assert runtime.session.events()[-1].result.text == "ai-computed"
