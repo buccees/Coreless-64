@@ -496,6 +496,36 @@ class CorelessHub:
         component.recover()
         return self.connect(component)
 
+    def dispatch_ai_path(
+        self,
+        path_id: str,
+        *,
+        execution_paths: object,
+        runtime: object,
+        machine: object,
+        text: str,
+        actor: str = "hardware",
+        context: Mapping[str, object] | None = None,
+    ) -> object:
+        """Dispatch an explicitly owned AI path without capability load-balancing.
+
+        The connected component table is the live source of component presence:
+        disconnect/isolate immediately makes the path unavailable. Model execution
+        remains delegated to PersistentAIRuntime and the existing machine scheduler.
+        """
+        execute = getattr(execution_paths, "execute", None)
+        if not callable(execute):
+            raise TypeError("execution-path registry does not expose execute")
+        return execute(
+            path_id,
+            components=self._components,
+            runtime=runtime,
+            machine=machine,
+            text=text,
+            actor=actor,
+            context=context,
+        )
+
     def component(self, component_id: str) -> CorelessComponent:
         try:
             return self._components[component_id]
