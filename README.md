@@ -69,7 +69,7 @@ The immediate bug-fix gate is closed: the Linux mount-table octal escape regress
 
 1. **Autonomous component system:** complete unified Hub lifecycle and native CPU/VM execution across standalone and composed components.
 2. **Plug-and-play host interface:** extend the reference transport adapter toward concrete display/input/network transports and cross-platform enumeration.
-3. **Deep Qwen3/Coreless tensor boundary:** move remaining KV-cache, head reshape/repeat, masking, and attention data movement into TensorRuntime without weakening the architectural boundary.
+3. **Qwen3/Coreless tensor-boundary validation:** reconcile the implemented TensorRuntime KV-cache and head reshape/repeat/data-movement paths with focused tests and the actual runtime. The roadmap records those paths as implemented; official trained-artifact inference remains a separate, still-open gate.
 4. Validate a real official trained Qwen3-0.6B artifact with a minimal forward pass and short generation.
 5. Extend native model runtimes and bind validated model parts to live Coreless resources.
 6. Complete final ISA, persistence, capability, AI-control, host-interface, and end-to-end conformance audit.
