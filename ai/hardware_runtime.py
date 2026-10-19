@@ -11,7 +11,7 @@ role, capabilities, requests, responses, and component-to-component routing.
 from dataclasses import dataclass
 from typing import Any, Dict, Mapping, Protocol, Sequence, Tuple
 
-from model_part import ComponentRole, HardwareAssignment, ModelPart
+from .model_part import ComponentRole, HardwareAssignment, ModelPart
 
 
 @dataclass(frozen=True)
