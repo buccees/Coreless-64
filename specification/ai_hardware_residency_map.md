@@ -1,55 +1,56 @@
 # Coreless-64 AI-to-Hardware Residency Map
 
-**Status:** architecture reconciliation draft. Confirmed design decisions, unresolved assignments, implementation status, and capability-evaluation evidence are kept separate.
+**Status:** proposed role assignment baseline committed for architecture work; exact artifact capability approval and runtime bindings remain separate implementation gates.
 
 ## Purpose
 
-This document tracks the relationship between AI model identities, digital-hardware hosts, and assigned functions without inventing missing assignments. A design assignment does not by itself prove that the model artifact is installed, reachable, capability-approved, or bound to its host.
+This map assigns each configured model a primary place and explicit functions so implementation can proceed without loading every model for every request. These are engineering role assignments, not claims that the deployed artifacts have already passed capability tests.
 
 ## Operating rule: resident AI follows its host
 
-A model assigned to a digital hardware component is integrated with that component's operational lifecycle. While the host is enabled and operational, the model binding and its assigned service remain active/available. Actual inference is scheduled when workload arrives; an idle host must not burn compute by generating tokens continuously.
+A model assigned to a digital hardware component is integrated with that component's operational lifecycle. While the host is enabled and operational, the model binding and assigned service remain active/available. Actual inference is scheduled when workload arrives; an idle host must not burn compute by generating tokens continuously.
 
-A model with multiple assignments remains one logical model/runtime identity. Route requests to its assigned functions through the existing function router, scheduler, and compute fabric. Do not register duplicate copies of the same model just to represent multiple functions. Apply bounded concurrency only where overlapping work is actually required and supported by the backend.
+A model with multiple assignments remains one logical model/runtime identity. Route requests to its assigned functions through the existing function router, scheduler, and compute fabric. Do not register duplicate copies of the same model just to represent multiple functions. Keep model workloads serialized or bounded unless real overlapping work is necessary and the backend can support it. Do not fan every request out to all models.
 
 The host's deterministic control logic remains authoritative for enable/disable, reset, dispatch gates, resource allocation, safety/policy checks, and status. AI output is not authorization to bypass those controls.
 
-## Model assignment inventory
+## Assigned model roles
 
-| Model ID | Confirmed assignment in available project evidence | Unresolved design information | Evidence status |
+| Model ID / configured endpoint | Assigned host / place | Assigned functions | Multiplicity |
 |---|---|---|---|
-| `qwen3` (configured endpoint name `qwen3`) | Primary CPU-intelligence AI for Coreless CPU execution. | Preserve any additional original assignment; exact function/host not recovered in the records inspected for this update. | CPU role is documented; native instruction-execution binding and live trained-model validation remain incomplete. |
-| `deepseek` (configured endpoint name `deepseek-r1`) | No exact hardware/function assignment confirmed by the available repository evidence. | Recover the original assignment; do not infer it from the model name. | Capability evaluation pending. |
-| `gpt-oss` (configured endpoint name `gpt-oss:20b`) | No exact hardware/function assignment confirmed by the available repository evidence. | Recover the original assignment; do not infer it from the model name. | Capability evaluation pending. |
-| `gemma` (configured endpoint name `gemma3`) | No exact hardware/function assignment confirmed by the available repository evidence. | Recover the original assignment and verify whether it is one of the two models with multiple assignments. | Capability evaluation pending. |
-| `codestral` (configured endpoint name `codestral`) | No exact hardware/function assignment confirmed by the available repository evidence. | Recover the original assignment; do not infer it from the model name. | Capability evaluation pending. |
+| `qwen3` | Coreless CPU — primary CPU-intelligence model | Main CPU intelligence for Coreless execution: interpret CPU-level work and provide the primary AI reasoning path for that work. It is not a training coordinator. | One model identity; CPU role is the confirmed baseline. |
+| `gpt-oss` / `gpt-oss:20b` | Digital AI chipset — resident chipset AI service | Chipset-facing AI support for interpreting and organizing requests presented to the chipset gate. It does **not** replace the deterministic chipset controller, scheduler, policy checks, or dispatch authorization. | Single assigned role. |
+| `deepseek` / `deepseek-r1` | Reasoning service attached to the CPU-side request path | Deep reasoning; technical planning for tasks explicitly routed to the reasoning service. Return results to the requesting component rather than taking over CPU control. | Two assigned functions; one runtime/model identity. |
+| `gemma` / `gemma3` | Input/interaction service | Input and context interpretation; communication-facing response formulation for requests routed to this service. Do not assume vision or other multimodal features until the exact artifact is verified. | Two assigned functions; one runtime/model identity. |
+| `codestral` | Code/firmware development service | Code generation and code review for Coreless software, firmware, and integration changes. It proposes code; repository checks and deterministic runtime controls decide what is accepted or executed. | Single assigned role. |
 
-The configured endpoint names above are configuration strings, not proof that those exact model artifacts are installed, reachable, or validated. Earlier role suggestions for DeepSeek, GPT-OSS, Gemma, or Codestral are not treated as user-approved assignments unless supported by original design records.
+### Why these roles are separated
 
-## Digital AI chipset integration
+- **Qwen3** remains the primary CPU AI, as already established in the project direction.
+- **GPT-OSS** is assigned as the chipset's resident AI model because the chipset needs an integrated model. The deterministic digital chipset remains the control gate; this assignment does not create a second runtime or grant the model hardware authority.
+- **DeepSeek-R1** is assigned reasoning and technical-planning work, not the CPU's primary intelligence role.
+- **Gemma** handles input/context interpretation and communication-facing work. Multimodal/vision work is not assumed without verifying the deployed artifact.
+- **Codestral** is kept focused on code and firmware tasks.
 
-The digital AI chipset must have an AI model integrated with its component lifecycle; the deterministic chipset controller is not itself that model. Keep one canonical chipset/controller instance and use the existing registry, scheduler, and compute fabric rather than creating a second runtime.
+These assignments establish the design baseline for implementation. If prior project records later surface a more specific user-approved assignment, reconcile it explicitly rather than silently discarding it. In particular, preserve the two multi-function assignments above as single model identities; do not duplicate registrations to represent the second function.
 
-The identity of the model assigned as the chipset's resident AI is **unresolved in the repository evidence inspected for this map**. Do not silently infer the identity from a model name or duplicate a model to fill the slot. Recover the original decision before changing runtime bindings. Once assigned, the model remains available while the chipset host is operational, and its requests pass through the same capability/policy gates and resource scheduling as other AI work.
+## Lifecycle, routing, and resource rules
 
-## Assignment and lifecycle invariants
+1. **Host lifecycle governs availability.** When the host is operational, its resident binding/service is available. This does not mean continuously generating tokens while idle.
+2. **One model identity, multiple functions.** DeepSeek and Gemma have multiple declared functions, but each keeps one logical runtime identity.
+3. **Function-directed dispatch.** Route a request only to the model assigned to that function; do not run every AI for each request. Fail closed when no eligible assignment exists.
+4. **Selective concurrency.** Do not run all models simultaneously. Bound or serialize overlapping DeepSeek/Gemma work according to measured resource limits and actual need; avoid imposing needless concurrency machinery on single-role models.
+5. **Chipset control stays deterministic.** GPT-OSS may assist chipset-facing interpretation, but cannot override enable/disable, reset, fault handling, policy, scheduling, or dispatch gates.
+6. **Capability approval remains a gate.** A role assignment is not proof that the configured endpoint is installed, reachable, or good enough. Evaluate the exact deployed artifact for each assigned function before enabling that route.
+7. **Keep evidence honest.** Report design-assigned, code-bound, artifact-verified, capability-approved, and physically validated states separately.
 
-1. **Design intent is not capability approval.** Every enabled route must be backed by evaluation of the exact deployed artifact and a declared capability.
-2. **No name-based guessing.** Model IDs do not automatically confer CPU, chipset, GPU, communications, vision, or orchestration roles.
-3. **Host lifecycle governs availability.** Host active means the resident binding is available; it does not require continuous inference while idle.
-4. **One model identity, multiple declared functions.** Multiple assignments do not require duplicate registrations or model copies.
-5. **Route by function.** Dispatch only to enabled models explicitly assigned to the requested function. Fail closed when no eligible assignment exists.
-6. **Resource limits are selective.** Establish bounded concurrency only for models with real overlapping assignments/workloads. Do not fan every request out to all models.
-7. **Hardware controls remain deterministic.** The chipset/controller and host CPU/VM/policy controls retain authority over dispatch, resource allocation, reset, and fault handling.
-8. **Keep evidence honest.** Report intended, implemented, evaluated, and physically validated states separately. Reference tests do not prove trained-model quality or physical hardware operation.
+## Implementation status and next gates
 
-## Next reconciliation gates
-
-1. Recover Qwen3's exact earlier assignment in addition to CPU intelligence.
-2. Recover the specific model intended to be resident in the AI chipset.
-3. Recover the identities and full function lists of the two models with multiple assignments.
-4. Compare those recovered decisions with `ai/function_router.py`, `ai/model_part.py`, and chipset dispatch. Implement only missing bindings and preserve existing assignments.
-5. Run per-artifact inference/capability evaluation before enabling routes, then test host lifecycle, fault behavior, and bounded concurrency only for the models that need it.
+- The repository's configured endpoint strings are `qwen3`, `deepseek-r1`, `gpt-oss:20b`, `gemma3`, and `codestral`. Those strings alone do not prove artifacts are installed, reachable, or validated.
+- The digital AI chipset currently has a deterministic software controller integrated into the existing machine runtime; assigning GPT-OSS as its resident AI does not by itself bind or execute the model there.
+- Qwen3's native binding to Coreless instruction execution and live trained-model validation remain incomplete.
+- Compare this assignment baseline with `ai/function_router.py`, `ai/model_part.py`, the chipset dispatch path, and declared capability contracts. Implement only missing bindings; do not create duplicate model registrations.
+- Run per-artifact inference and capability evaluation before enabling each route. Then test host lifecycle, fault behavior, and selective resource limits. No live model evaluation or physical hardware validation is implied by this document update.
 
 ## Related contracts
 
