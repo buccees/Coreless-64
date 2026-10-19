@@ -132,11 +132,12 @@ The reference implementation now crosses the native CPU/VM execution boundary: a
 
 ## Current implementation stages
 
-1. Component identity and specialization persistence are implemented.
-2. VM and AI-runtime lifecycle ownership is implemented, including standalone services inside a Hub lifecycle.
-3. Hub IPC/resource channels, capability negotiation, fault isolation, and hot-plug/rejoin semantics are implemented.
-4. Composed Hub workloads execute through native CPU/VM boundaries with bounded multi-vCPU scheduling.
-5. Reference host-interface and transport contracts are implemented; concrete physical transports remain.
+1. Component identity, specialization, and portable-manifest export/import are implemented.
+2. Hub software plug-and-play attachment validates destination model availability and declared required capabilities, resolves destination-local AI/VM bindings, and rolls back membership if activation fails.
+3. Safe software hot-unplug waits for active workload leases to drain, then stops component services and closes Hub channels; timeout leaves the component attached.
+4. Hub IPC/resource channels, capability negotiation, fault isolation, and hot-plug/rejoin semantics are implemented.
+5. Composed Hub workloads execute through native CPU/VM boundaries with bounded multi-vCPU scheduling.
+6. Reference host-interface and transport contracts are implemented; concrete physical USB/PCIe and other automatic physical transports remain.
 
 ## Plug-and-play host interface
 
@@ -144,9 +145,11 @@ The Coreless Hub is the composition boundary for autonomous Coreless components.
 
 The host interface handles Coreless identity discovery, verification, capability negotiation, attach/detach, and transport for display, input, networking, and startup services. It does not replace component execution or move Coreless computation into the host.
 
-Target lifecycle: **connect → discover → verify → negotiate → attach → boot/resume → operate → detach**.
+Target lifecycle: **connect → discover → verify → negotiate → attach → boot/resume → operate → quiesce → detach**.
 
-The host-interface contract is specified in `specification/host_interface.md`.
+The Hub exposes software-level plug-and-play through `attach_portable` and `detach_portable`. Attachment constructs the component from its portable manifest, resolves destination-local model/VM objects through explicit resolvers, checks model identity and required capabilities, and activates local services. Failed activation rolls back attachment. Safe detachment waits for in-flight Hub workloads; if the timeout expires, the component remains attached rather than being torn out from under active work.
+
+This is a working software lifecycle over an already available component/transport. It does not yet claim automatic discovery through a physical USB/PCIe connector or that a manifest alone contains/transfers VM images and model weights. The host-interface contract is specified in `specification/host_interface.md`.
 
 
 ## External transport session integration
