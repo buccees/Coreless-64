@@ -620,6 +620,100 @@ class CorelessHub:
         component.recover()
         return self.connect(component)
 
+    def attach_portable(
+        self,
+        manifest: bytes | str | Mapping[str, object],
+        *,
+        available_models: frozenset[str] | set[str] | None = None,
+        supported_capabilities: frozenset[str] | set[str] | None = None,
+        runtime_resolver: Callable[[str], object] | None = None,
+        vm_resolver: Callable[[str], object] | None = None,
+        workload_executor: Callable[[object], object] | None = None,
+        activate: bool = True,
+    ) -> CorelessComponent:
+        """Discover, validate, bind, and activate a portable component.
+
+        Resolvers provide destination-local runtime objects. They are never
+        deserialized from the portable manifest. Failed activation rolls back
+        Hub membership and stops any partially started services.
+        """
+        try:
+            if isinstance(manifest, Mapping):
+                payload = dict(manifest)
+            else:
+                raw = manifest.encode("utf-8") if isinstance(manifest, str) else bytes(manifest)
+                payload = json.loads(raw.decode("utf-8"))
+        except (TypeError, ValueError, UnicodeDecodeError) as exc:
+            raise ValueError("portable component manifest is invalid") from exc
+        descriptor_data = payload.get("descriptor") if isinstance(payload, dict) else None
+        if not isinstance(descriptor_data, dict):
+            raise ValueError("portable component manifest has no descriptor")
+        model_id = descriptor_data.get("ai_model_id")
+        vm_id = descriptor_data.get("vm_id")
+        ai_runtime = None
+        vm = None
+        if model_id is not None and runtime_resolver is not None:
+            ai_runtime = runtime_resolver(model_id)
+            if ai_runtime is None:
+                raise RuntimeError(
+                    f"destination could not resolve required resident AI model: {model_id}"
+                )
+        if vm_id is not None and vm_resolver is not None:
+            vm = vm_resolver(vm_id)
+            if vm is None:
+                raise RuntimeError(
+                    f"destination could not resolve required component VM: {vm_id}"
+                )
+        component = CorelessComponent.from_portable_manifest(
+            payload,
+            ai_runtime=ai_runtime,
+            vm=vm,
+            workload_executor=workload_executor,
+            available_models=available_models,
+            supported_capabilities=supported_capabilities,
+        )
+        self.connect(component)
+        try:
+            if activate:
+                component.start_services()
+        except Exception:
+            component.stop_services()
+            self.disconnect(component.component_id)
+            raise
+        return component
+
+    def detach_portable(
+        self,
+        component_id: str,
+        *,
+        timeout: float | None = 5.0,
+        stop_services: bool = True,
+    ) -> CorelessComponent:
+        """Quiesce and detach a component for safe removal or transfer.
+
+        Unlike disconnect(), this hot-unplug path waits for active workload
+        leases to drain before stopping local services and closing Hub channels.
+        A timeout leaves the component attached and operational.
+        """
+        component = self.component(component_id)
+        with self._dispatch_condition:
+            if timeout is not None and timeout < 0:
+                raise ValueError("timeout must be non-negative or None")
+            deadline = None if timeout is None else __import__("time").monotonic() + timeout
+            while self._dispatch_load.get(component_id, 0) > 0:
+                if deadline is None:
+                    self._dispatch_condition.wait()
+                    continue
+                remaining = deadline - __import__("time").monotonic()
+                if remaining <= 0:
+                    raise TimeoutError(
+                        f"component {component_id!r} still has active workloads"
+                    )
+                self._dispatch_condition.wait(remaining)
+        if stop_services:
+            component.stop_services()
+        return self.disconnect(component_id)
+
     def bind_resident_ai_components(self, registry: object) -> Mapping[str, str]:
         """Bind every connected AI-declaring component to its registered model.
 
