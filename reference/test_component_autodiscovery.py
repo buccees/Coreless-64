@@ -115,7 +115,7 @@ def test_linux_mount_provider_picks_up_newly_mounted_component_volume(tmp_path):
         install_roots=(),
     )
 
-    mount_table.write_text(f"/dev/fake {volume} ext4 rw,relatime 0 0\\n")
+    mount_table.write_text(f"/dev/fake {volume} ext4 rw,relatime 0 0\n")
     assert provider.enumerate_candidates() == ()
 
     write_manifest(volume / "network.coreless.json", "mounted-network")
@@ -129,7 +129,7 @@ def test_linux_mount_provider_unescapes_mountpoint_spaces(tmp_path):
     volume.mkdir()
     mount_table = tmp_path / "mounts"
     escaped = str(volume).replace(" ", "\\040")
-    mount_table.write_text(f"/dev/fake {escaped} ext4 rw 0 0\\n")
+    mount_table.write_text(f"/dev/fake {escaped} ext4 rw 0 0\n")
     write_manifest(volume / "storage.coreless.json", "mounted-storage")
 
     provider = LinuxMountedComponentDiscoveryProvider(
