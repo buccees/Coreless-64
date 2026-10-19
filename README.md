@@ -33,8 +33,7 @@ The initial software boundary is implemented in `reference/components.py` and sp
 
 The repository is at the current implementation checkpoint; CI status is tracked by GitHub Actions rather than frozen in this document.
 
-Latest confirmed integration commit:
-`e3ee0676e6045963e1004940326730ed4af7a067`
+Latest verified code fix: [commit `9d226f9`](https://github.com/buccees/Coreless-64/commit/9d226f90d9ee6d06371de4768900b84247920ac1). The reference suite passed 925 tests in [CI run 39266027119](https://github.com/buccees/Coreless-64/actions/runs/39266027119).
 
 The current implementation includes:
 - Coreless-64 ISA and variable-length instruction framing
@@ -65,6 +64,8 @@ The target plug-and-play lifecycle is: **connect → discover → verify Coreles
 The normative target is documented in `specification/host_interface.md`. The reference host transport adapter and channel-binding contract are implemented; physical cross-platform enumeration and concrete display/input/network transports remain open.
 
 ## Next engineering checkpoint
+
+The immediate bug-fix gate is closed: the Linux mount-table octal escape regression now passes in the full 925-test reference suite. This does not close the broader end-to-end completion gate.
 
 1. **Autonomous component system:** complete unified Hub lifecycle and native CPU/VM execution across standalone and composed components.
 2. **Plug-and-play host interface:** extend the reference transport adapter toward concrete display/input/network transports and cross-platform enumeration.
