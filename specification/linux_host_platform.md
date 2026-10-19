@@ -47,3 +47,26 @@ A platform provider may enumerate candidates only when it can obtain a real, ver
 - No real target-device lifecycle evidence exists yet.
 
 These are design prerequisites, not reasons to add a simulated provider and call the platform complete. The next code change should follow once the endpoint/bus contract is specified; until then, changes should be limited to platform-neutral validation or documentation.
+
+
+## Host-visible virtual-device bridge (software integration checkpoint)
+
+`reference/host_device_bridge.py` translates each attached component's declared
+hardware role into a stable host-facing device class and delegates registration to
+a platform provider. `ComponentAutoDiscoveryService` can invoke this bridge after
+Hub discovery, so component recognition does not stop at finding a manifest or
+require the user to assign a task manually.
+
+Current role mappings include Coreless CPU, graphics/video, network adapter,
+communication/input, storage, AI chipset, reasoning/planning, and code/firmware.
+These are Coreless component identities. The reference in-memory provider verifies
+the mapping and lifecycle in tests only; it is not an OS device driver.
+
+**Remaining implementation gate:** provide concrete Linux backends that create and
+remove actual OS-visible virtual devices for each supported device class, with
+appropriate privileges, lifecycle cleanup, and end-to-end tests. Network devices
+may use a Linux virtual network interface backend; input, display/graphics, and
+storage require their own compatible Linux APIs/drivers. A CPU or AI-chipset
+component must not be misrepresented as a physical host CPU/chipset. No claim of
+native OS device enumeration is made until a concrete backend and target-machine
+test demonstrate it.
