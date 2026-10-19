@@ -383,3 +383,78 @@ def test_hub_resident_binding_prevalidates_before_mutating_any_component():
         hub.bind_resident_ai_components(registry)
     assert cpu.ai_runtime is None
     assert reasoning.ai_runtime is wrong_deepseek
+
+
+
+def test_portable_component_manifest_reattaches_to_differently_configured_machine():
+    import json
+    from components import ComponentDescriptor, CorelessComponent, CorelessHub
+
+    source = CorelessComponent(
+        ComponentDescriptor(
+            component_id="communication-0",
+            role="communication-input",
+            capabilities=frozenset({"network.message", "input.normalize"}),
+            ai_model_id="gemma",
+            vm_id="communication-vm-v1",
+            ai_functions=frozenset({"communication_response", "input_context"}),
+        ),
+        ai_runtime=object(),
+    )
+    package = source.export_portable_manifest()
+    manifest = json.loads(package.decode("utf-8"))
+
+    # The destination has a different Hub and its own runtime binding. The
+    # package carries identity/specialization, not a source-machine object pointer.
+    destination_component = CorelessComponent.from_portable_manifest(
+        manifest,
+        available_models={"gemma", "qwen3"},
+        supported_capabilities={"network.message", "input.normalize", "display.output"},
+    )
+    assert destination_component.descriptor == source.descriptor
+    assert destination_component.ai_runtime is None
+    assert destination_component.standalone
+    assert destination_component.hub_id is None
+
+    destination_hub = CorelessHub("machine-b-hub")
+    destination_hub.connect(destination_component)
+    assert destination_component.hub_id == "machine-b-hub"
+    assert destination_hub.component("communication-0") is destination_component
+
+
+def test_portable_component_manifest_fails_closed_when_destination_is_incompatible():
+    import pytest
+    from components import ComponentDescriptor, CorelessComponent
+
+    component = CorelessComponent(
+        ComponentDescriptor(
+            component_id="chipset-0",
+            role="ai-chipset",
+            capabilities=frozenset({"chipset.request.interpret"}),
+            ai_model_id="gpt-oss",
+        )
+    )
+    manifest = component.export_portable_manifest()
+
+    with pytest.raises(RuntimeError, match="required resident AI model is unavailable"):
+        CorelessComponent.from_portable_manifest(
+            manifest, available_models={"qwen3"}
+        )
+    with pytest.raises(RuntimeError, match="lacks required component capabilities"):
+        CorelessComponent.from_portable_manifest(
+            manifest, available_models={"gpt-oss"}, supported_capabilities=set()
+        )
+
+
+def test_portable_component_manifest_rejects_unknown_format_version():
+    import json
+    import pytest
+    from components import CorelessComponent
+
+    payload = {
+        "format": "coreless.component-manifest",
+        "manifest_version": 99,
+        "descriptor": {},
+    }
+    with pytest.raises(ValueError, match="unsupported portable component manifest version"):
+        CorelessComponent.from_portable_manifest(json.dumps(payload))
