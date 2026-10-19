@@ -10,10 +10,11 @@
 - Routing considers only assigned models that are currently enabled. An unassigned function or a function with no enabled assigned models fails closed rather than dispatching to an arbitrary model.
 - Function capability declarations and assignments are persisted under `ai/function-routing`, restored with the persistent AI runtime, and exposed through runtime status.
 - `PersistentAIRuntime.analyze_for_function(function, text, ...)` sends the request only to models explicitly assigned to that function, using the existing coordinator, registry, session, and persistence path.
+- `PersistentAIRuntime.compute_for_function(machine, function, text, ...)` dispatches assigned models in declared order through the machine digital AI chipset, which uses the existing scheduler and compute fabric. It rejects missing chipset dispatch support and validates result model provenance before recording results in the persistent session.
 - Function assignment is metadata/configuration, not proof of model quality. Assignments should be based on evaluated model capabilities and the deployment's actual model metadata. This router does not claim that a model is trained, loaded, or reachable.
 
 ## Verification
 
-`ai/test_function_router.py` covers capability-gated assignments, ordered multi-model assignments, disabled-model exclusion, persistence, and invalid assignments. `ai/test_function_router_runtime.py` covers routing through live coordinator analysis and restored assignment state.
+`ai/test_function_router.py` covers capability-gated assignments, ordered multi-model assignments, disabled-model exclusion, persistence, and invalid assignments. `ai/test_function_router_runtime.py` covers routing through coordinator analysis and restored assignment state. `reference/test_ai_function_routing.py` covers the end-to-end reference dispatch contract, including model ordering, disabled-model exclusion, capability-gated assignment, fail-closed behavior, and chipset result provenance.
 
 The router deliberately does not preassign Qwen3, DeepSeek, GPT-OSS, Gemma, or Codestral to functions. That mapping must come from the actual intended functional design and capability evidence, not assumptions based on model names.
