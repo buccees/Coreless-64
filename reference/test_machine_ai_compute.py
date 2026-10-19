@@ -588,3 +588,35 @@ def test_safe_hot_unplug_timeout_leaves_busy_component_attached():
     detached = hub.detach_portable("busy-device", timeout=1)
     assert detached is component
     assert component.standalone
+
+
+
+def test_hub_plug_and_play_rejects_wrong_destination_ai_identity():
+    import pytest
+    from components import ComponentDescriptor, CorelessComponent, CorelessHub
+
+    class WrongAI:
+        model_id = "qwen3"
+        running = False
+
+        def start(self):
+            self.running = True
+
+        def stop(self):
+            self.running = False
+
+    source = CorelessComponent(ComponentDescriptor(
+        component_id="portable-gemma",
+        role="communication-input",
+        capabilities=frozenset({"network.message"}),
+        ai_model_id="gemma",
+        ai_functions=frozenset({"communication_response"}),
+    ))
+    hub = CorelessHub("wrong-model-hub")
+    with pytest.raises(RuntimeError, match="but component requires 'gemma'"):
+        hub.attach_portable(
+            source.export_portable_manifest(),
+            available_models={"gemma", "qwen3"},
+            runtime_resolver=lambda _model_id: WrongAI(),
+        )
+    assert hub.components() == ()
