@@ -81,3 +81,59 @@ def test_close_unregisters_all_exposed_devices():
     bridge.reconcile([component("net-0", "network-adapter", {"network.packet"})])
     bridge.close()
     assert provider.devices == {}
+
+
+def test_linux_tap_backend_creates_and_removes_kernel_interface_without_external_device(
+    monkeypatch,
+):
+    import struct
+    import host_device_bridge as bridge_module
+    from host_device_bridge import LinuxTapHandle, LinuxTapHostDeviceProvider
+
+    opened = []
+    closed = []
+    calls = []
+
+    def fake_open(path, flags):
+        opened.append((path, flags))
+        return 73
+
+    def fake_ioctl(fd, request, buffer, mutate_flag):
+        calls.append((fd, request, mutate_flag))
+        # Simulate the kernel returning the selected interface name in ifreq.
+        buffer[:16] = b"cl64abcdef12\0\0\0\0"
+        return 0
+
+    monkeypatch.setattr(bridge_module, "sys_platform_linux", lambda: True)
+    monkeypatch.setattr(bridge_module.os, "open", fake_open)
+    monkeypatch.setattr(bridge_module.os, "close", closed.append)
+    monkeypatch.setattr(bridge_module.fcntl, "ioctl", fake_ioctl)
+
+    provider = LinuxTapHostDeviceProvider()
+    descriptor = HostDeviceDescriptor.from_component(
+        component("network-part", "network-adapter", {"network.packet"})
+    )
+    handle = provider.expose(descriptor, object())
+    assert isinstance(handle, LinuxTapHandle)
+    assert handle.interface_name == "cl64abcdef12"
+    assert opened[0][0] == "/dev/net/tun"
+    assert calls[0][0] == 73
+    assert calls[0][2] is True
+    provider.remove(handle)
+    assert closed == [73]
+
+
+def test_linux_tap_backend_rejects_non_network_device_classes():
+    from host_device_bridge import LinuxTapHostDeviceProvider
+
+    provider = LinuxTapHostDeviceProvider()
+    descriptor = HostDeviceDescriptor(
+        component_id="video-0",
+        device_class="display.graphics",
+        role="video-card",
+        capabilities=frozenset({"display.scanout"}),
+        ai_model_id=None,
+        ai_functions=frozenset(),
+    )
+    with pytest.raises(NotImplementedError, match="display.graphics"):
+        provider.expose(descriptor, object())
