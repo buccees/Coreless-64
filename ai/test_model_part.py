@@ -125,3 +125,26 @@ def test_hardware_assignment_rejects_missing_role_capability():
         assert "matrix_compute" in str(exc)
     else:
         raise AssertionError("missing hardware capability was accepted")
+
+
+def test_chipset_role_contract_is_distinct_from_cpu():
+    chipset = RoleContract(
+        role=ComponentRole.CHIPSET,
+        mandatory_capabilities=("control_dispatch", "status_reporting"),
+    )
+    cpu = RoleContract(
+        role=ComponentRole.CPU,
+        mandatory_capabilities=("scalar_compute",),
+    )
+    registry = HardwareAssignmentRegistry()
+    assignment = registry.assign(
+        "designated-chipset-model", "digital-chipset-0", chipset,
+        native_architecture="native-model-architecture",
+    )
+    assignment.validate(("control_dispatch", "status_reporting"))
+    registry.assign(
+        "qwen3", "cpu-intelligence-0", cpu,
+        native_architecture="qwen3",
+    )
+    assert registry.get(ComponentRole.CHIPSET).model_id == "designated-chipset-model"
+    assert registry.get(ComponentRole.CPU).model_id == "qwen3"
