@@ -5,8 +5,9 @@ from ai.function_router import FunctionalModelRouter
 
 
 class _Descriptor:
-    def __init__(self, model_id):
+    def __init__(self, model_id, ai_functions=("cpu_intelligence",)):
         self.ai_model_id = model_id
+        self.ai_functions = frozenset(ai_functions)
 
 
 class _Component:
@@ -121,6 +122,38 @@ def test_execution_path_rejects_missing_or_faulted_component_and_wrong_resident_
         paths.validate_binding(
             "cpu.primary",
             components={"cpu-0": _Component("deepseek")},
+            function_router=router,
+        )
+
+
+def test_execution_path_rejects_function_outside_component_scope_even_if_model_supports_it():
+    router = _router("qwen3")
+    router.declare_capabilities("qwen3", ("cpu_intelligence", "communication_response"))
+    router.assign("cpu_intelligence", "qwen3")
+    router.assign("communication_response", "qwen3")
+    paths = ExecutionPathRegistry()
+    paths.register(
+        ExecutionPath("cpu.communication", "cpu-0", "communication_response", "qwen3")
+    )
+
+    with pytest.raises(PermissionError, match="outside.*declared AI scope"):
+        paths.validate_binding(
+            "cpu.communication",
+            components={"cpu-0": _Component("qwen3")},
+            function_router=router,
+        )
+
+
+def test_execution_path_fails_closed_when_component_has_no_ai_scope():
+    router = _router("qwen3")
+    router.assign("cpu_intelligence", "qwen3")
+    paths = ExecutionPathRegistry()
+    paths.register(ExecutionPath("cpu.primary", "cpu-0", "cpu_intelligence", "qwen3"))
+
+    with pytest.raises(PermissionError, match="outside.*declared AI scope"):
+        paths.validate_binding(
+            "cpu.primary",
+            components={"cpu-0": _Component("qwen3", ai_functions=())},
             function_router=router,
         )
 
