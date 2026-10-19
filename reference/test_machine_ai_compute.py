@@ -117,3 +117,102 @@ def test_hub_owned_ai_path_runs_through_real_machine_scheduler_and_fabric():
     assert result.result.text == "ai-computed"
     assert runtime.session.events()[-1].kind == "result"
     assert runtime.session.events()[-1].payload["text"] == "ai-computed"
+
+def _owned_ai_path_system():
+    from types import SimpleNamespace
+
+    from ai.execution_paths import ExecutionPath, ExecutionPathRegistry
+    from ai.machine_runtime import PersistentAIRuntime
+    from components import ComponentDescriptor, CorelessComponent, CorelessHub
+
+    machine = CorelessMachine(memory_size=4096)
+    runtime = PersistentAIRuntime(machine.storage, local_cores=False)
+    runtime.registry.register(FakeCore())
+    machine.attach_ai_registry(runtime.registry)
+    runtime.function_router.declare_capabilities("qwen3", ("cpu_intelligence",))
+    runtime.function_router.assign("cpu_intelligence", "qwen3")
+    component = CorelessComponent(
+        ComponentDescriptor(
+            component_id="cpu-0",
+            role="cpu",
+            capabilities=frozenset(),
+            ai_model_id="qwen3",
+        ),
+        ai_runtime=SimpleNamespace(running=True),
+    )
+    hub = CorelessHub("fault-recovery-test-hub")
+    hub.connect(component)
+    paths = ExecutionPathRegistry()
+    paths.register(ExecutionPath("cpu.primary", "cpu-0", "cpu_intelligence", "qwen3"))
+    return machine, runtime, component, hub, paths
+
+
+def test_owned_ai_path_fails_closed_after_component_disconnect_and_recovers_on_reconnect():
+    import pytest
+
+    machine, runtime, component, hub, paths = _owned_ai_path_system()
+    first = hub.dispatch_ai_path(
+        "cpu.primary", execution_paths=paths, runtime=runtime, machine=machine,
+        text="before disconnect",
+    )
+    assert first.result.text == "ai-computed"
+
+    hub.disconnect("cpu-0")
+    with pytest.raises(LookupError, match="unavailable"):
+        hub.dispatch_ai_path(
+            "cpu.primary", execution_paths=paths, runtime=runtime, machine=machine,
+            text="must not dispatch while disconnected",
+        )
+
+    hub.connect(component)
+    recovered = hub.dispatch_ai_path(
+        "cpu.primary", execution_paths=paths, runtime=runtime, machine=machine,
+        text="after reconnect",
+    )
+    assert recovered.result.text == "ai-computed"
+
+
+def test_owned_ai_path_requires_ai_restart_after_fault_isolation_and_rejoin():
+    import pytest
+
+    machine, runtime, component, hub, paths = _owned_ai_path_system()
+    hub.isolate("cpu-0", "simulated AI component fault")
+    assert component.ai_status()["running"] is False
+    with pytest.raises(LookupError, match="unavailable"):
+        hub.dispatch_ai_path(
+            "cpu.primary", execution_paths=paths, runtime=runtime, machine=machine,
+            text="must not dispatch while isolated",
+        )
+
+    hub.rejoin(component)
+    with pytest.raises(RuntimeError, match="AI is not running"):
+        hub.dispatch_ai_path(
+            "cpu.primary", execution_paths=paths, runtime=runtime, machine=machine,
+            text="must not dispatch before AI restart",
+        )
+
+    component.start_services()
+    result = hub.dispatch_ai_path(
+        "cpu.primary", execution_paths=paths, runtime=runtime, machine=machine,
+        text="after explicit service restart",
+    )
+    assert result.result.text == "ai-computed"
+
+
+def test_owned_ai_path_does_not_record_success_when_chipset_dispatch_fails(monkeypatch):
+    import pytest
+
+    machine, runtime, component, hub, paths = _owned_ai_path_system()
+
+    def fail_closed(work, *, model_id):
+        raise RuntimeError("simulated chipset unavailable")
+
+    monkeypatch.setattr(machine.ai_chipset, "dispatch", fail_closed)
+    with pytest.raises(RuntimeError, match="chipset unavailable"):
+        hub.dispatch_ai_path(
+            "cpu.primary", execution_paths=paths, runtime=runtime, machine=machine,
+            text="chipset failure injection",
+        )
+
+    result_events = [event for event in runtime.session.events() if event.kind == "result"]
+    assert result_events == []
