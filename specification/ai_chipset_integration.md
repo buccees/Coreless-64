@@ -38,7 +38,7 @@ The controller lives in `reference/digital_ai_chipset.py`. The machine owns one 
 
 ## Separation from model-to-hardware roles
 
-The digital AI chipset is the controller/gate for dispatch; it is not itself a model-derived CPU, GPU, or communications component. The repository also defines `ComponentRole` and `HardwareAssignmentRegistry` in `ai/model_part.py`, but no verified default mapping from the five local model IDs (`qwen3`, `deepseek`, `gpt-oss`, `gemma`, `codestral`) to those roles is established by this controller. Role assignment must remain explicit and capability-validated; do not infer the user's intended mapping from model names. Binding model parts to CPU instruction execution, graphics/device execution, and the user-session layer remains a separate unfinished integration track.
+The digital AI chipset is the controller/gate for dispatch; it is not itself a model-derived CPU, GPU, or communications component. The repository defines `ComponentRole` (`CPU`, `CHIPSET`, `GPU`, `COMMUNICATION`, `OTHER`) and `HardwareAssignmentRegistry` in `ai/model_part.py`. `HANDOFF.md` designates Qwen3 for the CPU-intelligence role, but its live binding to Coreless instruction execution remains unfinished. The controller does not establish assignments for DeepSeek, GPT-OSS, Gemma, or Codestral. Role assignment must remain explicit and capability-validated; do not infer the user's intended mapping from model names. Binding model parts to CPU instruction execution, graphics/device execution, and the user-session layer remains a separate unfinished integration track.
 
 ## Verification
 
