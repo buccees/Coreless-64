@@ -195,3 +195,57 @@ class ReferenceHostDeviceProvider:
         if not isinstance(handle, str) or not handle.startswith(prefix):
             raise ValueError("unknown reference host-device handle")
         self.devices.pop(handle[len(prefix):], None)
+
+
+
+@dataclass(frozen=True)
+class LinuxTapHandle:
+    """Open Linux TAP endpoint; closing its descriptor removes the transient link."""
+
+    component_id: str
+    interface_name: str
+    file_descriptor: int
+
+
+class LinuxTapHostDeviceProvider:
+    """Expose network-adapter components as Linux kernel TAP interfaces.
+
+    Requires Linux, /dev/net/tun, and permission to create TAP interfaces
+    (normally CAP_NET_ADMIN/root). This backend creates an OS-visible network
+    interface only; packet forwarding into the Coreless network controller is a
+    separate data-plane integration and is intentionally not faked here.
+    """
+
+    TUNSETIFF = 0x400454CA
+    IFF_TAP = 0x0002
+    IFF_NO_PI = 0x1000
+
+    def expose(self, descriptor: HostDeviceDescriptor, component: object) -> LinuxTapHandle:
+        if not sys_platform_linux():
+            raise OSError("Linux TAP backend is supported only on Linux")
+        if descriptor.device_class != "network.adapter":
+            raise NotImplementedError(
+                f"Linux host-device backend does not yet implement {descriptor.device_class!r}"
+            )
+        digest = hashlib.sha256(descriptor.component_id.encode("utf-8")).hexdigest()[:8]
+        interface_name = f"cl64{digest}"[:15]
+        fd = os.open("/dev/net/tun", os.O_RDWR)
+        try:
+            request = struct.pack("16sH", interface_name.encode("ascii"), self.IFF_TAP | self.IFF_NO_PI)
+            response = fcntl.ioctl(fd, self.TUNSETIFF, request)
+            actual_name = struct.unpack("16sH", response[:18])[0].split(b"\\0", 1)[0].decode("ascii")
+            return LinuxTapHandle(descriptor.component_id, actual_name, fd)
+        except Exception:
+            os.close(fd)
+            raise
+
+    def remove(self, handle: object) -> None:
+        if not isinstance(handle, LinuxTapHandle):
+            raise TypeError("Linux TAP provider received an invalid device handle")
+        os.close(handle.file_descriptor)
+
+
+def sys_platform_linux() -> bool:
+    """Isolated platform check, kept patchable for backend contract tests."""
+    import sys
+    return sys.platform.startswith("linux")
