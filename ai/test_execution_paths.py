@@ -70,7 +70,7 @@ def _router(*model_ids):
     return router
 
 
-def test_execution_path_requires_exact_component_and_single_model_owner():
+def test_execution_path_selects_its_explicit_model_without_implicit_fanout():
     router = _router("qwen3", "deepseek")
     router.assign("cpu_intelligence", "qwen3")
     paths = ExecutionPathRegistry()
@@ -83,8 +83,17 @@ def test_execution_path_requires_exact_component_and_single_model_owner():
         function_router=router,
     ) == path
 
+    # Multiple models may be assigned to a function, but the explicit path
+    # still selects exactly one of them rather than silently fanning out.
     router.assign("cpu_intelligence", "deepseek")
-    with pytest.raises(ValueError, match="sole model owner"):
+    assert paths.validate_binding(
+        "cpu.primary",
+        components={"cpu-0": _Component("qwen3")},
+        function_router=router,
+    ) == path
+
+    router.unassign("cpu_intelligence", "qwen3")
+    with pytest.raises(ValueError, match="is not assigned"):
         paths.validate_binding(
             "cpu.primary",
             components={"cpu-0": _Component("qwen3")},
