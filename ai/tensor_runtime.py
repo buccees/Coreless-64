@@ -430,10 +430,10 @@ class TensorRuntime:
                 as_ = self._vector_binary_chunk(a_data, s.data, value.dtype, 0x02)
                 bc = self._vector_binary_chunk(b_data, c.data, value.dtype, 0x02)
                 values.extend(
-                    self._vector_binary_chunk(ac, bs, value.dtype, 0x03)
+                    self._vector_binary_chunk(ac, bs, value.dtype, 0x01)
                 )
                 values.extend(
-                    self._vector_binary_chunk(as_, bc, value.dtype, 0x01)
+                    self._vector_binary_chunk(as_, bc, value.dtype, 0x00)
                 )
         return Tensor.from_values(value.shape, values, dtype=value.dtype)
 
@@ -663,7 +663,7 @@ class TensorRuntime:
         for _ in range(prefix_count):
             for row in range(rows):
                 for col in range(cols):
-                    values.append(1.0 if col <= query_offset + row else 0.0)
+                    values.append(1.0 if col > query_offset + row else 0.0)
         return Tensor.from_values(shape, values, dtype=dtype)
 
     def masked_fill(self, value: Tensor, mask: Tensor, fill_value: float) -> Tensor:

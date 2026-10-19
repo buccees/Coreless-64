@@ -1,7 +1,5 @@
 # Coreless
 
-[**Coreless-64 album cover artwork — Claude**](./Coreless-64%20album%20cover%20artwork%20-%20Claude.html)
-
 **Coreless is a computer architecture in which the complete digital computer can be carried by persistent storage and executed by a digital Coreless execution engine.**
 
 > **Coreless is the computer. Persistent storage carries the machine state. The Coreless digital execution engine runs the machine. External equipment provides power and I/O.**
@@ -33,8 +31,7 @@ The initial software boundary is implemented in `reference/components.py` and sp
 
 The repository is at the current implementation checkpoint; CI status is tracked by GitHub Actions rather than frozen in this document.
 
-Latest confirmed integration commit:
-`e3ee0676e6045963e1004940326730ed4af7a067`
+Latest verified code fix: [commit `9d226f9`](https://github.com/buccees/Coreless-64/commit/9d226f90d9ee6d06371de4768900b84247920ac1). The reference suite passed 925 tests in [CI run 39266027119](https://github.com/buccees/Coreless-64/actions/runs/39266027119).
 
 The current implementation includes:
 - Coreless-64 ISA and variable-length instruction framing
@@ -66,16 +63,18 @@ The normative target is documented in `specification/host_interface.md`. The ref
 
 ## Next engineering checkpoint
 
+The immediate bug-fix gate is closed: the Linux mount-table octal escape regression now passes in the full 925-test reference suite. This does not close the broader end-to-end completion gate.
+
 1. **Autonomous component system:** complete unified Hub lifecycle and native CPU/VM execution across standalone and composed components.
 2. **Plug-and-play host interface:** extend the reference transport adapter toward concrete display/input/network transports and cross-platform enumeration.
-3. **Deep Qwen3/Coreless tensor boundary:** move remaining KV-cache, head reshape/repeat, masking, and attention data movement into TensorRuntime without weakening the architectural boundary.
+3. **Qwen3/Coreless tensor-boundary validation:** reconcile the implemented TensorRuntime KV-cache and head reshape/repeat/data-movement paths with focused tests and the actual runtime. The roadmap records those paths as implemented; official trained-artifact inference remains a separate, still-open gate.
 4. Validate a real official trained Qwen3-0.6B artifact with a minimal forward pass and short generation.
 5. Extend native model runtimes and bind validated model parts to live Coreless resources.
 6. Complete final ISA, persistence, capability, AI-control, host-interface, and end-to-end conformance audit.
 
 ## Digital AI chipset and model roles
 
-**Current verification:** GitHub Actions run [#2289](https://github.com/buccees/Coreless-64/actions/runs/39246599926) passed 889 tests in 39.78s after the function-router, chipset-dispatch, and runtime-status changes. The earlier 883-test checkpoint predates these changes.
+**Latest reference-suite verification:** [GitHub Actions run 39266027119](https://github.com/buccees/Coreless-64/actions/runs/39266027119) passed 925 tests in 21.49s on commit [`9d226f9`](https://github.com/buccees/Coreless-64/commit/9d226f90d9ee6d06371de4768900b84247920ac1). Historical checkpoints below are retained as dated history, not current status.
 
 The programmable digital AI-chipset controller is integrated with the canonical virtual motherboard, machine scheduler, and existing AI compute fabric. It is software control logic; no physical AI chip is assumed. Its status and dispatch contracts are documented in `specification/ai_chipset_integration.md`.
 

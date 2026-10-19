@@ -132,11 +132,12 @@ The reference implementation now crosses the native CPU/VM execution boundary: a
 
 ## Current implementation stages
 
-1. Component identity and specialization persistence are implemented.
-2. VM and AI-runtime lifecycle ownership is implemented, including standalone services inside a Hub lifecycle.
-3. Hub IPC/resource channels, capability negotiation, fault isolation, and hot-plug/rejoin semantics are implemented.
-4. Composed Hub workloads execute through native CPU/VM boundaries with bounded multi-vCPU scheduling.
-5. Reference host-interface and transport contracts are implemented; concrete physical transports remain.
+1. Component identity, specialization, and portable-manifest export/import are implemented.
+2. Hub software plug-and-play attachment validates destination model availability and declared required capabilities, resolves destination-local AI/VM bindings, and rolls back membership if activation fails.
+3. Safe software hot-unplug waits for active workload leases to drain, then stops component services and closes Hub channels; timeout leaves the component attached.
+4. Hub IPC/resource channels, capability negotiation, fault isolation, and hot-plug/rejoin semantics are implemented.
+5. Composed Hub workloads execute through native CPU/VM boundaries with bounded multi-vCPU scheduling.
+6. Reference host-interface and transport contracts are implemented; concrete physical USB/PCIe and other automatic physical transports remain.
 
 ## Plug-and-play host interface
 
@@ -144,9 +145,11 @@ The Coreless Hub is the composition boundary for autonomous Coreless components.
 
 The host interface handles Coreless identity discovery, verification, capability negotiation, attach/detach, and transport for display, input, networking, and startup services. It does not replace component execution or move Coreless computation into the host.
 
-Target lifecycle: **connect → discover → verify → negotiate → attach → boot/resume → operate → detach**.
+Target lifecycle: **connect → discover → verify → negotiate → attach → boot/resume → operate → quiesce → detach**.
 
-The host-interface contract is specified in `specification/host_interface.md`.
+The Hub exposes software plug-and-play through `attach_portable`, `detach_portable`, and `discover_and_attach`. The polling service in `reference/component_autodiscovery.py` repeatedly scans configured mount roots and automatically recognizes manifests on mounted removable media. Supported manifest layouts are `*.coreless.json` at the mount root or `component.coreless.json` / `component.json` one package directory below it. Discovery reads declarative metadata only; it never executes code from removable media. Attachment resolves destination-local model/VM objects, checks model identity and required capabilities, and activates local services. Failed activation rolls back attachment. Safe detachment waits for in-flight Hub workloads; if the timeout expires, the component remains attached rather than being torn out from under active work.
+
+This implements automatic software-peripheral recognition when media is mounted at a configured root. An OS-specific device/mount provider must still supply newly mounted roots for fully automatic physical USB/PCIe arrival detection; those physical bus adapters and real-device interoperability are not yet validated. A manifest alone does not contain or transfer VM images and model weights. The host-interface contract is specified in `specification/host_interface.md`.
 
 
 ## External transport session integration
@@ -154,3 +157,101 @@ The host-interface contract is specified in `specification/host_interface.md`.
 The autonomous component/hub architecture is exposed to external equipment through the separate host transport boundary. A composed Hub may therefore be discovered and attached through a transport-neutral identity and command session while component execution remains inside Coreless.
 
 Transport sessions carry negotiated host services and correlated command frames; they do not turn autonomous components into host peripherals or move CPU, VM, AI, memory, or architectural authority into the host.
+
+
+## Resident-AI role confinement
+
+A component's resident AI is part of that component's virtual-hardware identity; it is
+not a general-purpose assistant available to every subsystem. Each component manifest
+must declare its role, resident model identity, supported capabilities, and the
+explicit AI execution paths it owns. The hub may connect components, but must not
+broaden a component's AI authority merely because another model or capability exists
+elsewhere in the composed machine.
+
+- **CPU component:** Qwen3 is the primary CPU-intelligence path. It is not a general
+  training coordinator and does not inherit chipset, communications, graphics, or
+  code-maintenance paths.
+- **AI chipset component:** GPT-OSS assists with chipset-facing request interpretation.
+  Deterministic chipset logic retains switching, scheduling, authorization, and safety.
+- **Reasoning/planning component:** DeepSeek handles only explicitly routed reasoning
+  and technical-planning functions. Multiple functions share one model identity.
+- **Communication/input component:** Gemma is bound to the communication-facing
+  component and its existing host network-adapter path. It handles only declared
+  communication/input-interface functions; it is not a fallback for unrelated work.
+- **Code/firmware component:** Codestral handles code generation and review only.
+  It cannot approve or execute its own proposals.
+
+An execution path is valid only when its declared owner component, resident model,
+function assignment, health/lifecycle state, and result provenance all agree. Requests
+outside the owning component's declared functions must fail closed or be handed off
+explicitly through the Hub to the component that owns that function. The Hub transports
+and composes; it does not merge component roles or fan requests out to every AI.
+
+These role assignments are architectural bindings, not proof that the configured model
+artifact is installed, reachable, or capability-approved. Live inference evaluation and
+physical-device validation remain separate gates.
+
+
+## Portable component package and reattachment contract
+
+A component is intended to be removable and attachable to a differently configured
+Coreless machine. Its identity and specialization travel with the component package;
+they must not depend on the source Hub's in-memory registry or on the destination
+machine having the same composition.
+
+A portable component package must carry or unambiguously reference:
+
+- stable component identity, package/schema version, and declared hardware role;
+- the component's own Coreless executable/VM boundary and persistent state;
+- its resident AI binding contract, model/runtime identity, and any required model
+  artifact reference or installation manifest;
+- role-scoped capabilities and execution-path/function declarations;
+- versioned interfaces, resource requirements, and dependency declarations;
+- state/configuration migration rules and a compatibility range.
+
+On attachment to a new machine, the Hub must rediscover the component from its own
+manifest, validate identity and package integrity, negotiate interface versions and
+capabilities, check available resources/dependencies, and create fresh destination-
+local runtime bindings. Destination-local object references, registry entries, VM
+handles, and transport sessions must never be treated as portable identity. Persisted
+configuration must be portable data, not a serialized pointer to an object from the
+old machine.
+
+The component keeps its role when the destination is configured differently. The
+Hub may negotiate optional capabilities or disable an unavailable function, but it
+must not silently reassign the resident AI to unrelated work, borrow another
+component's identity, or claim successful attachment when required dependencies are
+missing. Required incompatibilities must produce a clear attach failure; optional
+capability differences must be reported explicitly. A component can be attached to a
+new Hub only after its old Hub attachment and transient channels have been detached.
+
+**Model identity versus function count:** one model identity means one logical model
+artifact/runtime identity may serve more than one explicitly declared function within
+its component's role. It does not mean the model is welded to one particular machine,
+that its in-memory runtime object is portable, or that a destination must expose the
+same functions. Reattachment resolves the component's declared model identity against
+the destination's available/verified runtime and artifact, then validates the component's
+function contract. If the required model is unavailable or incompatible, the component
+must remain unready rather than silently substituting another model.
+
+
+## Host-visible virtual-device recognition
+
+A Coreless component is assigned a hardware role in its descriptor; it is not
+installed as a generic task. `reference/host_device_bridge.py` maps declared
+roles to stable host-facing device classes (for example, `video-card` to
+`display.graphics`, and `network-adapter` to `network.adapter`). Automatic
+component discovery can synchronize the attached Hub composition with this bridge.
+
+The bridge delegates registration to a platform provider. The reference in-memory
+provider exists only for deterministic tests and does not create an OS device.
+For the regular operating system to list/use a component as a native network,
+graphics, input, or storage device, the target OS needs the corresponding virtual
+device backend and, where required, a kernel driver and permissions. A Coreless CPU
+or chipset role remains a Coreless execution component; it is not falsely advertised
+as a physical host CPU/chipset.
+
+No component is assigned a task manually during recognition. The component's
+declared role and capability contract determine its host-facing device class. If
+the role cannot be mapped, recognition fails closed with an explicit result instead
+of inventing a generic device or changing the AI assignment.

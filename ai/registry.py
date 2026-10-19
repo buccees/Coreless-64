@@ -66,6 +66,11 @@ class AICoreRegistry:
     def descriptor(self, model_id: str) -> AICoreDescriptor:
         return self._require_descriptor(model_id)
 
+    def get_core(self, model_id: str) -> AICore:
+        """Return the single registered runtime object for a model identity."""
+        self._require_descriptor(model_id)
+        return self._cores[model_id]
+
     def descriptors(self) -> tuple[AICoreDescriptor, ...]:
         return tuple(self._descriptors.values())
 

@@ -1,8 +1,16 @@
+## Verified integration status — 2026-10-19
+
+- **Working branch:** `integration/qwen3-cpu-execution-proof`.
+- **Latest verified code fix:** commit [`9d226f9`](https://github.com/buccees/Coreless-64/commit/9d226f90d9ee6d06371de4768900b84247920ac1) corrected Linux mount-table octal decoding. The prior attempt failed because its regular expression matched two backslashes instead of the single backslash present in mount-table fields.
+- **Automated verification:** [GitHub Actions run 39266027119](https://github.com/buccees/Coreless-64/actions/runs/39266027119) passed **925 tests in 21.49 seconds** on commit `9d226f9`.
+- **Scope of that evidence:** this is the repository's reference test suite, not proof of physical plug-and-play, cross-platform native device enumeration, a complete deployed Coreless machine, or live trained-model inference.
+- **Immediate next work:** finish the targeted audit of normative specifications and setup/environment instructions, reconciling model-role contracts, execution-status claims, and internal links. After that, choose the next engineering gate from `REMAINING_REQUIREMENTS.md`; documentation items do not imply implementation work.
+
 # Coreless-64 — Remaining Requirements Scope
 
-**Scope baseline:** 2026-10-09  
+**Scope baseline:** 2026-10-09; status reconciled 2026-10-19  
 **Repository:** `buccees/Coreless-64`  
-**Working branch at this checkpoint:** `feature/qwen3-kv-cache-atomic-persistence`
+**Current working branch:** `integration/qwen3-cpu-execution-proof`
 
 This document consolidates outstanding items from `ROADMAP.md`, `TESTING.md`, `TEST_ENVIRONMENT.md`, the host-interface and component specifications, and the project's recorded design goals. It separates the near-term completion gate from later platform, scaling, compatibility, and adaptive-model work so that future work is not confused with a requirement for the first end-to-end milestone.
 

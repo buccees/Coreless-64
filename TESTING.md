@@ -2,6 +2,14 @@
 
 ## Current checkpoint
 
+**Verified integration status — 2026-10-19**
+
+- **Working branch:** `integration/qwen3-cpu-execution-proof`.
+- **Latest verified code fix:** commit [`9d226f9`](https://github.com/buccees/Coreless-64/commit/9d226f90d9ee6d06371de4768900b84247920ac1) corrected Linux mount-table octal decoding. The prior attempt failed because its regular expression matched two backslashes instead of the single backslash present in mount-table fields.
+- **Automated verification:** [GitHub Actions run 39266027119](https://github.com/buccees/Coreless-64/actions/runs/39266027119) passed **925 tests in 21.49 seconds** on commit `9d226f9`.
+- **Scope of that evidence:** this is the repository's reference test suite, not proof of physical plug-and-play, cross-platform native device enumeration, a complete deployed Coreless machine, or live trained-model inference.
+- **Immediate next work:** finish the targeted audit of normative specifications and setup/environment instructions, reconciling model-role contracts, execution-status claims, and internal links. After that, choose the next engineering gate from `REMAINING_REQUIREMENTS.md`; documentation items do not imply implementation work.
+
 Reference/CI testing validates the software implementation. It does not by itself prove execution of a complete persistent-storage-hosted Coreless computer or live trained-model inference.
 
 ## Covered foundation
@@ -25,7 +33,6 @@ Reference/CI testing validates the software implementation. It does not by itsel
 ## Not yet validated
 
 - concrete cross-platform host enumeration and physical display/input/network transports
-- tensor-backed Qwen3 KV cache and fully native head reshape/repeat/data movement
 - official trained Qwen3-0.6B end-to-end inference
 - complete persistent-storage-hosted Coreless runtime environment
 - live five-core inference on Coreless
@@ -54,7 +61,7 @@ AI output is never authorization.
 
 1. Extend concrete host transport adapters while preserving the Coreless-owned execution boundary.
 2. Continue exercising autonomous components through unified lifecycle, scheduling, detachment, and rejoin.
-3. Extend the Qwen3 tensor boundary: KV cache, head reshape/repeat, and attention data movement.
+3. Validate the existing Qwen3 TensorRuntime KV-cache and head reshape/repeat/data-movement paths against the current implementation; do not describe these paths as unimplemented without new evidence.
 4. Extend native vector/matrix execution coverage through the public architectural boundary.
 5. Perform real Qwen3-0.6B forward/generation validation.
 

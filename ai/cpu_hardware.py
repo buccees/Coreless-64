@@ -4,12 +4,11 @@ The binding connects a validated CPU ModelPart to the existing Coreless-64
 architectural CPU boundary. The native model runtime is supplied separately;
 this module never substitutes a generic Transformer for the assigned model.
 """
-
 from dataclasses import dataclass
 from typing import Any, Protocol, Sequence
 
-from model_part import ComponentRole, HardwareAssignment, ModelPart
-from hardware_runtime import HardwareEndpoint, HardwareRequest, HardwareResponse
+from .hardware_runtime import HardwareRequest, HardwareResponse
+from .model_part import ComponentRole, HardwareAssignment, ModelPart
 
 
 class CPUModelExecutionAdapter(Protocol):
@@ -48,6 +47,14 @@ class CorelessCPUBridge:
     def handle(self, request: HardwareRequest) -> HardwareResponse:
         if request.target != self.hardware.part.part_id:
             raise ValueError("request target does not match CPU hardware")
+        required = set(request.required_capabilities)
+        available = set(self.hardware.part.required_capabilities())
+        missing = required - available
+        if missing:
+            raise PermissionError(
+                f"{self.hardware.part.part_id} does not expose requested capabilities: "
+                f"{sorted(missing)}"
+            )
         result = self.hardware.request(
             request.source, request.operation, request.payload
         )

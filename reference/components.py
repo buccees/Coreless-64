@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Callable, Mapping
 import threading
+import time
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,7 @@ class ComponentDescriptor:
     vm_id: str | None = None
     version: int = 1
     capacity: int = 1
+    ai_functions: frozenset[str] = frozenset()
 
     def supports(self, capability: str) -> bool:
         return capability in self.capabilities
@@ -38,6 +40,7 @@ class ComponentDescriptor:
             "vm_id": self.vm_id,
             "version": self.version,
             "capacity": self.capacity,
+            "ai_functions": sorted(self.ai_functions),
         }
 
 
@@ -88,6 +91,7 @@ class CorelessComponent:
         self._hub_id: str | None = None
         self._healthy = True
         self._fault: str | None = None
+        self._ai_running = False
 
     @property
     def component_id(self) -> str:
@@ -191,6 +195,100 @@ class CorelessComponent:
             vm_id=descriptor.get("vm_id"),
             version=descriptor["version"],
             capacity=descriptor.get("capacity", 1),
+            ai_functions=frozenset(descriptor.get("ai_functions", ())),
+        )
+
+    def export_portable_manifest(
+        self, *, required_capabilities: frozenset[str] | set[str] = frozenset()
+    ) -> bytes:
+        """Export portable identity/configuration, excluding machine-local handles.
+
+        The manifest is a component package descriptor, not a disk image or a
+        serialized VM/model runtime. Those artifacts are packaged or resolved
+        separately by the destination.
+        """
+        payload = {
+            "format": "coreless.component-manifest",
+            "manifest_version": 1,
+            "descriptor": self.descriptor.to_dict(),
+            "required_capabilities": sorted(required_capabilities),
+        }
+        return json.dumps(
+            payload, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+
+    @classmethod
+    def from_portable_manifest(
+        cls,
+        manifest: bytes | str | Mapping[str, object],
+        *,
+        system: object | None = None,
+        ai_runtime: object | None = None,
+        vm: object | None = None,
+        workload_executor: Callable[[object], object] | None = None,
+        available_models: frozenset[str] | set[str] | None = None,
+        supported_capabilities: frozenset[str] | set[str] | None = None,
+    ) -> "CorelessComponent":
+        """Reconstitute a component descriptor for a destination machine.
+
+        Destination compatibility is checked before the component is returned.
+        Transient runtime, VM, and Hub bindings are supplied by the destination;
+        none are restored from the portable manifest.
+        """
+        try:
+            if isinstance(manifest, Mapping):
+                payload = dict(manifest)
+            else:
+                raw = manifest.encode("utf-8") if isinstance(manifest, str) else bytes(manifest)
+                payload = json.loads(raw.decode("utf-8"))
+        except (TypeError, ValueError, UnicodeDecodeError) as exc:
+            raise ValueError("portable component manifest is invalid") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("portable component manifest must be an object")
+        if payload.get("format") != "coreless.component-manifest":
+            raise ValueError("not a Coreless portable component manifest")
+        if payload.get("manifest_version") != 1:
+            raise ValueError("unsupported portable component manifest version")
+        descriptor_data = payload.get("descriptor")
+        if not isinstance(descriptor_data, dict):
+            raise ValueError("portable component manifest has no descriptor")
+        try:
+            descriptor = ComponentDescriptor(
+                component_id=descriptor_data["component_id"],
+                role=descriptor_data["role"],
+                capabilities=frozenset(descriptor_data["capabilities"]),
+                ai_model_id=descriptor_data.get("ai_model_id"),
+                vm_id=descriptor_data.get("vm_id"),
+                version=descriptor_data.get("version", 1),
+                capacity=descriptor_data.get("capacity", 1),
+                ai_functions=frozenset(descriptor_data.get("ai_functions", ())),
+            )
+        except (KeyError, TypeError) as exc:
+            raise ValueError("portable component descriptor is incomplete") from exc
+        if available_models is not None and descriptor.ai_model_id is not None:
+            if descriptor.ai_model_id not in available_models:
+                raise RuntimeError(
+                    f"required resident AI model is unavailable on destination: "
+                    f"{descriptor.ai_model_id}"
+                )
+        required = payload.get("required_capabilities", ())
+        if not isinstance(required, (list, tuple)) or any(
+            not isinstance(item, str) or not item for item in required
+        ):
+            raise ValueError("portable component required_capabilities is invalid")
+        if supported_capabilities is not None:
+            missing = frozenset(required) - frozenset(supported_capabilities)
+            if missing:
+                raise RuntimeError(
+                    "destination lacks required component capabilities: "
+                    + ", ".join(sorted(missing))
+                )
+        return cls(
+            descriptor,
+            system=system,
+            ai_runtime=ai_runtime,
+            vm=vm,
+            workload_executor=workload_executor,
         )
 
     def boot(self, init_path: str = "/init"):
@@ -217,14 +315,30 @@ class CorelessComponent:
         return self
 
     def start_services(self) -> None:
-        """Start the component-local VM and AI services when they are bound."""
+        """Start the bound VM and resident AI as one component lifecycle.
+
+        If the AI service cannot start, roll back a VM started by this call and
+        propagate the failure. A component must not appear operational while
+        its declared resident AI failed to start.
+        """
+        vm_was_running = bool(getattr(self.vm, "running", False)) if self.vm is not None else False
         if self.vm is not None:
             self.start_vm()
-        if self.ai_runtime is not None:
-            try:
+        try:
+            if self.ai_runtime is not None:
                 self.start_ai()
-            except (RuntimeError, TypeError):
-                pass
+            elif self.descriptor.ai_model_id is not None:
+                raise RuntimeError(
+                    f"component {self.component_id} declares resident AI "
+                    f"{self.descriptor.ai_model_id!r} but has no bound AI runtime"
+                )
+        except Exception:
+            if self.vm is not None and not vm_was_running:
+                try:
+                    self.stop_vm()
+                except (RuntimeError, TypeError):
+                    pass
+            raise
 
     def stop_services(self) -> None:
         """Stop component-local AI and VM services without destroying identity."""
@@ -302,6 +416,30 @@ class CorelessComponent:
         }
 
 
+    def bind_registered_ai(self, registry: object) -> object:
+        """Bind this component to the one already-registered resident model.
+
+        This resolves a model identity; it never creates or registers a runtime.
+        Repeated function assignments on the same component reuse this object.
+        """
+        model_id = self.descriptor.ai_model_id
+        if not model_id:
+            raise ValueError(
+                f"component {self.component_id!r} does not declare a resident AI model"
+            )
+        get_core = getattr(registry, "get_core", None)
+        if not callable(get_core):
+            raise TypeError("AI registry does not expose get_core")
+        registered_core = get_core(model_id)
+        if self.ai_runtime is not None:
+            bound_core = getattr(self.ai_runtime, "core", self.ai_runtime)
+            if bound_core is not registered_core:
+                raise RuntimeError(
+                    f"component {self.component_id!r} is already bound to a different AI runtime"
+                )
+        self.ai_runtime = registered_core
+        return registered_core
+
     def start_ai(self):
         """Start this component's local AI runtime."""
         if self.ai_runtime is None:
@@ -311,8 +449,7 @@ class CorelessComponent:
             starter()
         elif hasattr(self.ai_runtime, "running"):
             self.ai_runtime.running = True
-        else:
-            raise TypeError("bound AI runtime does not expose a Coreless lifecycle")
+        self._ai_running = True
         return self.ai_runtime
 
     def stop_ai(self):
@@ -324,8 +461,7 @@ class CorelessComponent:
             stopper()
         elif hasattr(self.ai_runtime, "running"):
             self.ai_runtime.running = False
-        else:
-            raise TypeError("bound AI runtime does not expose a Coreless lifecycle")
+        self._ai_running = False
         return self.ai_runtime
 
     def ai_status(self) -> dict[str, object]:
@@ -335,12 +471,16 @@ class CorelessComponent:
                 "bound": False,
                 "running": False,
                 "model_id": self.descriptor.ai_model_id,
+                "runtime_model_id": None,
                 "role": self.descriptor.role,
             }
         return {
             "bound": True,
-            "running": bool(getattr(self.ai_runtime, "running", False)),
+            "running": self._ai_running and bool(getattr(self.ai_runtime, "running", True)),
             "model_id": self.descriptor.ai_model_id,
+            "runtime_model_id": getattr(
+                getattr(self.ai_runtime, "core", self.ai_runtime), "model_id", None
+            ),
             "role": self.descriptor.role,
         }
 
@@ -405,10 +545,15 @@ class CorelessComponent:
             "healthy": self.healthy,
             "fault": self.fault,
             "system_integrated": self.system is not None,
-            "ai_integrated": self.ai_runtime is not None
-            or self.descriptor.ai_model_id is not None,
-            "vm_integrated": self.vm is not None
-            or self.descriptor.vm_id is not None,
+            "ai_declared": self.descriptor.ai_model_id is not None,
+            "ai_bound": self.ai_runtime is not None,
+            "ai_running": self.ai_status()["running"],
+            "ai_runtime_model_id": self.ai_status()["runtime_model_id"],
+            "ai_integrated": self.ai_runtime is not None,
+            "vm_declared": self.descriptor.vm_id is not None,
+            "vm_bound": self.vm is not None,
+            "vm_running": bool(getattr(self.vm, "running", False)),
+            "vm_integrated": self.vm is not None,
             "capacity": self.descriptor.capacity,
         }
 
@@ -475,6 +620,222 @@ class CorelessHub:
         """Rejoin a recovered component after hot-plug or fault isolation."""
         component.recover()
         return self.connect(component)
+
+    def attach_portable(
+        self,
+        manifest: bytes | str | Mapping[str, object],
+        *,
+        available_models: frozenset[str] | set[str] | None = None,
+        supported_capabilities: frozenset[str] | set[str] | None = None,
+        runtime_resolver: Callable[[str], object] | None = None,
+        vm_resolver: Callable[[str], object] | None = None,
+        workload_executor: Callable[[object], object] | None = None,
+        activate: bool = True,
+    ) -> CorelessComponent:
+        """Discover, validate, bind, and activate a portable component.
+
+        Resolvers provide destination-local runtime objects. They are never
+        deserialized from the portable manifest. Failed activation rolls back
+        Hub membership and stops any partially started services.
+        """
+        try:
+            if isinstance(manifest, Mapping):
+                payload = dict(manifest)
+            else:
+                raw = manifest.encode("utf-8") if isinstance(manifest, str) else bytes(manifest)
+                payload = json.loads(raw.decode("utf-8"))
+        except (TypeError, ValueError, UnicodeDecodeError) as exc:
+            raise ValueError("portable component manifest is invalid") from exc
+        descriptor_data = payload.get("descriptor") if isinstance(payload, dict) else None
+        if not isinstance(descriptor_data, dict):
+            raise ValueError("portable component manifest has no descriptor")
+        model_id = descriptor_data.get("ai_model_id")
+        vm_id = descriptor_data.get("vm_id")
+        ai_runtime = None
+        vm = None
+        if model_id is not None and runtime_resolver is not None:
+            ai_runtime = runtime_resolver(model_id)
+            if ai_runtime is None:
+                raise RuntimeError(
+                    f"destination could not resolve required resident AI model: {model_id}"
+                )
+            runtime_core = getattr(ai_runtime, "core", ai_runtime)
+            resolved_model_id = getattr(runtime_core, "model_id", None)
+            if resolved_model_id is not None and resolved_model_id != model_id:
+                raise RuntimeError(
+                    f"destination resolved model {resolved_model_id!r}, "
+                    f"but component requires {model_id!r}"
+                )
+        if vm_id is not None and vm_resolver is not None:
+            vm = vm_resolver(vm_id)
+            if vm is None:
+                raise RuntimeError(
+                    f"destination could not resolve required component VM: {vm_id}"
+                )
+        component = CorelessComponent.from_portable_manifest(
+            payload,
+            ai_runtime=ai_runtime,
+            vm=vm,
+            workload_executor=workload_executor,
+            available_models=available_models,
+            supported_capabilities=supported_capabilities,
+        )
+        self.connect(component)
+        try:
+            if activate:
+                component.start_services()
+        except Exception:
+            component.stop_services()
+            self.disconnect(component.component_id)
+            raise
+        return component
+
+    def detach_portable(
+        self,
+        component_id: str,
+        *,
+        timeout: float | None = 5.0,
+        stop_services: bool = True,
+    ) -> CorelessComponent:
+        """Quiesce and detach a component for safe removal or transfer.
+
+        Unlike disconnect(), this hot-unplug path waits for active workload
+        leases to drain before stopping local services and closing Hub channels.
+        A timeout leaves the component attached and operational.
+        """
+        component = self.component(component_id)
+        with self._dispatch_condition:
+            if timeout is not None and timeout < 0:
+                raise ValueError("timeout must be non-negative or None")
+            deadline = None if timeout is None else time.monotonic() + timeout
+            while self._dispatch_load.get(component_id, 0) > 0:
+                if deadline is None:
+                    self._dispatch_condition.wait()
+                    continue
+                remaining = deadline - __import__("time").monotonic()
+                if remaining <= 0:
+                    raise TimeoutError(
+                        f"component {component_id!r} still has active workloads"
+                    )
+                self._dispatch_condition.wait(remaining)
+        if stop_services:
+            component.stop_services()
+        return self.disconnect(component_id)
+
+    def discover_and_attach(
+        self, provider: object, *, available_models=None, supported_capabilities=None,
+        runtime_resolver=None, vm_resolver=None, workload_executor=None, activate=True,
+    ) -> tuple[CorelessComponent, ...]:
+        """Automatically recognize and attach manifests exposed by a discovery provider."""
+        enumerate_candidates = getattr(provider, "enumerate_candidates", None)
+        if not callable(enumerate_candidates):
+            raise TypeError("component discovery provider must expose enumerate_candidates()")
+        attached = []
+        seen_endpoints = set()
+        for candidate in enumerate_candidates():
+            endpoint_id = getattr(candidate, "endpoint_id", None)
+            manifest = getattr(candidate, "manifest", None)
+            if not isinstance(endpoint_id, str) or not endpoint_id.strip():
+                raise ValueError("discovered component endpoint_id must be nonempty")
+            if endpoint_id in seen_endpoints:
+                raise ValueError(f"duplicate discovered component endpoint: {endpoint_id}")
+            seen_endpoints.add(endpoint_id)
+            try:
+                if isinstance(manifest, bytes):
+                    payload = json.loads(manifest.decode("utf-8"))
+                elif isinstance(manifest, str):
+                    payload = json.loads(manifest)
+                elif isinstance(manifest, Mapping):
+                    payload = dict(manifest)
+                else:
+                    raise TypeError("manifest must be bytes, string, or mapping")
+            except (TypeError, ValueError, UnicodeDecodeError) as exc:
+                raise ValueError(f"invalid component manifest from {endpoint_id!r}") from exc
+            descriptor_data = payload.get("descriptor") if isinstance(payload, dict) else None
+            if not isinstance(descriptor_data, dict):
+                raise ValueError(f"component endpoint {endpoint_id!r} has no descriptor")
+            component_id = descriptor_data.get("component_id")
+            if not isinstance(component_id, str) or not component_id:
+                raise ValueError(f"component endpoint {endpoint_id!r} has no component identity")
+            existing = self._components.get(component_id)
+            if existing is not None:
+                candidate_component = CorelessComponent.from_portable_manifest(
+                    payload, available_models=available_models,
+                    supported_capabilities=supported_capabilities,
+                )
+                if existing.descriptor != candidate_component.descriptor:
+                    raise ValueError(f"discovered component identity conflicts: {component_id}")
+                attached.append(existing)
+                continue
+            attached.append(self.attach_portable(
+                payload, available_models=available_models,
+                supported_capabilities=supported_capabilities,
+                runtime_resolver=runtime_resolver, vm_resolver=vm_resolver,
+                workload_executor=workload_executor, activate=activate,
+            ))
+        return tuple(attached)
+    def bind_resident_ai_components(self, registry: object) -> Mapping[str, str]:
+        """Bind every connected AI-declaring component to its registered model.
+
+        The full set is prevalidated before mutation. Model objects are reused
+        by identity; this method never creates or registers model runtimes.
+        Components without a declared resident model are left unchanged.
+        """
+        get_core = getattr(registry, "get_core", None)
+        if not callable(get_core):
+            raise TypeError("AI registry does not expose get_core")
+        targets = [
+            component for component in self.components()
+            if component.descriptor.ai_model_id is not None
+        ]
+        resolved: dict[str, object] = {}
+        for component in targets:
+            model_id = component.descriptor.ai_model_id
+            core = get_core(model_id)
+            existing = component.ai_runtime
+            if existing is not None and getattr(existing, "core", existing) is not core:
+                raise RuntimeError(
+                    f"component {component.component_id!r} is already bound to "
+                    "a different AI runtime"
+                )
+            resolved[component.component_id] = core
+        # All bindings are validated; now apply them as one hub-level operation.
+        for component in targets:
+            component.bind_registered_ai(registry)
+        return {
+            component_id: getattr(core, "model_id")
+            for component_id, core in resolved.items()
+        }
+
+    def dispatch_ai_path(
+        self,
+        path_id: str,
+        *,
+        execution_paths: object,
+        runtime: object,
+        machine: object,
+        text: str,
+        actor: str = "hardware",
+        context: Mapping[str, object] | None = None,
+    ) -> object:
+        """Dispatch an explicitly owned AI path without capability load-balancing.
+
+        The connected component table is the live source of component presence:
+        disconnect/isolate immediately makes the path unavailable. Model execution
+        remains delegated to PersistentAIRuntime and the existing machine scheduler.
+        """
+        execute = getattr(execution_paths, "execute", None)
+        if not callable(execute):
+            raise TypeError("execution-path registry does not expose execute")
+        return execute(
+            path_id,
+            components=self._components,
+            runtime=runtime,
+            machine=machine,
+            text=text,
+            actor=actor,
+            context=context,
+        )
 
     def component(self, component_id: str) -> CorelessComponent:
         try:

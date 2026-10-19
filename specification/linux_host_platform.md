@@ -47,3 +47,78 @@ A platform provider may enumerate candidates only when it can obtain a real, ver
 - No real target-device lifecycle evidence exists yet.
 
 These are design prerequisites, not reasons to add a simulated provider and call the platform complete. The next code change should follow once the endpoint/bus contract is specified; until then, changes should be limited to platform-neutral validation or documentation.
+
+
+## Host-visible virtual-device bridge (software integration checkpoint)
+
+`reference/host_device_bridge.py` translates each attached component's declared
+hardware role into a stable host-facing device class and delegates registration to
+a platform provider. `ComponentAutoDiscoveryService` can invoke this bridge after
+Hub discovery, so component recognition does not stop at finding a manifest or
+require the user to assign a task manually.
+
+Current role mappings include Coreless CPU, graphics/video, network adapter,
+communication/input, storage, AI chipset, reasoning/planning, and code/firmware.
+These are Coreless component identities. The reference in-memory provider verifies
+the mapping and lifecycle in tests only; it is not an OS device driver.
+
+**Remaining implementation gate:** provide concrete Linux backends that create and
+remove actual OS-visible virtual devices for each supported device class, with
+appropriate privileges, lifecycle cleanup, and end-to-end tests. Network devices
+may use a Linux virtual network interface backend; input, display/graphics, and
+storage require their own compatible Linux APIs/drivers. A CPU or AI-chipset
+component must not be misrepresented as a physical host CPU/chipset. No claim of
+native OS device enumeration is made until a concrete backend and target-machine
+test demonstrate it.
+
+
+## Host-visible virtual-device bridge (software integration checkpoint)
+
+`reference/host_device_bridge.py` translates each attached component's declared
+hardware role into a stable host-facing device class and delegates registration to
+a platform provider. `ComponentAutoDiscoveryService` can invoke this bridge after
+Hub discovery, so component recognition does not stop at finding a manifest or
+require the user to assign a task manually.
+
+Current role mappings include Coreless CPU, graphics/video, network adapter,
+communication/input, storage, AI chipset, reasoning/planning, and code/firmware.
+These are Coreless component identities. The reference in-memory provider verifies
+the mapping and lifecycle in tests only; it is not an OS device driver.
+
+**Remaining implementation gate:** provide concrete Linux backends that create and
+remove actual OS-visible virtual devices for each supported device class, with
+appropriate privileges, lifecycle cleanup, and end-to-end tests. Network devices
+may use a Linux virtual network interface backend; input, display/graphics, and
+storage require their own compatible Linux APIs/drivers. A CPU or AI-chipset
+component must not be misrepresented as a physical host CPU/chipset. No claim of
+native OS device enumeration is made until a concrete backend and target-machine
+test demonstrate it.
+
+
+### First concrete Linux device backend: TAP network interface
+
+`LinuxTapHostDeviceProvider` uses the Linux `/dev/net/tun` interface to request a
+kernel TAP interface for a declared `network.adapter` component. The resulting
+interface has a deterministic name derived from the stable component ID and is
+removed when its file descriptor is closed. Creating it requires host permissions
+for TAP creation, typically `CAP_NET_ADMIN` or root.
+
+This is the first concrete OS-visible device backend, not completion of the whole
+virtual-device system. It creates the kernel network interface but does not yet
+forward TAP packets to/from the Coreless network controller; that packet data path
+must be implemented and tested before the adapter is usable for Coreless traffic.
+Graphics, input, storage, and other device classes still need their own OS backends.
+
+
+### Automatic mounted-volume discovery
+
+`LinuxMountedComponentDiscoveryProvider` now re-reads Linux's mounted-filesystem
+table during each discovery scan, considers standard Coreless install roots
+(`/opt/coreless/components`, `/var/lib/coreless/components`) and real mounted
+volumes, and delegates safe manifest-only inspection to the directory provider.
+This allows a component package on a newly mounted SSD/data volume to be discovered
+by the running poller without manually assigning it a task or restarting discovery.
+
+This detects **mounted** volumes, not raw physical arrival before the OS mounts the
+drive. The polling service must be started by the integrating runtime, and a
+platform device backend must be selected for actual OS-visible registration.
