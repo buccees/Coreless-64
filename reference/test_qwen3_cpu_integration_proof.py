@@ -56,7 +56,9 @@ def _tiny_qwen3_weights():
 
 def test_qwen3_cpu_role_executes_end_to_end_and_returns_verified_result():
     config, weights = _tiny_qwen3_weights()
-    adapter = Qwen3CPUAdapter(config, weights)
+    from machine_runtime import CorelessMachine
+    machine = CorelessMachine(memory_size=4096)
+    adapter = Qwen3CPUAdapter(config, weights, tensor_runtime=machine.tensor_runtime)
 
     role = RoleContract(
         role=ComponentRole.CPU,
@@ -108,6 +110,8 @@ def test_qwen3_cpu_role_executes_end_to_end_and_returns_verified_result():
 
 def test_qwen3_cpu_role_rejects_wrong_target_before_execution():
     config, weights = _tiny_qwen3_weights()
+    from machine_runtime import CorelessMachine
+    machine = CorelessMachine(memory_size=4096)
     role = RoleContract(
         role=ComponentRole.CPU,
         mandatory_capabilities=("qwen3.infer",),
@@ -131,7 +135,7 @@ def test_qwen3_cpu_role_rejects_wrong_target_before_execution():
         CorelessCPUHardware(
             part=part,
             assignment=assignment,
-            adapter=Qwen3CPUAdapter(config, weights),
+            adapter=Qwen3CPUAdapter(config, weights, tensor_runtime=machine.tensor_runtime),
             available_capabilities=("qwen3.infer",),
         )
     )
@@ -151,6 +155,8 @@ def test_qwen3_cpu_role_rejects_wrong_target_before_execution():
 
 def test_qwen3_cpu_bridge_rejects_unassigned_capability():
     config, weights = _tiny_qwen3_weights()
+    from machine_runtime import CorelessMachine
+    machine = CorelessMachine(memory_size=4096)
     role = RoleContract(
         role=ComponentRole.CPU,
         mandatory_capabilities=("qwen3.infer",),
@@ -174,7 +180,7 @@ def test_qwen3_cpu_bridge_rejects_unassigned_capability():
         CorelessCPUHardware(
             part=part,
             assignment=assignment,
-            adapter=Qwen3CPUAdapter(config, weights),
+            adapter=Qwen3CPUAdapter(config, weights, tensor_runtime=machine.tensor_runtime),
             available_capabilities=("qwen3.infer",),
         )
     )
