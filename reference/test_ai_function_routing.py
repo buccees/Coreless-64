@@ -1,0 +1,134 @@
+"""End-to-end checks for function-based routing through the persistent AI runtime."""
+from ai.interfaces import AIResult
+from ai.compute_fabric import ComputeResult
+from ai.machine_runtime import PersistentAIRuntime
+
+
+class _FunctionRoutingCore:
+    def __init__(self, model_id):
+        self.model_id = model_id
+
+    def infer(self, request):
+        return AIResult(request.request_id, self.model_id, f"result from {self.model_id}")
+
+
+class _FunctionRoutingStorage:
+    def __init__(self):
+        self.objects = {}
+
+    def put(self, key, value):
+        self.objects[key] = value
+
+    def get(self, key):
+        if key not in self.objects:
+            raise KeyError(key)
+        return self.objects[key]
+
+
+def test_function_routing_executes_only_the_assigned_enabled_model():
+    runtime = PersistentAIRuntime(_FunctionRoutingStorage(), local_cores=False)
+    runtime.registry.register(_FunctionRoutingCore("qwen3"))
+    runtime.registry.register(_FunctionRoutingCore("codestral"))
+    runtime.declare_model_functions("codestral", ("code_generation",))
+    runtime.assign_function("code_generation", "codestral")
+
+    result = runtime.analyze_for_function("code_generation", "write a function")
+
+    assert [item.model_id for item in result.results] == ["codestral"]
+    assert runtime.status()["function_assignments"] == {
+        "code_generation": ("codestral",)
+    }
+    assert runtime.status()["model_function_capabilities"] == {
+        "codestral": ("code_generation",)
+    }
+
+
+def test_function_routing_restores_and_fails_closed_for_unassigned_function():
+    storage = _FunctionRoutingStorage()
+    runtime = PersistentAIRuntime(storage, local_cores=False)
+    runtime.registry.register(_FunctionRoutingCore("qwen3"))
+    runtime.declare_model_functions("qwen3", ("reasoning",))
+    runtime.assign_function("reasoning", "qwen3")
+    runtime.save()
+
+    restored = PersistentAIRuntime(storage, local_cores=False)
+    restored.registry.register(_FunctionRoutingCore("qwen3"))
+    restored.restore()
+    assert restored.function_router.models_for("reasoning") == ("qwen3",)
+
+    try:
+        restored.analyze_for_function("communications", "send a message")
+    except LookupError as exc:
+        assert "no enabled model" in str(exc)
+    else:
+        raise AssertionError("unassigned function was routed to an arbitrary model")
+
+def test_function_routing_preserves_declared_model_order():
+    runtime = PersistentAIRuntime(_FunctionRoutingStorage(), local_cores=False)
+    runtime.registry.register(_FunctionRoutingCore("qwen3"))
+    runtime.registry.register(_FunctionRoutingCore("codestral"))
+    runtime.declare_model_functions("qwen3", ("analysis",))
+    runtime.declare_model_functions("codestral", ("analysis",))
+    runtime.assign_function("analysis", "codestral")
+    runtime.assign_function("analysis", "qwen3")
+    assert runtime.function_router.models_for("analysis") == ("codestral", "qwen3")
+
+
+def test_function_routing_excludes_disabled_models():
+    runtime = PersistentAIRuntime(_FunctionRoutingStorage(), local_cores=False)
+    runtime.registry.register(_FunctionRoutingCore("qwen3"))
+    runtime.registry.register(_FunctionRoutingCore("codestral"))
+    runtime.declare_model_functions("qwen3", ("coding",))
+    runtime.declare_model_functions("codestral", ("coding",))
+    runtime.assign_function("coding", "qwen3")
+    runtime.assign_function("coding", "codestral")
+    runtime.registry.set_enabled("qwen3", False)
+    assert runtime.function_router.models_for("coding") == ("codestral",)
+
+
+def test_function_routing_rejects_assignment_without_capability_declaration():
+    runtime = PersistentAIRuntime(_FunctionRoutingStorage(), local_cores=False)
+    runtime.registry.register(_FunctionRoutingCore("qwen3"))
+    try:
+        runtime.assign_function("coding", "qwen3")
+    except ValueError as exc:
+        assert "no declared capability" in str(exc)
+    else:
+        raise AssertionError("assignment without a function capability was accepted")
+
+class _FunctionRoutingChipset:
+    def __init__(self):
+        self.dispatched = []
+
+    def dispatch(self, work, *, model_id=None):
+        selected = model_id or work.model_id
+        self.dispatched.append((work.operation, selected))
+        return ComputeResult(
+            work.work_id,
+            work.operation,
+            selected,
+            AIResult(work.request.request_id, selected, f"result from {selected}"),
+        )
+
+
+class _FunctionRoutingMachine:
+    def __init__(self):
+        self.ai_chipset = _FunctionRoutingChipset()
+
+
+def test_function_routing_dispatches_through_machine_chipset_and_checks_provenance():
+    storage = _FunctionRoutingStorage()
+    runtime = PersistentAIRuntime(storage, local_cores=False)
+    runtime.registry.register(_FunctionRoutingCore("qwen3"))
+    runtime.registry.register(_FunctionRoutingCore("codestral"))
+    runtime.declare_model_functions("codestral", ("code_generation",))
+    runtime.assign_function("code_generation", "codestral")
+    machine = _FunctionRoutingMachine()
+
+    results = runtime.compute_for_function(
+        machine, "code_generation", "write a function"
+    )
+
+    assert len(results) == 1
+    assert machine.ai_chipset.dispatched == [("ai.infer", "codestral")]
+    assert runtime.session.events()[-1].payload["model_id"] == "codestral"

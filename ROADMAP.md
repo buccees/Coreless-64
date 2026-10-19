@@ -112,16 +112,20 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [x] Real artifact integration runner
 - [ ] Official trained Qwen3-0.6B end-to-end validation
 - [x] CPU/GPU/communication capability envelopes
-- [x] Explicit hardware-role assignment
+- [x] Explicit hardware-role assignment contracts (`CPU`, `CHIPSET`, `GPU`, `COMMUNICATION`, `OTHER`); role taxonomy/validation is not the same as live execution binding
 - [x] Native architecture preservation
 - [x] Model-part execution endpoints and fabric routing
-- [ ] Bind CPU model part to Coreless-64 instruction execution
+- [ ] Bind Qwen3 CPU-intelligence model part to Coreless-64 instruction execution (designation documented in `HANDOFF.md`; live binding remains open)
 - [ ] Bind GPU model part to graphics/device/driver execution
 - [ ] Bind communication model part to user session layer
 - [ ] Native architecture adapters
 - [ ] Live trained model components
 
 ## 314DNest / Local Intelligence
+
+- [x] Digital AI chipset controller attached to the canonical machine, AI fabric/scheduler, and virtual-motherboard status nets (software reference implementation; no physical chip implied)
+- [x] Chipset dispatch constrained to registered AI resources with AI-only selection and fallback disabled
+
 
 - [x] AI-Core registry
 - [x] Multi-model coordination

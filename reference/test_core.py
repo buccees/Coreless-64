@@ -571,3 +571,36 @@ def test_run_rejects_negative_step_limit():
     except ValueError:
         return
     assert False, "negative max_steps was accepted"
+
+
+def test_cpu_reset_preserves_machine_bindings_and_clears_architectural_state():
+    cpu = CorelessCPU(memory_size=0x2000)
+    cpu.csrs[0x00A] = 3
+    cpu.csrs[0x00B] = 4
+    cpu.r[1] = 99
+    cpu.pc = 0x100
+    cpu.cycle = 12
+    cpu.pending_interrupts = 1 << 2
+    cpu.memory[0x100:0x104] = b"KEEP"
+    syscall_handler = object()
+    supervisor_trap_handler = object()
+    vm_handler = object()
+    cpu.syscall_handler = syscall_handler
+    cpu.supervisor_trap_handler = supervisor_trap_handler
+    cpu.vm_handler = vm_handler
+
+    memory = cpu.memory
+    cpu.reset()
+
+    assert cpu.memory is memory
+    assert bytes(cpu.memory[0x100:0x104]) == b"KEEP"
+    assert cpu.csrs[0x00A] == 3
+    assert cpu.csrs[0x00B] == 4
+    assert cpu.r[1] == 0
+    assert cpu.pc == 0
+    assert cpu.cycle == 0
+    assert cpu.pending_interrupts == 0
+    assert cpu.syscall_handler is syscall_handler
+    assert cpu.supervisor_trap_handler is supervisor_trap_handler
+    assert cpu.vm_handler is vm_handler
+

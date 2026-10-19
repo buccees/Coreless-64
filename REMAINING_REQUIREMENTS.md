@@ -2,7 +2,7 @@
 
 **Scope baseline:** 2026-10-09  
 **Repository:** `buccees/Coreless-64`  
-**Working branch:** `next-host-network-adapter`
+**Working branch at this checkpoint:** `feature/qwen3-kv-cache-atomic-persistence`
 
 This document consolidates outstanding items from `ROADMAP.md`, `TESTING.md`, `TEST_ENVIRONMENT.md`, the host-interface and component specifications, and the project's recorded design goals. It separates the near-term completion gate from later platform, scaling, compatibility, and adaptive-model work so that future work is not confused with a requirement for the first end-to-end milestone.
 
@@ -94,10 +94,31 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 
 ## P1 — Operating environment and interaction
 
+
+### P1.4 — Virtual motherboard and digital circuit simulation
+- [x] Add a deterministic software netlist model for named nets, ideal-wire continuity, GPIO input/output modes, pull-up/pull-down behavior, and high-impedance output release.
+- [x] Detect floating inputs, conflicting active drivers, and fixed-rail shorts rather than silently choosing a logic value.
+- [x] Define a canonical digital motherboard netlist with logical VCC/GND, active-low reset, clock, interrupt, and four GPIO signal paths.
+- [x] Add a virtual Arduino GPIO boundary that drives and reads the Coreless-side pins through explicit net joins; reset, clock edges, and interrupt assertion/release also propagate through the netlist.
+- [x] Verify the simulator and motherboard topology in CI after the latest integration commits (881 tests passed in chipset integration run 39149659070; latest full suite has 883 passing tests in run 39244936362); broader fault scenarios listed below remain open.
+- [x] Attach the motherboard model to `CorelessSystem`; expose netlist status and GPIO read/write/configuration APIs, and cycle the modeled active-low reset during boot.
+- [x] Make `CorelessMachine` own the canonical motherboard instance and have `CorelessSystem` expose that same instance (no parallel netlist).
+- [x] Gate machine CPU stepping while the modeled active-low reset is asserted; execute CPU steps on deterministic motherboard rising edges and return the modeled clock to idle-low.
+- [x] Forward an asserted motherboard IRQ into the CPU's existing pending-interrupt bit (code 2); releasing the line stops new level-triggered requests but does not erase an already-pending CPU interrupt.
+- [ ] Define and implement architectural CPU reset-state semantics without bypassing CPU identity, OS trap handlers, shared memory, or process context.
+- [x] Connect GPIO0–GPIO3 through resolved motherboard net state to modeled status LED, activity LED, buzzer, and fault LED contracts; record level transitions and expose peripheral state in snapshots. These are digital behavior models only, not electrical load simulations.
+- [ ] Make power/fault state govern execution and test power loss, open circuits, shorts, wrong pin assignments, and peripheral failures.
+- [ ] Verify the integrated runtime and fault cases in CI after the latest commits.
+- [ ] Add deterministic scenario tests for open circuits, shorts, wrong pin assignments, power loss, and peripheral faults.
+- [ ] Extend the model with component-specific electrical contracts (voltage limits, current/load constraints, protection behavior, and peripheral timing) before claiming those behaviors are simulated.
+
+**Scope boundary:** this is a software-only digital circuit model. It does not yet simulate analog waveforms, current/thermal effects, component tolerances, signal integrity, or prove a physical board works. No physical wires or hardware are required for this phase; any later physical validation must be recorded separately.
+
 ### P1.1 — Coreless OS/device services
 - [ ] Implement the device drivers required by the selected target.
 - [ ] Complete Coreless-owned networking beyond the current network-controller/reference transport foundations.
 - [ ] Implement the initial GUI/display environment.
+- [x] Add a compact simulated status-LED dot beside the battery indicator in the existing desktop top bar; clicking it opens a menu showing live GPIO0/status-LED state and transitions from the canonical virtual motherboard. `reference/desktop_host.py` refreshes the indicator/menu from the existing desktop model. This is UI integration, not physical power sensing.
 - [ ] Implement remote display and input.
 - [ ] Complete the application environment and document the supported application ABI/runtime.
 
@@ -206,3 +227,40 @@ Apply these requirements to every track above:
 - Do not claim live trained-model inference from CI or synthetic weights.
 - Do not re-open completed socket lifecycle work without a concrete uncovered contract or regression.
 - Keep model weights, secrets, and credentials out of the repository.
+
+
+
+
+## AI-role integration status
+
+- The runtime registers five local model identities (`qwen3`, `deepseek`, `gpt-oss`, `gemma`, `codestral`) and can coordinate them through `NestCoordinator`.
+- `ai/model_part.py` defines `CPU`, `CHIPSET`, `GPU`, `COMMUNICATION`, and `OTHER` role contracts plus a `HardwareAssignmentRegistry` API. `CorelessSystem.assign_ai_hardware_role()` validates and persists role-contract assignments, but role labels alone do not connect a model's functionality to an execution path.
+- Function routing is now connected to `PersistentAIRuntime` via `ai/function_router.py`: explicit model function declarations are required before assignments; declarations and assignments persist under `ai/function-routing`; `analyze_for_function()` dispatches only to assigned, enabled models through the existing coordinator and session path, and fails closed if no eligible model exists. `compute_for_function()` dispatches through the digital AI chipset/scheduler/fabric and checks result provenance. See `specification/ai_function_routing.md`.
+- No named model is automatically assigned to a function or CPU/chipset/GPU/communications role based on its name. The intended functional mapping must be recovered from the design and validated against actual model capabilities. A previously documented Qwen3 CPU-intelligence designation is not proof of live Coreless instruction execution and must not be treated as a substitute for function-based assignment.
+- Still open: record evaluated capability evidence for each model/function assignment; connect validated model-part functions to their intended execution targets and ABI boundaries; and prove live trained-model execution. The digital AI chipset controller remains the deterministic control/dispatch component, separate from model function assignment.
+
+## Physical power detection and automatic power-on boot
+
+- [ ] Complete the integrated path review against `specification/integrated_motherboard_path_trace.md`; resolve the listed hardware facts before pin-level design.
+- [ ] Trace the motherboard's digital switches as explicit control/routing elements, with canonical state ownership and shortest valid signal paths.
+- [x] Implement the programmable digital AI chipset as a first-class software controller attached to the existing machine, AI compute fabric, scheduler, and canonical virtual motherboard; define control/status signals, readiness, supported operations, reset, and fault behavior. See `reference/digital_ai_chipset.py`, `reference/test_digital_ai_chipset.py`, and `specification/ai_chipset_integration.md`. No physical chip is assumed.
+- [ ] Keep deterministic hardware power supervision and reset safety independent of AI/software state; AI activity is gated until rails are valid.
+- [ ] Support USB adapter standalone/mobile mode: qualify input and rails, then boot the configured persistent machine without waiting for a data host.
+- [ ] Support a data-capable PC USB connection: enumerate the configured Coreless identity and attach the host I/O path after power-good.
+- [ ] Keep USB power-present, internal rail power-good, and successful PC USB enumeration as separate states.
+- [ ] Define USB connector/data-interface choice, current budget, inrush, and allowed source combinations; do not assume USB-PD voltages without negotiated PD support.
+- [ ] Prevent VBUS back-feed if adapter and PC power can be present together; implement a specified protected power path or explicitly disallow simultaneous connection.
+- [ ] Define the real input-supply voltage range and every monitored rail before selecting components.
+- [ ] Implement a correctly rated, isolated power-present detector where required by the supply topology.
+- [ ] Implement voltage supervision/power-good for all required rails, including brownout response, hysteresis, and startup qualification.
+- [ ] Hold hardware reset until all required rails are stable; produce one automatic startup event after power-good.
+- [ ] Implement a safe power-fail/reset path and measure available hold-up time before promising graceful persistence flush.
+- [ ] Integrate physical power events with the canonical persistent-machine identity, discovery, and boot/resume lifecycle.
+- [ ] Bench-test the detector and integrated boot path, including missing rail, unstable supply, brownout, abrupt power loss, and sensor/wire faults.
+- [ ] Test adapter-only boot, PC USB enumeration, charge-only cable behavior, data disconnect/reconnect, source switching, current limits, and back-feed protection on the bench.
+- [ ] Keep physical validation distinct from virtual GPIO tests and software-only CI.
+
+**Specification:** `specification/physical_power_detection.md`. USB adapter mode and PC-connected mode are required design targets. The software digital AI chipset controller is implemented and tested as a first-class component of the virtual machine; it is not a physical AI chip. Physical power detection, hardware switch topology, USB device enumeration, board-level implementation, and bench validation remain pending; the virtual motherboard does not sense actual voltage.
+
+
+**AI chipset attachment contract:** `specification/ai_chipset_integration.md` defines the implemented software controller in the existing `AIComputeResource` → `AIComputeFabric` → scheduler path. The controller dispatches through the existing scheduler with AI-only selection and fallback disabled. A future physical accelerator backend and chipset-specific validation are separate, optional hardware work and require a selected part/interface; they are not prerequisites for the software controller.

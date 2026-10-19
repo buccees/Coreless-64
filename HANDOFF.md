@@ -1,5 +1,30 @@
 # Coreless-64 — Project Handoff
 
+## Next AI integration checkpoint — 2026-10-19: model capability evaluation
+
+Added `specification/model_capability_evaluation.md` on the working branch (commit `f4cafc87e6f2c0d76ff706432c4169eace74d70a`). It defines stable application-function identifiers, evidence required to approve a capability, identity/behavior/quality/boundary gates, and a minimum versioned smoke suite.
+
+The five configured entries in `ai/local_runtime.py` are IDs and default endpoint model-name strings only: `qwen3` → `qwen3`, `deepseek` → `deepseek-r1`, `gpt-oss` → `gpt-oss:20b`, `gemma` → `gemma3`, and `codestral` → `codestral`. None is yet capability-approved by evaluation evidence. In particular, a configured string does not prove the artifact is installed, reachable, or immutable.
+
+**Next execution gate:** inspect the configured local model endpoint and run real per-model inference/evaluation, recording artifact identity, task results, failures, and thresholds. Only then declare and assign supported functions. The evaluation specification is paperwork/contract only; no live model evaluation or new CI run is claimed by this update.
+
+## Latest implementation checkpoint — 2026-10-19: function-based AI routing
+
+Added `ai/function_router.py` and integrated it with `PersistentAIRuntime`:
+- Deployments declare evaluated model functions before assigning registered model IDs; assignment is rejected without a matching declared capability, and the router never guesses a function from a model name.
+- A function can have multiple models, kept in declaration order.
+- Routing excludes disabled models and fails closed when no enabled model is assigned.
+- Assignments persist under `ai/function-routing`, restore with the runtime, and appear in runtime status.
+- `PersistentAIRuntime.analyze_for_function()` sends analysis only to the assigned enabled models through the existing coordinator, registry, session, and save path.
+- Added focused tests in `ai/test_function_router.py` and `ai/test_function_router_runtime.py`, plus `specification/ai_function_routing.md`.
+
+**Verification status:** GitHub Actions run [#2289](https://github.com/buccees/Coreless-64/actions/runs/39246599926) passed **889 tests in 39.78s** on the status-reporting update. The earlier run [#2279](https://github.com/buccees/Coreless-64/actions/runs/39246494748) also passed 889 tests. The function router, capability-gated assignments, persistent status, and chipset-backed function dispatch are green in the reference suite.
+
+**Design rule:** model function assignment must follow evaluated functionality and the intended system design. Do not infer that Qwen3, DeepSeek, GPT-OSS, Gemma, or Codestral belongs to a particular CPU, chipset, GPU, or communications role from its name. The router is now an actual function-based dispatch path, but it does not itself prove model quality, trained artifact availability, or native Coreless instruction execution.
+
+---
+
+
 ## Latest verified checkpoint — 2026-10-09: Linux TCP discovery bootstrap
 
 Implemented a concrete configured-endpoint Linux TCP discovery provider in `reference/linux_host_network.py`. It connects only to explicitly configured `host:port` targets, sends the framed `CORELESS_DISCOVERY_V1` request, receives and validates a Coreless identity frame, and preserves the same socket-backed `SocketNetworkTransport` as the discovered network channel. Failed bootstrap attempts close their sockets and propagate errors; endpoint identity is not inferred from address or DNS.
@@ -264,6 +289,14 @@ The mismatched weights were removed during troubleshooting, and restoring the ex
 **Do not spend development time on this now.** Revisit after the native Coreless execution boundary and remaining implementation work are complete. At that point, reacquire/validate the exact pinned Qwen3 artifact and perform the real forward/reference validation.
 
 Do not commit large model weights.
+
+## Digital AI chipset and role-assignment checkpoint — 2026-10-19
+
+The software `DigitalAIChipset` is now attached to the canonical `CorelessMachine`, uses the existing AI scheduler/fabric with AI-only routing and fallback disabled, and publishes ready/busy/fault/enabled over the canonical virtual motherboard. `CorelessSystem` exposes the same controller. This is digital control logic, not a physical AI chip or a second AI runtime.
+
+Model-part role contracts now include `CHIPSET` in addition to `CPU`, `GPU`, `COMMUNICATION`, and `OTHER`. `CorelessSystem.assign_ai_hardware_role()` validates registered model identity and declared capabilities, persists the assignment in the machine image, restores it after reopening, and exposes the result in status. This records a validated designation; it does **not** by itself bind a model to live CPU/GPU/communications execution.
+
+`Qwen3` is the documented CPU-intelligence designation. Its binding to Coreless-64 instruction execution remains open. No verified named-model mapping for the other local models was found in the current source, so do not guess those assignments. The software controller is implemented; physical power sensing and any future physical accelerator remain separate work.
 
 ## Model-as-hardware-component architecture
 

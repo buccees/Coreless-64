@@ -129,15 +129,27 @@ class CorelessCPU:
         self._last_step_result = {"event": "reset", "pc": self.pc, "cause": None, "tval": 0}
 
     def reset(self):
-        """Return architectural state to the defined power-on reset state.
+        """Reset architectural state while preserving machine-owned bindings.
 
-        Reset preserves the backing memory contents; it resets the CPU's
-        architectural execution state, privilege state, counters, translation
-        state, interrupt state, vector/matrix state, and trap context.
+        Backing memory, CPU identity/count, and externally installed trap
+        handlers belong to the surrounding machine/OS and survive a CPU reset.
+        Architectural registers, PC/SP, privilege/CSR state, counters,
+        translation state, pending interrupts, reservations, vector/matrix
+        state, and in-flight trap context return to power-on defaults.
         """
         memory = self.memory
         memory_size = len(memory)
+        cpu_id = self.csrs.get(0x00A, 0)
+        cpu_count = self.csrs.get(0x00B, 1)
+        syscall_handler = self.syscall_handler
+        supervisor_trap_handler = self.supervisor_trap_handler
+        vm_handler = self.vm_handler
         self.__init__(memory_size=memory_size, memory=memory)
+        self.csrs[0x00A] = cpu_id
+        self.csrs[0x00B] = cpu_count
+        self.syscall_handler = syscall_handler
+        self.supervisor_trap_handler = supervisor_trap_handler
+        self.vm_handler = vm_handler
 
     def read_reg(self, n):
         return 0 if n == 0 else self.r[n]

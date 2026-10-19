@@ -13,6 +13,7 @@ from pathlib import Path
 from machine_runtime import CorelessMachine
 from os_runtime import CorelessOS
 from ai.machine_runtime import PersistentAIRuntime
+from ai.model_part import ComponentRole, HardwareAssignmentRegistry, RoleContract
 
 
 class CorelessSystem:
@@ -42,7 +43,100 @@ class CorelessSystem:
         self.ai = PersistentAIRuntime(self.machine.storage)
         self.ai.restore()
         self.machine.attach_ai_registry(self.ai.registry)
+        self.motherboard = self.machine.motherboard
+        self.ai_chipset = self.machine.ai_chipset
+        self.hardware_assignments = HardwareAssignmentRegistry()
+        self._restore_hardware_assignments()
         self._restore_boot_manifest()
+
+    HARDWARE_ASSIGNMENTS_OBJECT = "ai/hardware-assignments"
+
+    def _restore_hardware_assignments(self) -> None:
+        raw = self.machine.storage.objects.get(self.HARDWARE_ASSIGNMENTS_OBJECT)
+        if raw is None:
+            return
+        state = json.loads(raw.decode("utf-8"))
+        if not isinstance(state, dict) or state.get("version") != 1:
+            raise ValueError("unsupported AI hardware-assignment state version")
+        entries = state.get("assignments")
+        if not isinstance(entries, list):
+            raise ValueError("AI hardware-assignment state has invalid assignments")
+        for item in entries:
+            if not isinstance(item, dict):
+                raise ValueError("AI hardware-assignment state contains an invalid entry")
+            role_data = item.get("role_contract")
+            if not isinstance(role_data, dict):
+                raise ValueError("AI hardware-assignment state has invalid role contract")
+            role = RoleContract(
+                role=ComponentRole(role_data["role"]),
+                mandatory_capabilities=tuple(role_data.get("mandatory_capabilities", ())),
+                retained_optional_capabilities=tuple(role_data.get("retained_optional_capabilities", ())),
+                removable_capabilities=tuple(role_data.get("removable_capabilities", ())),
+                user_communication=bool(role_data.get("user_communication", False)),
+            )
+            model_id = item["model_id"]
+            self.ai.registry.descriptor(model_id)
+            assignment = self.hardware_assignments.assign(
+                model_id,
+                item["part_id"],
+                role,
+                native_architecture=item["native_architecture"],
+            )
+            assignment.validate(tuple(item.get("available_capabilities", ())))
+
+    def assign_ai_hardware_role(
+        self,
+        model_id: str,
+        part_id: str,
+        role_contract: RoleContract,
+        *,
+        native_architecture: str,
+        available_capabilities,
+    ):
+        """Persist a validated model-to-role designation; does not claim live execution binding."""
+        self.ai.registry.descriptor(model_id)
+        available = tuple(available_capabilities)
+        required = set(role_contract.mandatory_capabilities) | set(
+            role_contract.retained_optional_capabilities
+        )
+        missing = required - set(available)
+        if missing:
+            raise ValueError(
+                f"model {model_id} cannot be assigned to {role_contract.role.value}: "
+                f"missing {sorted(missing)}"
+            )
+        assignment = self.hardware_assignments.assign(
+            model_id,
+            part_id,
+            role_contract,
+            native_architecture=native_architecture,
+        )
+        state = {
+            "version": 1,
+            "assignments": [
+                {
+                    "model_id": item.model_id,
+                    "part_id": item.part_id,
+                    "native_architecture": item.native_architecture,
+                    "available_capabilities": list(item.required_capabilities + item.retained_optional_capabilities),
+                    "role_contract": {
+                        "role": item.role_contract.role.value,
+                        "mandatory_capabilities": list(item.role_contract.mandatory_capabilities),
+                        "retained_optional_capabilities": list(item.role_contract.retained_optional_capabilities),
+                        "removable_capabilities": list(item.role_contract.removable_capabilities),
+                        "user_communication": item.role_contract.user_communication,
+                    },
+                }
+                for item in self.hardware_assignments.all()
+            ],
+        }
+        self.machine.storage.put(
+            self.HARDWARE_ASSIGNMENTS_OBJECT,
+            json.dumps(state, sort_keys=True, separators=(",", ":")).encode("utf-8"),
+            sync=False,
+        )
+        self.machine.save_state()
+        return assignment
 
     def _boot_manifest(self, init_path: str) -> dict[str, object]:
         return {
@@ -77,12 +171,34 @@ class CorelessSystem:
         )
 
     def boot(self, init_path: str = "/init"):
-        """Power on/resume the complete Coreless operating environment."""
-        self._save_boot_manifest(init_path)
-        self.os.boot()
-        self.ai.save()
-        self.machine.save_state()
+        """Boot Coreless with a modeled active-low motherboard reset cycle."""
+        self.motherboard.set_reset(True)
+        try:
+            self._save_boot_manifest(init_path)
+            self.os.boot()
+            self.ai.save()
+            self.machine.save_state()
+        except Exception:
+            # Keep reset asserted if the software boot sequence fails.
+            raise
+        self.motherboard.set_reset(False)
         return self
+
+    def gpio_mode(self, index: int, mode, pull="none") -> None:
+        """Configure one virtual Arduino GPIO pin on the motherboard netlist."""
+        self.motherboard.set_gpio_mode(index, mode, pull)
+
+    def gpio_write(self, index: int, level: int) -> None:
+        """Drive a virtual GPIO signal through the motherboard wire model."""
+        self.motherboard.digital_write(index, level)
+
+    def gpio_read(self, index: int) -> int:
+        """Read a Coreless-side GPIO pin after digital net resolution."""
+        return self.motherboard.digital_read(index)
+
+    def set_external_interrupt(self, asserted: bool) -> None:
+        """Drive or release the modeled motherboard interrupt input."""
+        self.motherboard.set_interrupt(asserted)
 
     def run(self, max_steps: int = 100000) -> int:
         """Run ready Coreless processes through the digital execution engine."""
@@ -158,7 +274,17 @@ class CorelessSystem:
         status = self.os.status()
         status["system_version"] = self.VERSION
         status["boot_manifest"] = self.boot_manifest
+        status["motherboard"] = self.motherboard.snapshot()
         status["ai"] = self.ai.status()
+        status["ai_chipset"] = self.ai_chipset.snapshot()
+        status["ai_hardware_assignments"] = tuple({
+            "model_id": item.model_id,
+            "part_id": item.part_id,
+            "role": item.role_contract.role.value,
+            "native_architecture": item.native_architecture,
+            "required_capabilities": item.required_capabilities,
+            "retained_optional_capabilities": item.retained_optional_capabilities,
+        } for item in self.hardware_assignments.all())
         status["ai"]["machine_resources"] = tuple(
             resource_id
             for resource_id in self.machine.scheduler.resources()

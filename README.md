@@ -73,6 +73,15 @@ The normative target is documented in `specification/host_interface.md`. The ref
 5. Extend native model runtimes and bind validated model parts to live Coreless resources.
 6. Complete final ISA, persistence, capability, AI-control, host-interface, and end-to-end conformance audit.
 
+## Digital AI chipset and model roles
+
+**Current verification:** GitHub Actions run [#2289](https://github.com/buccees/Coreless-64/actions/runs/39246599926) passed 889 tests in 39.78s after the function-router, chipset-dispatch, and runtime-status changes. The earlier 883-test checkpoint predates these changes.
+
+The programmable digital AI-chipset controller is integrated with the canonical virtual motherboard, machine scheduler, and existing AI compute fabric. It is software control logic; no physical AI chip is assumed. Its status and dispatch contracts are documented in `specification/ai_chipset_integration.md`.
+
+Function-based routing is now wired into `PersistentAIRuntime` through `ai/function_router.py`: deployments declare evaluated model functions before assigning models, assignments persist under `ai/function-routing`, and `analyze_for_function()` dispatches only to enabled models assigned to that function. `compute_for_function()` sends the selected models through the machine's digital AI chipset, scheduler, and compute fabric, then validates result provenance. Unassigned functions fail closed. See `specification/ai_function_routing.md`.
+
+The router deliberately does not guess assignments for Qwen3, DeepSeek, GPT-OSS, Gemma, or Codestral from their names. Functional assignments must be based on evaluated capability evidence and the intended design. Function routing is now an execution path; model quality, artifact availability, live trained-model execution, native instruction execution bindings, and physical hardware validation remain separate gates.
 ## 314DNest
 
 314DNest is the local System Fabric coordinating AI cores with Coreless resources. AI output is never authorization:

@@ -35,6 +35,7 @@ class TaskContract:
 @dataclass(frozen=True)
 class ComponentRole(str, Enum):
     CPU = "cpu"
+    CHIPSET = "chipset"
     GPU = "gpu"
     COMMUNICATION = "communication"
     OTHER = "other"
