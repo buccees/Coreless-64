@@ -128,4 +128,4 @@ def test_function_routing_dispatches_through_machine_chipset_and_checks_provenan
 
     assert len(results) == 1
     assert machine.ai_chipset.dispatched == [("ai.infer", "codestral")]
-    assert runtime.session.events()[-1].result.model_id == "codestral"
+    assert runtime.session.events()[-1].payload["model_id"] == "codestral"
