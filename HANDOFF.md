@@ -10,7 +10,7 @@ Added `ai/function_router.py` and integrated it with `PersistentAIRuntime`:
 - `PersistentAIRuntime.analyze_for_function()` sends analysis only to the assigned enabled models through the existing coordinator, registry, session, and save path.
 - Added focused tests in `ai/test_function_router.py` and `ai/test_function_router_runtime.py`, plus `specification/ai_function_routing.md`.
 
-**Verification status:** this change has been committed to `feature/qwen3-kv-cache-atomic-persistence`, but no fresh CI result has been confirmed for these commits. The earlier 883-test run predates this implementation and is not evidence that these changes pass. Do not merge on the strength of the older run.
+**Verification status:** GitHub Actions run [#2279](https://github.com/buccees/Coreless-64/actions/runs/39246494748) passed **889 tests in 26.68s** for the function-router and chipset-dispatch implementation. A follow-up run [#2289](https://github.com/buccees/Coreless-64/actions/runs/39246599926) is still in progress for the final status-reporting assertion. The 889-test result predates only that final status exposure/test assertion.
 
 **Design rule:** model function assignment must follow evaluated functionality and the intended system design. Do not infer that Qwen3, DeepSeek, GPT-OSS, Gemma, or Codestral belongs to a particular CPU, chipset, GPU, or communications role from its name. The router is now an actual function-based dispatch path, but it does not itself prove model quality, trained artifact availability, or native Coreless instruction execution.
 
