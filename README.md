@@ -75,7 +75,7 @@ The normative target is documented in `specification/host_interface.md`. The ref
 
 ## Digital AI chipset and model roles
 
-**Last verified baseline (2026-10-19):** reference CI run `39244936362` passed 883 tests before the function-routing changes below. Those new changes require a fresh CI run; do not treat the earlier result as verification of them.
+**Current verification:** GitHub Actions run [#2279](https://github.com/buccees/Coreless-64/actions/runs/39246494748) passed 889 tests for the function-router and chipset-dispatch implementation. A follow-up run [#2289](https://github.com/buccees/Coreless-64/actions/runs/39246599926) is checking the final runtime-status exposure/test assertion. The earlier 883-test checkpoint predates these changes.
 
 The programmable digital AI-chipset controller is integrated with the canonical virtual motherboard, machine scheduler, and existing AI compute fabric. It is software control logic; no physical AI chip is assumed. Its status and dispatch contracts are documented in `specification/ai_chipset_integration.md`.
 
