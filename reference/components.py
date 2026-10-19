@@ -25,6 +25,7 @@ class ComponentDescriptor:
     vm_id: str | None = None
     version: int = 1
     capacity: int = 1
+    ai_functions: frozenset[str] = frozenset()
 
     def supports(self, capability: str) -> bool:
         return capability in self.capabilities
@@ -38,6 +39,7 @@ class ComponentDescriptor:
             "vm_id": self.vm_id,
             "version": self.version,
             "capacity": self.capacity,
+            "ai_functions": sorted(self.ai_functions),
         }
 
 
@@ -192,6 +194,92 @@ class CorelessComponent:
             vm_id=descriptor.get("vm_id"),
             version=descriptor["version"],
             capacity=descriptor.get("capacity", 1),
+            ai_functions=frozenset(descriptor.get("ai_functions", ())),
+        )
+
+    def export_portable_manifest(self) -> bytes:
+        """Export portable identity/configuration, excluding machine-local handles.
+
+        The manifest is a component package descriptor, not a disk image or a
+        serialized VM/model runtime. Those artifacts are packaged or resolved
+        separately by the destination.
+        """
+        payload = {
+            "format": "coreless.component-manifest",
+            "manifest_version": 1,
+            "descriptor": self.descriptor.to_dict(),
+        }
+        return json.dumps(
+            payload, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+
+    @classmethod
+    def from_portable_manifest(
+        cls,
+        manifest: bytes | str | Mapping[str, object],
+        *,
+        system: object | None = None,
+        ai_runtime: object | None = None,
+        vm: object | None = None,
+        workload_executor: Callable[[object], object] | None = None,
+        available_models: frozenset[str] | set[str] | None = None,
+        supported_capabilities: frozenset[str] | set[str] | None = None,
+    ) -> "CorelessComponent":
+        """Reconstitute a component descriptor for a destination machine.
+
+        Destination compatibility is checked before the component is returned.
+        Transient runtime, VM, and Hub bindings are supplied by the destination;
+        none are restored from the portable manifest.
+        """
+        try:
+            if isinstance(manifest, Mapping):
+                payload = dict(manifest)
+            else:
+                raw = manifest.encode("utf-8") if isinstance(manifest, str) else bytes(manifest)
+                payload = json.loads(raw.decode("utf-8"))
+        except (TypeError, ValueError, UnicodeDecodeError) as exc:
+            raise ValueError("portable component manifest is invalid") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("portable component manifest must be an object")
+        if payload.get("format") != "coreless.component-manifest":
+            raise ValueError("not a Coreless portable component manifest")
+        if payload.get("manifest_version") != 1:
+            raise ValueError("unsupported portable component manifest version")
+        descriptor_data = payload.get("descriptor")
+        if not isinstance(descriptor_data, dict):
+            raise ValueError("portable component manifest has no descriptor")
+        try:
+            descriptor = ComponentDescriptor(
+                component_id=descriptor_data["component_id"],
+                role=descriptor_data["role"],
+                capabilities=frozenset(descriptor_data["capabilities"]),
+                ai_model_id=descriptor_data.get("ai_model_id"),
+                vm_id=descriptor_data.get("vm_id"),
+                version=descriptor_data.get("version", 1),
+                capacity=descriptor_data.get("capacity", 1),
+                ai_functions=frozenset(descriptor_data.get("ai_functions", ())),
+            )
+        except (KeyError, TypeError) as exc:
+            raise ValueError("portable component descriptor is incomplete") from exc
+        if available_models is not None and descriptor.ai_model_id is not None:
+            if descriptor.ai_model_id not in available_models:
+                raise RuntimeError(
+                    f"required resident AI model is unavailable on destination: "
+                    f"{descriptor.ai_model_id}"
+                )
+        if supported_capabilities is not None:
+            missing = descriptor.capabilities - frozenset(supported_capabilities)
+            if missing:
+                raise RuntimeError(
+                    "destination lacks required component capabilities: "
+                    + ", ".join(sorted(missing))
+                )
+        return cls(
+            descriptor,
+            system=system,
+            ai_runtime=ai_runtime,
+            vm=vm,
+            workload_executor=workload_executor,
         )
 
     def boot(self, init_path: str = "/init"):
