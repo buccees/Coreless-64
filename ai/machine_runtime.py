@@ -11,6 +11,7 @@ from typing import Any, Mapping
 from .coordinator import CoordinationResult, NestCoordinator
 from .interfaces import AIResult, AuthorityLevel, GroupResult
 from .function_router import FunctionalModelRouter
+from .execution_paths import ExecutionPathRegistry
 from .local_runtime import register_default_local_cores
 from .registry import AICoreRegistry
 from .session import AISession, TerminalMessage
@@ -38,6 +39,7 @@ class PersistentAIRuntime:
         self.session = AISession(session_id, authority=authority)
         self.coordinator = NestCoordinator(self.registry)
         self.function_router = FunctionalModelRouter(self.registry)
+        self.execution_paths = ExecutionPathRegistry()
 
     def request(self, text: str, *, actor: str = "human"):
         return self.session.request(TerminalMessage(
@@ -177,6 +179,7 @@ class PersistentAIRuntime:
         self.registry.save(self.storage, self.REGISTRY_KEY)
         self.session.save(self.storage, self.SESSION_KEY)
         self.function_router.save(self.storage)
+        self.execution_paths.save(self.storage)
 
     def restore(self) -> None:
         try:
@@ -185,6 +188,10 @@ class PersistentAIRuntime:
             pass
         try:
             self.function_router.load(self.storage)
+        except KeyError:
+            pass
+        try:
+            self.execution_paths.load(self.storage)
         except KeyError:
             pass
         try:
@@ -200,6 +207,7 @@ class PersistentAIRuntime:
             "session": self.session.to_state(),
             "registry": self.registry.to_state(),
             "function_router": self.function_router.to_state(),
+            "execution_paths": self.execution_paths.to_state(),
         }
 
     def restore_state(self, state: Mapping[str, object]) -> None:
@@ -211,6 +219,11 @@ class PersistentAIRuntime:
             raise ValueError("persistent AI runtime state is incomplete")
         self.session = AISession.from_state(session_state)
         self.registry.restore_state(registry_state)
+        execution_path_state = state.get("execution_paths")
+        if execution_path_state is not None:
+            if not isinstance(execution_path_state, Mapping):
+                raise ValueError("persistent AI runtime execution-path state is invalid")
+            self.execution_paths.restore_state(execution_path_state)
         routing_state = state.get("function_router")
         if routing_state is not None:
             if not isinstance(routing_state, Mapping):
@@ -227,5 +240,6 @@ class PersistentAIRuntime:
             "enabled_cores": self.registry.enabled_cores(),
             "function_assignments": self.function_router.assignments(),
             "model_function_capabilities": self.function_router.capabilities(),
+            "execution_paths": [path.to_dict() for path in self.execution_paths.all()],
             "event_count": len(self.session.events()),
         }
