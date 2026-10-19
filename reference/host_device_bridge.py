@@ -237,7 +237,7 @@ class LinuxTapHostDeviceProvider:
         try:
             request = bytearray(struct.pack("16sH", interface_name.encode("ascii"), self.IFF_TAP | self.IFF_NO_PI))
             fcntl.ioctl(fd, self.TUNSETIFF, request, True)
-            actual_name = struct.unpack("16sH", request[:18])[0].split(b"\\0", 1)[0].decode("ascii")
+            actual_name = struct.unpack("16sH", request[:18])[0].split(bytes((0,)), 1)[0].decode("ascii")
             return LinuxTapHandle(descriptor.component_id, actual_name, fd)
         except Exception:
             os.close(fd)
