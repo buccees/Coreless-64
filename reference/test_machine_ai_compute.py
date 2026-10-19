@@ -85,6 +85,7 @@ def test_hub_owned_ai_path_runs_through_real_machine_scheduler_and_fabric():
             role="cpu",
             capabilities=frozenset(),
             ai_model_id="qwen3",
+            ai_functions=frozenset({"cpu_intelligence"}),
         ),
         ai_runtime=core,
     )
@@ -136,6 +137,7 @@ def _owned_ai_path_system():
             role="cpu",
             capabilities=frozenset(),
             ai_model_id="qwen3",
+            ai_functions=frozenset({"cpu_intelligence"}),
         ),
         ai_runtime=core,
     )
@@ -260,6 +262,7 @@ def test_all_resident_ai_components_bind_once_and_route_only_their_assigned_mode
             role=role,
             capabilities=frozenset(functions),
             ai_model_id=model_id,
+            ai_functions=frozenset(functions),
         ))
         hub.connect(component)
         components[component_id] = component
@@ -342,6 +345,7 @@ def test_component_resident_ai_binding_rejects_a_different_existing_runtime():
             role="cpu",
             capabilities=frozenset(),
             ai_model_id="qwen3",
+            ai_functions=frozenset({"cpu_intelligence"}),
         ),
         ai_runtime=DifferentCore(),
     )
@@ -369,6 +373,7 @@ def test_hub_resident_binding_prevalidates_before_mutating_any_component():
     cpu = CorelessComponent(ComponentDescriptor(
         component_id="cpu-atomic", role="cpu", capabilities=frozenset(),
         ai_model_id="qwen3",
+            ai_functions=frozenset({"cpu_intelligence"}),
     ))
     wrong_deepseek = DeepSeekCore()
     reasoning = CorelessComponent(ComponentDescriptor(
