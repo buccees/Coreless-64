@@ -319,6 +319,30 @@ class CorelessComponent:
         }
 
 
+    def bind_registered_ai(self, registry: object) -> object:
+        """Bind this component to the one already-registered resident model.
+
+        This resolves a model identity; it never creates or registers a runtime.
+        Repeated function assignments on the same component reuse this object.
+        """
+        model_id = self.descriptor.ai_model_id
+        if not model_id:
+            raise ValueError(
+                f"component {self.component_id!r} does not declare a resident AI model"
+            )
+        get_core = getattr(registry, "get_core", None)
+        if not callable(get_core):
+            raise TypeError("AI registry does not expose get_core")
+        registered_core = get_core(model_id)
+        if self.ai_runtime is not None:
+            bound_core = getattr(self.ai_runtime, "core", self.ai_runtime)
+            if bound_core is not registered_core:
+                raise RuntimeError(
+                    f"component {self.component_id!r} is already bound to a different AI runtime"
+                )
+        self.ai_runtime = registered_core
+        return registered_core
+
     def start_ai(self):
         """Start this component's local AI runtime."""
         if self.ai_runtime is None:
