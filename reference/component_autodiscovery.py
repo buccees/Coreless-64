@@ -112,11 +112,17 @@ class LinuxMountedComponentDiscoveryProvider:
 
     @staticmethod
     def _unescape_mount_field(value: str) -> str:
-        # /proc/*/mounts uses octal escapes for whitespace and backslashes.
-        return (value.replace("\\\\134", "\\\\")
-                     .replace("\\\\040", " ")
-                     .replace("\\\\011", "\\t")
-                     .replace("\\\\012", "\\n"))
+        # /proc/*/mounts uses three-digit octal escapes (e.g. \\040 for
+        # space, \\011 for tab, \\012 for newline, \\134 for backslash).
+        # Decode these in one pass so decoding \\134 cannot create a second
+        # escape that gets decoded accidentally.
+        import re
+
+        return re.sub(
+            r"\\\\([0-7]{3})",
+            lambda match: chr(int(match.group(1), 8)),
+            value,
+        )
 
     def _mounted_roots(self) -> tuple[Path, ...]:
         roots: set[Path] = set()
