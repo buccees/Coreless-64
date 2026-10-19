@@ -226,5 +226,6 @@ class PersistentAIRuntime:
             "registered_cores": self.registry.descriptors(),
             "enabled_cores": self.registry.enabled_cores(),
             "function_assignments": self.function_router.assignments(),
+            "model_function_capabilities": self.function_router.capabilities(),
             "event_count": len(self.session.events()),
         }
