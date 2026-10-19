@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping
 
 
 @dataclass(frozen=True)
@@ -85,7 +85,7 @@ class ExecutionPathRegistry:
         components: Mapping[str, object],
         function_router: object,
     ) -> ExecutionPath:
-        """Validate component health/resident model and single-model function owner."""
+        """Validate component health/resident model and explicit path assignment."""
         path = self.get(path_id)
         component = components.get(path.component_id)
         if component is None:
@@ -103,10 +103,10 @@ class ExecutionPathRegistry:
         if not callable(models_for):
             raise TypeError("function router does not expose models_for")
         assigned = tuple(models_for(path.function_id))
-        if assigned != (path.model_id,):
+        if path.model_id not in assigned:
             raise ValueError(
-                f"execution path {path.path_id!r} requires sole model owner "
-                f"{path.model_id!r} for function {path.function_id!r}; got {assigned!r}"
+                f"execution path {path.path_id!r} model {path.model_id!r} is not "
+                f"assigned to function {path.function_id!r}; got {assigned!r}"
             )
         return path
 
