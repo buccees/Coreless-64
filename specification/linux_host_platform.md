@@ -93,3 +93,18 @@ storage require their own compatible Linux APIs/drivers. A CPU or AI-chipset
 component must not be misrepresented as a physical host CPU/chipset. No claim of
 native OS device enumeration is made until a concrete backend and target-machine
 test demonstrate it.
+
+
+### First concrete Linux device backend: TAP network interface
+
+`LinuxTapHostDeviceProvider` uses the Linux `/dev/net/tun` interface to request a
+kernel TAP interface for a declared `network.adapter` component. The resulting
+interface has a deterministic name derived from the stable component ID and is
+removed when its file descriptor is closed. Creating it requires host permissions
+for TAP creation, typically `CAP_NET_ADMIN` or root.
+
+This is the first concrete OS-visible device backend, not completion of the whole
+virtual-device system. It creates the kernel network interface but does not yet
+forward TAP packets to/from the Coreless network controller; that packet data path
+must be implemented and tested before the adapter is usable for Coreless traffic.
+Graphics, input, storage, and other device classes still need their own OS backends.
