@@ -233,10 +233,11 @@ Apply these requirements to every track above:
 
 ## AI-role integration status
 
-- The runtime currently registers five local model identities (`qwen3`, `deepseek`, `gpt-oss`, `gemma`, `codestral`) and can coordinate them through `NestCoordinator`.
-- `ai/model_part.py` defines `CPU`, `CHIPSET`, `GPU`, `COMMUNICATION`, and `OTHER` role contracts plus a `HardwareAssignmentRegistry` API. `CorelessSystem.assign_ai_hardware_role()` validates against a registered model and capability contract, persists assignments in the machine image, restores them at startup, and exposes them in system status. The `CHIPSET` contract is now represented explicitly in the role taxonomy.
-- `HANDOFF.md` explicitly designates Qwen3 for the **CPU intelligence role**. That designation is documented, but the live binding to Coreless-64 instruction execution remains unfinished. The other four model identities do not have a verified role mapping in the source inspected. Do not infer their roles from model names; preserve the original plan when those assignments are recovered.
-- Still open: integrate validated model-part assignments with real Coreless execution targets, enforce the ABI/capability boundary, and prove live trained-model execution. The digital AI chipset controller is a separate deterministic control/dispatch component. It does not by itself implement the Qwen3 CPU-intelligence role or prove that any model-derived hardware part is executing as a CPU.
+- The runtime registers five local model identities (`qwen3`, `deepseek`, `gpt-oss`, `gemma`, `codestral`) and can coordinate them through `NestCoordinator`.
+- `ai/model_part.py` defines `CPU`, `CHIPSET`, `GPU`, `COMMUNICATION`, and `OTHER` role contracts plus a `HardwareAssignmentRegistry` API. `CorelessSystem.assign_ai_hardware_role()` validates and persists role-contract assignments, but role labels alone do not connect a model's functionality to an execution path.
+- Function routing is now connected to `PersistentAIRuntime` via `ai/function_router.py`: explicit model-to-function assignments persist under `ai/function-routing`; `analyze_for_function()` dispatches only to assigned, enabled models through the existing coordinator and session path, and fails closed if no eligible model exists. See `specification/ai_function_routing.md`.
+- No named model is automatically assigned to a function or CPU/chipset/GPU/communications role based on its name. The intended functional mapping must be recovered from the design and validated against actual model capabilities. A previously documented Qwen3 CPU-intelligence designation is not proof of live Coreless instruction execution and must not be treated as a substitute for function-based assignment.
+- Still open: record evaluated capability evidence for each model/function assignment; connect validated model-part functions to their intended execution targets and ABI boundaries; and prove live trained-model execution. The digital AI chipset controller remains the deterministic control/dispatch component, separate from model function assignment.
 
 ## Physical power detection and automatic power-on boot
 
