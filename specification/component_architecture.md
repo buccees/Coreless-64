@@ -233,3 +233,25 @@ same functions. Reattachment resolves the component's declared model identity ag
 the destination's available/verified runtime and artifact, then validates the component's
 function contract. If the required model is unavailable or incompatible, the component
 must remain unready rather than silently substituting another model.
+
+
+## Host-visible virtual-device recognition
+
+A Coreless component is assigned a hardware role in its descriptor; it is not
+installed as a generic task. `reference/host_device_bridge.py` maps declared
+roles to stable host-facing device classes (for example, `video-card` to
+`display.graphics`, and `network-adapter` to `network.adapter`). Automatic
+component discovery can synchronize the attached Hub composition with this bridge.
+
+The bridge delegates registration to a platform provider. The reference in-memory
+provider exists only for deterministic tests and does not create an OS device.
+For the regular operating system to list/use a component as a native network,
+graphics, input, or storage device, the target OS needs the corresponding virtual
+device backend and, where required, a kernel driver and permissions. A Coreless CPU
+or chipset role remains a Coreless execution component; it is not falsely advertised
+as a physical host CPU/chipset.
+
+No component is assigned a task manually during recognition. The component's
+declared role and capability contract determine its host-facing device class. If
+the role cannot be mapped, recognition fails closed with an explicit result instead
+of inventing a generic device or changing the AI assignment.
