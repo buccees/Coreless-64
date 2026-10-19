@@ -52,6 +52,40 @@ These assignments establish the design baseline for implementation. If prior pro
 - Compare this assignment baseline with `ai/function_router.py`, `ai/model_part.py`, the chipset dispatch path, and declared capability contracts. Implement only missing bindings; do not create duplicate model registrations.
 - Run per-artifact inference and capability evaluation before enabling each route. Then test host lifecycle, fault behavior, and selective resource limits. No live model evaluation or physical hardware validation is implied by this document update.
 
+
+## Execution-path wiring contract
+
+The role table above is the intended assignment baseline. The following is the required runtime wiring; it is not yet proof that every route is implemented.
+
+| Execution-path set | Owning virtual component | Assigned AI identity | Dispatch boundary |
+|---|---|---|---|
+| Coreless CPU intelligence / CPU-level reasoning | CPU component and its bound VM | `qwen3` | CPU component executor -> function router -> registered Qwen3 core; deterministic CPU/VM controls retain execution authority. |
+| Digital AI chipset request interpretation | Chipset component | `gpt-oss` | Chipset component AI binding -> function router -> existing chipset controller -> scheduler -> compute fabric -> GPT-OSS resource. The model does not replace the controller. |
+| Deep reasoning | CPU-side reasoning service/component | `deepseek` | Named reasoning function -> DeepSeek resource; technical-planning requests use the same model identity and a distinct declared function. |
+| Input/context interpretation | Input/interaction component | `gemma` | Named interpretation function -> Gemma resource. |
+| Communication-facing response formulation | Input/interaction component | `gemma` | Named communication function -> the same Gemma resource identity, not a second registration. |
+| Code generation and code review | Development/firmware service/component | `codestral` | Named code function -> Codestral resource; review and generation remain distinct function routes. |
+
+### Required invariants for wiring
+
+1. Give each component a stable component ID, role, VM ID, and at most one resident model ID for its primary AI binding. If a component legitimately exposes multiple execution-path sets, declare each path explicitly rather than assigning overlapping ownership.
+2. Each execution path must declare its capability, input/output contract, owning component, assigned model ID, and deterministic executor/authorization boundary.
+3. Resolve every AI dispatch as **path ID -> owning component -> declared function -> one assigned model identity -> existing registry/scheduler/fabric**. Validate model provenance on return.
+4. A request must not fan out to all registered AIs. For a single-owner path, reject ambiguous multi-model assignments instead of silently selecting one. Any deliberate collaboration must be a separately declared pipeline with distinct stages and explicit result handoff.
+5. Keep the AI binding available for the lifetime of an operational component, but only schedule inference for actual work. Do not load duplicate model registrations to represent multiple functions.
+6. Component fault/isolation, VM shutdown, or disconnect must make its paths unavailable; recovery/rejoin must revalidate the binding before dispatch resumes.
+7. Resource limits must be applied at the model/runtime boundary for models with multiple functions. The current chipset-wide busy guard and the coordinator's cross-model thread pool need review together so concurrency is bounded without allowing duplicate or conflicting work.
+8. Do not enable the proposed routes until exact model artifacts and each assigned function pass capability checks. A configured endpoint or role-table entry is not runtime proof.
+
+### Wiring gap checklist
+
+- [ ] Create an explicit, persisted execution-path registry linking path IDs to component IDs, functions, and a single owner model.
+- [ ] Bind the component AI/VM lifecycle to the registry so host state governs path availability.
+- [ ] Route component workloads through that registry and existing function router/scheduler/fabric; avoid direct model calls and fallback to unrelated models.
+- [ ] Add startup validation for missing components, missing VMs, absent model registrations, duplicate path ownership, and unsupported function declarations.
+- [ ] Add tests for each assigned path, model provenance, no fan-out, multi-function single-identity reuse, component fault/disconnect, restart/persistence, and bounded concurrency.
+- [ ] Run the focused test suite and record actual results before marking wiring complete.
+
 ## Related contracts
 
 - `specification/ai_chipset_integration.md` — controller, motherboard status nets, scheduler/fabric dispatch.
