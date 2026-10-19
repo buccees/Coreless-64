@@ -406,7 +406,9 @@ def test_portable_component_manifest_reattaches_to_differently_configured_machin
         ),
         ai_runtime=object(),
     )
-    package = source.export_portable_manifest()
+    package = source.export_portable_manifest(
+        required_capabilities={"network.transport.v1"}
+    )
     manifest = json.loads(package.decode("utf-8"))
 
     # The destination has a different Hub and its own runtime binding. The
@@ -414,7 +416,7 @@ def test_portable_component_manifest_reattaches_to_differently_configured_machin
     destination_component = CorelessComponent.from_portable_manifest(
         manifest,
         available_models={"gemma", "qwen3"},
-        supported_capabilities={"network.message", "input.normalize", "display.output"},
+        supported_capabilities={"network.transport.v1", "display.output"},
     )
     assert destination_component.descriptor == source.descriptor
     assert destination_component.ai_runtime is None
@@ -439,7 +441,9 @@ def test_portable_component_manifest_fails_closed_when_destination_is_incompatib
             ai_model_id="gpt-oss",
         )
     )
-    manifest = component.export_portable_manifest()
+    manifest = component.export_portable_manifest(
+        required_capabilities={"chipset.request.interpret"}
+    )
 
     with pytest.raises(RuntimeError, match="required resident AI model is unavailable"):
         CorelessComponent.from_portable_manifest(
