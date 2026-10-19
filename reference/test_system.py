@@ -127,3 +127,54 @@ def test_ai_work_submission_contract_is_machine_owned(tmp_path):
     request = system.ai.request("inspect")
     assert request.authority.value == "recommend"
     assert "ai:qwen3" in system.machine.scheduler.resources()
+
+
+
+def test_hardware_role_assignment_is_machine_owned_and_persistent(tmp_path):
+    from ai.model_part import ComponentRole, RoleContract
+
+    image = tmp_path / "coreless-role-assignment.json"
+    system = CorelessSystem(memory_size=128 * 1024, storage_path=image)
+    role = RoleContract(
+        role=ComponentRole.CPU,
+        mandatory_capabilities=("instruction_intelligence",),
+    )
+    assignment = system.assign_ai_hardware_role(
+        "qwen3",
+        "cpu-intelligence",
+        role,
+        native_architecture="qwen3",
+        available_capabilities=("instruction_intelligence",),
+    )
+    assert assignment.model_id == "qwen3"
+    assert system.status()["ai_hardware_assignments"][0]["role"] == "cpu"
+    system.shutdown()
+
+    resumed = CorelessSystem(memory_size=128 * 1024, storage_path=image)
+    assignments = resumed.status()["ai_hardware_assignments"]
+    assert len(assignments) == 1
+    assert assignments[0]["model_id"] == "qwen3"
+    assert assignments[0]["part_id"] == "cpu-intelligence"
+
+
+def test_hardware_role_assignment_rejects_missing_capability_without_mutation(tmp_path):
+    from ai.model_part import ComponentRole, RoleContract
+
+    system = CorelessSystem(memory_size=128 * 1024, storage_path=tmp_path / "roles.json")
+    role = RoleContract(
+        role=ComponentRole.CHIPSET,
+        mandatory_capabilities=("control_dispatch",),
+    )
+    try:
+        system.assign_ai_hardware_role(
+            "qwen3",
+            "chipset-model",
+            role,
+            native_architecture="qwen3",
+            available_capabilities=(),
+        )
+    except ValueError as exc:
+        assert "control_dispatch" in str(exc)
+    else:
+        raise AssertionError("assignment without required capability was accepted")
+    assert system.status()["ai_hardware_assignments"] == ()
