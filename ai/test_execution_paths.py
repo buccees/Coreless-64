@@ -186,3 +186,19 @@ def test_execute_fails_closed_when_component_ai_is_not_running():
             machine=object(),
             text="must not dispatch",
         )
+
+
+
+def test_persistent_runtime_includes_execution_paths_in_state():
+    from ai.machine_runtime import PersistentAIRuntime
+
+    runtime = PersistentAIRuntime(_Storage(), local_cores=False)
+    path = ExecutionPath("cpu.primary", "cpu-0", "cpu_intelligence", "qwen3")
+    runtime.execution_paths.register(path)
+
+    state = runtime.state()
+    restored = PersistentAIRuntime(_Storage(), local_cores=False)
+    restored.restore_state(state)
+
+    assert restored.execution_paths.get("cpu.primary") == path
+    assert restored.status()["execution_paths"] == [path.to_dict()]
