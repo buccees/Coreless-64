@@ -659,6 +659,13 @@ class CorelessHub:
                 raise RuntimeError(
                     f"destination could not resolve required resident AI model: {model_id}"
                 )
+            runtime_core = getattr(ai_runtime, "core", ai_runtime)
+            resolved_model_id = getattr(runtime_core, "model_id", None)
+            if resolved_model_id is not None and resolved_model_id != model_id:
+                raise RuntimeError(
+                    f"destination resolved model {resolved_model_id!r}, "
+                    f"but component requires {model_id!r}"
+                )
         if vm_id is not None and vm_resolver is not None:
             vm = vm_resolver(vm_id)
             if vm is None:
