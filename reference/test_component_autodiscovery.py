@@ -10,6 +10,7 @@ sys.path.insert(0, ".")
 from component_autodiscovery import (
     ComponentAutoDiscoveryService,
     DirectoryComponentDiscoveryProvider,
+    LinuxMountedComponentDiscoveryProvider,
 )
 from components import ComponentDescriptor, CorelessComponent, CorelessHub
 
@@ -102,3 +103,38 @@ def test_discovery_rejects_conflicting_component_identity(tmp_path):
 
     with pytest.raises(ValueError, match="conflicting portable manifests"):
         provider.enumerate_candidates()
+
+
+
+def test_linux_mount_provider_picks_up_newly_mounted_component_volume(tmp_path):
+    volume = tmp_path / "mounted-ssd"
+    volume.mkdir()
+    mount_table = tmp_path / "mounts"
+    provider = LinuxMountedComponentDiscoveryProvider(
+        mount_table=mount_table,
+        install_roots=(),
+    )
+
+    mount_table.write_text(f"/dev/fake {volume} ext4 rw,relatime 0 0\\n")
+    assert provider.enumerate_candidates() == ()
+
+    write_manifest(volume / "network.coreless.json", "mounted-network")
+    candidates = provider.enumerate_candidates()
+    assert len(candidates) == 1
+    assert json.loads(candidates[0].manifest)["descriptor"]["component_id"] == "mounted-network"
+
+
+def test_linux_mount_provider_unescapes_mountpoint_spaces(tmp_path):
+    volume = tmp_path / "ssd with spaces"
+    volume.mkdir()
+    mount_table = tmp_path / "mounts"
+    escaped = str(volume).replace(" ", "\\040")
+    mount_table.write_text(f"/dev/fake {escaped} ext4 rw 0 0\\n")
+    write_manifest(volume / "storage.coreless.json", "mounted-storage")
+
+    provider = LinuxMountedComponentDiscoveryProvider(
+        mount_table=mount_table,
+        install_roots=(),
+    )
+    assert [json.loads(item.manifest)["descriptor"]["component_id"]
+            for item in provider.enumerate_candidates()] == ["mounted-storage"]
