@@ -38,12 +38,12 @@ A GitHub Actions run for commit `e88f1fffb820d349d68531c0c5f6d33f7fdfc4e7` repor
 
 `test_linux_mount_provider_unescapes_mountpoint_spaces`
 
-The Linux mount-field decoder had chained string replacements that did not correctly decode mount-table octal escapes. A fix was committed as:
+The Linux mount-field decoder's regex was matching **two literal backslashes** before the octal digits, but `/proc/*/mounts` contains a single backslash (for example `\040`). The first attempted fix therefore did not match the real input. The corrected regex now matches one backslash and decodes octal escapes in one pass. Fix committed as:
 
-- Commit: `bf29c8414c4abbaadd29e3bbc9c5eb0f3dcf6ae1`
-- Change: decode three-digit octal mount escapes in one pass.
-- CI run: https://github.com/buccees/Coreless-64/actions/runs/39265693109
-- **Status at handoff:** queued when last checked; do not mark the fix verified until this run completes successfully. If it fails, inspect the actual test log, correct the implementation, and rerun the full suite.
+- Failed attempt: `bf29c8414c4abbaadd29e3bbc9c5eb0f3dcf6ae1` (CI run 39265693109 failed: 1 failed, 924 passed).
+- Corrective commit: `9d226f90d9ee6d06371de4768900b84247920ac1`; regex now matches the actual single-backslash octal escape.
+- Previous failed CI run: https://github.com/buccees/Coreless-64/actions/runs/39265693109
+- **Status at handoff:** corrective commit just pushed; check its CI run and do not mark verified until the full suite passes.
 
 ## Remaining engineering work
 
