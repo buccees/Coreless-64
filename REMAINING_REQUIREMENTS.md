@@ -100,7 +100,7 @@ The broader roadmap also includes VIGIL spatial input, adaptive model parts, mul
 - [x] Detect floating inputs, conflicting active drivers, and fixed-rail shorts rather than silently choosing a logic value.
 - [x] Define a canonical digital motherboard netlist with logical VCC/GND, active-low reset, clock, interrupt, and four GPIO signal paths.
 - [x] Add a virtual Arduino GPIO boundary that drives and reads the Coreless-side pins through explicit net joins; reset, clock edges, and interrupt assertion/release also propagate through the netlist.
-- [x] Verify the simulator and motherboard topology in CI after the latest integration commits (881 tests passed in run 39149659070); broader fault scenarios listed below remain open.
+- [x] Verify the simulator and motherboard topology in CI after the latest integration commits (881 tests passed in chipset integration run 39149659070; latest full suite has 883 passing tests in run 39244936362); broader fault scenarios listed below remain open.
 - [x] Attach the motherboard model to `CorelessSystem`; expose netlist status and GPIO read/write/configuration APIs, and cycle the modeled active-low reset during boot.
 - [x] Make `CorelessMachine` own the canonical motherboard instance and have `CorelessSystem` expose that same instance (no parallel netlist).
 - [x] Gate machine CPU stepping while the modeled active-low reset is asserted; execute CPU steps on deterministic motherboard rising edges and return the modeled clock to idle-low.
@@ -234,7 +234,7 @@ Apply these requirements to every track above:
 ## AI-role integration status
 
 - The runtime currently registers five local model identities (`qwen3`, `deepseek`, `gpt-oss`, `gemma`, `codestral`) and can coordinate them through `NestCoordinator`.
-- `ai/model_part.py` defines `CPU`, `CHIPSET`, `GPU`, `COMMUNICATION`, and `OTHER` role contracts plus a `HardwareAssignmentRegistry` API. The `CHIPSET` contract is now represented explicitly in the role taxonomy.
+- `ai/model_part.py` defines `CPU`, `CHIPSET`, `GPU`, `COMMUNICATION`, and `OTHER` role contracts plus a `HardwareAssignmentRegistry` API. `CorelessSystem.assign_ai_hardware_role()` validates against a registered model and capability contract, persists assignments in the machine image, restores them at startup, and exposes them in system status. The `CHIPSET` contract is now represented explicitly in the role taxonomy.
 - `HANDOFF.md` explicitly designates Qwen3 for the **CPU intelligence role**. That designation is documented, but the live binding to Coreless-64 instruction execution remains unfinished. The other four model identities do not have a verified role mapping in the source inspected. Do not infer their roles from model names; preserve the original plan when those assignments are recovered.
 - Still open: integrate validated model-part assignments with real Coreless execution targets, enforce the ABI/capability boundary, and prove live trained-model execution. The digital AI chipset controller is a separate deterministic control/dispatch component. It does not by itself implement the Qwen3 CPU-intelligence role or prove that any model-derived hardware part is executing as a CPU.
 
