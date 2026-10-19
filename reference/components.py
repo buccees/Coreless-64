@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Callable, Mapping
 import threading
+import time
 
 
 @dataclass(frozen=True)
@@ -699,7 +700,7 @@ class CorelessHub:
         with self._dispatch_condition:
             if timeout is not None and timeout < 0:
                 raise ValueError("timeout must be non-negative or None")
-            deadline = None if timeout is None else __import__("time").monotonic() + timeout
+            deadline = None if timeout is None else time.monotonic() + timeout
             while self._dispatch_load.get(component_id, 0) > 0:
                 if deadline is None:
                     self._dispatch_condition.wait()
