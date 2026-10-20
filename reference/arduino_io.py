@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import math
 import time
+from itertools import count
 from typing import Any, Protocol
 
 from host_io import InputTransport, encode_input_event
@@ -18,6 +19,11 @@ from input import CoordinateFrame, InputEvent, InputEventType
 
 PROTOCOL_VERSION = 1
 MAX_FRAME_BYTES = 4096
+
+# Arduino sequence numbers restart on device reboot. Coreless input sequence
+# numbers belong to the host-side event stream, so keep them independent of the
+# wire sequence across bridge/adapter recreation during reconnect.
+_CORELESS_INPUT_SEQUENCE = count()
 
 
 def discover_serial_devices(
@@ -279,12 +285,13 @@ class ArduinoInputAdapter:
             "arduino_sequence": message["sequence"],
             "payload": payload,
         }
+        timestamp_ns = time.monotonic_ns()
         return InputEvent(
             abi_version=InputEvent.ABI_VERSION,
             event_type=event_type,
             device_id=self.bridge.device_id,
-            timestamp_ns=time.monotonic_ns(),
-            sequence=message["sequence"],
+            timestamp_ns=timestamp_ns,
+            sequence=next(_CORELESS_INPUT_SEQUENCE),
             coordinate_frame=CoordinateFrame.HOST,
             x=x,
             y=y,
