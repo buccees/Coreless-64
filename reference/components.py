@@ -215,29 +215,84 @@ class CorelessComponent:
         )
 
     def restore_identity(self) -> ComponentDescriptor:
-        """Restore and validate this component's persisted identity."""
+        """Validate and reapply this component's persisted identity."""
         if self.system is None:
             raise RuntimeError("component has no CorelessSystem")
-        raw = self.system.machine.storage.objects.get(self.persistence_key)
+        storage = getattr(self.system.machine, "storage", None)
+        objects = getattr(storage, "objects", None)
+        if not isinstance(objects, Mapping):
+            raise RuntimeError("component storage does not expose persisted objects")
+        raw = objects.get(self.persistence_key)
         if raw is None:
             raise KeyError(f"no persisted identity: {self.component_id}")
-        payload = json.loads(raw.decode("utf-8"))
+        try:
+            raw_text = raw if isinstance(raw, str) else bytes(raw).decode("utf-8")
+            payload = json.loads(raw_text)
+        except (TypeError, ValueError, UnicodeDecodeError) as exc:
+            raise ValueError("invalid Coreless component manifest JSON") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("invalid Coreless component manifest")
         if payload.get("version") != self.VERSION:
             raise ValueError("unsupported Coreless component manifest version")
-        descriptor = payload.get("descriptor")
-        if not isinstance(descriptor, dict):
+
+        persisted = payload.get("descriptor")
+        if not isinstance(persisted, dict):
             raise ValueError("invalid Coreless component descriptor")
-        if descriptor.get("component_id") != self.component_id:
+        component_id = persisted.get("component_id")
+        role = persisted.get("role")
+        capabilities = persisted.get("capabilities")
+        ai_model_id = persisted.get("ai_model_id")
+        vm_id = persisted.get("vm_id")
+        version = persisted.get("version")
+        capacity = persisted.get("capacity", 1)
+
+        if component_id != self.component_id:
             raise ValueError("persisted component identity mismatch")
-        return ComponentDescriptor(
-            component_id=descriptor["component_id"],
-            role=descriptor["role"],
-            capabilities=frozenset(descriptor["capabilities"]),
-            ai_model_id=descriptor.get("ai_model_id"),
-            vm_id=descriptor.get("vm_id"),
-            version=descriptor["version"],
-            capacity=descriptor.get("capacity", 1),
+        if not isinstance(role, str) or not role.strip():
+            raise ValueError("invalid persisted component role")
+        if (
+            not isinstance(capabilities, list)
+            or not all(isinstance(item, str) and item.strip() for item in capabilities)
+            or len(set(capabilities)) != len(capabilities)
+        ):
+            raise ValueError("invalid persisted component capabilities")
+        for name, value in (("ai_model_id", ai_model_id), ("vm_id", vm_id)):
+            if value is not None and (
+                not isinstance(value, str) or not value.strip()
+            ):
+                raise ValueError(f"invalid persisted component {name}")
+        if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+            raise ValueError("invalid persisted component descriptor version")
+        if isinstance(capacity, bool) or not isinstance(capacity, int) or capacity < 1:
+            raise ValueError("invalid persisted component capacity")
+
+        runtime_model_id = (
+            getattr(self.ai_runtime, "model_id", None)
+            if self.ai_runtime is not None else None
         )
+        if (
+            ai_model_id is not None
+            and runtime_model_id is not None
+            and runtime_model_id != ai_model_id
+        ):
+            raise ValueError(
+                "persisted AI model identity does not match bound runtime"
+            )
+
+        restored = ComponentDescriptor(
+            component_id=component_id,
+            role=role,
+            capabilities=frozenset(capabilities),
+            ai_model_id=ai_model_id,
+            vm_id=vm_id,
+            version=version,
+            capacity=capacity,
+        )
+        # Mutate the live descriptor only after the entire persisted record has
+        # validated. This keeps Hub discovery and dispatch capabilities in sync
+        # with the restored identity, without applying a partial/invalid record.
+        self.descriptor = restored
+        return restored
 
     def boot(self, init_path: str = "/init"):
         if self.system is None:
