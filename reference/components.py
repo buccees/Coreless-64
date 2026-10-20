@@ -725,16 +725,32 @@ class CorelessHub:
             self.hypervisor.revoke_ipc(capability)
 
     def send_ipc(self, source_id: str, target_id: str, payload: bytes, *, source_vcpu: int = 0, target_vcpu: int = 0) -> None:
-        """Send data through an authorized hub IPC channel."""
+        """Send data only while the cached IPC grant matches current VM bindings."""
         if self.hypervisor is None:
             raise RuntimeError("hub has no Coreless Hypervisor")
-        capability = self._ipc_channels.get((source_id, target_id))
+        channel_key = (source_id, target_id)
+        capability = self._ipc_channels.get(channel_key)
         if capability is None:
             raise PermissionError("IPC channel has not been negotiated")
         source = self.component(source_id)
         target = self.component(target_id)
+        if source.vm is None or target.vm is None:
+            raise PermissionError("IPC channel requires both current component VMs")
+        binding = (int(source.vm.vmid), int(target.vm.vmid))
+        if self._ipc_bindings.get(channel_key) != binding:
+            raise PermissionError("IPC channel binding is stale; reopen the channel")
+
+        vm_registry = getattr(self.hypervisor, "vms", None)
+        if isinstance(vm_registry, Mapping) and (
+            binding[0] not in vm_registry
+            or binding[1] not in vm_registry
+            or vm_registry[binding[0]] is not source.vm
+            or vm_registry[binding[1]] is not target.vm
+        ):
+            raise PermissionError("IPC channel VMs are no longer registered")
+
         self.hypervisor.send_message(
-            int(source.vm.vmid), source_vcpu, int(target.vm.vmid), target_vcpu,
+            binding[0], source_vcpu, binding[1], target_vcpu,
             payload, capability=capability,
         )
 
