@@ -1510,3 +1510,57 @@ def test_ipc_channel_regrants_capability_when_component_vm_is_replaced():
     )
     hub.send_ipc("source-0", "target-0", b"after-rebind")
     assert hypervisor.recv_message(target_vm.vmid, 0) == b"after-rebind"
+
+
+
+def test_component_rejects_ai_runtime_whose_model_identity_does_not_match():
+    class FakeAI:
+        model_id = "deepseek"
+        running = False
+
+        def start(self):
+            self.running = True
+
+        def stop(self):
+            self.running = False
+
+    component = CorelessComponent(
+        ComponentDescriptor(
+            "cpu-0", "cpu-intelligence", frozenset({"inference"}),
+            ai_model_id="qwen3",
+        ),
+        ai_runtime=FakeAI(),
+    )
+
+    with pytest.raises(ValueError, match="does not match component descriptor"):
+        component.start_ai()
+
+    assert component.ai_status()["model_id"] == "deepseek"
+    assert component.ai_status()["identity_match"] is False
+    assert component.ai_status()["running"] is False
+
+
+def test_component_reports_matching_runtime_model_identity():
+    class FakeAI:
+        model_id = "qwen3"
+        running = False
+
+        def start(self):
+            self.running = True
+
+        def stop(self):
+            self.running = False
+
+    component = CorelessComponent(
+        ComponentDescriptor(
+            "cpu-0", "cpu-intelligence", frozenset({"inference"}),
+            ai_model_id="qwen3",
+        ),
+        ai_runtime=FakeAI(),
+    )
+    component.start_ai()
+
+    status = component.ai_status()
+    assert status["model_id"] == "qwen3"
+    assert status["runtime_model_id"] == "qwen3"
+    assert status["identity_match"] is True
