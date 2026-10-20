@@ -1402,3 +1402,31 @@ def test_hub_dispatch_does_not_release_load_into_rejoined_component():
     replacement_result = hub.dispatch(Workload("w2", "compute", "replacement"))
     assert replacement_result.component_id == "cpu-0"
     assert replacement_result.result == "replacement"
+
+
+
+def test_hub_shutdown_continues_after_one_component_fails():
+    calls = []
+
+    class FakeSystem:
+        def __init__(self, component_id, fail=False):
+            self.component_id = component_id
+            self.fail = fail
+
+        def shutdown(self):
+            calls.append(self.component_id)
+            if self.fail:
+                raise RuntimeError("shutdown failed")
+
+    hub = CorelessHub("hub-shutdown-resilience")
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("healthy-0", "cpu", frozenset({"compute"})),
+        system=FakeSystem("healthy-0"),
+    ))
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("faulty-0", "ai", frozenset({"inference"})),
+        system=FakeSystem("faulty-0", fail=True),
+    ))
+
+    assert hub.shutdown() == ("healthy-0",)
+    assert calls == ["faulty-0", "healthy-0"]
