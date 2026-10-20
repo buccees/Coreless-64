@@ -428,6 +428,67 @@ def test_hub_coordinates_boot_and_shutdown_without_breaking_standalone_component
     assert hub.components() == (system_component, standalone)
 
 
+def test_hub_boot_rolls_back_component_whose_service_start_fails():
+    class FakeSystem:
+        def __init__(self):
+            self.machine = type("Machine", (), {"booted": False})()
+            self.boot_manifest = None
+        def boot(self, init_path="/init"):
+            self.machine.booted = True
+            self.boot_manifest = {"init": init_path}
+        def shutdown(self):
+            self.machine.booted = False
+            return self
+
+    class FailingAI:
+        running = False
+        def start(self):
+            raise RuntimeError("AI runtime failed to start")
+        def stop(self):
+            self.running = False
+
+    system = FakeSystem()
+    component = CorelessComponent(
+        ComponentDescriptor("ai-0", "ai", frozenset({"inference"})),
+        system=system,
+        ai_runtime=FailingAI(),
+    )
+    hub = CorelessHub()
+    hub.connect(component)
+
+    with pytest.raises(RuntimeError, match="AI runtime failed to start"):
+        hub.boot()
+
+    assert system.machine.booted is False
+    assert hub.lifecycle_status()["booted_components"] == ()
+
+
+def test_component_service_start_rolls_back_vm_when_ai_start_fails():
+    class FakeVM:
+        running = False
+        def run(self):
+            self.running = True
+        def stop(self):
+            self.running = False
+
+    class FailingAI:
+        running = False
+        def start(self):
+            raise RuntimeError("AI startup failed")
+
+    vm = FakeVM()
+    component = CorelessComponent(
+        ComponentDescriptor("ai-1", "ai", frozenset({"inference"})),
+        vm=vm,
+        ai_runtime=FailingAI(),
+    )
+
+    with pytest.raises(RuntimeError, match="AI startup failed"):
+        component.start_services()
+
+    assert vm.running is False
+
+
 def test_hub_coordinates_checkpoint_and_restore_across_component_machines():
     class FakeStorage:
         def __init__(self):
