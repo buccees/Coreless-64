@@ -267,3 +267,14 @@ def test_serial_discovery_validates_provider_and_serial_filter():
         discover_serial_devices(42)
     with pytest.raises(ValueError, match="serial_number"):
         discover_serial_devices(lambda: [], serial_number="  ")
+
+
+
+def test_arduino_serial_io_reports_empty_read_as_timeout():
+    class TimedOutSerial(FakeSerial):
+        def readline(self):
+            return b""
+
+    bridge = ArduinoSerialIO(TimedOutSerial(), "arduino-1")
+    with pytest.raises(TimeoutError, match="timed out waiting"):
+        bridge.receive_message()
