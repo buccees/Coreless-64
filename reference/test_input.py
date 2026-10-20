@@ -231,3 +231,49 @@ def test_input_event_rejects_malformed_direct_construction():
         InputEvent(**{**base, "event_type": "pointer_move"})
     with pytest.raises(ValueError, match="pressure must be a finite"):
         InputEvent(**{**base, "pressure": float("inf")})
+
+
+
+def test_input_event_metadata_is_a_defensive_read_only_snapshot():
+    import pytest
+
+    original = {"source": "host", "sequence_hint": 7}
+    raw = InputEvent(
+        abi_version=1,
+        event_type=InputEventType.POINTER_MOVE,
+        device_id="mouse-1",
+        timestamp_ns=10,
+        sequence=1,
+        coordinate_frame=CoordinateFrame.HOST,
+        x=1.0,
+        y=2.0,
+        metadata=original,
+    )
+    original["source"] = "mutated"
+    original["extra"] = True
+
+    assert raw.metadata["source"] == "host"
+    assert "extra" not in raw.metadata
+    with pytest.raises(TypeError):
+        raw.metadata["source"] = "tampered"
+
+
+def test_interpreted_input_metadata_is_a_defensive_read_only_snapshot():
+    import pytest
+    from input import InterpretedInputEvent
+
+    original = {"source_sequence": 4}
+    derived = InterpretedInputEvent(
+        interpretation_id="interpretation-1",
+        kind="tap",
+        device_id="touch-1",
+        timestamp_ns=10,
+        source_sequence=(4,),
+        metadata=original,
+        confidence=0.8,
+    )
+    original["source_sequence"] = 99
+
+    assert derived.metadata["source_sequence"] == 4
+    with pytest.raises(TypeError):
+        derived.metadata["source_sequence"] = 99
