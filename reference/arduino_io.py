@@ -189,6 +189,11 @@ class ArduinoSerialIO:
     def receive_message(self) -> dict:
         """Read one event/ack/error message, rejecting stale or misrouted frames."""
         frame = self._serial.readline()
+        # pyserial returns b"" when its configured read timeout expires.
+        # Report this as a transport timeout, not a malformed protocol frame,
+        # so callers can retry within an overall deadline.
+        if not frame:
+            raise TimeoutError("timed out waiting for an Arduino serial message")
         message = decode_message(frame, expected_device_id=self.device_id)
         if message["kind"] == "command":
             raise ValueError("Arduino sent a host-only command message")
