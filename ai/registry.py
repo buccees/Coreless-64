@@ -89,6 +89,7 @@ class AICoreRegistry:
         if not isinstance(entries, list):
             raise ValueError("AI registry state has invalid core list")
         seen = set()
+        restored: dict[str, AICoreDescriptor] = {}
         for entry in entries:
             if not isinstance(entry, Mapping):
                 raise ValueError("AI registry state contains an invalid core")
@@ -100,7 +101,11 @@ class AICoreRegistry:
             provider, local, enabled = entry.get("provider", d.provider), entry.get("local", d.local), entry.get("enabled", d.enabled)
             if not isinstance(provider, str) or not isinstance(local, bool) or not isinstance(enabled, bool):
                 raise ValueError("AI registry state contains invalid descriptor fields")
-            self._descriptors[model_id] = AICoreDescriptor(model_id, provider, local, enabled)
+            restored[model_id] = AICoreDescriptor(model_id, provider, local, enabled)
+
+        # Validate the complete snapshot before changing any live descriptor.
+        # A malformed later entry must not leave earlier cores half-restored.
+        self._descriptors.update(restored)
 
     def save(self, storage: object, key: str = "ai/registry") -> None:
         writer = getattr(storage, "put", None) or getattr(storage, "write", None)
