@@ -277,3 +277,29 @@ def test_interpreted_input_metadata_is_a_defensive_read_only_snapshot():
     assert derived.metadata["source_sequence"] == 4
     with pytest.raises(TypeError):
         derived.metadata["source_sequence"] = 99
+
+def test_raw_input_survives_vigil_adapter_exceptions():
+    class BrokenAvailability(FakeVigil):
+        def available(self):
+            raise RuntimeError("VIGIL transport unavailable")
+
+    class BrokenInterpreter(FakeVigil):
+        def interpret(self, event, device):
+            raise RuntimeError("VIGIL interpreter crashed")
+
+    import pytest
+
+    for broken in (BrokenAvailability(), BrokenInterpreter()):
+        manager = PointingDeviceManager()
+        manager.discover([device()])
+        manager.designate("touch-1")
+        router = CorelessInputRouter(manager, broken)
+
+        assert router.submit(event()) == ()
+        assert len(router.raw_events) == 1
+        assert router.vigil_enabled is False
+        # Once the optional adapter faults, normal raw input continues without
+        # repeatedly invoking the broken integration.
+        assert router.submit(event(sequence=2)) == ()
+        assert len(router.raw_events) == 2
+
