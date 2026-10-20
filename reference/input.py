@@ -143,12 +143,28 @@ class InterpretedInputEvent:
     confidence: float | None = None
 
     def __post_init__(self) -> None:
-        if not self.interpretation_id:
+        if not isinstance(self.interpretation_id, str) or not self.interpretation_id.strip():
             raise ValueError("interpretation_id must not be empty")
-        if not self.kind:
+        if not isinstance(self.kind, str) or not self.kind.strip():
             raise ValueError("kind must not be empty")
-        if not self.source_sequence:
-            raise ValueError("source_sequence must not be empty")
+        if not isinstance(self.device_id, str) or not self.device_id.strip():
+            raise ValueError("device_id must not be empty")
+        if isinstance(self.timestamp_ns, bool) or not isinstance(self.timestamp_ns, int):
+            raise ValueError("timestamp_ns must be an integer")
+        if self.timestamp_ns < 0:
+            raise ValueError("timestamp_ns must be non-negative")
+        if not isinstance(self.source_sequence, tuple) or not self.source_sequence:
+            raise ValueError("source_sequence must be a non-empty tuple")
+        previous = -1
+        for sequence in self.source_sequence:
+            if (
+                isinstance(sequence, bool)
+                or not isinstance(sequence, int)
+                or sequence < 0
+                or sequence <= previous
+            ):
+                raise ValueError("source_sequence values must increase monotonically")
+            previous = sequence
         if not isinstance(self.metadata, Mapping):
             raise ValueError("metadata must be a mapping")
         object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
