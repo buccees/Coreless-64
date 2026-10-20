@@ -337,3 +337,26 @@ def test_malformed_vigil_derived_output_falls_back_to_raw_input():
         assert router.vigil_enabled is False
         assert router.submit(event(sequence=2)) == ()
         assert len(router.raw_events) == 2
+
+
+
+def test_interpreted_input_rejects_invalid_provenance_and_timestamp():
+    import pytest
+    from input import InterpretedInputEvent
+
+    with pytest.raises(ValueError, match="source_sequence values"):
+        InterpretedInputEvent(
+            interpretation_id="bad-seq",
+            kind="gesture.tap",
+            device_id="touch-1",
+            timestamp_ns=10,
+            source_sequence=(4, 3),
+        )
+    with pytest.raises(ValueError, match="timestamp_ns must be an integer"):
+        InterpretedInputEvent(
+            interpretation_id="bad-time",
+            kind="gesture.tap",
+            device_id="touch-1",
+            timestamp_ns=True,
+            source_sequence=(4,),
+        )
