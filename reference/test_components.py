@@ -510,21 +510,27 @@ def test_component_service_start_rolls_back_vm_when_ai_start_fails():
             self.running = False
 
     class FailingAI:
-        running = False
+        running = True
+
         def start(self):
             raise RuntimeError("AI startup failed")
 
+        def stop(self):
+            self.running = False
+
     vm = FakeVM()
+    ai = FailingAI()
     component = CorelessComponent(
         ComponentDescriptor("ai-1", "ai", frozenset({"inference"})),
         vm=vm,
-        ai_runtime=FailingAI(),
+        ai_runtime=ai,
     )
 
     with pytest.raises(RuntimeError, match="AI startup failed"):
         component.start_services()
 
     assert vm.running is False
+    assert ai.running is False
 
 
 def test_hub_coordinates_checkpoint_and_restore_across_component_machines():
