@@ -250,6 +250,32 @@ def test_hub_negotiates_capabilities_and_opens_ipc():
         hub.send_ipc("cpu-0", "vision-0", b"again")
 
 
+def test_reopening_ipc_channel_reuses_capability_and_closes_cleanly():
+    from virtualization import Hypervisor
+
+    hypervisor = Hypervisor(2)
+    source_vm = hypervisor.create_vm(1 << 20, 1)
+    target_vm = hypervisor.create_vm(1 << 20, 1)
+    hub = CorelessHub(hypervisor=hypervisor)
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("source-0", "cpu", frozenset({"ipc"})),
+        vm=source_vm,
+    ))
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("target-0", "vision", frozenset({"ipc"})),
+        vm=target_vm,
+    ))
+
+    first = hub.open_ipc("source-0", "target-0", {"ipc"})
+    second = hub.open_ipc("source-0", "target-0", {"ipc"})
+
+    assert second == first
+    assert len(hub._ipc_channels) == 1
+    hub.close_ipc("source-0", "target-0")
+    with pytest.raises(PermissionError, match="not been negotiated"):
+        hub.send_ipc("source-0", "target-0", b"closed")
+
+
 def test_hub_fault_isolates_component_and_revokes_ipc():
     from virtualization import Hypervisor
 
