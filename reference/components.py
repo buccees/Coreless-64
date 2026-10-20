@@ -217,14 +217,25 @@ class CorelessComponent:
         return self
 
     def start_services(self) -> None:
-        """Start the component-local VM and AI services when they are bound."""
-        if self.vm is not None:
-            self.start_vm()
-        if self.ai_runtime is not None:
-            try:
+        """Start bound services, rolling back partial startup on failure.
+
+        Missing optional services are allowed; a bound service that cannot start
+        is an error so the Hub can report and roll back the failed lifecycle.
+        """
+        vm_started = False
+        try:
+            if self.vm is not None:
+                self.start_vm()
+                vm_started = True
+            if self.ai_runtime is not None:
                 self.start_ai()
-            except (RuntimeError, TypeError):
-                pass
+        except Exception:
+            if vm_started:
+                try:
+                    self.stop_vm()
+                except Exception:
+                    pass
+            raise
 
     def stop_services(self) -> None:
         """Stop component-local AI and VM services without destroying identity."""
@@ -544,48 +555,61 @@ class CorelessHub:
 
 
     def boot(self, init_path: str = "/init") -> tuple[str, ...]:
-        """Boot all connected systems as one composed Coreless computer.
+        """Boot connected systems transactionally.
 
-        Components without a bound CorelessSystem remain autonomous and are
-        simply left untouched.
+        Components without a bound CorelessSystem remain autonomous. Every
+        component whose startup is attempted participates in rollback, including
+        the component whose system or service startup raises.
         """
-        started: list[CorelessComponent] = []
+        attempted: list[CorelessComponent] = []
+        booted: list[CorelessComponent] = []
         try:
             for component in self.components():
                 if not component.healthy:
                     continue
+                attempted.append(component)
                 if component.system is not None:
                     component.boot(init_path)
+                    booted.append(component)
                 component.start_services()
-                if component.system is not None:
-                    started.append(component)
         except Exception:
-            for component in reversed(started):
+            for component in reversed(attempted):
                 try:
-                    component.shutdown()
-                except (RuntimeError, TypeError):
+                    component.stop_services()
+                except Exception:
                     pass
+                if component.system is not None:
+                    try:
+                        component.system.shutdown()
+                    except Exception:
+                        pass
             raise
-        return tuple(component.component_id for component in started)
+        return tuple(component.component_id for component in booted)
 
     def resume(self) -> tuple[str, ...]:
-        """Resume all connected persistent Coreless systems."""
+        """Resume connected systems transactionally."""
+        attempted: list[CorelessComponent] = []
         resumed: list[CorelessComponent] = []
         try:
             for component in self.components():
                 if not component.healthy:
                     continue
+                attempted.append(component)
                 if component.system is not None:
                     component.resume()
-                component.start_services()
-                if component.system is not None:
                     resumed.append(component)
+                component.start_services()
         except Exception:
-            for component in reversed(resumed):
+            for component in reversed(attempted):
                 try:
-                    component.shutdown()
-                except (RuntimeError, TypeError):
+                    component.stop_services()
+                except Exception:
                     pass
+                if component.system is not None:
+                    try:
+                        component.system.shutdown()
+                    except Exception:
+                        pass
             raise
         return tuple(component.component_id for component in resumed)
 
