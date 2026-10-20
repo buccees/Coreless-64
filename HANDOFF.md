@@ -474,3 +474,63 @@ This milestone does not claim physical USB/PCIe/display/input/network adapters. 
 ## Documentation checkpoint — 2026-10-07: atomic HostIO validation
 
 The negotiated HostIO boundary now validates the complete negotiated display/input/network bundle before channel mutation and validates the input-router contract before binding. Regression coverage preserves the no-partial-attachment invariant. The latest reference-test checkpoint is green. Resume with concrete platform host providers/adapters while preserving the transport-neutral discovery, HostIO, command, and session contracts. Physical device support remains unclaimed.
+
+## Milestone handoff — 2026-10-20: virtual motherboard, AI components, and Arduino input
+
+**Status: software milestone checkpoint reached; implementation paused here by request. Do not continue coding until the next explicit instruction.**
+
+### Repositories and active review
+
+- Coreless-64: https://github.com/buccees/Coreless-64
+- VIGIL: https://github.com/buccees/VIGIL
+- Active Coreless-64 PR: https://github.com/buccees/Coreless-64/pull/21
+- Branch: `fix/transactional-component-lifecycle`
+- Latest verified commit at handoff: `b055789e6bcb2120a7f4226d8418fa525cccd27f`
+- Latest full reference test run: 697 passed; https://github.com/buccees/Coreless-64/actions/runs/39475001150
+- PR #21 remains open and unmerged.
+
+### Work included in this milestone
+
+**Lifecycle and virtual motherboard/Coreless Hub**
+- Component service startup rolls back when VM or AI startup fails, including cleanup of a component that partially started.
+- Hub boot/resume rollback includes the component currently being started.
+- Fault isolation attempts independent cleanup of AI, VM, and system services even if one cleanup fails.
+- IPC channel reopening reuses its existing capability instead of orphaning a prior permission.
+- Hub shutdown continues cleaning up remaining components after one component raises an exception.
+- AI registry snapshot restore validates the full snapshot before mutating live state.
+
+**Arduino-to-Coreless input**
+- The reference Arduino serial bridge and newline-delimited JSON protocol v1 are implemented in `reference/arduino_io.py` and `firmware/arduino/coreless_arduino_bridge.ino`.
+- A fresh `ArduinoSerialIO` instance is required for each physical reconnect/session. Reopen the serial port and discard stale/partial buffered bytes before constructing the new session; continue validating the expected device identity on every received frame.
+- Arduino wire sequence numbers may restart after reboot. Coreless assigns its own monotonically increasing host-side input sequence, while preserving the original wire sequence in event metadata as `arduino_sequence`.
+- The host I/O ABI and Coreless input router are covered by reference integration tests.
+
+**Optional VIGIL integration**
+- Coreless remains authoritative for raw input transport, device assignment, and the input-event ABI.
+- VIGIL is an optional interpretation layer, not a prerequisite for normal pointer/touch input.
+- If the VIGIL adapter fails during availability checks or interpretation, Coreless disables that adapter for the router instance and preserves raw event delivery.
+- Keep deterministic tests for raw-event ordering, device assignment, attach/detach/reassignment, malformed input, adapter failure/fallback, reconnect/resume, coordinate transforms, and replay.
+
+### Architecture and project order
+
+The agreed sequence remains:
+1. Lifecycle hardening.
+2. Virtual motherboard/Coreless Hub and AI components.
+3. Physical Arduino validation.
+4. End-to-end integration across Coreless-64 and optional VIGIL.
+
+Coreless owns execution, persistent state, VM/security boundaries, device assignment, and resource policy. The virtual motherboard coordinates component discovery, capability negotiation, attach/detach, fault isolation, and workload dispatch. AI components remain independently identifiable and capability-limited inside Coreless boundaries. VIGIL consumes negotiated context but must not become an input or OS authority.
+
+### Validation boundary / outstanding work
+
+- **Software validation:** latest full reference test run passed, 697 tests.
+- **Physical hardware:** not yet verified. No claim that the firmware has been exercised on a real Arduino over a physical serial connection.
+- **End-to-end integration:** reference-level paths are present, but a complete physical device-to-Coreless-to-VIGIL validation run remains outstanding.
+- **Review state:** PR #21 is open and unmerged; do not describe it as merged.
+
+### Exact resume point
+
+Resume from this milestone rather than restarting earlier work. The next planned milestone is to validate the complete reference input path and reconnect/fallback semantics across device discovery/assignment, HostIO ABI, Coreless input routing, and optional VIGIL. Then perform physical Arduino validation when actual hardware and serial access are available, followed by broader end-to-end integration.
+
+**No implementation was started as part of this handoff update.**
+
