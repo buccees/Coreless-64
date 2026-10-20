@@ -97,3 +97,10 @@ After flashing firmware/arduino/coreless_arduino_bridge.ino with ArduinoJson 6.x
     python scripts/arduino-smoke-test.py --port COM4 --pin 14 --device-id arduino-1
 
 Replace COM4 and 14 with the serial device and numeric analog pin appropriate to the connected board. The test sends one analog_read command and waits for its matching acknowledgement; it does not configure or drive output pins. A successful software CI run is not a substitute for running this command against a physical board.
+
+
+## Input integration validation checkpoint
+
+The reference suite now also covers strict direct construction of the Coreless Input ABI, per-device increasing sequences/non-decreasing timestamps, defensive deep snapshots of raw and interpreted metadata, and optional VIGIL failure/malformed-output fallback. The Arduino smoke-test CLI is tested against a fake serial port and verifies that it sends only an `analog_read` command and validates the matching acknowledgement.
+
+These are software tests. The smoke-test procedure still needs to be run against a real board; the Java VIGIL adapter also remains a separate draft PR and is not yet bound through a live cross-process transport to the Python Coreless runtime.
