@@ -316,6 +316,17 @@ class CorelessInputRouter:
             if not self.vigil.available():
                 return ()
             derived = self.vigil.interpret(event, device)
+            if not isinstance(derived, tuple):
+                raise TypeError("VIGIL interpreter must return a tuple of derived events")
+            for item in derived:
+                if not isinstance(item, InterpretedInputEvent):
+                    raise TypeError("VIGIL interpreter returned an invalid derived event")
+                if item.device_id != event.device_id:
+                    raise ValueError("VIGIL event device does not match raw input")
+                if event.sequence not in item.source_sequence:
+                    raise ValueError("VIGIL event provenance omits the triggering sequence")
+                if max(item.source_sequence) > event.sequence:
+                    raise ValueError("VIGIL event provenance references a future sequence")
         except Exception:
             self.vigil_enabled = False
             return ()
