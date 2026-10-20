@@ -235,6 +235,13 @@ class CorelessComponent:
             if self.ai_runtime is not None:
                 self.start_ai()
         except Exception:
+            # A runtime may partially start before raising, so attempt to stop it
+            # as well as any VM that was started earlier in this transaction.
+            if self.ai_runtime is not None:
+                try:
+                    self.stop_ai()
+                except Exception:
+                    pass
             if vm_started:
                 try:
                     self.stop_vm()
