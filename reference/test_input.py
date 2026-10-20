@@ -205,3 +205,29 @@ def test_input_timestamps_must_not_move_backwards_per_device():
 
     assert len(router.raw_events) == 1
     assert router.raw_events[0].sequence == 2
+
+
+
+def test_input_event_rejects_malformed_direct_construction():
+    import pytest
+
+    base = dict(
+        abi_version=1,
+        event_type=InputEventType.POINTER_MOVE,
+        device_id="mouse-1",
+        timestamp_ns=1,
+        sequence=1,
+        coordinate_frame=CoordinateFrame.HOST,
+        x=1.0,
+        y=2.0,
+    )
+    with pytest.raises(ValueError, match="timestamp_ns must be an integer"):
+        InputEvent(**{**base, "timestamp_ns": True})
+    with pytest.raises(ValueError, match="sequence must be an integer"):
+        InputEvent(**{**base, "sequence": True})
+    with pytest.raises(ValueError, match="coordinates must be finite"):
+        InputEvent(**{**base, "x": float("nan")})
+    with pytest.raises(ValueError, match="event_type must be"):
+        InputEvent(**{**base, "event_type": "pointer_move"})
+    with pytest.raises(ValueError, match="pressure must be a finite"):
+        InputEvent(**{**base, "pressure": float("inf")})
