@@ -104,3 +104,107 @@ def test_host_io_rejects_nonconforming_bundle():
         pass
     else:
         raise AssertionError("nonconforming host I/O bundle was accepted")
+
+
+
+def test_arduino_input_flows_through_host_abi_with_optional_vigil(tmp_path):
+    from arduino_io import ArduinoInputAdapter, ArduinoSerialIO, encode_message
+    from host_io import MemoryInputTransport, decode_input_event
+    from input import InterpretedInputEvent
+
+    class FakeSerial:
+        def __init__(self, reads):
+            self.reads = list(reads)
+
+        def write(self, data):
+            return len(data)
+
+        def readline(self):
+            if not self.reads:
+                return b""
+            return self.reads.pop(0)
+
+    class FakeVigil:
+        def __init__(self):
+            self.seen = []
+
+        def available(self):
+            return True
+
+        def interpret(self, event, device):
+            self.seen.append((event, device.device_id))
+            return (InterpretedInputEvent(
+                interpretation_id=f"vigil-{event.sequence}",
+                kind="pointer_move",
+                device_id=event.device_id,
+                timestamp_ns=event.timestamp_ns,
+                source_sequence=(event.sequence,),
+                metadata={"source": "test-vigil", "raw_sequence": event.sequence},
+            ),)
+
+    serial = FakeSerial([
+        encode_message("event", "arduino-1", 20, {
+            "event_type": "pointer_move", "x": 12.5, "y": 7,
+        }),
+        encode_message("event", "arduino-1", 21, {
+            "event_type": "pointer_move", "x": 14, "y": 9,
+        }),
+    ])
+    device = PointingDevice(
+        device_id="arduino-1",
+        name="Arduino pointing source",
+        capabilities=InputCapabilities(pointer=True, absolute=True),
+        host_identity="arduino:serial",
+    )
+    manager = PointingDeviceManager()
+    manager.discover([device])
+    manager.designate("arduino-1")
+    vigil = FakeVigil()
+    router = CorelessInputRouter(manager, vigil=vigil)
+    io = MemoryHostIO()
+    arduino_transport = MemoryInputTransport()
+    arduino_adapter = ArduinoInputAdapter(
+        ArduinoSerialIO(serial, "arduino-1"), arduino_transport
+    )
+
+    system = CorelessSystem(memory_size=4096, storage_path=tmp_path / "arduino-input.img")
+    system.boot()
+    endpoint = HostEndpoint(
+        endpoint_id="coreless-arduino-io",
+        identity=CorelessIdentity("coreless-arduino-io"),
+        capabilities=HostCapabilities(display=True, input=True, network=True, startup=True),
+    )
+    interface = CorelessHostInterface(endpoint.identity)
+    adapter = MemoryHostTransportAdapter([endpoint])
+    negotiated = adapter.connect(
+        endpoint,
+        interface,
+        system=system,
+        host_io=io,
+        input_router=router,
+    )
+    assert "input" in negotiated
+
+    # The Arduino serial adapter emits ABI frames; the ordinary host transport
+    # and Coreless router consume the exact same frames as other input devices.
+    assert arduino_adapter.pump_once() is True
+    io.input.send_event(arduino_transport.receive_event())
+    counts = interface.pump_host_io()
+    assert counts["input"] == 1
+    assert len(router.raw_events) == 1
+    assert router.raw_events[0].event_type is InputEventType.POINTER_MOVE
+    assert (router.raw_events[0].x, router.raw_events[0].y) == (12.5, 7.0)
+    assert len(vigil.seen) == 1
+    assert router.interpreted_events[0].source_sequence == (20,)
+
+    # VIGIL is optional: disabling interpretation leaves raw event delivery live.
+    router.enable_vigil(False)
+    assert arduino_adapter.pump_once() is True
+    io.input.send_event(arduino_transport.receive_event())
+    counts = interface.pump_host_io()
+    assert counts["input"] == 1
+    assert len(router.raw_events) == 2
+    assert router.raw_events[1].sequence == 21
+    assert len(vigil.seen) == 1
+    assert len(router.interpreted_events) == 1
+    assert decode_input_event(arduino_transport.events[0]).device_id == "arduino-1"
