@@ -251,15 +251,17 @@ class CorelessComponent:
 
     def stop_services(self) -> None:
         """Stop component-local AI and VM services without destroying identity."""
+        # Always attempt both boundaries; a failure stopping one service must
+        # not prevent cleanup of the other.
         if self.ai_runtime is not None:
             try:
                 self.stop_ai()
-            except (RuntimeError, TypeError):
+            except Exception:
                 pass
         if self.vm is not None:
             try:
                 self.stop_vm()
-            except (RuntimeError, TypeError):
+            except Exception:
                 pass
 
     def shutdown(self):
@@ -636,12 +638,17 @@ class CorelessHub:
         """Shut down all connected systems while preserving the composition."""
         stopped: list[str] = []
         for component in reversed(self.components()):
-            if component.system is not None:
-                component.shutdown()
-            elif component.vm is not None or component.ai_runtime is not None:
-                component.stop_services()
-                continue
-            else:
+            try:
+                if component.system is not None:
+                    component.shutdown()
+                elif component.vm is not None or component.ai_runtime is not None:
+                    component.stop_services()
+                    continue
+                else:
+                    continue
+            except Exception:
+                # Shutdown is best-effort across the whole virtual motherboard:
+                # one broken component must not strand every later component.
                 continue
             stopped.append(component.component_id)
         return tuple(stopped)
