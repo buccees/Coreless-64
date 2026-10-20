@@ -132,7 +132,48 @@ class CorelessComponent:
                 pass
 
     def recover(self) -> None:
-        """Clear fault isolation while preserving component identity and bindings."""
+        """Recover only after every known execution boundary is stopped.
+
+        Isolation is best-effort because cleanup can fail. A later rejoin must
+        retry cleanup and must not make a component schedulable while a known
+        VM, AI runtime, or Coreless system is still running.
+        """
+        if self._healthy and self._fault is None:
+            return
+
+        failures: list[str] = []
+        cleanup: list[tuple[str, Callable[[], object]]] = []
+        if self.ai_runtime is not None:
+            cleanup.append(("AI runtime", self.stop_ai))
+        if self.vm is not None:
+            cleanup.append(("VM", self.stop_vm))
+        if self.system is not None:
+            cleanup.append(("Coreless system", self.system.shutdown))
+
+        for boundary, stop in cleanup:
+            try:
+                stop()
+            except Exception as exc:
+                failures.append(f"{boundary} stop raised {type(exc).__name__}")
+
+        # Do not rely only on return values: a buggy stop() can return while
+        # leaving its execution boundary active.
+        if self.ai_runtime is not None and bool(
+            getattr(self.ai_runtime, "running", False)
+        ):
+            failures.append("AI runtime remains running")
+        if self.vm is not None and bool(getattr(self.vm, "running", False)):
+            failures.append("VM remains running")
+        machine = getattr(self.system, "machine", None)
+        if machine is not None and bool(getattr(machine, "booted", False)):
+            failures.append("Coreless system remains booted")
+
+        if failures:
+            raise RuntimeError(
+                "cannot recover component until execution is stopped: "
+                + "; ".join(failures)
+            )
+
         self._healthy = True
         self._fault = None
 
