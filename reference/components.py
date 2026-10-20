@@ -533,6 +533,13 @@ class CorelessHub:
     def open_ipc(self, source_id: str, target_id: str, required: frozenset[str] | set[str] = frozenset()) -> int:
         """Authorize a VM-to-VM IPC channel after capability negotiation."""
         self.negotiate(source_id, target_id, required)
+        channel_key = (source_id, target_id)
+        # Reopening an existing channel is idempotent. Granting a second
+        # hypervisor capability and overwriting the first would orphan the
+        # original grant so close_ipc could no longer revoke it.
+        existing = self._ipc_channels.get(channel_key)
+        if existing is not None:
+            return existing
         if self.hypervisor is None:
             raise RuntimeError("hub has no Coreless Hypervisor")
         source = self.component(source_id)
@@ -542,7 +549,7 @@ class CorelessHub:
         source_vmid = int(source.vm.vmid)
         target_vmid = int(target.vm.vmid)
         capability = self.hypervisor.grant_ipc(source_vmid, target_vmid)
-        self._ipc_channels[(source_id, target_id)] = capability
+        self._ipc_channels[channel_key] = capability
         return capability
 
     def close_ipc(self, source_id: str, target_id: str) -> None:
