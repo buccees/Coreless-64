@@ -306,10 +306,20 @@ class CorelessInputRouter:
         # as a pointer/touch gesture by VIGIL.
         if event.event_type is InputEventType.DEVICE_STATE:
             return ()
-        if not self.vigil_enabled or self.vigil is None or not self.vigil.available():
+        if not self.vigil_enabled or self.vigil is None:
             return ()
 
-        derived = self.vigil.interpret(event, device)
+        # VIGIL is optional: an adapter failure must never interrupt the raw
+        # Coreless input path. Disable the failing interpreter for this router
+        # instance and continue with ordinary pointer/touch handling.
+        try:
+            if not self.vigil.available():
+                return ()
+            derived = self.vigil.interpret(event, device)
+        except Exception:
+            self.vigil_enabled = False
+            return ()
+
         self._interpreted_events.extend(derived)
         return derived
 
