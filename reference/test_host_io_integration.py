@@ -195,7 +195,8 @@ def test_arduino_input_flows_through_host_abi_with_optional_vigil(tmp_path):
     assert router.raw_events[0].event_type is InputEventType.POINTER_MOVE
     assert (router.raw_events[0].x, router.raw_events[0].y) == (12.5, 7.0)
     assert len(vigil.seen) == 1
-    assert router.interpreted_events[0].source_sequence == (20,)
+    assert router.interpreted_events[0].source_sequence == (router.raw_events[0].sequence,)
+    assert router.raw_events[0].metadata["arduino_sequence"] == 20
 
     # VIGIL is optional: disabling interpretation leaves raw event delivery live.
     router.enable_vigil(False)
@@ -204,6 +205,7 @@ def test_arduino_input_flows_through_host_abi_with_optional_vigil(tmp_path):
     counts = interface.pump_host_io()
     assert counts["input"] == 1
     assert len(router.raw_events) == 2
-    assert router.raw_events[1].sequence == 21
+    assert router.raw_events[1].sequence > router.raw_events[0].sequence
+    assert router.raw_events[1].metadata["arduino_sequence"] == 21
     assert len(vigil.seen) == 1
     assert len(router.interpreted_events) == 1
