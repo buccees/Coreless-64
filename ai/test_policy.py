@@ -56,3 +56,22 @@ def test_safe_operation_is_deterministically_executable():
     p = proposal(operation="safe_stop")
     p = AIProposal(p.proposal_id, p.source_model, p.operation, p.arguments, p.rationale, p.authorization_required, "cap-safe")
     assert policy.execute(p) == {"state": "safe"}
+
+
+def test_capability_cannot_be_silently_reassigned_to_another_operation():
+    import pytest
+
+    policy = DeterministicPolicy()
+    policy.register("schedule", lambda args: {"scheduled": True})
+    policy.register("vm.stop", lambda args: {"stopped": True})
+    policy.grant_capability("shared-token", "schedule")
+
+    with pytest.raises(ValueError, match="already bound"):
+        policy.grant_capability("shared-token", "vm.stop")
+
+    assert policy.authorize(AIProposal(
+        "p-schedule", "qwen3", "schedule", {}, capability="shared-token"
+    ))
+    assert not policy.authorize(AIProposal(
+        "p-stop", "qwen3", "vm.stop", {}, capability="shared-token"
+    ))
