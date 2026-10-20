@@ -13,6 +13,35 @@ from enum import Enum
 from typing import Mapping, Protocol
 
 
+def _freeze_metadata_value(value: object) -> object:
+    """Recursively snapshot JSON-compatible metadata into immutable values."""
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError("metadata numeric values must be finite")
+        return value
+    if isinstance(value, Mapping):
+        snapshot: dict[str, object] = {}
+        for key, item in value.items():
+            if not isinstance(key, str) or not key.strip():
+                raise ValueError("metadata keys must be non-blank strings")
+            snapshot[key] = _freeze_metadata_value(item)
+        return MappingProxyType(snapshot)
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_metadata_value(item) for item in value)
+    raise ValueError("metadata values must be JSON-compatible")
+
+
+def _thaw_metadata_value(value: object) -> object:
+    """Convert immutable metadata snapshots back to JSON-native containers."""
+    if isinstance(value, Mapping):
+        return {key: _thaw_metadata_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_thaw_metadata_value(item) for item in value]
+    return value
+
+
 class InputEventType(str, Enum):
     POINTER_MOVE = "pointer_move"
     POINTER_BUTTON = "pointer_button"
@@ -129,7 +158,7 @@ class InputEvent:
             raise ValueError("button must be an integer or null")
         if not isinstance(self.metadata, Mapping):
             raise ValueError("metadata must be a mapping")
-        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+        object.__setattr__(self, "metadata", _freeze_metadata_value(self.metadata))
 
 
 @dataclass(frozen=True)
