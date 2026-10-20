@@ -523,14 +523,20 @@ Coreless owns execution, persistent state, VM/security boundaries, device assign
 
 ### Validation boundary / outstanding work
 
-- **Software validation:** latest full reference test run passed, 697 tests.
+- **Software validation:** latest full reference test run passes in GitHub Actions, covering lifecycle/AI/VM IPC hardening, strict input event validation, monotonic per-device timestamps and sequences, raw-input fallback, immutable event metadata, and the Arduino smoke-test CLI.
 - **Physical hardware:** not yet verified. No claim that the firmware has been exercised on a real Arduino over a physical serial connection.
-- **End-to-end integration:** reference-level paths are present, but a complete physical device-to-Coreless-to-VIGIL validation run remains outstanding.
+- **Software input path:** the simulated serial → Arduino adapter → host ABI → Coreless input router → optional interpreter path is covered by tests. VIGIL's Java ABI codec/router is also covered by its own CI, but there is not yet a live cross-process transport binding the Python Coreless reference runtime to the Java VIGIL adapter.
+- **Physical/end-to-end validation:** board-to-Coreless input and a live Coreless-to-VIGIL runtime integration remain outstanding.
 - **Review state:** PR #21 is open and unmerged; do not describe it as merged.
 
 ### Exact resume point
 
-Resume from this milestone rather than restarting earlier work. The next planned milestone is to validate the complete reference input path and reconnect/fallback semantics across device discovery/assignment, HostIO ABI, Coreless input routing, and optional VIGIL. Then perform physical Arduino validation when actual hardware and serial access are available, followed by broader end-to-end integration.
+The software contract milestone is in place and the latest Coreless reference suite is green. VIGIL's matching Java input ABI codec/router is implemented on draft PR #15; Coreless lifecycle/input hardening remains on draft PR #21. Both PRs are open and unmerged.
 
-**No implementation was started as part of this handoff update.**
+Next, keep the two contracts aligned through review, then:
+1. Run the read-only Arduino smoke test with a real board and serial port.
+2. Bind the real Coreless host event transport to the Java VIGIL adapter (or its selected transport endpoint) and test event mapping/provenance across that process boundary.
+3. Validate reconnect/resume and coordinate-frame handling with a physical event source.
+
+Do not label physical Arduino validation or live cross-process Coreless↔VIGIL integration complete based only on simulated transports or separate repository CI.
 
