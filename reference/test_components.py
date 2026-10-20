@@ -1564,3 +1564,129 @@ def test_component_reports_matching_runtime_model_identity():
     assert status["model_id"] == "qwen3"
     assert status["runtime_model_id"] == "qwen3"
     assert status["identity_match"] is True
+
+
+
+def test_component_restore_identity_reapplies_persisted_descriptor():
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+
+        def put(self, key, value, sync=False):
+            self.objects[key] = value
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = FakeStorage()
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = FakeMachine()
+
+    system = FakeSystem()
+    original = ComponentDescriptor(
+        "ai-0", "general", frozenset({"inference"}),
+        ai_model_id="qwen3", version=1, capacity=1,
+    )
+    component = CorelessComponent(original, system=system)
+    component.persist_identity()
+
+    # Simulate the live descriptor having drifted from the saved machine image.
+    component.descriptor = ComponentDescriptor(
+        "ai-0", "temporary", frozenset({"debug"}),
+        ai_model_id="qwen3", version=1, capacity=1,
+    )
+    restored = component.restore_identity()
+
+    assert restored == original
+    assert component.descriptor == original
+    assert component.status()["component"]["capabilities"] == ["inference"]
+
+
+def test_component_restore_identity_rejects_invalid_descriptor_atomically():
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+
+        def put(self, key, value, sync=False):
+            self.objects[key] = value
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = FakeStorage()
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = FakeMachine()
+
+    original = ComponentDescriptor(
+        "ai-0", "general", frozenset({"inference"}),
+        ai_model_id="qwen3",
+    )
+    system = FakeSystem()
+    component = CorelessComponent(original, system=system)
+    system.machine.storage.objects[component.persistence_key] = json.dumps({
+        "version": component.VERSION,
+        "descriptor": {
+            "component_id": "ai-0",
+            "role": "corrupt",
+            "capabilities": ["inference", "inference"],
+            "ai_model_id": "qwen3",
+            "vm_id": None,
+            "version": 1,
+            "capacity": 1,
+        },
+    }).encode("utf-8")
+
+    with pytest.raises(ValueError, match="persisted component capabilities"):
+        component.restore_identity()
+
+    assert component.descriptor == original
+
+
+def test_component_restore_identity_rejects_persisted_model_runtime_mismatch():
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+
+        def put(self, key, value, sync=False):
+            self.objects[key] = value
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = FakeStorage()
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = FakeMachine()
+
+    class FakeAI:
+        model_id = "deepseek"
+
+    system = FakeSystem()
+    component = CorelessComponent(
+        ComponentDescriptor(
+            "ai-0", "general", frozenset({"inference"}), ai_model_id="deepseek"
+        ),
+        system=system,
+        ai_runtime=FakeAI(),
+    )
+    component.persist_identity()
+    # A validly shaped restored descriptor can still conflict with the bound AI.
+    system.machine.storage.objects[component.persistence_key] = json.dumps({
+        "version": component.VERSION,
+        "descriptor": {
+            "component_id": "ai-0",
+            "role": "general",
+            "capabilities": ["inference"],
+            "ai_model_id": "qwen3",
+            "vm_id": None,
+            "version": 1,
+            "capacity": 1,
+        },
+    }).encode("utf-8")
+
+    with pytest.raises(ValueError, match="does not match bound runtime"):
+        component.restore_identity()
+
+    assert component.descriptor.ai_model_id == "deepseek"
