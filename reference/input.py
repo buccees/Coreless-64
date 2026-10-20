@@ -7,6 +7,7 @@ raw-event routing. VIGIL may consume raw events and return derived events.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from enum import Enum
 from typing import Mapping, Protocol
 
@@ -83,18 +84,50 @@ class InputEvent:
     ABI_VERSION = 1
 
     def __post_init__(self) -> None:
+        if isinstance(self.abi_version, bool) or not isinstance(self.abi_version, int):
+            raise ValueError("input ABI version must be an integer")
         if self.abi_version != self.ABI_VERSION:
             raise ValueError("unsupported input ABI version")
-        if not self.device_id:
+        if not isinstance(self.event_type, InputEventType):
+            raise ValueError("event_type must be a supported InputEventType")
+        if not isinstance(self.coordinate_frame, CoordinateFrame):
+            raise ValueError("coordinate_frame must be a supported CoordinateFrame")
+        if not isinstance(self.device_id, str) or not self.device_id.strip():
             raise ValueError("device_id must not be empty")
+        if isinstance(self.timestamp_ns, bool) or not isinstance(self.timestamp_ns, int):
+            raise ValueError("timestamp_ns must be an integer")
         if self.timestamp_ns < 0:
             raise ValueError("timestamp_ns must be non-negative")
+        if isinstance(self.sequence, bool) or not isinstance(self.sequence, int):
+            raise ValueError("sequence must be an integer")
         if self.sequence < 0:
             raise ValueError("sequence must be non-negative")
-        if self.x is not None and self.y is None:
+        if (self.x is None) != (self.y is None):
             raise ValueError("x and y must be supplied together")
-        if self.y is not None and self.x is None:
-            raise ValueError("x and y must be supplied together")
+        if self.x is not None:
+            for coordinate in (self.x, self.y):
+                if (
+                    isinstance(coordinate, bool)
+                    or not isinstance(coordinate, (int, float))
+                    or not math.isfinite(coordinate)
+                ):
+                    raise ValueError("coordinates must be finite numbers")
+        if self.pressure is not None and (
+            isinstance(self.pressure, bool)
+            or not isinstance(self.pressure, (int, float))
+            or not math.isfinite(self.pressure)
+        ):
+            raise ValueError("pressure must be a finite number")
+        if self.contact_id is not None and (
+            isinstance(self.contact_id, bool) or not isinstance(self.contact_id, int)
+        ):
+            raise ValueError("contact_id must be an integer or null")
+        if self.button is not None and (
+            isinstance(self.button, bool) or not isinstance(self.button, int)
+        ):
+            raise ValueError("button must be an integer or null")
+        if not isinstance(self.metadata, Mapping):
+            raise ValueError("metadata must be a mapping")
 
 
 @dataclass(frozen=True)
