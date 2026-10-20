@@ -148,7 +148,12 @@ class ArduinoSerialIO:
     """Validated Coreless-to-Arduino command/event bridge over a serial port.
 
     Instantiate with a serial object such as serial.Serial(...). Opening and
-    closing the physical port is deliberately owned by the caller.
+    closing the physical port is deliberately owned by the caller. Construct a
+    fresh ArduinoSerialIO for each new physical connection/session: the firmware
+    sequence counter restarts after reboot, so reusing an old bridge would reject
+    legitimate post-reconnect frames as stale. Before constructing the new bridge,
+    the caller should reopen the port and discard any buffered partial/stale bytes.
+    The expected device_id is still checked on every received frame.
     """
 
     def __init__(self, serial_port: SerialPort, device_id: str) -> None:
