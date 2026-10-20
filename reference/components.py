@@ -368,10 +368,32 @@ class CorelessComponent:
         }
 
 
+    def _reported_ai_model_id(self) -> object | None:
+        """Return a runtime-reported identity when the adapter exposes one."""
+        if self.ai_runtime is None:
+            return None
+        return getattr(self.ai_runtime, "model_id", None)
+
+    def _validate_ai_identity(self) -> None:
+        """Reject a bound runtime that contradicts the component's declared model."""
+        expected = self.descriptor.ai_model_id
+        reported = self._reported_ai_model_id()
+        # Some low-level adapters deliberately do not own model identity. Keep
+        # those compatible, but never ignore a conflicting identity when both
+        # sides provide one.
+        if expected is not None and reported is not None:
+            if not isinstance(reported, str) or not reported.strip():
+                raise ValueError("bound AI runtime reports an invalid model identity")
+            if reported != expected:
+                raise ValueError(
+                    "bound AI runtime model identity does not match component descriptor"
+                )
+
     def start_ai(self):
-        """Start this component's local AI runtime."""
+        """Start this component's local AI runtime after checking its identity."""
         if self.ai_runtime is None:
             raise RuntimeError("component has no Coreless AI runtime")
+        self._validate_ai_identity()
         starter = getattr(self.ai_runtime, "start", None)
         if callable(starter):
             starter()
@@ -403,10 +425,21 @@ class CorelessComponent:
                 "model_id": self.descriptor.ai_model_id,
                 "role": self.descriptor.role,
             }
+        runtime_model_id = self._reported_ai_model_id()
+        identity_match = None
+        if self.descriptor.ai_model_id is not None and runtime_model_id is not None:
+            identity_match = runtime_model_id == self.descriptor.ai_model_id
+        advertised_model_id = (
+            runtime_model_id
+            if isinstance(runtime_model_id, str) and runtime_model_id.strip()
+            else self.descriptor.ai_model_id
+        )
         return {
             "bound": True,
             "running": bool(getattr(self.ai_runtime, "running", False)),
-            "model_id": self.descriptor.ai_model_id,
+            "model_id": advertised_model_id,
+            "runtime_model_id": runtime_model_id,
+            "identity_match": identity_match,
             "role": self.descriptor.role,
         }
 
