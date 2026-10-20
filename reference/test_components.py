@@ -1690,3 +1690,34 @@ def test_component_restore_identity_rejects_persisted_model_runtime_mismatch():
         component.restore_identity()
 
     assert component.descriptor.ai_model_id == "deepseek"
+
+
+
+def test_send_ipc_rejects_stale_binding_until_channel_is_reopened():
+    from virtualization import Hypervisor
+
+    hypervisor = Hypervisor(2)
+    source_vm = hypervisor.create_vm(1 << 20, 1)
+    target_vm = hypervisor.create_vm(1 << 20, 1)
+    replacement_vm = hypervisor.create_vm(1 << 20, 1)
+    hub = CorelessHub(hypervisor=hypervisor)
+    source = CorelessComponent(
+        ComponentDescriptor("source-0", "cpu", frozenset({"ipc"})),
+        vm=source_vm,
+    )
+    target = CorelessComponent(
+        ComponentDescriptor("target-0", "vision", frozenset({"ipc"})),
+        vm=target_vm,
+    )
+    hub.connect(source)
+    hub.connect(target)
+    first = hub.open_ipc("source-0", "target-0", {"ipc"})
+
+    source.vm = replacement_vm
+    with pytest.raises(PermissionError, match="binding is stale"):
+        hub.send_ipc("source-0", "target-0", b"stale")
+
+    second = hub.open_ipc("source-0", "target-0", {"ipc"})
+    assert second != first
+    hub.send_ipc("source-0", "target-0", b"rebound")
+    assert hypervisor.recv_message(target_vm.vmid, 0) == b"rebound"
