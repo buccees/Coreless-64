@@ -41,6 +41,9 @@ class DeterministicPolicy(PolicyInterface):
     def grant_capability(self, capability: str, operation: str) -> None:
         if not capability or not operation or operation not in self._operations:
             raise ValueError("capability must target a registered operation")
+        existing_operation = self._capabilities.get(capability)
+        if existing_operation is not None and existing_operation != operation:
+            raise ValueError("capability is already bound to another operation; revoke it first")
         self._capabilities[capability] = operation
 
     def revoke_capability(self, capability: str) -> None:
