@@ -196,7 +196,7 @@ class InterpretedInputEvent:
             previous = sequence
         if not isinstance(self.metadata, Mapping):
             raise ValueError("metadata must be a mapping")
-        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+        object.__setattr__(self, "metadata", _freeze_metadata_value(self.metadata))
         if self.confidence is not None and (
             isinstance(self.confidence, bool)
             or not isinstance(self.confidence, (int, float))
