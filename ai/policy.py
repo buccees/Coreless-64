@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from typing import Any, Callable, Mapping
 
 from .interfaces import AIProposal, AuthorityLevel, PolicyInterface
@@ -49,11 +50,39 @@ class DeterministicPolicy(PolicyInterface):
     def revoke_capability(self, capability: str) -> None:
         self._capabilities.pop(capability, None)
 
-    def approve(self, proposal_id: str) -> None:
-        self._approvals.add(proposal_id)
+    @staticmethod
+    def _approval_key(proposal: AIProposal) -> str:
+        """Bind approval to the exact proposal, not only its caller-chosen ID."""
+        try:
+            return json.dumps(
+                {
+                    "proposal_id": proposal.proposal_id,
+                    "source_model": proposal.source_model,
+                    "operation": proposal.operation,
+                    "arguments": dict(proposal.arguments),
+                    "rationale": proposal.rationale,
+                    "authorization_required": proposal.authorization_required,
+                    "capability": proposal.capability,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "proposal must contain JSON-serializable arguments for approval"
+            ) from exc
 
-    def revoke_approval(self, proposal_id: str) -> None:
-        self._approvals.discard(proposal_id)
+    def approve(self, proposal: AIProposal) -> None:
+        """Approve one exact proposal payload; ID reuse cannot transfer approval."""
+        if not isinstance(proposal, AIProposal):
+            raise TypeError("approval must be bound to an AIProposal")
+        self._approvals.add(self._approval_key(proposal))
+
+    def revoke_approval(self, proposal: AIProposal) -> None:
+        if not isinstance(proposal, AIProposal):
+            raise TypeError("approval revocation must identify an AIProposal")
+        self._approvals.discard(self._approval_key(proposal))
 
     def authorize(self, proposal: AIProposal) -> bool:
         if proposal.operation not in self._operations:
@@ -66,7 +95,10 @@ class DeterministicPolicy(PolicyInterface):
         if level is AuthorityLevel.POLICY:
             return True
         if level is AuthorityLevel.ASK:
-            return proposal.proposal_id in self._approvals
+            try:
+                return self._approval_key(proposal) in self._approvals
+            except ValueError:
+                return False
         return False
 
     def decision(self, proposal: AIProposal) -> PolicyDecision:
