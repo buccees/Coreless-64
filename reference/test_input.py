@@ -360,3 +360,55 @@ def test_interpreted_input_rejects_invalid_provenance_and_timestamp():
             timestamp_ns=True,
             source_sequence=(4,),
         )
+
+
+def test_input_event_nested_metadata_is_deeply_immutable_and_round_trips_json():
+    import json
+    import pytest
+    from host_io import decode_input_event, encode_input_event
+
+    original = {"payload": {"reading": 512, "history": [1, 2]}}
+    raw = InputEvent(
+        abi_version=1,
+        event_type=InputEventType.DEVICE_STATE,
+        device_id="arduino-1",
+        timestamp_ns=10,
+        sequence=1,
+        coordinate_frame=CoordinateFrame.HOST,
+        metadata=original,
+    )
+
+    original["payload"]["reading"] = 0
+    original["payload"]["history"].append(3)
+    assert raw.metadata["payload"]["reading"] == 512
+    assert raw.metadata["payload"]["history"] == (1, 2)
+    with pytest.raises(TypeError):
+        raw.metadata["payload"]["reading"] = 0
+    with pytest.raises(AttributeError):
+        raw.metadata["payload"]["history"].append(3)
+
+    wire = encode_input_event(raw)
+    decoded_json = json.loads(wire.decode("utf-8"))
+    assert decoded_json["metadata"]["payload"]["history"] == [1, 2]
+    restored = decode_input_event(wire)
+    assert restored == raw
+
+
+def test_interpreted_input_metadata_is_deeply_immutable():
+    import pytest
+    from input import InterpretedInputEvent
+
+    original = {"provenance": {"sequences": [1, 2]}}
+    derived = InterpretedInputEvent(
+        interpretation_id="deep-immutability",
+        kind="gesture",
+        device_id="touch-1",
+        timestamp_ns=10,
+        source_sequence=(1, 2),
+        metadata=original,
+        confidence=0.5,
+    )
+    original["provenance"]["sequences"].append(3)
+    assert derived.metadata["provenance"]["sequences"] == (1, 2)
+    with pytest.raises(TypeError):
+        derived.metadata["provenance"]["source"] = "mutated"
