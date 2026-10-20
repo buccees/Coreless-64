@@ -110,20 +110,25 @@ class CorelessComponent:
         return self._fault
 
     def isolate(self, reason: str) -> None:
-        """Place this component in a fault-isolated state without losing identity."""
+        """Fault-isolate the component and best-effort stop every execution boundary."""
         if not reason:
             raise ValueError("fault reason must not be empty")
         self._healthy = False
         self._fault = reason
-        if self.vm is not None:
-            try:
-                self.stop_vm()
-            except (RuntimeError, TypeError):
-                pass
+
+        # Isolation must continue even if one runtime refuses to stop; otherwise
+        # a broken VM/AI stop can prevent the remaining execution boundary closing.
+        cleanup = []
         if self.ai_runtime is not None:
+            cleanup.append(self.stop_ai)
+        if self.vm is not None:
+            cleanup.append(self.stop_vm)
+        if self.system is not None:
+            cleanup.append(self.system.shutdown)
+        for stop in cleanup:
             try:
-                self.stop_ai()
-            except (RuntimeError, TypeError):
+                stop()
+            except Exception:
                 pass
 
     def recover(self) -> None:
