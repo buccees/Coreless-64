@@ -279,6 +279,44 @@ def test_hub_fault_isolates_component_and_revokes_ipc():
         hub.send_ipc("cpu-0", "vision-0", b"blocked")
 
 
+def test_fault_isolation_attempts_all_cleanup_even_when_stops_fail():
+    calls = []
+
+    class FailingVM:
+        running = True
+
+        def stop(self):
+            calls.append("vm")
+            raise ValueError("vm stop failed")
+
+    class FailingAI:
+        running = True
+
+        def stop(self):
+            calls.append("ai")
+            raise RuntimeError("ai stop failed")
+
+    class FakeSystem:
+        def shutdown(self):
+            calls.append("system")
+
+    component = CorelessComponent(
+        ComponentDescriptor("faulty-0", "ai", frozenset({"inference"})),
+        system=FakeSystem(),
+        vm=FailingVM(),
+        ai_runtime=FailingAI(),
+    )
+    hub = CorelessHub()
+    hub.connect(component)
+
+    hub.isolate("faulty-0", "runtime fault")
+
+    assert calls == ["ai", "vm", "system"]
+    assert component.healthy is False
+    assert component.fault == "runtime fault"
+    assert component.standalone
+
+
 def test_faulted_component_can_recover_and_rejoin():
     hub = CorelessHub()
     component = CorelessComponent(
