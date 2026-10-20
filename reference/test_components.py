@@ -1430,3 +1430,49 @@ def test_hub_shutdown_continues_after_one_component_fails():
 
     assert hub.shutdown() == ("healthy-0",)
     assert calls == ["faulty-0", "healthy-0"]
+
+
+
+def test_faulted_component_cannot_rejoin_when_runtime_refuses_to_stop():
+    class FailingAI:
+        running = True
+
+        def stop(self):
+            raise RuntimeError("runtime still active")
+
+    hub = CorelessHub()
+    component = CorelessComponent(
+        ComponentDescriptor("stuck-ai-0", "ai", frozenset({"inference"})),
+        ai_runtime=FailingAI(),
+    )
+    hub.connect(component)
+    hub.isolate("stuck-ai-0", "runtime fault")
+
+    with pytest.raises(RuntimeError, match="cannot recover component"):
+        hub.rejoin(component)
+
+    assert component.healthy is False
+    assert component.fault == "runtime fault"
+    assert component.standalone
+    assert hub.components() == ()
+
+
+def test_faulted_component_cannot_recover_if_stop_returns_but_runtime_stays_running():
+    class StuckVM:
+        running = True
+
+        def stop(self):
+            # Broken runtime acknowledges stop but fails to change state.
+            return None
+
+    component = CorelessComponent(
+        ComponentDescriptor("stuck-vm-0", "cpu", frozenset({"compute"})),
+        vm=StuckVM(),
+    )
+    component.isolate("vm fault")
+
+    with pytest.raises(RuntimeError, match="VM remains running"):
+        component.recover()
+
+    assert component.healthy is False
+    assert component.fault == "vm fault"
