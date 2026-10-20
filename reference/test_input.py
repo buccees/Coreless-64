@@ -303,3 +303,37 @@ def test_raw_input_survives_vigil_adapter_exceptions():
         assert router.submit(event(sequence=2)) == ()
         assert len(router.raw_events) == 2
 
+
+
+
+def test_malformed_vigil_derived_output_falls_back_to_raw_input():
+    from input import InterpretedInputEvent
+
+    class NullOutput(FakeVigil):
+        def interpret(self, event, device):
+            return None
+
+    class WrongProvenance(FakeVigil):
+        def interpret(self, event, device):
+            return (InterpretedInputEvent(
+                interpretation_id="wrong-source",
+                kind="gesture.tap",
+                device_id=device.device_id,
+                timestamp_ns=event.timestamp_ns,
+                source_sequence=(event.sequence + 1,),
+            ),)
+
+    import pytest
+
+    for broken in (NullOutput(), WrongProvenance()):
+        manager = PointingDeviceManager()
+        manager.discover([device()])
+        manager.designate("touch-1")
+        router = CorelessInputRouter(manager, broken)
+
+        assert router.submit(event()) == ()
+        assert len(router.raw_events) == 1
+        assert router.interpreted_events == ()
+        assert router.vigil_enabled is False
+        assert router.submit(event(sequence=2)) == ()
+        assert len(router.raw_events) == 2
