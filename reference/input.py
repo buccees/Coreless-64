@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import math
+from types import MappingProxyType
 from enum import Enum
 from typing import Mapping, Protocol
 
@@ -128,6 +129,7 @@ class InputEvent:
             raise ValueError("button must be an integer or null")
         if not isinstance(self.metadata, Mapping):
             raise ValueError("metadata must be a mapping")
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
 
 
 @dataclass(frozen=True)
@@ -147,8 +149,16 @@ class InterpretedInputEvent:
             raise ValueError("kind must not be empty")
         if not self.source_sequence:
             raise ValueError("source_sequence must not be empty")
-        if self.confidence is not None and not 0.0 <= self.confidence <= 1.0:
-            raise ValueError("confidence must be between 0 and 1")
+        if not isinstance(self.metadata, Mapping):
+            raise ValueError("metadata must be a mapping")
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+        if self.confidence is not None and (
+            isinstance(self.confidence, bool)
+            or not isinstance(self.confidence, (int, float))
+            or not math.isfinite(self.confidence)
+            or not 0.0 <= self.confidence <= 1.0
+        ):
+            raise ValueError("confidence must be a finite number between 0 and 1")
 
 
 class VigilInputInterpreter(Protocol):
