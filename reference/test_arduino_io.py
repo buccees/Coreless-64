@@ -278,3 +278,21 @@ def test_arduino_serial_io_reports_empty_read_as_timeout():
     bridge = ArduinoSerialIO(TimedOutSerial(), "arduino-1")
     with pytest.raises(TimeoutError, match="timed out waiting"):
         bridge.receive_message()
+
+
+def test_reconnect_uses_fresh_bridge_for_device_sequence_restart():
+    # A device reboot restarts its firmware-side sequence counter. The old
+    # bridge correctly rejects sequence 0 as stale; a newly constructed bridge
+    # represents the new connection/session and accepts the first frame.
+    serial = FakeSerial()
+    serial.reads.append(frame(sequence=8))
+    old_bridge = ArduinoSerialIO(serial, "arduino-1")
+    assert old_bridge.receive_event()["sequence"] == 8
+
+    serial.reads.append(frame(sequence=0))
+    with pytest.raises(ValueError, match="not increasing"):
+        old_bridge.receive_message()
+
+    serial.reads.append(frame(sequence=0))
+    new_bridge = ArduinoSerialIO(serial, "arduino-1")
+    assert new_bridge.receive_event()["sequence"] == 0
