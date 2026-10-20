@@ -491,6 +491,10 @@ class CorelessHub:
         self.hypervisor = hypervisor
         self._components: dict[str, CorelessComponent] = {}
         self._ipc_channels: dict[tuple[str, str], int] = {}
+        # Track which VM incarnation each hub channel was granted to. Hypervisor
+        # VM destruction revokes native capabilities independently, so reusing
+        # the cached token after a component rebind would leave a dead channel.
+        self._ipc_bindings: dict[tuple[str, str], tuple[int, int]] = {}
         self._dispatch_load: dict[str, int] = {}
         self._dispatch_condition = threading.Condition()
 
@@ -580,9 +584,6 @@ class CorelessHub:
         # Reopening an existing channel is idempotent. Granting a second
         # hypervisor capability and overwriting the first would orphan the
         # original grant so close_ipc could no longer revoke it.
-        existing = self._ipc_channels.get(channel_key)
-        if existing is not None:
-            return existing
         if self.hypervisor is None:
             raise RuntimeError("hub has no Coreless Hypervisor")
         source = self.component(source_id)
@@ -591,13 +592,47 @@ class CorelessHub:
             raise RuntimeError("both components require bound VMs for IPC")
         source_vmid = int(source.vm.vmid)
         target_vmid = int(target.vm.vmid)
+        channel_key = (source_id, target_id)
+        binding = (source_vmid, target_vmid)
+
+        # Destroying a VM revokes capabilities inside the hypervisor, while the
+        # Hub's local cache is not notified. Preserve idempotence for the same
+        # VM pair, but revoke the cached entry and grant anew after rebind.
+        existing = self._ipc_channels.get(channel_key)
+        if existing is not None:
+            if self._ipc_bindings.get(channel_key) == binding:
+                vm_registry = getattr(self.hypervisor, "vms", None)
+                if (
+                    not isinstance(vm_registry, Mapping)
+                    or (
+                        source_vmid in vm_registry
+                        and target_vmid in vm_registry
+                        and vm_registry[source_vmid] is source.vm
+                        and vm_registry[target_vmid] is target.vm
+                    )
+                ):
+                    return existing
+            self.close_ipc(source_id, target_id)
+
+        vm_registry = getattr(self.hypervisor, "vms", None)
+        if isinstance(vm_registry, Mapping) and (
+            source_vmid not in vm_registry
+            or target_vmid not in vm_registry
+            or vm_registry[source_vmid] is not source.vm
+            or vm_registry[target_vmid] is not target.vm
+        ):
+            raise RuntimeError("both component VMs must be registered with the Hub hypervisor")
+
         capability = self.hypervisor.grant_ipc(source_vmid, target_vmid)
         self._ipc_channels[channel_key] = capability
+        self._ipc_bindings[channel_key] = binding
         return capability
 
     def close_ipc(self, source_id: str, target_id: str) -> None:
         """Revoke a previously negotiated VM-to-VM IPC channel."""
-        capability = self._ipc_channels.pop((source_id, target_id), None)
+        channel_key = (source_id, target_id)
+        capability = self._ipc_channels.pop(channel_key, None)
+        self._ipc_bindings.pop(channel_key, None)
         if capability is not None and self.hypervisor is not None:
             self.hypervisor.revoke_ipc(capability)
 
