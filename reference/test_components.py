@@ -1476,3 +1476,37 @@ def test_faulted_component_cannot_recover_if_stop_returns_but_runtime_stays_runn
 
     assert component.healthy is False
     assert component.fault == "vm fault"
+
+
+
+def test_ipc_channel_regrants_capability_when_component_vm_is_replaced():
+    from virtualization import Hypervisor
+
+    hypervisor = Hypervisor(2)
+    source_vm = hypervisor.create_vm(1 << 20, 1)
+    target_vm = hypervisor.create_vm(1 << 20, 1)
+    hub = CorelessHub(hypervisor=hypervisor)
+    source = CorelessComponent(
+        ComponentDescriptor("source-0", "cpu", frozenset({"ipc"})),
+        vm=source_vm,
+    )
+    target = CorelessComponent(
+        ComponentDescriptor("target-0", "vision", frozenset({"ipc"})),
+        vm=target_vm,
+    )
+    hub.connect(source)
+    hub.connect(target)
+
+    first = hub.open_ipc("source-0", "target-0", {"ipc"})
+    hypervisor.destroy_vm(source_vm.vmid)
+    replacement_vm = hypervisor.create_vm(1 << 20, 1)
+    source.vm = replacement_vm
+
+    second = hub.open_ipc("source-0", "target-0", {"ipc"})
+
+    assert second != first
+    assert hub._ipc_bindings[("source-0", "target-0")] == (
+        replacement_vm.vmid, target_vm.vmid
+    )
+    hub.send_ipc("source-0", "target-0", b"after-rebind")
+    assert hypervisor.recv_message(target_vm.vmid, 0) == b"after-rebind"
