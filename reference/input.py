@@ -215,6 +215,7 @@ class CorelessInputRouter:
         self._raw_events: list[InputEvent] = []
         self._interpreted_events: list[InterpretedInputEvent] = []
         self._last_sequence_by_device: dict[str, int] = {}
+        self._last_timestamp_by_device: dict[str, int] = {}
 
     @property
     def raw_events(self) -> tuple[InputEvent, ...]:
@@ -251,7 +252,11 @@ class CorelessInputRouter:
         previous_sequence = self._last_sequence_by_device.get(event.device_id, -1)
         if event.sequence <= previous_sequence:
             raise ValueError("input event sequence must increase monotonically")
+        previous_timestamp = self._last_timestamp_by_device.get(event.device_id)
+        if previous_timestamp is not None and event.timestamp_ns < previous_timestamp:
+            raise ValueError("input event timestamp must not move backwards")
         self._last_sequence_by_device[event.device_id] = event.sequence
+        self._last_timestamp_by_device[event.device_id] = event.timestamp_ns
         self._raw_events.append(event)
 
         # Device-state telemetry is retained as raw state and is not interpreted
