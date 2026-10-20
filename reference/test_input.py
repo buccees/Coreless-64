@@ -177,3 +177,31 @@ def test_device_state_from_undiscovered_device_is_rejected():
     )
     with pytest.raises(PermissionError, match="discovered"):
         router.submit(sensor)
+
+
+
+def test_input_timestamps_must_not_move_backwards_per_device():
+    import pytest
+
+    manager = PointingDeviceManager()
+    manager.discover([device()])
+    manager.designate("touch-1")
+    router = CorelessInputRouter(manager)
+
+    assert router.submit(event(sequence=2)) == ()
+    earlier_timestamp = InputEvent(
+        abi_version=1,
+        event_type=InputEventType.TOUCH_BEGIN,
+        device_id="touch-1",
+        timestamp_ns=1001,
+        sequence=3,
+        coordinate_frame=CoordinateFrame.CORELESS,
+        x=10.0,
+        y=20.0,
+        contact_id=1,
+    )
+    with pytest.raises(ValueError, match="timestamp must not move backwards"):
+        router.submit(earlier_timestamp)
+
+    assert len(router.raw_events) == 1
+    assert router.raw_events[0].sequence == 2
