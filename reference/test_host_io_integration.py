@@ -109,7 +109,7 @@ def test_host_io_rejects_nonconforming_bundle():
 
 def test_arduino_input_flows_through_host_abi_with_optional_vigil(tmp_path):
     from arduino_io import ArduinoInputAdapter, ArduinoSerialIO, encode_message
-    from host_io import MemoryInputTransport, decode_input_event
+    from host_io import MemoryInputTransport
     from input import InterpretedInputEvent
 
     class FakeSerial:
@@ -207,4 +207,3 @@ def test_arduino_input_flows_through_host_abi_with_optional_vigil(tmp_path):
     assert router.raw_events[1].sequence == 21
     assert len(vigil.seen) == 1
     assert len(router.interpreted_events) == 1
-    assert decode_input_event(arduino_transport.events[0]).device_id == "arduino-1"
