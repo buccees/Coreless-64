@@ -27,11 +27,28 @@ class PreloadedFloorWindow:
     views: tuple[BlueprintView, ...]
 
 
-class SpatialSensorProvider(Protocol):
-    """Optional Coreless-owned adapter contract; read() must return model-frame observations."""
+@dataclass(frozen=True)
+class SensorBatch:
+    """One sensor poll can contribute to pose, object tracks, and floor overlays."""
 
-    def read(self) -> Sequence[SpatialObservation]:
-        """Return a batch of calibrated observations without mutating the workspace."""
+    position_observations: tuple[SpatialObservation, ...] = ()
+    object_observations: tuple[ObjectObservation, ...] = ()
+    infrared_maps: tuple[InfraredFloorMap, ...] = ()
+
+    def __post_init__(self) -> None:
+        if any(not isinstance(item, SpatialObservation) for item in self.position_observations):
+            raise TypeError("position_observations must contain SpatialObservation values")
+        if any(not isinstance(item, ObjectObservation) for item in self.object_observations):
+            raise TypeError("object_observations must contain ObjectObservation values")
+        if any(not isinstance(item, InfraredFloorMap) for item in self.infrared_maps):
+            raise TypeError("infrared_maps must contain InfraredFloorMap values")
+
+
+class SpatialSensorProvider(Protocol):
+    """Optional adapter; legacy position-only sequences and SensorBatch are supported."""
+
+    def read(self) -> Sequence[SpatialObservation] | SensorBatch:
+        """Return calibrated model-frame data without mutating the workspace."""
         ...
 
 
