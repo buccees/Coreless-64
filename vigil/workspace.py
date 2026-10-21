@@ -333,10 +333,11 @@ class SpatialWorkspace:
     def poll_sensors(self) -> tuple[SensorPollStatus, ...]:
         """Poll optional providers independently; one faulty device cannot block others.
 
-        Only SpatialObservation batches are accepted. The workspace never assumes
-        a provider's coordinates are correct: PoseEstimator still enforces active
-        model/revision/frame alignment and observation freshness. Failures are
-        returned as statuses rather than raised into the caller's input loop.
+        Providers may return SensorBatch or a legacy position-only sequence. The
+        workspace never assumes coordinates are correct: downstream estimators
+        enforce active model/revision/frame alignment and observation freshness.
+        Failures are returned as statuses rather than raised into the caller's
+        input loop.
         """
         statuses: list[SensorPollStatus] = []
         for provider_id, provider in sorted(self._sensor_providers.items()):
