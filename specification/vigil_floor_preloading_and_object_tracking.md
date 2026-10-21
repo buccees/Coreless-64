@@ -44,3 +44,10 @@ Both thresholds are configurable in `ObjectTracker`. A later consistent observat
 
 
 The green terminal renderer now includes an **OBJECT TRACKING** section. Conflicted tracks are listed first and show their conflict reasons and the sensors whose evidence disagrees. The workspace passes the same track objects from its snapshot to the renderer, so the warning is based on tracker state rather than separately inferred UI logic.
+
+
+## Blueprint-view object overlays
+
+`build_blueprint_view(..., object_tracks=...)` exposes validated tracks as stable `ObjectProjection` records alongside feature geometry and pose. Each marker carries model-frame 3D position, normalized renderer coordinates, velocity, uncertainty, identity/association, last-seen timestamp, sensor IDs, modalities, provenance, and the tracker's conflict state/reasons/sensors. Tracks with a mismatched model ID, revision, or coordinate frame are omitted; the view does not silently transform or reinterpret them.
+
+For connected-building models, `floor_elevations_m` metadata supports conservative floor hints: a track is assigned to the nearest surveyed elevation only when it falls within the configured vertical tolerance. When a selected floor is known, the marker reports whether it belongs on that floor. If elevations are absent or the track is too far from all surveyed elevations, floor visibility remains unknown/false rather than deriving a floor from arbitrary Z coordinates. The renderer can keep adjacent-floor views preloaded and decide how to display off-floor markers without altering the underlying shared building-frame position.
