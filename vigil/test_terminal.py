@@ -60,3 +60,12 @@ def test_terminal_does_not_match_pose_from_wrong_model_revision():
                          (1.2, 2.1, 0), PoseState.DEGRADED, 1.0, 10)
     output = VigilTerminal(color=False).render(model, wrong, [], now_ns=20)
     assert "FLOOR/ZONE: UNKNOWN" in output
+
+
+
+def test_terminal_field_sanitization_preserves_digits_and_hides_escape_controls():
+    safe = VigilTerminal._fit("L1 floor 2", 20)
+    assert safe.startswith("L1 floor 2")
+    unsafe = VigilTerminal._fit("A\x1b[31mB", 20)
+    assert "\x1b" not in unsafe
+    assert unsafe.startswith("A?")
