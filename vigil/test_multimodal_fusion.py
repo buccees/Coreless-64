@@ -2,6 +2,7 @@ import pytest
 
 from vigil.blueprint import BlueprintModel, ModelFeature
 from vigil.infrared_floor_mapping import InfraredFloorMapper, InfraredPixelSample
+from vigil.object_tracking import ObjectObservation, TrackingModality
 from vigil.raster_calibration import RasterBlueprintCalibration, RasterControlPoint
 from vigil.workspace import SpatialWorkspace
 
@@ -66,3 +67,30 @@ def test_untracked_infrared_samples_still_update_floor_layer():
     assert workspace.ingest_infrared_map(ir_map, track_labeled_objects=False) == 0
     assert workspace.object_tracks == ()
     assert workspace.infrared_maps == (ir_map,)
+
+
+
+def test_ir_floor_map_and_vision_detection_share_explicit_entity_association():
+    workspace = SpatialWorkspace()
+    model = make_model()
+    workspace.registry.register(model, activate=True)
+    ir_map = make_ir_map(association_id="entity-42")
+    workspace.ingest_infrared_map(ir_map)
+    workspace.ingest_object_observations([
+        ObjectObservation(
+            object_id="camera-track-7", sensor_id="camera-1",
+            model_id=model.model_id, model_revision=model.revision,
+            frame_id=model.frame_id, timestamp_ns=100,
+            position_m=(2.1, 3.0, 0.0), uncertainty_m=0.1,
+            modality=TrackingModality.VISION, provenance="vision-reid",
+            association_id="entity-42",
+        )
+    ])
+
+    snapshot = workspace.refresh(now_ns=100)
+    assert len(snapshot.object_tracks) == 1
+    track = snapshot.object_tracks[0]
+    assert track.association_id == "entity-42"
+    assert track.modalities == ("infrared", "vision")
+    assert track.sensor_ids == ("camera-1", "thermal-1")
+    assert track.provenance == ("calibrated-infrared-floor-map", "vision-reid")
