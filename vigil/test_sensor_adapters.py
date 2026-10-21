@@ -67,7 +67,7 @@ def test_trilateration_rejects_too_few_mismatched_or_degenerate_ranges():
         anchor_position_m=(10, 0, 0), range_m=math.sqrt(89),
         uncertainty_m=0.1, modality=TrackingModality.RF_2_4_GHZ, provenance="test",
     )
-    with pytest.raises(ValueError, match="same object, model revision, and coordinate frame"):
+    with pytest.raises(ValueError, match="share object, model revision, and coordinate frame"):
         trilaterate_3d(wrong_frame)
     same_plane = [
         RangeMeasurement(
