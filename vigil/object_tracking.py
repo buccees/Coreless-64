@@ -6,7 +6,7 @@ is not sonar, and neither modality is assumed to exist without a real adapter.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from math import isfinite, sqrt
 from typing import Iterable
@@ -179,7 +179,30 @@ class ObjectTracker:
             else:
                 dt_ns = timestamp - previous.last_seen_ns
                 if dt_ns <= 0:
-                    updated[tracking_key] = previous
+                    # A newly arriving sensor may disagree at the same timestamp
+                    # as an existing track. Preserve its motion estimate, but do
+                    # not silently discard the conflict or its source evidence.
+                    current_sources = observations_for_object
+                    updated[tracking_key] = replace(
+                        previous,
+                        sensor_ids=tuple(sorted(set(previous.sensor_ids) | {
+                            item.sensor_id for item in current_sources
+                        })),
+                        modalities=tuple(sorted(set(previous.modalities) | {
+                            item.modality.value for item in current_sources
+                        })),
+                        provenance=tuple(sorted(set(previous.provenance) | {
+                            item.provenance for item in current_sources
+                        })),
+                        conflict=bool(conflict_reasons),
+                        conflict_reasons=tuple(sorted(conflict_reasons)),
+                        conflicting_sensor_ids=tuple(sorted(
+                            conflicting_sensors or (
+                                {item.sensor_id for item in current_sources}
+                                if conflict_reasons else set()
+                            )
+                        )),
+                    )
                     continue
                 dt = dt_ns / 1_000_000_000
                 position = tuple(
