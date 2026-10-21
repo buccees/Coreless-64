@@ -101,8 +101,12 @@ class ObjectTracker:
             fresh.setdefault(item.object_id, []).append(item)
 
         updated: dict[str, ObjectTrack] = {}
-        for object_id, group in fresh.items():
-            # Fuse concurrent sensor detections by inverse variance.
+        for object_id, observations_for_object in fresh.items():
+            # Fuse only detections from the newest measurement epoch. Combining
+            # old and new positions into one average would smear motion and bias
+            # both the reported position and velocity.
+            timestamp = max(item.timestamp_ns for item in observations_for_object)
+            group = [item for item in observations_for_object if item.timestamp_ns == timestamp]
             weights = [1.0 / (item.uncertainty_m ** 2) for item in group]
             total = sum(weights)
             measured = tuple(
@@ -110,7 +114,6 @@ class ObjectTracker:
                 for axis in range(3)
             )
             measurement_uncertainty = sqrt(1.0 / total)
-            timestamp = max(item.timestamp_ns for item in group)
             previous = self._tracks.get(object_id)
             if previous is None:
                 position = measured
