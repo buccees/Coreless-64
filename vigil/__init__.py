@@ -22,6 +22,7 @@ from .terminal import SensorLine, VigilTerminal
 from .workspace import BlueprintRegistry, PreloadedFloorWindow, SensorPollStatus, SpatialSensorProvider, SpatialWorkspace, WorkspaceSnapshot
 from .sensor_adapters import RangeMeasurement, acoustic_tof_range_m, rf_tof_range_m, to_object_observation, trilaterate_3d
 from .raster_calibration import RasterBlueprintCalibration, RasterControlPoint
+from .infrared_floor_mapping import InfraredFloorMap, InfraredFloorMapper, InfraredPixelSample, MappedInfraredSample
 from .object_tracking import ObjectObservation, ObjectTrack, ObjectTracker, TrackingModality
 from .interaction import HumanInteractionService, InteractionRequest, InteractionResponse
 from .model import Detection, EntityType, Observation, Provenance, SensorState, Track, Uncertainty, WorldEntity
@@ -52,7 +53,7 @@ __all__ = [
     "SimulationFrame", "SpatialPoint", "Track", "TrackManager", "Uncertainty",
     "SensorLine", "VigilTerminal", "BlueprintRegistry", "PreloadedFloorWindow", "SensorPollStatus", "SpatialSensorProvider", "SpatialWorkspace", "WorkspaceSnapshot",
     "RangeMeasurement", "acoustic_tof_range_m", "rf_tof_range_m", "to_object_observation", "trilaterate_3d",
-    "RasterBlueprintCalibration", "RasterControlPoint",
+    "RasterBlueprintCalibration", "RasterControlPoint", "InfraredFloorMap", "InfraredFloorMapper", "InfraredPixelSample", "MappedInfraredSample",
     "ObjectObservation", "ObjectTrack", "ObjectTracker", "TrackingModality",
     "VigilEnvironment", "VigilInputInterpreter", "VigilInputLayer", "VigilStatus",
     "VisualPointer", "VisualTouchIntent", "WorldEntity", "WorldModel",
