@@ -65,3 +65,26 @@ def test_tracker_rejects_invalid_modalities_and_uncertainty():
             "cart", "sensor", model.model_id, model.revision, model.frame_id,
             1, (0, 0, 0), 0.1, "sonar", "test",
         )
+
+
+def test_tracker_does_not_average_old_positions_into_latest_motion_epoch():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    tracker = ObjectTracker(alpha=1.0)
+    tracker.update(
+        model, [observation(model, timestamp=1_000_000_000, position=(0, 0, 0))],
+        now_ns=1_000_000_000,
+    )
+    updated = tracker.update(
+        model,
+        [
+            observation(model, timestamp=1_000_000_000, position=(0, 0, 0), sensor="old-sensor"),
+            observation(model, timestamp=2_000_000_000, position=(2, 0, 0), sensor="new-sensor"),
+        ],
+        now_ns=2_000_000_000,
+    )
+    assert updated[0].position_m == pytest.approx((2, 0, 0))
+    assert updated[0].velocity_mps == pytest.approx((2, 0, 0))
+    assert updated[0].sensor_ids == ("new-sensor",)
