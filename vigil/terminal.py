@@ -13,6 +13,7 @@ from typing import Sequence
 from .blueprint import BlueprintModel, PoseEstimate, PoseState, nearest_feature
 from .positioning import SpatialObservation
 from .object_tracking import ObjectTrack
+from .spatial_scene import SpatialScene
 
 
 _GREEN = "\\033[92m"
@@ -71,6 +72,7 @@ class VigilTerminal:
         now_ns: int,
         selected_level: str | None = None,
         object_tracks: Sequence[ObjectTrack] = (),
+        spatial_scene: SpatialScene | None = None,
     ) -> str:
         """Return terminal text; missing/stale data is shown explicitly as unknown."""
         if now_ns < 0:
@@ -152,6 +154,18 @@ class VigilTerminal:
                     lines.append(f"║ {self._fit(sensors, 60)}║")
             if len(object_tracks) > 4:
                 lines.append(f"║ + {len(object_tracks) - 4} additional object tracks                          ║")
+        if spatial_scene is not None:
+            lines.append("╟────────────── SPATIAL INTELLIGENCE FINISHER ───────────────────╢")
+            lines.append(f"║ {self._fit(spatial_scene.banner, 60)}║")
+            for check in spatial_scene.checks:
+                mark = "PASS" if check.passed else "FAIL"
+                lines.append(f"║ {self._fit(mark + ' ' + check.name + ': ' + check.detail, 60)}║")
+            summary = (
+                f"scene objects={spatial_scene.object_count} "
+                f"conflicts={spatial_scene.conflict_count} "
+                f"IR floors={len(spatial_scene.infrared_levels)}"
+            )
+            lines.append(f"║ {self._fit(summary, 60)}║")
         lines.extend([
             "╟──────────────────────────────────────────────────────────────╢",
             "║ CORELESS OWNS INPUT  |  VIGIL IS OPTIONAL  |  FAIL-OPEN       ║",
