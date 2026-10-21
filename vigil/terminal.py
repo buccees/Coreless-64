@@ -151,7 +151,7 @@ class VigilTerminal:
     @staticmethod
     def _fit(value: str, width: int) -> str:
         # Keep terminal fields stable even if blueprint metadata is untrusted/long.
-        safe = "".join(ch if ch.isprintable() and ch not in "\\x1b" else "?" for ch in value)
+        safe = "".join(ch if ch.isprintable() and ch != "\\x1b" else "?" for ch in value)
         if len(safe) > width:
             safe = safe[: max(0, width - 3)] + "..."
         return safe.ljust(width)
