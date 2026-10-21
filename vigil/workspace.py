@@ -153,6 +153,14 @@ class SpatialWorkspace:
         if normalized not in levels:
             raise KeyError(f"level not found in active blueprint: {normalized!r}")
         self._selected_level = normalized
+        if self._floor_tracker is not None:
+            # A manual floor choice resets the starting hypothesis; subsequent
+            # transitions still require calibrated, repeated connector evidence.
+            self._floor_tracker.establish_start(normalized)
+            self._last_floor_pose_timestamp_ns = None
+            self._last_floor_transition = FloorTransition(
+                normalized, None, False, "starting floor reset manually"
+            )
         return normalized
 
     def ingest(self, observations: Sequence[SpatialObservation]) -> int:
