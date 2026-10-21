@@ -203,9 +203,16 @@ class SpatialWorkspace:
             self._last_floor_transition,
         )
 
-    def blueprint_view(self, *, now_ns: int) -> BlueprintView:
+    def blueprint_view(
+        self, *, now_ns: int, max_age_ns: int = 2_000_000_000,
+        max_uncertainty_m: float = 5.0, max_disagreement_m: float = 2.0,
+    ) -> BlueprintView:
         """Return geometry and pose overlay for the current selected floor."""
-        snapshot = self.refresh(now_ns=now_ns)
+        snapshot = self.refresh(
+            now_ns=now_ns, max_age_ns=max_age_ns,
+            max_uncertainty_m=max_uncertainty_m,
+            max_disagreement_m=max_disagreement_m,
+        )
         if snapshot.model is None:
             raise RuntimeError("register and activate a blueprint before building its view")
         return build_blueprint_view(
