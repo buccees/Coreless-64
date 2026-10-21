@@ -146,3 +146,6 @@ def test_workspace_activates_building_tracks_floor_and_builds_selected_floor_vie
     assert view.selected_level == "L2"
     assert {feature.level for feature in view.features} == {"L2"}
     assert view.pose is not None
+    assert workspace.select_level("L1") == "L1"
+    assert workspace.floor_transition is not None
+    assert workspace.floor_transition.reason == "starting floor reset manually"
