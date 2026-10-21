@@ -129,8 +129,8 @@ class ObjectTracker:
                     for old, new in zip(previous.position_m, measured)
                 )
                 velocity = tuple(
-                    (new - old) / dt
-                    for old, new in zip(position, previous.position_m)
+                    (position[axis] - previous.position_m[axis]) / dt
+                    for axis in range(3)
                 )
                 uncertainty = sqrt(
                     (1 - self.alpha) ** 2 * previous.uncertainty_m ** 2
