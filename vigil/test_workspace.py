@@ -192,3 +192,24 @@ def test_workspace_requires_building_before_adjacent_floor_preload():
     workspace = SpatialWorkspace()
     with pytest.raises(RuntimeError, match="connected building"):
         workspace.preload_adjacent_floors(now_ns=0)
+
+
+
+def test_workspace_exposes_live_object_tracks_from_calibrated_sensor_observations():
+    from vigil.object_tracking import ObjectObservation, TrackingModality
+
+    workspace = SpatialWorkspace()
+    model = workspace.import_blueprint(manifest(), activate=True)
+    workspace.ingest_object_observations([ObjectObservation(
+        "worker-7", "rf-ranging-node", model.model_id, model.revision, model.frame_id,
+        100, (1.0, 2.0, 0.0), 0.3, TrackingModality.RF_2_4_GHZ,
+        "calibrated-2.4ghz-ranging-adapter",
+    )])
+    snapshot = workspace.refresh(now_ns=110)
+    assert len(snapshot.object_tracks) == 1
+    assert snapshot.object_tracks[0].object_id == "worker-7"
+    assert snapshot.object_tracks[0].modalities == ("rf_2_4ghz",)
+    assert workspace.object_tracks == snapshot.object_tracks
+
+    workspace.activate_blueprint(model.model_id, model.revision)
+    assert workspace.object_tracks == ()
