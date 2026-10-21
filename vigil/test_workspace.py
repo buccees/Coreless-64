@@ -257,3 +257,58 @@ def test_sensor_provider_registration_is_explicit_and_removable():
     assert workspace.unregister_sensor_provider("imu")
     assert not workspace.unregister_sensor_provider("imu")
     assert workspace.sensor_provider_ids == ()
+
+def test_unified_sensor_batch_feeds_pose_and_shared_object_tracker():
+    from vigil.object_tracking import ObjectObservation, TrackingModality
+    from vigil.workspace import SensorBatch
+
+    class Provider:
+        def read(self):
+            return SensorBatch(
+                position_observations=(observation(model, "uwb", x=1.0, timestamp=100),),
+                object_observations=(ObjectObservation(
+                    "cart-2", "vision-1", model.model_id, model.revision, model.frame_id,
+                    100, (2.0, 1.0, 0.0), 0.25, TrackingModality.VISION,
+                    "calibrated-vision-detection",
+                ),),
+            )
+
+    workspace = SpatialWorkspace()
+    model = workspace.import_blueprint(manifest(), activate=True)
+    workspace.register_sensor_provider("combined-sensor-rig", Provider())
+    statuses = workspace.poll_sensors()
+    assert len(statuses) == 1 and statuses[0].state == "ONLINE"
+    assert statuses[0].accepted == 2
+    snapshot = workspace.refresh(now_ns=110)
+    assert snapshot.pose is not None
+    assert snapshot.pose.position_m == pytest.approx((1.0, 0.0, 0.0))
+    assert len(snapshot.object_tracks) == 1
+    assert snapshot.object_tracks[0].object_id == "cart-2"
+    assert snapshot.object_tracks[0].modalities == ("vision",)
+
+
+def test_failed_multimodal_provider_does_not_block_healthy_provider():
+    from vigil.object_tracking import ObjectObservation, TrackingModality
+    from vigil.workspace import SensorBatch
+
+    class Provider:
+        def __init__(self, batch=None, fail=False):
+            self.batch, self.fail = batch, fail
+        def read(self):
+            if self.fail:
+                raise RuntimeError("sensor offline")
+            return self.batch
+
+    workspace = SpatialWorkspace()
+    model = workspace.import_blueprint(manifest(), activate=True)
+    workspace.register_sensor_provider("broken", Provider(fail=True))
+    workspace.register_sensor_provider("healthy", Provider(SensorBatch(
+        object_observations=(ObjectObservation(
+            "person-1", "uwb", model.model_id, model.revision, model.frame_id,
+            100, (0.5, 0.5, 0.0), 0.3, TrackingModality.UWB, "test-adapter",
+        ),)
+    )))
+    statuses = {item.provider_id: item for item in workspace.poll_sensors()}
+    assert statuses["broken"].state == "ERROR"
+    assert statuses["healthy"].state == "ONLINE"
+    assert workspace.refresh(now_ns=100).object_tracks[0].object_id == "person-1"
