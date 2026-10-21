@@ -13,8 +13,9 @@ from .blueprint import BlueprintModel, PoseEstimate, load_blueprint_json
 from .blueprint_view import BlueprintView, build_blueprint_view
 from .building import BuildingBlueprint, FloorTracker, FloorTransition
 from .positioning import PoseEstimator, SpatialObservation
-from .object_tracking import ObjectObservation, ObjectTrack, ObjectTracker
+from .object_tracking import ObjectObservation, ObjectTrack, ObjectTracker, TrackingModality
 from .terminal import VigilTerminal
+from .infrared_floor_mapping import InfraredFloorMap
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,7 @@ class WorkspaceSnapshot:
     observation_count: int
     floor_transition: FloorTransition | None = None
     object_tracks: tuple[ObjectTrack, ...] = ()
+    infrared_maps: tuple[InfraredFloorMap, ...] = ()
 
 
 class BlueprintRegistry:
@@ -126,6 +128,7 @@ class SpatialWorkspace:
         self.object_tracker = ObjectTracker()
         self._object_observations: list[ObjectObservation] = []
         self._object_tracks: tuple[ObjectTrack, ...] = ()
+        self._infrared_maps: dict[str, InfraredFloorMap] = {}
         self._sensor_providers: dict[str, SpatialSensorProvider] = {}
 
     @property
@@ -152,6 +155,7 @@ class SpatialWorkspace:
         self.object_tracker.clear()
         self._object_observations.clear()
         self._object_tracks = ()
+        self._infrared_maps.clear()
         self._floor_tracker = FloorTracker(building)
         self._floor_tracker.establish_start(starting_level)
         self._building = building
@@ -177,6 +181,7 @@ class SpatialWorkspace:
             self.object_tracker.clear()
             self._object_observations.clear()
             self._object_tracks = ()
+            self._infrared_maps.clear()
             self._building = None
             self._floor_views = {}
             self._last_floor_pose_timestamp_ns = None
@@ -191,6 +196,7 @@ class SpatialWorkspace:
         self.object_tracker.clear()
         self._object_observations.clear()
         self._object_tracks = ()
+        self._infrared_maps.clear()
         self._building = None
         self._floor_views = {}
         self._last_floor_pose_timestamp_ns = None
@@ -245,6 +251,48 @@ class SpatialWorkspace:
         if len(self._object_observations) > self.max_observations:
             del self._object_observations[:-self.max_observations]
         return accepted
+
+    @property
+    def infrared_maps(self) -> tuple[InfraredFloorMap, ...]:
+        """Latest calibrated IR map per level, in deterministic level order."""
+        return tuple(self._infrared_maps[key] for key in sorted(self._infrared_maps))
+
+    def ingest_infrared_map(self, infrared_map: InfraredFloorMap, *, track_labeled_objects: bool = True) -> int:
+        """Store a calibrated IR floor layer and forward labeled detections to tracking.
+
+        IR pixels must already be calibrated into the active model frame. Unlabeled
+        samples remain map evidence; infrared alone is not treated as a pose fix.
+        """
+        if not isinstance(infrared_map, InfraredFloorMap):
+            raise TypeError("infrared_map must be an InfraredFloorMap")
+        model = self.active_model
+        if model is None:
+            raise RuntimeError("activate a blueprint before ingesting infrared maps")
+        if (infrared_map.model_id, infrared_map.model_revision, infrared_map.frame_id) != (
+            model.model_id, model.revision, model.frame_id
+        ):
+            raise ValueError("infrared map must match the active model revision and frame")
+        if self._building is not None and infrared_map.level_id not in {
+            floor.level_id for floor in self._building.floors
+        }:
+            raise ValueError("infrared map level is not registered in the active building")
+        self._infrared_maps[infrared_map.level_id] = infrared_map
+        if not track_labeled_objects:
+            return 0
+        converted = []
+        for sample in infrared_map.samples:
+            if not sample.label.strip():
+                continue
+            converted.append(ObjectObservation(
+                object_id=sample.label, sensor_id=sample.sensor_id,
+                model_id=sample.model_id, model_revision=sample.model_revision,
+                frame_id=sample.frame_id, timestamp_ns=sample.timestamp_ns,
+                position_m=sample.position_m,
+                uncertainty_m=max(sample.uncertainty_m, 0.01),
+                modality=TrackingModality.INFRARED,
+                provenance="calibrated-infrared-floor-map",
+            ))
+        return self.ingest_object_observations(converted)
 
     @property
     def sensor_provider_ids(self) -> tuple[str, ...]:
@@ -325,7 +373,7 @@ class SpatialWorkspace:
             )
         return WorkspaceSnapshot(
             model, self._pose, self._selected_level, len(self._observations),
-            self._last_floor_transition, self._object_tracks,
+            self._last_floor_transition, self._object_tracks, self.infrared_maps,
         )
 
     def blueprint_view(
