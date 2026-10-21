@@ -74,6 +74,9 @@ class ObjectTrack:
     observation_count: int
     association_id: str | None = None
     provenance: tuple[str, ...] = ()
+    conflict: bool = False
+    conflict_reasons: tuple[str, ...] = ()
+    conflicting_sensor_ids: tuple[str, ...] = ()
 
 
 class ObjectTracker:
@@ -85,13 +88,23 @@ class ObjectTracker:
     track metadata accumulates the contributing sensors, modalities, and provenance.
     """
 
-    def __init__(self, *, alpha: float = 0.65, max_tracks: int = 256) -> None:
+    def __init__(
+        self, *, alpha: float = 0.65, max_tracks: int = 256,
+        max_position_disagreement_m: float = 2.0,
+        max_fusion_skew_ns: int = 100_000_000,
+    ) -> None:
         if not isfinite(alpha) or not 0 < alpha <= 1:
             raise ValueError("alpha must be finite and in (0, 1]")
         if max_tracks < 1:
             raise ValueError("max_tracks must be positive")
+        if not isfinite(max_position_disagreement_m) or max_position_disagreement_m <= 0:
+            raise ValueError("max_position_disagreement_m must be finite and positive")
+        if isinstance(max_fusion_skew_ns, bool) or not isinstance(max_fusion_skew_ns, int) or max_fusion_skew_ns < 0:
+            raise ValueError("max_fusion_skew_ns must be a non-negative integer")
         self.alpha = alpha
         self.max_tracks = max_tracks
+        self.max_position_disagreement_m = max_position_disagreement_m
+        self.max_fusion_skew_ns = max_fusion_skew_ns
         self._tracks: dict[str, ObjectTrack] = {}
 
     def update(
@@ -119,13 +132,40 @@ class ObjectTracker:
             # Fuse only the newest measurement epoch to avoid smearing motion.
             timestamp = max(item.timestamp_ns for item in observations_for_object)
             group = [item for item in observations_for_object if item.timestamp_ns == timestamp]
-            weights = [1.0 / (item.uncertainty_m ** 2) for item in group]
-            total = sum(weights)
-            measured = tuple(
-                sum(w * item.position_m[axis] for w, item in zip(weights, group)) / total
-                for axis in range(3)
-            )
-            measurement_uncertainty = sqrt(1.0 / total)
+            conflict_reasons: set[str] = set()
+            if max(item.timestamp_ns for item in observations_for_object) - min(
+                item.timestamp_ns for item in observations_for_object
+            ) > self.max_fusion_skew_ns:
+                conflict_reasons.add("timestamp_skew")
+            conflicting_sensors: set[str] = set()
+            for index, left in enumerate(group):
+                for right in group[index + 1:]:
+                    separation = sqrt(sum(
+                        (left.position_m[axis] - right.position_m[axis]) ** 2
+                        for axis in range(3)
+                    ))
+                    tolerance = self.max_position_disagreement_m + 3.0 * sqrt(
+                        left.uncertainty_m ** 2 + right.uncertainty_m ** 2
+                    )
+                    if separation > tolerance:
+                        conflict_reasons.add("position_disagreement")
+                        conflicting_sensors.update((left.sensor_id, right.sensor_id))
+            if conflict_reasons:
+                # Keep the most precise newest observation as the display estimate;
+                # never average contradictory measurements into a misleading midpoint.
+                selected = min(group, key=lambda item: item.uncertainty_m)
+                measured = selected.position_m
+                measurement_uncertainty = selected.uncertainty_m
+                if not conflicting_sensors:
+                    conflicting_sensors.update(item.sensor_id for item in observations_for_object)
+            else:
+                weights = [1.0 / (item.uncertainty_m ** 2) for item in group]
+                total = sum(weights)
+                measured = tuple(
+                    sum(w * item.position_m[axis] for w, item in zip(weights, group)) / total
+                    for axis in range(3)
+                )
+                measurement_uncertainty = sqrt(1.0 / total)
             previous = self._tracks.get(tracking_key)
             if previous is None:
                 position = measured
@@ -168,6 +208,9 @@ class ObjectTracker:
                 observation_count=count,
                 association_id=group[0].association_id,
                 provenance=tuple(sorted(old_provenance | {item.provenance for item in group})),
+                conflict=bool(conflict_reasons),
+                conflict_reasons=tuple(sorted(conflict_reasons)),
+                conflicting_sensor_ids=tuple(sorted(conflicting_sensors)),
             )
 
         # Retain only fresh tracks, then bound memory by most recently seen.
