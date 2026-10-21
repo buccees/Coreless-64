@@ -2,6 +2,7 @@
 
 from .ai import AnalysisResult, CorelessVigilAI, OptionalAIAnalyzer
 from .attention import AttentionItem, AttentionLifecycle, AttentionManager
+from .blueprint_view import AxisBounds, BlueprintView, FeatureProjection, PoseProjection, build_blueprint_view
 from .blueprint import (
     BlueprintModel,
     CoordinateTransform,
@@ -35,9 +36,9 @@ from .camera import SharedCameraSource, CameraReader
 
 __all__ = [
     "AnalysisResult", "AttentionItem", "AttentionLifecycle", "AttentionManager",
-    "AuthorizationContext", "AuthorizationService", "BlueprintModel", "CameraFrame",
+    "AuthorizationContext", "AuthorizationService", "BlueprintModel", "BlueprintView", "AxisBounds", "CameraFrame",
     "CameraReader", "CoordinateTransform", "CorelessVigilAI", "Detection",
-    "DetectionKind", "EntityType", "FastCameraTouchPath", "FastTouchDetector",
+    "DetectionKind", "EntityType", "FeatureProjection", "PoseProjection", "FastCameraTouchPath", "FastTouchDetector",
     "FakeObservationProvider", "GPSFix", "GPSObservationAdapter", "GeodeticAnchor", "HumanInteractionService", "InteractionRequest", "InteractionResponse",
     "GestureInterpreter", "GestureResult", "ModelFeature", "Observation",
     "TouchPoint", "OptionalAIAnalyzer", "PoseEstimate", "PoseState", "PoseEstimator",
@@ -49,7 +50,7 @@ __all__ = [
     "VigilEnvironment", "VigilInputInterpreter", "VigilInputLayer", "VigilStatus",
     "VisualPointer", "VisualTouchIntent", "WorldEntity", "WorldModel",
     "WorldModelEvent", "bearing_degrees", "distance_between", "nearest_feature",
-    "load_blueprint_json", "register_blueprint",
+    "load_blueprint_json", "register_blueprint", "build_blueprint_view",
 ]
 
 from .provenance import EventProvenance
