@@ -7,7 +7,7 @@ It does not parse raw CAD/PDF files or own hardware sensor drivers.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Protocol, Sequence
 
 from .blueprint import BlueprintModel, PoseEstimate, load_blueprint_json
 from .blueprint_view import BlueprintView, build_blueprint_view
@@ -24,6 +24,22 @@ class PreloadedFloorWindow:
     above_level: str | None
     loaded_levels: tuple[str, ...]
     views: tuple[BlueprintView, ...]
+
+
+class SpatialSensorProvider(Protocol):
+    """Optional Coreless-owned adapter contract; read() must return model-frame observations."""
+
+    def read(self) -> Sequence[SpatialObservation]:
+        """Return a batch of calibrated observations without mutating the workspace."""
+        ...
+
+
+@dataclass(frozen=True)
+class SensorPollStatus:
+    provider_id: str
+    accepted: int
+    state: str
+    error: str | None = None
 
 
 @dataclass(frozen=True)
@@ -110,6 +126,7 @@ class SpatialWorkspace:
         self.object_tracker = ObjectTracker()
         self._object_observations: list[ObjectObservation] = []
         self._object_tracks: tuple[ObjectTrack, ...] = ()
+        self._sensor_providers: dict[str, SpatialSensorProvider] = {}
 
     @property
     def active_model(self) -> BlueprintModel | None:
@@ -228,6 +245,51 @@ class SpatialWorkspace:
         if len(self._object_observations) > self.max_observations:
             del self._object_observations[:-self.max_observations]
         return accepted
+
+    @property
+    def sensor_provider_ids(self) -> tuple[str, ...]:
+        """Registered optional providers in deterministic order."""
+        return tuple(sorted(self._sensor_providers))
+
+    def register_sensor_provider(self, provider_id: str, provider: SpatialSensorProvider) -> None:
+        """Register an optional adapter. Duplicate IDs are rejected, not overwritten."""
+        if not isinstance(provider_id, str) or not provider_id.strip():
+            raise ValueError("provider_id must not be empty")
+        if not callable(getattr(provider, "read", None)):
+            raise TypeError("sensor provider must implement read()")
+        if provider_id in self._sensor_providers:
+            raise ValueError(f"sensor provider already registered: {provider_id!r}")
+        self._sensor_providers[provider_id] = provider
+
+    def unregister_sensor_provider(self, provider_id: str) -> bool:
+        """Remove an optional provider without affecting Coreless raw input."""
+        return self._sensor_providers.pop(provider_id, None) is not None
+
+    def poll_sensors(self) -> tuple[SensorPollStatus, ...]:
+        """Poll optional providers independently; one faulty device cannot block others.
+
+        Only SpatialObservation batches are accepted. The workspace never assumes
+        a provider's coordinates are correct: PoseEstimator still enforces active
+        model/revision/frame alignment and observation freshness. Failures are
+        returned as statuses rather than raised into the caller's input loop.
+        """
+        statuses: list[SensorPollStatus] = []
+        for provider_id, provider in sorted(self._sensor_providers.items()):
+            try:
+                batch = provider.read()
+                if isinstance(batch, (str, bytes)) or not isinstance(batch, Sequence):
+                    raise TypeError("read() must return a sequence of SpatialObservation")
+                if any(not isinstance(item, SpatialObservation) for item in batch):
+                    raise TypeError("read() returned a non-SpatialObservation item")
+                accepted = self.ingest(batch)
+                statuses.append(SensorPollStatus(provider_id, accepted, "ONLINE"))
+            except Exception as exc:
+                # Adapter exceptions are contained at this optional boundary. The
+                # caller can display this status; raw pointer/touch handling stays
+                # outside this method and must never depend on provider health.
+                message = " ".join(str(exc).split())[:180] or type(exc).__name__
+                statuses.append(SensorPollStatus(provider_id, 0, "ERROR", message))
+        return tuple(statuses)
 
     def refresh(self, *, now_ns: int, max_age_ns: int = 2_000_000_000,
                 max_uncertainty_m: float = 5.0,
