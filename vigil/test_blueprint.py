@@ -4,6 +4,7 @@ from vigil.blueprint import (
     CoordinateTransform,
     PoseEstimate,
     PoseState,
+    load_blueprint_json,
     nearest_feature,
     register_blueprint,
 )
@@ -128,3 +129,60 @@ def test_no_fix_is_distinct_from_valid_origin_pose():
             uncertainty_m=None,
             observation_timestamp_ns=123,
         )
+
+
+
+def test_json_manifest_ingestion_preserves_floor_zone_and_normalizes_units():
+    import json
+
+    document = json.dumps({
+        "schema_version": 1,
+        "model_id": "site-7",
+        "revision": "floor-plan-r2",
+        "frame_id": "site-7/model",
+        "units": "cm",
+        "features": [
+            {
+                "feature_id": "lift-a",
+                "label": "Elevator A",
+                "position": [125, 250, 0],
+                "feature_type": "elevator",
+                "level": "B1",
+                "zone": "east",
+            }
+        ],
+        "metadata": {"source_name": "survey export"},
+    })
+    model = load_blueprint_json(document)
+    assert model.features[0].position_m == pytest.approx((1.25, 2.5, 0.0))
+    assert model.features[0].level == "B1"
+    assert model.features[0].zone == "east"
+    assert model.metadata["source_name"] == "survey export"
+
+
+def test_json_manifest_rejects_unknown_schema_bad_json_nonfinite_and_oversize():
+    import json
+
+    valid = {
+        "schema_version": 1,
+        "model_id": "m",
+        "revision": "1",
+        "frame_id": "m/model",
+        "units": "m",
+        "features": [{"feature_id": "a", "label": "A", "position": [0, 0, 0]}],
+    }
+    with pytest.raises(ValueError, match="schema_version"):
+        load_blueprint_json(json.dumps({**valid, "schema_version": 2}))
+    with pytest.raises(ValueError, match="invalid blueprint JSON"):
+        load_blueprint_json("{not-json")
+    with pytest.raises(ValueError, match="non-finite"):
+        load_blueprint_json(json.dumps(valid).replace("[0, 0, 0]", "[NaN, 0, 0]"))
+    with pytest.raises(ValueError, match="byte limit"):
+        load_blueprint_json(json.dumps(valid), max_bytes=10)
+
+
+def test_json_manifest_requires_object_and_utf8_bytes():
+    with pytest.raises(ValueError, match="JSON object"):
+        load_blueprint_json("[]")
+    with pytest.raises(ValueError, match="UTF-8"):
+        load_blueprint_json(b"\xff\xfe")
