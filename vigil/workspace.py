@@ -342,11 +342,18 @@ class SpatialWorkspace:
         for provider_id, provider in sorted(self._sensor_providers.items()):
             try:
                 batch = provider.read()
-                if isinstance(batch, (str, bytes)) or not isinstance(batch, Sequence):
-                    raise TypeError("read() must return a sequence of SpatialObservation")
-                if any(not isinstance(item, SpatialObservation) for item in batch):
-                    raise TypeError("read() returned a non-SpatialObservation item")
-                accepted = self.ingest(batch)
+                if isinstance(batch, SensorBatch):
+                    accepted = self.ingest(batch.position_observations)
+                    accepted += self.ingest_object_observations(batch.object_observations)
+                    for infrared_map in batch.infrared_maps:
+                        accepted += 1 + self.ingest_infrared_map(infrared_map)
+                else:
+                    # Backward compatibility for position-only providers.
+                    if isinstance(batch, (str, bytes)) or not isinstance(batch, Sequence):
+                        raise TypeError("read() must return SensorBatch or a sequence of SpatialObservation")
+                    if any(not isinstance(item, SpatialObservation) for item in batch):
+                        raise TypeError("read() returned a non-SpatialObservation item")
+                    accepted = self.ingest(batch)
                 statuses.append(SensorPollStatus(provider_id, accepted, "ONLINE"))
             except Exception as exc:
                 # Adapter exceptions are contained at this optional boundary. The
