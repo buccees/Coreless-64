@@ -23,4 +23,4 @@ jobs:
         working-directory: reference
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: python -m pytest -q ../vigil/test_blueprint.py ../vigil/test_positioning.py ../vigil/test_ai.py
+        run: python -m pytest -q ../vigil/test_blueprint.py ../vigil/test_positioning.py ../vigil/test_gps.py ../vigil/test_ai.py
