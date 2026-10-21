@@ -17,6 +17,15 @@ from .terminal import VigilTerminal
 
 
 @dataclass(frozen=True)
+class PreloadedFloorWindow:
+    active_level: str
+    below_level: str | None
+    above_level: str | None
+    loaded_levels: tuple[str, ...]
+    views: tuple[BlueprintView, ...]
+
+
+@dataclass(frozen=True)
 class WorkspaceSnapshot:
     model: BlueprintModel | None
     pose: PoseEstimate | None
@@ -94,6 +103,8 @@ class SpatialWorkspace:
         self._floor_tracker: FloorTracker | None = None
         self._last_floor_pose_timestamp_ns: int | None = None
         self._last_floor_transition: FloorTransition | None = None
+        self._building: BuildingBlueprint | None = None
+        self._floor_views: dict[str, BlueprintView] = {}
 
     @property
     def active_model(self) -> BlueprintModel | None:
@@ -114,6 +125,11 @@ class SpatialWorkspace:
         self._selected_level = None
         self._floor_tracker = FloorTracker(building)
         self._floor_tracker.establish_start(starting_level)
+        self._building = building
+        self._floor_views = {
+            floor.level_id: build_blueprint_view(model, selected_level=floor.level_id)
+            for floor in building.floors
+        }
         self._selected_level = starting_level
         self._last_floor_pose_timestamp_ns = None
         self._last_floor_transition = FloorTransition(
@@ -129,6 +145,8 @@ class SpatialWorkspace:
             self._pose = None
             self._selected_level = None
             self._floor_tracker = None
+            self._building = None
+            self._floor_views = {}
             self._last_floor_pose_timestamp_ns = None
             self._last_floor_transition = None
         return model
@@ -138,6 +156,8 @@ class SpatialWorkspace:
         self._pose = None
         self._selected_level = None
         self._floor_tracker = None
+        self._building = None
+        self._floor_views = {}
         self._last_floor_pose_timestamp_ns = None
         self._last_floor_transition = None
         return model
@@ -224,6 +244,46 @@ class SpatialWorkspace:
             raise RuntimeError("register and activate a blueprint before building its view")
         return build_blueprint_view(
             snapshot.model, snapshot.pose, selected_level=snapshot.selected_level
+        )
+
+    def preload_adjacent_floors(
+        self, *, now_ns: int, max_age_ns: int = 2_000_000_000,
+        max_uncertainty_m: float = 5.0, max_disagreement_m: float = 2.0,
+    ) -> PreloadedFloorWindow:
+        """Return ready-to-render active, immediately lower, and upper floor views.
+
+        All registered floor geometry is prepared at building activation. This
+        method exposes the active floor and its nearest vertical neighbors so a
+        viewer can keep them mounted before a transition occurs.
+        """
+        if self._building is None or self._selected_level is None:
+            raise RuntimeError("activate a connected building before preloading floor views")
+        snapshot = self.refresh(
+            now_ns=now_ns, max_age_ns=max_age_ns,
+            max_uncertainty_m=max_uncertainty_m,
+            max_disagreement_m=max_disagreement_m,
+        )
+        floors = sorted(self._building.floors, key=lambda floor: floor.elevation_m)
+        active = next(floor for floor in floors if floor.level_id == self._selected_level)
+        below = [floor for floor in floors if floor.elevation_m < active.elevation_m]
+        above = [floor for floor in floors if floor.elevation_m > active.elevation_m]
+        lower = below[-1] if below else None
+        upper = above[0] if above else None
+        selected = [floor for floor in (lower, active, upper) if floor is not None]
+        views: list[BlueprintView] = []
+        for floor in selected:
+            if floor.level_id == self._selected_level:
+                view = build_blueprint_view(
+                    snapshot.model, snapshot.pose, selected_level=floor.level_id
+                )
+                self._floor_views[floor.level_id] = view
+            views.append(self._floor_views[floor.level_id])
+        return PreloadedFloorWindow(
+            active_level=self._selected_level,
+            below_level=lower.level_id if lower else None,
+            above_level=upper.level_id if upper else None,
+            loaded_levels=tuple(floor.level_id for floor in selected),
+            views=tuple(views),
         )
 
     def render(self, *, now_ns: int) -> str:
