@@ -415,7 +415,8 @@ class SpatialWorkspace:
         if snapshot.model is None:
             raise RuntimeError("register and activate a blueprint before building its view")
         return build_blueprint_view(
-            snapshot.model, snapshot.pose, selected_level=snapshot.selected_level
+            snapshot.model, snapshot.pose, selected_level=snapshot.selected_level,
+            object_tracks=snapshot.object_tracks,
         )
 
     def preload_adjacent_floors(
@@ -444,12 +445,14 @@ class SpatialWorkspace:
         selected = [floor for floor in (lower, active, upper) if floor is not None]
         views: list[BlueprintView] = []
         for floor in selected:
-            if floor.level_id == self._selected_level:
-                view = build_blueprint_view(
-                    snapshot.model, snapshot.pose, selected_level=floor.level_id
-                )
-                self._floor_views[floor.level_id] = view
-            views.append(self._floor_views[floor.level_id])
+            # Geometry is precomputed, but live pose and object markers are rebuilt
+            # on every window request so adjacent floors never display stale tracks.
+            view = build_blueprint_view(
+                snapshot.model, snapshot.pose if floor.level_id == self._selected_level else None,
+                selected_level=floor.level_id, object_tracks=snapshot.object_tracks,
+            )
+            self._floor_views[floor.level_id] = view
+            views.append(view)
         return PreloadedFloorWindow(
             active_level=self._selected_level,
             below_level=lower.level_id if lower else None,
