@@ -12,6 +12,7 @@ from typing import Sequence
 
 from .blueprint import BlueprintModel, PoseEstimate, PoseState, nearest_feature
 from .positioning import SpatialObservation
+from .object_tracking import ObjectTrack
 
 
 _GREEN = "\\033[92m"
@@ -69,6 +70,7 @@ class VigilTerminal:
         *,
         now_ns: int,
         selected_level: str | None = None,
+        object_tracks: Sequence[ObjectTrack] = (),
     ) -> str:
         """Return terminal text; missing/stale data is shown explicitly as unknown."""
         if now_ns < 0:
@@ -137,6 +139,19 @@ class VigilTerminal:
                 lines.append(f"║ {self._fit(detail, 60)}║")
             if len(sensor_lines) > 4:
                 lines.append(f"║ + {len(sensor_lines) - 4} additional sensor sources                                  ║")
+        lines.append("╟──────────────────── OBJECT TRACKING ──────────────────────────╢")
+        if not object_tracks:
+            lines.append("║ No object tracks available                                    ║")
+        else:
+            for track in sorted(object_tracks, key=lambda item: (not item.conflict, item.object_id))[:4]:
+                status = "CONFLICT " + ",".join(track.conflict_reasons) if track.conflict else "TRACKING"
+                detail = f"{track.object_id}: {status} σ={track.uncertainty_m:.2f}m"
+                lines.append(f"║ {self._fit(detail, 60)}║")
+                if track.conflict:
+                    sensors = "conflicting sensors: " + ", ".join(track.conflicting_sensor_ids)
+                    lines.append(f"║ {self._fit(sensors, 60)}║")
+            if len(object_tracks) > 4:
+                lines.append(f"║ + {len(object_tracks) - 4} additional object tracks                          ║")
         lines.extend([
             "╟──────────────────────────────────────────────────────────────╢",
             "║ CORELESS OWNS INPUT  |  VIGIL IS OPTIONAL  |  FAIL-OPEN       ║",
