@@ -8,6 +8,7 @@ from .blueprint import (
     ModelFeature,
     PoseEstimate,
     PoseState,
+    load_blueprint_json,
     nearest_feature,
     register_blueprint,
 )
@@ -44,7 +45,7 @@ __all__ = [
     "VigilEnvironment", "VigilInputInterpreter", "VigilInputLayer", "VigilStatus",
     "VisualPointer", "VisualTouchIntent", "WorldEntity", "WorldModel",
     "WorldModelEvent", "bearing_degrees", "distance_between", "nearest_feature",
-    "register_blueprint",
+    "load_blueprint_json", "register_blueprint",
 ]
 
 from .provenance import EventProvenance
