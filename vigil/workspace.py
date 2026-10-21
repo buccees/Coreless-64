@@ -16,6 +16,7 @@ from .positioning import PoseEstimator, SpatialObservation
 from .object_tracking import ObjectObservation, ObjectTrack, ObjectTracker, TrackingModality
 from .terminal import VigilTerminal
 from .infrared_floor_mapping import InfraredFloorMap
+from .spatial_scene import SpatialScene, assemble_spatial_scene
 
 
 @dataclass(frozen=True)
@@ -461,10 +462,26 @@ class SpatialWorkspace:
             views=tuple(views),
         )
 
+    def spatial_scene(self, *, now_ns: int, max_age_ns: int = 2_000_000_000,
+                      max_pose_uncertainty_m: float = 2.0) -> SpatialScene:
+        """Assemble a quality-gated renderer scene from the latest workspace state."""
+        snapshot = self.refresh(now_ns=now_ns, max_age_ns=max_age_ns)
+        return assemble_spatial_scene(
+            snapshot.model, snapshot.pose, snapshot.object_tracks, snapshot.infrared_maps,
+            selected_level=snapshot.selected_level, now_ns=now_ns,
+            max_pose_age_ns=max_age_ns, max_object_age_ns=max_age_ns,
+            max_pose_uncertainty_m=max_pose_uncertainty_m,
+        )
+
     def render(self, *, now_ns: int) -> str:
         snapshot = self.refresh(now_ns=now_ns)
+        scene = assemble_spatial_scene(
+            snapshot.model, snapshot.pose, snapshot.object_tracks, snapshot.infrared_maps,
+            selected_level=snapshot.selected_level, now_ns=now_ns,
+        )
         return self.terminal.render(
             snapshot.model, snapshot.pose, self._observations, now_ns=now_ns,
             selected_level=snapshot.selected_level,
             object_tracks=snapshot.object_tracks,
+            spatial_scene=scene,
         )
