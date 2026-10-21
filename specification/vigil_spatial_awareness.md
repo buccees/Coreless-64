@@ -96,3 +96,9 @@ Concrete names may follow repository conventions discovered during implementatio
 The workspace exposes `register_sensor_provider(provider_id, provider)`, `poll_sensors()`, and `unregister_sensor_provider(provider_id)`. A provider implements a small `read() -> Sequence[SpatialObservation]` contract. Each observation must already include its model ID/revision, target frame, monotonic timestamp, uncertainty, and provenance. The workspace does not silently transform raw device coordinates or infer a missing fix.
 
 Providers are polled independently. A disconnected or malformed adapter returns an `ERROR` status for that provider without aborting the remaining polls or throwing into the caller's input loop. The pose estimator still rejects stale and incompatible observations. This is an adapter seam and testable lifecycle—not yet a live GPS, camera, IMU, UWB, or RF hardware driver. Coreless continues to own raw touch/pointer/input handling, and VIGIL provider health must never gate those events.
+
+## Scanned floor-plan alignment
+
+`vigil/raster_calibration.py` adds a deterministic affine calibration for a scanned 2D floor plan. An operator or upstream detector supplies at least three non-collinear control points pairing image pixel coordinates with surveyed model-frame XY coordinates. The fitted transform reports its RMS residual, maps pixels to metric floor coordinates at an explicit surveyed elevation, and supports the inverse model-to-pixel mapping for overlays.
+
+This calibrates the image coordinate system; it does **not** yet load PDF/image files, detect walls or labels, infer geometry, or reconstruct a 3D building. Those require format-specific import/vision adapters and review of detected geometry. A floor plan without known scale/orientation/control points must remain uncalibrated rather than being positioned by guesswork.
