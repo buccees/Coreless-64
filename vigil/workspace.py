@@ -463,4 +463,5 @@ class SpatialWorkspace:
         return self.terminal.render(
             snapshot.model, snapshot.pose, self._observations, now_ns=now_ns,
             selected_level=snapshot.selected_level,
+            object_tracks=snapshot.object_tracks,
         )
