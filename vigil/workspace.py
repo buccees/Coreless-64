@@ -308,6 +308,7 @@ class SpatialWorkspace:
                 uncertainty_m=max(sample.uncertainty_m, 0.01),
                 modality=TrackingModality.INFRARED,
                 provenance="calibrated-infrared-floor-map",
+                association_id=sample.association_id,
             ))
         return self.ingest_object_observations(converted)
 
