@@ -17,6 +17,7 @@ from .positioning import FakeObservationProvider, PoseEstimator, SpatialObservat
 from .gesture import GestureInterpreter, GestureResult, TouchPoint
 from .gps import GPSFix, GPSObservationAdapter, GeodeticAnchor
 from .terminal import SensorLine, VigilTerminal
+from .workspace import BlueprintRegistry, SpatialWorkspace, WorkspaceSnapshot
 from .interaction import HumanInteractionService, InteractionRequest, InteractionResponse
 from .model import Detection, EntityType, Observation, Provenance, SensorState, Track, Uncertainty, WorldEntity
 from .presentation import PresentationManager, PresentationState
@@ -44,7 +45,7 @@ __all__ = [
     "Provenance", "RelevancePriorityEngine", "ReplayEvent", "ReplayLog",
     "ReplaySource", "ReplayValidation", "SensorState", "SharedCameraSource",
     "SimulationFrame", "SpatialPoint", "Track", "TrackManager", "Uncertainty",
-    "SensorLine", "VigilTerminal",
+    "SensorLine", "VigilTerminal", "BlueprintRegistry", "SpatialWorkspace", "WorkspaceSnapshot",
     "VigilEnvironment", "VigilInputInterpreter", "VigilInputLayer", "VigilStatus",
     "VisualPointer", "VisualTouchIntent", "WorldEntity", "WorldModel",
     "WorldModelEvent", "bearing_degrees", "distance_between", "nearest_feature",
