@@ -12,6 +12,7 @@ from .blueprint import (
     register_blueprint,
 )
 from .input import VigilInputInterpreter, VigilInputLayer
+from .positioning import FakeObservationProvider, PoseEstimator, SpatialObservation
 from .gesture import GestureInterpreter, GestureResult, TouchPoint
 from .interaction import HumanInteractionService, InteractionRequest, InteractionResponse
 from .model import Detection, EntityType, Observation, Provenance, SensorState, Track, Uncertainty, WorldEntity
@@ -33,9 +34,9 @@ __all__ = [
     "AuthorizationContext", "AuthorizationService", "BlueprintModel", "CameraFrame",
     "CameraReader", "CoordinateTransform", "CorelessVigilAI", "Detection",
     "DetectionKind", "EntityType", "FastCameraTouchPath", "FastTouchDetector",
-    "HumanInteractionService", "InteractionRequest", "InteractionResponse",
+    "FakeObservationProvider", "HumanInteractionService", "InteractionRequest", "InteractionResponse",
     "GestureInterpreter", "GestureResult", "ModelFeature", "Observation",
-    "TouchPoint", "OptionalAIAnalyzer", "PoseEstimate", "PoseState",
+    "TouchPoint", "OptionalAIAnalyzer", "PoseEstimate", "PoseState", "PoseEstimator",
     "PresentationManager", "PresentationState", "PriorityContext", "PriorityResult",
     "Provenance", "RelevancePriorityEngine", "ReplayEvent", "ReplayLog",
     "ReplaySource", "ReplayValidation", "SensorState", "SharedCameraSource",
