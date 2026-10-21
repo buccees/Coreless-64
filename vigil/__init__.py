@@ -19,7 +19,7 @@ from .positioning import FakeObservationProvider, PoseEstimator, SpatialObservat
 from .gesture import GestureInterpreter, GestureResult, TouchPoint
 from .gps import GPSFix, GPSObservationAdapter, GeodeticAnchor
 from .terminal import SensorLine, VigilTerminal
-from .workspace import BlueprintRegistry, PreloadedFloorWindow, SensorPollStatus, SpatialSensorProvider, SpatialWorkspace, WorkspaceSnapshot
+from .workspace import BlueprintRegistry, PreloadedFloorWindow, SensorBatch, SensorPollStatus, SpatialSensorProvider, SpatialWorkspace, WorkspaceSnapshot
 from .sensor_adapters import RangeMeasurement, acoustic_tof_range_m, rf_tof_range_m, to_object_observation, trilaterate_3d
 from .raster_calibration import RasterBlueprintCalibration, RasterControlPoint
 from .infrared_floor_mapping import InfraredFloorMap, InfraredFloorMapper, InfraredPixelSample, MappedInfraredSample
@@ -51,7 +51,7 @@ __all__ = [
     "Provenance", "RelevancePriorityEngine", "ReplayEvent", "ReplayLog",
     "ReplaySource", "ReplayValidation", "SensorState", "SharedCameraSource",
     "SimulationFrame", "SpatialPoint", "Track", "TrackManager", "Uncertainty",
-    "SensorLine", "VigilTerminal", "BlueprintRegistry", "PreloadedFloorWindow", "SensorPollStatus", "SpatialSensorProvider", "SpatialWorkspace", "WorkspaceSnapshot",
+    "SensorLine", "VigilTerminal", "BlueprintRegistry", "PreloadedFloorWindow", "SensorBatch", "SensorPollStatus", "SpatialSensorProvider", "SpatialWorkspace", "WorkspaceSnapshot",
     "RangeMeasurement", "acoustic_tof_range_m", "rf_tof_range_m", "to_object_observation", "trilaterate_3d",
     "RasterBlueprintCalibration", "RasterControlPoint", "InfraredFloorMap", "InfraredFloorMapper", "InfraredPixelSample", "MappedInfraredSample",
     "ObjectObservation", "ObjectTrack", "ObjectTracker", "TrackingModality",
