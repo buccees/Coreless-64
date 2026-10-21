@@ -21,6 +21,7 @@ class InfraredPixelSample:
     temperature_c: float | None = None
     pixel_uncertainty: float = 1.0
     label: str = ""
+    association_id: str | None = None
 
     def __post_init__(self) -> None:
         if not all(isfinite(v) for v in (self.pixel_x, self.pixel_y, self.intensity,
@@ -32,6 +33,8 @@ class InfraredPixelSample:
             raise ValueError("temperature_c must be finite when supplied")
         if self.pixel_uncertainty < 0:
             raise ValueError("pixel_uncertainty cannot be negative")
+        if self.association_id is not None and not self.association_id.strip():
+            raise ValueError("association_id must be non-empty when provided")
 
 
 @dataclass(frozen=True)
@@ -47,6 +50,7 @@ class MappedInfraredSample:
     temperature_c: float | None
     uncertainty_m: float
     label: str
+    association_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -124,6 +128,7 @@ class InfraredFloorMapper:
                     + (sample.pixel_uncertainty * metres_per_pixel) ** 2
                 ),
                 label=sample.label,
+                association_id=sample.association_id,
             ))
         return InfraredFloorMap(
             sensor_id=self.sensor_id,
