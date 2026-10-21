@@ -1,0 +1,92 @@
+# VIGIL Spatial Awareness — Coreless-64 Integration
+
+## Purpose
+
+VIGIL needs a spatial-awareness subsystem that locates a device or tracked subject *within a registered 3D blueprint/model*. This is not a turn-by-turn navigation feature. It aligns observations and positioning estimates with model geometry and reports a confidence-bounded pose to VIGIL.
+
+Implementation belongs in `buccees/Coreless-64`. The separate VIGIL repository is reference material only.
+
+## Architectural boundary
+
+Keep the subsystem behind explicit interfaces so it can be tested without GPS hardware, a camera, or a physical facility.
+
+- **Blueprint ingestion**: accepts a blueprint/image/PDF or a 3D model through a format-specific adapter; validates units, scale, orientation, levels, and coordinate metadata.
+- **Model registry**: stores the normalized model, its revision/hash, coordinate frame, floor/zone identifiers, and known anchors.
+- **Observation adapters**: provide timestamped GPS/GNSS, IMU, camera/visual features, BLE/UWB/beacon, or manually confirmed anchor observations when available. Missing sensors must remain missing, not be fabricated.
+- **Pose estimator**: combines compatible observations with model anchors and returns a pose estimate, uncertainty, timestamp, and provenance.
+- **Spatial query API**: answers model-relative questions such as current level/zone, nearest modeled feature, distance to a model feature, and whether a pose intersects a defined region.
+- **VIGIL presentation adapter**: exposes the pose and confidence for a green-phosphor terminal, facility overlay, and alerts without owning sensor acquisition or authoritative Coreless policy.
+
+## Coordinate frames
+
+Use named, explicit frames; never mix raw GPS coordinates with model-local coordinates implicitly.
+
+1. **Geodetic frame** — GNSS/GPS observations in a documented datum.
+2. **Facility frame** — a site-wide metric coordinate system, if a surveyed/georeferenced transform exists.
+3. **Model frame** — the blueprint's normalized local coordinates and units.
+4. **Device frame** — sensor/body coordinates, with declared axis conventions.
+
+A versioned transform maps geodetic/facility coordinates to the model frame only when calibration or surveyed control points support it. Store transform provenance and calibration residuals. If the blueprint has no georeference, require anchor-based/manual alignment; do not pretend GPS alone identifies an indoor position.
+
+## Pose and confidence contract
+
+A pose result should include:
+
+- model ID and immutable model revision/hash;
+- coordinate-frame ID and position in model units;
+- optional orientation, level, and zone;
+- observation timestamp and result timestamp;
+- source observations/adapter identifiers and their timestamps;
+- estimated uncertainty/confidence and validity state;
+- stale-data indicators and reason codes when a fix is unavailable.
+
+Use explicit states such as `UNINITIALIZED`, `CALIBRATING`, `TRACKING`, `DEGRADED`, and `LOST`. Do not present a stale or low-confidence estimate as an exact location. A caller must be able to distinguish “no fix” from a valid pose at the origin.
+
+## Coreless integration rules
+
+- Route sensor data through the existing versioned Coreless input/event boundary or a narrowly defined adapter; do not bypass sequence, timestamp, metadata, and provenance validation.
+- Spatial interpretation is derived data. Malformed or unavailable VIGIL interpretation must not block delivery of raw Coreless input events.
+- Keep AI output advisory. A model-generated interpretation cannot authorize movement, unlocks, alarms being silenced, or other protected actions.
+- Persist model metadata and calibration records through an explicit storage interface; keep large source assets and retention policy separate from transient pose state.
+- Use deterministic fake observations and a synthetic model for regression tests. Hardware adapters and real-world accuracy require separate validation.
+
+## Suggested interface shape
+
+These are conceptual contracts to implement and test, not claims that the APIs already exist:
+
+- `BlueprintSource.load(source) -> BlueprintAsset`
+- `ModelNormalizer.normalize(asset, calibration) -> ModelRevision`
+- `ObservationProvider.read() -> ObservationBatch`
+- `PoseEstimator.update(model_revision, observations, prior_pose) -> PoseEstimate`
+- `SpatialQuery.evaluate(model_revision, pose_estimate, query) -> QueryResult`
+- `VigilSpatialAdapter.snapshot() -> SpatialStatus`
+
+Concrete names may follow repository conventions discovered during implementation. Avoid introducing a parallel event bus if existing Coreless input and component interfaces can carry the contract cleanly.
+
+## Initial implementation sequence
+
+1. Inspect existing VIGIL adapter, Coreless input-event ABI, storage conventions, and terminal/display interfaces on the active integration branch.
+2. Add typed model-frame, transform, observation, pose, uncertainty, and status records.
+3. Implement a synthetic blueprint/model and deterministic fake-observation provider.
+4. Add tests for frame conversion, unit/scale validation, stale observations, missing sensors, invalid calibration, uncertainty propagation, and no-fix behavior.
+5. Add the VIGIL read-only status adapter and a minimal terminal panel for model/floor/zone, pose state, confidence, and last update.
+6. Add real blueprint parsing and sensor adapters individually, each with explicit format/device validation.
+7. Validate against surveyed control points and representative indoor/outdoor tests before claiming positional accuracy.
+
+## Acceptance criteria
+
+- A user can load/register a model and see which model revision is active.
+- The system can express a position in model coordinates only after a valid calibration/alignment step.
+- GPS is treated as one possible observation source, not a sufficient indoor-positioning solution.
+- Unknown, stale, inconsistent, or poorly calibrated observations produce degraded/no-fix status rather than a fabricated precise location.
+- Spatial results include frame, timestamp, uncertainty, and provenance.
+- Raw Coreless input delivery continues if the optional VIGIL spatial adapter fails.
+- Unit tests run without physical devices; hardware and field accuracy are separately reported.
+- The terminal presentation is read-only with respect to Coreless security policy.
+
+## Non-goals for the first milestone
+
+- Turn-by-turn navigation as the primary feature.
+- Claiming centimeter-level or indoor accuracy from GPS alone.
+- Treating a scanned 2D blueprint as a fully registered 3D model without scale, elevation/floor, and alignment data.
+- Allowing AI-generated pose or text to bypass deterministic Coreless permissions.
