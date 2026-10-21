@@ -73,3 +73,81 @@ def test_single_point_axes_are_centered_without_division_by_zero():
     )
     view = build_blueprint_view(m)
     assert view.features[0].normalized_position == (0.5, 0.5, 0.5)
+
+
+from vigil.object_tracking import ObjectTrack
+
+
+def tracked_object(m, **overrides):
+    values = {
+        "object_id": "person-7",
+        "model_id": m.model_id,
+        "model_revision": m.revision,
+        "frame_id": m.frame_id,
+        "position_m": (3.0, 2.0, 0.2),
+        "velocity_mps": (0.1, 0.0, 0.0),
+        "uncertainty_m": 0.4,
+        "last_seen_ns": 500,
+        "sensor_ids": ("uwb-1", "ir-2"),
+        "modalities": ("infrared", "uwb"),
+        "observation_count": 4,
+        "association_id": "entity-7",
+        "provenance": ("calibrated-uwb", "thermal-detector"),
+        "conflict": True,
+        "conflict_reasons": ("position_disagreement",),
+        "conflicting_sensor_ids": ("ir-2", "uwb-1"),
+    }
+    values.update(overrides)
+    return ObjectTrack(**values)
+
+
+def test_view_projects_track_identity_uncertainty_and_conflict_for_renderer():
+    m = model()
+    track = tracked_object(m)
+    view = build_blueprint_view(m, selected_level="L1", object_tracks=(track,))
+    assert len(view.objects) == 1
+    marker = view.objects[0]
+    assert marker.position_m == track.position_m
+    assert marker.normalized_position == (0.3, 0.5, 0.5)
+    assert marker.association_id == "entity-7"
+    assert marker.uncertainty_m == 0.4
+    assert marker.conflict is True
+    assert marker.conflict_reasons == ("position_disagreement",)
+    assert marker.conflicting_sensor_ids == ("ir-2", "uwb-1")
+    assert marker.sensor_ids == ("uwb-1", "ir-2")
+    assert marker.modalities == ("infrared", "uwb")
+    assert marker.provenance == ("calibrated-uwb", "thermal-detector")
+
+
+def test_view_ignores_tracks_from_wrong_model_revision_or_frame():
+    m = model()
+    bad_tracks = (
+        tracked_object(m, model_revision="old"),
+        tracked_object(m, frame_id="other-frame"),
+        tracked_object(m, model_id="other-building"),
+    )
+    view = build_blueprint_view(m, object_tracks=bad_tracks)
+    assert view.objects == ()
+
+
+def test_view_uses_surveyed_floor_elevations_without_guessing_when_unavailable():
+    m = register_blueprint(
+        "building", "r1", frame_id="building/frame", units="m",
+        features=[
+            {"feature_id": "a", "label": "L1", "position": [0, 0, 0], "level": "L1"},
+            {"feature_id": "b", "label": "L2", "position": [10, 10, 4], "level": "L2"},
+        ],
+        metadata={"floor_elevations_m": {"L1": 0.0, "L2": 4.0}},
+    )
+    lower = tracked_object(m, position_m=(1.0, 1.0, 0.2))
+    upper = tracked_object(m, object_id="person-8", position_m=(1.0, 1.0, 4.1), conflict=False, conflict_reasons=(), conflicting_sensor_ids=())
+    view = build_blueprint_view(m, selected_level="L1", object_tracks=(lower, upper))
+    assert view.objects[0].inferred_level == "L1"
+    assert view.objects[0].visible_on_selected_level is True
+    assert view.objects[1].inferred_level == "L2"
+    assert view.objects[1].visible_on_selected_level is False
+
+    no_elevations = model()
+    unknown = build_blueprint_view(no_elevations, selected_level="L1", object_tracks=(tracked_object(no_elevations),))
+    assert unknown.objects[0].inferred_level is None
+    assert unknown.objects[0].visible_on_selected_level is None
