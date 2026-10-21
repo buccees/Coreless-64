@@ -215,17 +215,13 @@ class FloorTracker:
         for connection in self.building.connections:
             if connection.from_level == self.active_level:
                 destination, endpoint = connection.to_level, connection.to_position_m
-                source_endpoint = connection.from_position_m
             elif connection.to_level == self.active_level:
                 destination, endpoint = connection.from_level, connection.from_position_m
-                source_endpoint = connection.to_position_m
             else:
                 continue
             distance = sqrt((x-endpoint[0])**2 + (y-endpoint[1])**2 + (z-endpoint[2])**2)
-            source_distance = sqrt((x-source_endpoint[0])**2 + (y-source_endpoint[1])**2 + (z-source_endpoint[2])**2)
             destination_floor = floors[destination]
             if (distance <= self.endpoint_radius_m
-                    and source_distance <= self.endpoint_radius_m + abs(z-endpoint[2])
                     and abs(z-destination_floor.elevation_m) <= self.elevation_tolerance_m):
                 candidate = destination
                 break
