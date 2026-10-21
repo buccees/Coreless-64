@@ -137,3 +137,92 @@ def test_tracker_does_not_merge_nearby_detections_without_shared_identity():
     ], now_ns=110)
     assert len(tracks) == 2
     assert {track.object_id for track in tracks} == {"vision-1", "thermal-1"}
+
+
+
+def test_tracker_flags_position_conflict_without_averaging_targets_to_midpoint():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    tracks = ObjectTracker().update(model, [
+        ObjectObservation(
+            "thermal-target", "thermal", model.model_id, model.revision,
+            model.frame_id, 1_000_000_000, (0.0, 0.0, 0.0), 0.1,
+            TrackingModality.INFRARED, "thermal-detector", association_id="entity-1",
+        ),
+        ObjectObservation(
+            "vision-target", "camera", model.model_id, model.revision,
+            model.frame_id, 1_000_000_000, (10.0, 0.0, 0.0), 0.2,
+            TrackingModality.VISION, "vision-reid", association_id="entity-1",
+        ),
+    ], now_ns=1_000_000_000)
+
+    assert len(tracks) == 1
+    track = tracks[0]
+    assert track.conflict is True
+    assert track.conflict_reasons == ("position_disagreement",)
+    assert track.conflicting_sensor_ids == ("camera", "thermal")
+    assert track.position_m == pytest.approx((0.0, 0.0, 0.0))
+    assert track.position_m != pytest.approx((5.0, 0.0, 0.0))
+
+
+def test_tracker_flags_excessive_timestamp_skew_on_shared_identity():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    tracks = ObjectTracker(max_fusion_skew_ns=50_000_000).update(model, [
+        ObjectObservation(
+            "thermal-target", "thermal", model.model_id, model.revision,
+            model.frame_id, 900_000_000, (1.0, 0.0, 0.0), 0.1,
+            TrackingModality.INFRARED, "thermal-detector", association_id="entity-1",
+        ),
+        ObjectObservation(
+            "vision-target", "camera", model.model_id, model.revision,
+            model.frame_id, 1_000_000_000, (1.0, 0.0, 0.0), 0.2,
+            TrackingModality.VISION, "vision-reid", association_id="entity-1",
+        ),
+    ], now_ns=1_000_000_000)
+
+    assert len(tracks) == 1
+    assert tracks[0].conflict is True
+    assert tracks[0].conflict_reasons == ("timestamp_skew",)
+    assert tracks[0].conflicting_sensor_ids == ("camera", "thermal")
+    assert tracks[0].position_m == pytest.approx((1.0, 0.0, 0.0))
+
+
+def test_tracker_clears_conflict_flag_when_new_consistent_epoch_arrives():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    tracker = ObjectTracker(alpha=1.0)
+    tracker.update(model, [
+        ObjectObservation(
+            "thermal-target", "thermal", model.model_id, model.revision,
+            model.frame_id, 1_000_000_000, (0.0, 0.0, 0.0), 0.1,
+            TrackingModality.INFRARED, "thermal-detector", association_id="entity-1",
+        ),
+        ObjectObservation(
+            "vision-target", "camera", model.model_id, model.revision,
+            model.frame_id, 1_000_000_000, (10.0, 0.0, 0.0), 0.1,
+            TrackingModality.VISION, "vision-reid", association_id="entity-1",
+        ),
+    ], now_ns=1_000_000_000)
+    clean = tracker.update(model, [
+        ObjectObservation(
+            "thermal-target", "thermal", model.model_id, model.revision,
+            model.frame_id, 2_000_000_000, (2.0, 0.0, 0.0), 0.1,
+            TrackingModality.INFRARED, "thermal-detector", association_id="entity-1",
+        ),
+        ObjectObservation(
+            "vision-target", "camera", model.model_id, model.revision,
+            model.frame_id, 2_000_000_000, (2.1, 0.0, 0.0), 0.1,
+            TrackingModality.VISION, "vision-reid", association_id="entity-1",
+        ),
+    ], now_ns=2_000_000_000)
+
+    assert clean[0].conflict is False
+    assert clean[0].conflict_reasons == ()
+    assert clean[0].conflicting_sensor_ids == ()
