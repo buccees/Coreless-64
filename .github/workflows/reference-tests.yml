@@ -20,7 +20,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: python -m pytest -q
       - name: Run VIGIL spatial and shared-Qwen3 tests
-        working-directory: ${{ github.workspace }}
+        working-directory: reference
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: python -m pytest -q vigil/test_blueprint.py vigil/test_ai.py
+        run: python -m pytest -q ../vigil/test_blueprint.py ../vigil/test_ai.py
