@@ -86,6 +86,20 @@ def assemble_spatial_scene(
             view = None
     checks.append(SceneCheck("blueprint_view_built", view is not None,
                              "geometry and overlays projected" if view else "view projection failed"))
+    if model is None:
+        level_valid = False
+        level_detail = "no active blueprint"
+    else:
+        modeled_levels = {feature.level for feature in model.features if feature.level is not None}
+        level_valid = (selected_level in modeled_levels) if modeled_levels else (selected_level is None)
+        level_detail = (
+            f"selected floor {selected_level} exists in model"
+            if level_valid and selected_level is not None
+            else "model has no floor labels; floor selection not required"
+            if level_valid
+            else f"selected floor {selected_level!r} is missing or unset"
+        )
+    checks.append(SceneCheck("active_floor_selected", level_valid, level_detail))
 
     if model is not None and pose is not None:
         aligned_pose = (pose.model_id, pose.model_revision, pose.frame_id) == (
