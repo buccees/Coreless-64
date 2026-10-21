@@ -149,3 +149,46 @@ def test_workspace_activates_building_tracks_floor_and_builds_selected_floor_vie
     assert workspace.select_level("L1") == "L1"
     assert workspace.floor_transition is not None
     assert workspace.floor_transition.reason == "starting floor reset manually"
+
+
+
+def test_workspace_preloads_active_and_immediately_adjacent_floor_views():
+    from vigil.blueprint import CoordinateTransform
+    from vigil.building import BuildingBlueprintBuilder
+
+    builder = BuildingBlueprintBuilder("tower", "r1", "tower/world")
+    for level, elevation in (("L1", 0.0), ("L2", 3.0), ("L3", 6.0)):
+        frame = f"{level}/local"
+        floor_model = register_blueprint(
+            f"upload-{level}", "r1", frame_id=frame, units="m",
+            features=[
+                {"feature_id": "anchor", "label": f"{level} anchor",
+                 "position": [0, 0, 0]},
+                {"feature_id": "lift", "label": f"{level} lift",
+                 "position": [2, 2, 0]},
+            ],
+        )
+        builder.add_floor(
+            floor_model, level_id=level, label=f"Floor {level}", elevation_m=elevation,
+            transform_to_building=CoordinateTransform(
+                frame, "tower/world", translation=(0, 0, elevation), provenance="survey"
+            ),
+        )
+    building = builder.build()
+    workspace = SpatialWorkspace()
+    workspace.activate_building(building, starting_level="L2")
+
+    window = workspace.preload_adjacent_floors(now_ns=10)
+    assert window.active_level == "L2"
+    assert window.below_level == "L1"
+    assert window.above_level == "L3"
+    assert window.loaded_levels == ("L1", "L2", "L3")
+    assert len(window.views) == 3
+    assert [view.selected_level for view in window.views] == ["L1", "L2", "L3"]
+    assert all(view.features for view in window.views)
+
+
+def test_workspace_requires_building_before_adjacent_floor_preload():
+    workspace = SpatialWorkspace()
+    with pytest.raises(RuntimeError, match="connected building"):
+        workspace.preload_adjacent_floors(now_ns=0)
