@@ -312,3 +312,20 @@ def test_failed_multimodal_provider_does_not_block_healthy_provider():
     assert statuses["broken"].state == "ERROR"
     assert statuses["healthy"].state == "ONLINE"
     assert workspace.refresh(now_ns=100).object_tracks[0].object_id == "person-1"
+
+
+
+def test_workspace_blueprint_view_includes_current_object_markers():
+    from vigil.object_tracking import ObjectObservation, TrackingModality
+
+    workspace = SpatialWorkspace()
+    model = workspace.import_blueprint(manifest(), activate=True)
+    workspace.select_level("L1")
+    workspace.ingest_object_observations([ObjectObservation(
+        "cart-9", "vision-camera", model.model_id, model.revision, model.frame_id,
+        100, (2.0, 1.0, 0.0), 0.2, TrackingModality.VISION, "calibrated-camera",
+    )])
+    view = workspace.blueprint_view(now_ns=110)
+    assert len(view.objects) == 1
+    assert view.objects[0].object_id == "cart-9"
+    assert view.objects[0].modalities == ("vision",)
