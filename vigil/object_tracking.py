@@ -19,6 +19,7 @@ class TrackingModality(str, Enum):
     ACOUSTIC_SONAR = "acoustic_sonar"
     VISION = "vision"
     UWB = "uwb"
+    INFRARED = "infrared"
     OTHER = "other"
 
 
