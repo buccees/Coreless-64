@@ -252,3 +252,66 @@ def nearest_feature(
     if nearest is None or (max_distance_m is not None and nearest[1] > max_distance_m):
         return None
     return nearest
+
+
+
+def load_blueprint_json(
+    document: str | bytes,
+    *,
+    max_bytes: int = 5_000_000,
+) -> BlueprintModel:
+    """Load a version-1 JSON blueprint manifest into the canonical model.
+
+    This deliberately supports a stable, explicit interchange format rather
+    than claiming to parse arbitrary CAD/PDF/mesh files. A future extractor
+    can convert those source formats into this manifest.
+    """
+    if max_bytes <= 0:
+        raise ValueError("max_bytes must be positive")
+    if isinstance(document, bytes):
+        raw = document
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError("blueprint JSON must be UTF-8") from exc
+    elif isinstance(document, str):
+        text = document
+        raw = text.encode("utf-8")
+    else:
+        raise TypeError("document must be JSON text or UTF-8 bytes")
+    if len(raw) > max_bytes:
+        raise ValueError(f"blueprint JSON exceeds {max_bytes} byte limit")
+
+    def reject_nonstandard_constant(value: str) -> None:
+        raise ValueError(f"non-finite JSON number is not allowed: {value}")
+
+    try:
+        payload = json.loads(text, parse_constant=reject_nonstandard_constant)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ValueError(f"invalid blueprint JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("blueprint manifest must be a JSON object")
+    if payload.get("schema_version") != 1:
+        raise ValueError("unsupported blueprint schema_version; expected 1")
+
+    model_id = payload.get("model_id")
+    revision = payload.get("revision")
+    frame_id = payload.get("frame_id")
+    units = payload.get("units")
+    features = payload.get("features")
+    metadata = payload.get("metadata", {})
+    if not all(isinstance(value, str) for value in (model_id, revision, frame_id, units)):
+        raise ValueError("model_id, revision, frame_id, and units must be strings")
+    if not isinstance(features, list):
+        raise ValueError("features must be a JSON array")
+    if not isinstance(metadata, dict):
+        raise ValueError("metadata must be a JSON object")
+
+    return register_blueprint(
+        model_id,
+        revision,
+        frame_id=frame_id,
+        units=units,
+        features=features,
+        metadata=metadata,
+    )
