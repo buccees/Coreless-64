@@ -68,6 +68,7 @@ class VigilTerminal:
         observations: Sequence[SpatialObservation] = (),
         *,
         now_ns: int,
+        selected_level: str | None = None,
     ) -> str:
         """Return terminal text; missing/stale data is shown explicitly as unknown."""
         if now_ns < 0:
@@ -82,6 +83,7 @@ class VigilTerminal:
         else:
             lines.append(f"║ BLUEPRINT : {self._fit(model.model_id + ' / ' + model.revision, 44)}║")
             lines.append(f"║ FRAME     : {self._fit(model.frame_id, 44)}║")
+        lines.append(f"║ ACTIVE LEVEL: {self._fit(selected_level or 'AUTO / UNKNOWN', 44)}║")
 
         if pose is None:
             lines.extend([
