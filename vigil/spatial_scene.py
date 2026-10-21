@@ -59,6 +59,7 @@ def assemble_spatial_scene(
     aligned_pose = False
     pose_fresh = False
     pose_precise = False
+    pose_state_usable = False
     valid_tracks: list[ObjectTrack] = []
     valid_ir_levels: set[str] = set()
     view = None
@@ -94,8 +95,10 @@ def assemble_spatial_scene(
             pose.observation_timestamp_ns is not None
             and 0 <= now_ns - pose.observation_timestamp_ns <= max_pose_age_ns
         )
+        pose_state_usable = pose.state.value in ("TRACKING", "DEGRADED")
         pose_precise = (
-            pose.position_m is not None
+            pose_state_usable
+            and pose.position_m is not None
             and pose.uncertainty_m is not None
             and pose.uncertainty_m <= max_pose_uncertainty_m
         )
@@ -104,7 +107,7 @@ def assemble_spatial_scene(
     checks.append(SceneCheck("pose_fresh", pose_fresh,
                              "pose timestamp within freshness limit" if pose_fresh else "pose missing, future-dated, or stale"))
     checks.append(SceneCheck("pose_confidence", pose_precise,
-                             f"uncertainty within {max_pose_uncertainty_m:.2f} m" if pose_precise else "no valid position or uncertainty exceeds limit"))
+                             f"{pose.state.value}; uncertainty within {max_pose_uncertainty_m:.2f} m" if pose_precise and pose is not None else "pose not tracking/degraded, position missing, or uncertainty exceeds limit"))
 
     conflict_count = sum(track.conflict for track in valid_tracks)
     tracks_clear = conflict_count == 0 or not require_conflict_free_tracks
