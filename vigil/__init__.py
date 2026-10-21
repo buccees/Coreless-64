@@ -3,6 +3,7 @@
 from .ai import AnalysisResult, CorelessVigilAI, OptionalAIAnalyzer
 from .attention import AttentionItem, AttentionLifecycle, AttentionManager
 from .blueprint_view import AxisBounds, BlueprintView, FeatureProjection, PoseProjection, build_blueprint_view
+from .building import BuildingBlueprint, BuildingBlueprintBuilder, FloorRegistration, FloorTracker, FloorTransition, VerticalConnection
 from .blueprint import (
     BlueprintModel,
     CoordinateTransform,
@@ -36,7 +37,7 @@ from .camera import SharedCameraSource, CameraReader
 
 __all__ = [
     "AnalysisResult", "AttentionItem", "AttentionLifecycle", "AttentionManager",
-    "AuthorizationContext", "AuthorizationService", "BlueprintModel", "BlueprintView", "AxisBounds", "CameraFrame",
+    "AuthorizationContext", "AuthorizationService", "BlueprintModel", "BlueprintView", "BuildingBlueprint", "BuildingBlueprintBuilder", "FloorRegistration", "FloorTracker", "FloorTransition", "VerticalConnection", "AxisBounds", "CameraFrame",
     "CameraReader", "CoordinateTransform", "CorelessVigilAI", "Detection",
     "DetectionKind", "EntityType", "FeatureProjection", "PoseProjection", "FastCameraTouchPath", "FastTouchDetector",
     "FakeObservationProvider", "GPSFix", "GPSObservationAdapter", "GeodeticAnchor", "HumanInteractionService", "InteractionRequest", "InteractionResponse",
