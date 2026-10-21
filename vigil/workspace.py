@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from .blueprint import BlueprintModel, PoseEstimate, load_blueprint_json
+from .blueprint_view import BlueprintView, build_blueprint_view
+from .building import BuildingBlueprint, FloorTracker, FloorTransition
 from .positioning import PoseEstimator, SpatialObservation
 from .terminal import VigilTerminal
 
@@ -20,6 +22,7 @@ class WorkspaceSnapshot:
     pose: PoseEstimate | None
     selected_level: str | None
     observation_count: int
+    floor_transition: FloorTransition | None = None
 
 
 class BlueprintRegistry:
@@ -88,6 +91,9 @@ class SpatialWorkspace:
         self._observations: list[SpatialObservation] = []
         self._pose: PoseEstimate | None = None
         self._selected_level: str | None = None
+        self._floor_tracker: FloorTracker | None = None
+        self._last_floor_pose_timestamp_ns: int | None = None
+        self._last_floor_transition: FloorTransition | None = None
 
     @property
     def active_model(self) -> BlueprintModel | None:
@@ -97,6 +103,24 @@ class SpatialWorkspace:
     def selected_level(self) -> str | None:
         return self._selected_level
 
+    @property
+    def floor_transition(self) -> FloorTransition | None:
+        return self._last_floor_transition
+
+    def activate_building(self, building: BuildingBlueprint, *, starting_level: str) -> BlueprintModel:
+        """Activate a composed building and initialize automatic floor tracking."""
+        model = self.registry.register(building.model, activate=True)
+        self._pose = None
+        self._selected_level = None
+        self._floor_tracker = FloorTracker(building)
+        self._floor_tracker.establish_start(starting_level)
+        self._selected_level = starting_level
+        self._last_floor_pose_timestamp_ns = None
+        self._last_floor_transition = FloorTransition(
+            starting_level, None, False, "starting floor established"
+        )
+        return model
+
     def import_blueprint(self, document: str | bytes, *, activate: bool = False,
                          max_bytes: int = 5_000_000) -> BlueprintModel:
         previous_active = self.registry.active_model
@@ -104,12 +128,18 @@ class SpatialWorkspace:
         if activate or previous_active is None:
             self._pose = None
             self._selected_level = None
+            self._floor_tracker = None
+            self._last_floor_pose_timestamp_ns = None
+            self._last_floor_transition = None
         return model
 
     def activate_blueprint(self, model_id: str, revision: str | None = None) -> BlueprintModel:
         model = self.registry.activate(model_id, revision)
         self._pose = None
         self._selected_level = None
+        self._floor_tracker = None
+        self._last_floor_pose_timestamp_ns = None
+        self._last_floor_transition = None
         return model
 
     def select_level(self, level: str) -> str:
@@ -153,7 +183,26 @@ class SpatialWorkspace:
                 max_uncertainty_m=max_uncertainty_m,
                 max_disagreement_m=max_disagreement_m,
             )
-        return WorkspaceSnapshot(model, self._pose, self._selected_level, len(self._observations))
+            if self._floor_tracker is not None and self._pose.observation_timestamp_ns is not None:
+                timestamp = self._pose.observation_timestamp_ns
+                if timestamp != self._last_floor_pose_timestamp_ns:
+                    self._last_floor_transition = self._floor_tracker.update(self._pose)
+                    self._last_floor_pose_timestamp_ns = timestamp
+                    if self._last_floor_transition.changed:
+                        self._selected_level = self._last_floor_transition.active_level
+        return WorkspaceSnapshot(
+            model, self._pose, self._selected_level, len(self._observations),
+            self._last_floor_transition,
+        )
+
+    def blueprint_view(self, *, now_ns: int) -> BlueprintView:
+        """Return geometry and pose overlay for the current selected floor."""
+        snapshot = self.refresh(now_ns=now_ns)
+        if snapshot.model is None:
+            raise RuntimeError("register and activate a blueprint before building its view")
+        return build_blueprint_view(
+            snapshot.model, snapshot.pose, selected_level=snapshot.selected_level
+        )
 
     def render(self, *, now_ns: int) -> str:
         snapshot = self.refresh(now_ns=now_ns)
