@@ -1,10 +1,10 @@
-"""VIGIL AI bridge to the existing Coreless AI controller.
+"""VIGIL bridge to the shared Coreless Qwen3 AI core.
 
-VIGIL does not create or host a second AI system. It submits grounded analysis
-requests to the same registered Coreless AI cores used by the machine.
+VIGIL is a client of the existing registry. It never loads model weights,
+creates a runtime, or broad-casts spatial requests to every enabled model.
 """
 from __future__ import annotations
-import json
+
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -22,13 +22,26 @@ class AnalysisResult:
 
 
 class CorelessVigilAI:
-    """Use the existing Coreless AI registry/controller for VIGIL analysis."""
+    """Send optional VIGIL analysis to one already-registered Coreless AI core."""
 
-    def __init__(self, registry: AICoreRegistry | None = None) -> None:
+    def __init__(
+        self,
+        registry: AICoreRegistry | None = None,
+        *,
+        model_id: str = "qwen3",
+    ) -> None:
+        if not model_id.strip():
+            raise ValueError("model_id must not be empty")
         self.registry = registry
+        self.model_id = model_id
 
     def available(self) -> bool:
-        return self.registry is not None and bool(self.registry.enabled_cores())
+        if self.registry is None:
+            return False
+        try:
+            return self.registry.descriptor(self.model_id).enabled
+        except KeyError:
+            return False
 
     def analyze(
         self,
@@ -39,9 +52,11 @@ class CorelessVigilAI:
     ) -> AnalysisResult | None:
         if not self.available():
             return None
+
         entity_ids = tuple(entity.entity_id for entity in entities)
         context = {
             "source": "vigil",
+            "task_kind": "EXPLAIN_RESULT",
             "entities": [
                 {
                     "id": entity.entity_id,
@@ -65,10 +80,19 @@ class CorelessVigilAI:
             ),
             context=context,
         )
-        results = self.registry.infer(request)
+        try:
+            # Explicit model selection guarantees VIGIL does not fan out to
+            # unrelated enabled models or create a private inference runtime.
+            results = self.registry.infer(request, model_ids=(self.model_id,))
+        except (KeyError, RuntimeError, TimeoutError):
+            # Conversational interpretation is optional. Coreless input and
+            # deterministic spatial processing must continue if AI is down.
+            return None
         if not results:
             return None
         result = results[0]
+        if result.request_id != request_id or result.model_id != self.model_id or not isinstance(result.text, str):
+            return None
         return AnalysisResult(
             text=result.text,
             grounded_entity_ids=entity_ids,
