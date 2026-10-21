@@ -15,7 +15,7 @@ def make_model():
     )
 
 
-def make_ir_map():
+def make_ir_map(association_id=None):
     calibration = RasterBlueprintCalibration.fit(
         model_id="facility", model_revision="r7", frame_id="facility/world",
         level_id="L1", elevation_m=0.0,
@@ -28,7 +28,8 @@ def make_ir_map():
     return InfraredFloorMapper(
         calibration, sensor_id="thermal-1", image_width=100, image_height=100
     ).map_frame(
-        [InfraredPixelSample(20, 30, 0.9, temperature_c=38.0, label="target-1"),
+        [InfraredPixelSample(20, 30, 0.9, temperature_c=38.0, label="target-1",
+                             association_id=association_id),
          InfraredPixelSample(40, 40, 0.4)],
         timestamp_ns=100,
     )
