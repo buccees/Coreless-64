@@ -75,7 +75,7 @@ def test_coordinate_transform_applies_scale_rotation_and_translation():
 
 
 def test_coordinate_transform_rejects_invalid_rotation_or_scale():
-    with pytest.raises(ValueError, match="orthogonal"):
+    with pytest.raises(ValueError, match="unit length"):
         CoordinateTransform(
             source_frame="a",
             target_frame="b",
