@@ -13,6 +13,7 @@ from .blueprint import BlueprintModel, PoseEstimate, load_blueprint_json
 from .blueprint_view import BlueprintView, build_blueprint_view
 from .building import BuildingBlueprint, FloorTracker, FloorTransition
 from .positioning import PoseEstimator, SpatialObservation
+from .object_tracking import ObjectObservation, ObjectTrack, ObjectTracker
 from .terminal import VigilTerminal
 
 
@@ -32,6 +33,7 @@ class WorkspaceSnapshot:
     selected_level: str | None
     observation_count: int
     floor_transition: FloorTransition | None = None
+    object_tracks: tuple[ObjectTrack, ...] = ()
 
 
 class BlueprintRegistry:
@@ -105,6 +107,9 @@ class SpatialWorkspace:
         self._last_floor_transition: FloorTransition | None = None
         self._building: BuildingBlueprint | None = None
         self._floor_views: dict[str, BlueprintView] = {}
+        self.object_tracker = ObjectTracker()
+        self._object_observations: list[ObjectObservation] = []
+        self._object_tracks: tuple[ObjectTrack, ...] = ()
 
     @property
     def active_model(self) -> BlueprintModel | None:
@@ -118,11 +123,18 @@ class SpatialWorkspace:
     def floor_transition(self) -> FloorTransition | None:
         return self._last_floor_transition
 
+    @property
+    def object_tracks(self) -> tuple[ObjectTrack, ...]:
+        return self._object_tracks
+
     def activate_building(self, building: BuildingBlueprint, *, starting_level: str) -> BlueprintModel:
         """Activate a composed building and initialize automatic floor tracking."""
         model = self.registry.register(building.model, activate=True)
         self._pose = None
         self._selected_level = None
+        self.object_tracker.clear()
+        self._object_observations.clear()
+        self._object_tracks = ()
         self._floor_tracker = FloorTracker(building)
         self._floor_tracker.establish_start(starting_level)
         self._building = building
@@ -145,6 +157,9 @@ class SpatialWorkspace:
             self._pose = None
             self._selected_level = None
             self._floor_tracker = None
+            self.object_tracker.clear()
+            self._object_observations.clear()
+            self._object_tracks = ()
             self._building = None
             self._floor_views = {}
             self._last_floor_pose_timestamp_ns = None
@@ -156,6 +171,9 @@ class SpatialWorkspace:
         self._pose = None
         self._selected_level = None
         self._floor_tracker = None
+        self.object_tracker.clear()
+        self._object_observations.clear()
+        self._object_tracks = ()
         self._building = None
         self._floor_views = {}
         self._last_floor_pose_timestamp_ns = None
@@ -199,6 +217,18 @@ class SpatialWorkspace:
             del self._observations[:-self.max_observations]
         return accepted
 
+    def ingest_object_observations(self, observations: Sequence[ObjectObservation]) -> int:
+        """Ingest detections already converted to calibrated model-frame positions."""
+        accepted = 0
+        for observation in observations:
+            if not isinstance(observation, ObjectObservation):
+                raise TypeError("all object observations must be ObjectObservation instances")
+            self._object_observations.append(observation)
+            accepted += 1
+        if len(self._object_observations) > self.max_observations:
+            del self._object_observations[:-self.max_observations]
+        return accepted
+
     def refresh(self, *, now_ns: int, max_age_ns: int = 2_000_000_000,
                 max_uncertainty_m: float = 5.0,
                 max_disagreement_m: float = 2.0) -> WorkspaceSnapshot:
@@ -225,9 +255,15 @@ class SpatialWorkspace:
                     self._last_floor_pose_timestamp_ns = timestamp
                     if self._last_floor_transition.changed:
                         self._selected_level = self._last_floor_transition.active_level
+        if model is None:
+            self._object_tracks = ()
+        else:
+            self._object_tracks = self.object_tracker.update(
+                model, self._object_observations, now_ns=now_ns, max_age_ns=max_age_ns
+            )
         return WorkspaceSnapshot(
             model, self._pose, self._selected_level, len(self._observations),
-            self._last_floor_transition,
+            self._last_floor_transition, self._object_tracks,
         )
 
     def blueprint_view(
