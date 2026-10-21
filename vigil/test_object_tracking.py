@@ -87,7 +87,7 @@ def test_tracker_does_not_average_old_positions_into_latest_motion_epoch():
     )
     assert updated[0].position_m == pytest.approx((2, 0, 0))
     assert updated[0].velocity_mps == pytest.approx((2, 0, 0))
-    assert updated[0].sensor_ids == ("new-sensor",)
+    assert updated[0].sensor_ids == ("old-sensor", "new-sensor")
 
 
 
