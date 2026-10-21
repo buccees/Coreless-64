@@ -213,3 +213,47 @@ def test_workspace_exposes_live_object_tracks_from_calibrated_sensor_observation
 
     workspace.activate_blueprint(model.model_id, model.revision)
     assert workspace.object_tracks == ()
+
+
+def test_optional_sensor_providers_are_polled_independently_and_fail_open():
+    class Provider:
+        def __init__(self, batch=None, error=None):
+            self.batch = batch
+            self.error = error
+
+        def read(self):
+            if self.error:
+                raise RuntimeError(self.error)
+            return self.batch
+
+    workspace = SpatialWorkspace()
+    model = workspace.import_blueprint(manifest(), activate=True)
+    workspace.register_sensor_provider("gps-primary", Provider([observation(model, "gps", x=1.25)]))
+    workspace.register_sensor_provider("broken-camera", Provider(error="camera disconnected"))
+    workspace.register_sensor_provider("wrong-payload", Provider([object()]))
+
+    statuses = workspace.poll_sensors()
+    by_id = {status.provider_id: status for status in statuses}
+    assert tuple(by_id) == ("broken-camera", "gps-primary", "wrong-payload")
+    assert by_id["gps-primary"].state == "ONLINE"
+    assert by_id["gps-primary"].accepted == 1
+    assert by_id["broken-camera"].state == "ERROR"
+    assert "camera disconnected" in by_id["broken-camera"].error
+    assert by_id["wrong-payload"].state == "ERROR"
+    assert workspace.refresh(now_ns=110).pose.position_m == pytest.approx((1.25, 0, 0))
+
+
+def test_sensor_provider_registration_is_explicit_and_removable():
+    class Provider:
+        def read(self):
+            return ()
+
+    workspace = SpatialWorkspace()
+    provider = Provider()
+    workspace.register_sensor_provider("imu", provider)
+    with pytest.raises(ValueError, match="already registered"):
+        workspace.register_sensor_provider("imu", provider)
+    assert workspace.sensor_provider_ids == ("imu",)
+    assert workspace.unregister_sensor_provider("imu")
+    assert not workspace.unregister_sensor_provider("imu")
+    assert workspace.sensor_provider_ids == ()
