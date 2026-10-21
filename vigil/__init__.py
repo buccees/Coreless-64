@@ -1,7 +1,16 @@
 """Optional, Coreless-native VIGIL environment."""
 
-from .ai import AnalysisResult, OptionalAIAnalyzer
+from .ai import AnalysisResult, CorelessVigilAI, OptionalAIAnalyzer
 from .attention import AttentionItem, AttentionLifecycle, AttentionManager
+from .blueprint import (
+    BlueprintModel,
+    CoordinateTransform,
+    ModelFeature,
+    PoseEstimate,
+    PoseState,
+    nearest_feature,
+    register_blueprint,
+)
 from .input import VigilInputInterpreter, VigilInputLayer
 from .gesture import GestureInterpreter, GestureResult, TouchPoint
 from .interaction import HumanInteractionService, InteractionRequest, InteractionResponse
@@ -21,17 +30,20 @@ from .camera import SharedCameraSource, CameraReader
 
 __all__ = [
     "AnalysisResult", "AttentionItem", "AttentionLifecycle", "AttentionManager",
-    "AuthorizationContext", "AuthorizationService", "CameraFrame", "CameraReader",
-    "Detection", "DetectionKind", "EntityType", "FastCameraTouchPath",
-    "FastTouchDetector", "HumanInteractionService", "InteractionRequest",
-    "InteractionResponse", "GestureInterpreter", "GestureResult", "Observation",
-    "TouchPoint", "OptionalAIAnalyzer", "PresentationManager", "PresentationState",
-    "PriorityContext", "PriorityResult", "Provenance", "RelevancePriorityEngine",
-    "ReplayEvent", "ReplayLog", "ReplaySource", "ReplayValidation", "SensorState", "SharedCameraSource", "SimulationFrame",
-    "SpatialPoint", "Track", "TrackManager", "Uncertainty", "VigilEnvironment",
-    "VigilInputInterpreter", "VigilInputLayer", "VigilStatus", "VisualPointer",
-    "VisualTouchIntent", "WorldEntity", "WorldModel", "WorldModelEvent",
-    "bearing_degrees", "distance_between",
+    "AuthorizationContext", "AuthorizationService", "BlueprintModel", "CameraFrame",
+    "CameraReader", "CoordinateTransform", "CorelessVigilAI", "Detection",
+    "DetectionKind", "EntityType", "FastCameraTouchPath", "FastTouchDetector",
+    "HumanInteractionService", "InteractionRequest", "InteractionResponse",
+    "GestureInterpreter", "GestureResult", "ModelFeature", "Observation",
+    "TouchPoint", "OptionalAIAnalyzer", "PoseEstimate", "PoseState",
+    "PresentationManager", "PresentationState", "PriorityContext", "PriorityResult",
+    "Provenance", "RelevancePriorityEngine", "ReplayEvent", "ReplayLog",
+    "ReplaySource", "ReplayValidation", "SensorState", "SharedCameraSource",
+    "SimulationFrame", "SpatialPoint", "Track", "TrackManager", "Uncertainty",
+    "VigilEnvironment", "VigilInputInterpreter", "VigilInputLayer", "VigilStatus",
+    "VisualPointer", "VisualTouchIntent", "WorldEntity", "WorldModel",
+    "WorldModelEvent", "bearing_degrees", "distance_between", "nearest_feature",
+    "register_blueprint",
 ]
 
 from .provenance import EventProvenance
