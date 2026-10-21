@@ -226,3 +226,30 @@ def test_tracker_clears_conflict_flag_when_new_consistent_epoch_arrives():
     assert clean[0].conflict is False
     assert clean[0].conflict_reasons == ()
     assert clean[0].conflicting_sensor_ids == ()
+
+
+
+def test_tracker_does_not_drop_same_timestamp_conflict_after_initial_detection():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    tracker = ObjectTracker()
+    first = ObjectObservation(
+        "thermal-target", "thermal", model.model_id, model.revision,
+        model.frame_id, 1_000_000_000, (0.0, 0.0, 0.0), 0.1,
+        TrackingModality.INFRARED, "thermal-detector", association_id="entity-1",
+    )
+    tracker.update(model, [first], now_ns=1_000_000_000)
+    conflicting = ObjectObservation(
+        "vision-target", "camera", model.model_id, model.revision,
+        model.frame_id, 1_000_000_000, (10.0, 0.0, 0.0), 0.1,
+        TrackingModality.VISION, "vision-reid", association_id="entity-1",
+    )
+
+    tracks = tracker.update(model, [first, conflicting], now_ns=1_000_000_000)
+
+    assert len(tracks) == 1
+    assert tracks[0].conflict is True
+    assert tracks[0].conflict_reasons == ("position_disagreement",)
+    assert tracks[0].conflicting_sensor_ids == ("camera", "thermal")
