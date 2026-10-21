@@ -93,3 +93,14 @@ def test_terminal_shows_earned_or_denied_finisher_and_reason_codes():
     )
     assert "FATALITY DENIED // VALIDATION INCOMPLETE" in output
     assert "FAIL pose_fresh" in output
+
+
+def test_finisher_requires_a_real_selected_floor_when_model_has_floor_labels():
+    model = model_fixture()
+    scene = assemble_spatial_scene(
+        model, pose_fixture(model), selected_level=None, now_ns=110,
+    )
+    assert not scene.finishing_move_ready
+    assert "active_floor_selected" in {
+        check.name for check in scene.checks if not check.passed
+    }
