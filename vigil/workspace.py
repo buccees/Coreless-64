@@ -191,9 +191,16 @@ class SpatialWorkspace:
                 max_uncertainty_m=max_uncertainty_m,
                 max_disagreement_m=max_disagreement_m,
             )
-            if self._floor_tracker is not None and self._pose.observation_timestamp_ns is not None:
+            if self._floor_tracker is not None:
                 timestamp = self._pose.observation_timestamp_ns
-                if timestamp != self._last_floor_pose_timestamp_ns:
+                pose_is_usable = (
+                    self._pose.position_m is not None
+                    and self._pose.uncertainty_m is not None
+                    and self._pose.state.value in ("TRACKING", "DEGRADED")
+                )
+                # Repeated refreshes must not count one pose twice. Conversely,
+                # an unavailable/stale pose must clear pending transition evidence.
+                if not pose_is_usable or timestamp != self._last_floor_pose_timestamp_ns:
                     self._last_floor_transition = self._floor_tracker.update(self._pose)
                     self._last_floor_pose_timestamp_ns = timestamp
                     if self._last_floor_transition.changed:
