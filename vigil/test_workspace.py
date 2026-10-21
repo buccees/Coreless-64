@@ -89,3 +89,60 @@ def test_workspace_rejects_unknown_level_and_does_not_transform_inputs():
     workspace.ingest([wrong_frame])
     pose = workspace.refresh(now_ns=110).pose
     assert pose is not None and pose.position_m is None
+
+
+def test_workspace_activates_building_tracks_floor_and_builds_selected_floor_view():
+    from vigil.blueprint import CoordinateTransform
+    from vigil.building import BuildingBlueprintBuilder, VerticalConnection
+
+    lower = register_blueprint(
+        "upload-lower", "r1", frame_id="lower/local", units="m",
+        features=[
+            {"feature_id": "entry", "label": "Entry", "position": [0, 0, 0]},
+            {"feature_id": "stairs", "label": "Stairs", "position": [5, 5, 0]},
+        ],
+    )
+    upper = register_blueprint(
+        "upload-upper", "r1", frame_id="upper/local", units="m",
+        features=[
+            {"feature_id": "stairs", "label": "Stairs", "position": [0, 0, 0]},
+            {"feature_id": "office", "label": "Office", "position": [3, 2, 0]},
+        ],
+    )
+    builder = BuildingBlueprintBuilder("building", "r1", "building/world")
+    builder.add_floor(
+        lower, level_id="L1", label="Ground", elevation_m=0,
+        transform_to_building=CoordinateTransform(
+            "lower/local", "building/world", translation=(0, 0, 0), provenance="survey"
+        ),
+    )
+    builder.add_floor(
+        upper, level_id="L2", label="Upper", elevation_m=3,
+        transform_to_building=CoordinateTransform(
+            "upper/local", "building/world", translation=(5, 5, 3), provenance="survey"
+        ),
+    )
+    builder.connect_floors(VerticalConnection(
+        "stairs", "stairs", "L1", "L2", (5, 5, 0), (5, 5, 3)
+    ))
+    building = builder.build()
+
+    workspace = SpatialWorkspace(terminal=VigilTerminal(color=False))
+    workspace.activate_building(building, starting_level="L1")
+    assert workspace.selected_level == "L1"
+    assert len(workspace.blueprint_view(now_ns=1).features) == 2
+
+    for timestamp in (100, 200):
+        workspace.ingest([SpatialObservation(
+            f"upper-{timestamp}", "uwb", building.model.model_id,
+            building.model.revision, building.model.frame_id, timestamp,
+            (5, 5, 3), 0.2, "calibrated-building-frame",
+        )])
+        snapshot = workspace.refresh(now_ns=timestamp, max_age_ns=50)
+    assert snapshot.floor_transition is not None
+    assert snapshot.floor_transition.changed
+    assert workspace.selected_level == "L2"
+    view = workspace.blueprint_view(now_ns=200, max_age_ns=50)
+    assert view.selected_level == "L2"
+    assert {feature.level for feature in view.features} == {"L2"}
+    assert view.pose is not None
