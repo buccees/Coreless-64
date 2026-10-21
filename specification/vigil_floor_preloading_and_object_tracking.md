@@ -34,3 +34,10 @@ This is the shared fusion boundary, not automatic sensor discovery: each real se
 A detection's local `object_id` remains the default identity. Adapters may additionally provide `association_id` only when an upstream detector/re-identification stage has evidence that detections from different sensors refer to the same entity. Matching association IDs reconcile local IDs into one track; the track retains its first display ID and records the association ID, every contributing sensor, modality, and provenance string. Position evidence in the same timestamp epoch is inverse-variance fused, with uncertainty carried forward.
 
 VIGIL does **not** merge two targets merely because they are spatially close. If vision and infrared use unrelated local IDs and have no shared association ID, they remain separate tracks rather than risking a false identity merge. Association quality depends on the adapter; an association ID is evidence supplied by that layer, not an identity guarantee. Observations still must match the active model revision and frame and be fresh.
+
+
+## Cross-sensor conflict handling
+
+Tracks expose `conflict`, `conflict_reasons`, and `conflicting_sensor_ids`. When same-identity observations at the newest timestamp disagree by more than the configured spatial tolerance plus a three-sigma uncertainty allowance, VIGIL marks `position_disagreement` and uses the most precise newest observation as the displayed estimate. It does not average contradictory positions into a misleading midpoint. If same-identity observations span more than `max_fusion_skew_ns` (default 100 ms), the track is marked with `timestamp_skew`; only the newest timestamp epoch contributes to the displayed position.
+
+Both thresholds are configurable in `ObjectTracker`. A later consistent observation epoch clears the active conflict flags. Provenance from accepted measurements remains attached to the track for diagnosis; a conflict flag is a warning that evidence disagrees, not a claim about which sensor is correct. These thresholds need field calibration for the actual sensor rates, motion speeds, and uncertainty models.
