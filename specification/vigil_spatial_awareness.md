@@ -90,3 +90,9 @@ Concrete names may follow repository conventions discovered during implementatio
 - Claiming centimeter-level or indoor accuracy from GPS alone.
 - Treating a scanned 2D blueprint as a fully registered 3D model without scale, elevation/floor, and alignment data.
 - Allowing AI-generated pose or text to bypass deterministic Coreless permissions.
+
+## Optional live sensor-provider boundary
+
+The workspace exposes `register_sensor_provider(provider_id, provider)`, `poll_sensors()`, and `unregister_sensor_provider(provider_id)`. A provider implements a small `read() -> Sequence[SpatialObservation]` contract. Each observation must already include its model ID/revision, target frame, monotonic timestamp, uncertainty, and provenance. The workspace does not silently transform raw device coordinates or infer a missing fix.
+
+Providers are polled independently. A disconnected or malformed adapter returns an `ERROR` status for that provider without aborting the remaining polls or throwing into the caller's input loop. The pose estimator still rejects stale and incompatible observations. This is an adapter seam and testable lifecycle—not yet a live GPS, camera, IMU, UWB, or RF hardware driver. Coreless continues to own raw touch/pointer/input handling, and VIGIL provider health must never gate those events.
