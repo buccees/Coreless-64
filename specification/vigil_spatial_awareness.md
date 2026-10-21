@@ -113,3 +113,10 @@ This is the geometry and metadata boundary for an IR overlay—not a camera driv
 ## Unified multimodal provider contract
 
 Optional sensor providers may return a `SensorBatch` containing calibrated pose observations, object detections, and infrared floor maps in one poll. The workspace routes position observations to pose estimation, object detections to the shared object tracker, and infrared maps to the per-floor overlay store plus labeled-object ingestion. Legacy position-only providers remain supported. Provider failures are isolated and reported per provider; raw Coreless pointer/touch input remains independent. All data must be calibrated to the active model revision/frame, and infrared maps must reference a registered floor for composed buildings.
+
+
+## Spatial Intelligence Overdrive / quality-gated finisher
+
+`vigil/spatial_scene.py` assembles a render-ready scene from the active model, compatible pose, current object tracks, and calibrated infrared overlays. Its `SpatialScene` report exposes individual deterministic checks and a final readiness result. The green terminal can display **FATALITY // SPATIAL SCENE LOCKED** only when the blueprint view builds, pose model/revision/frame match, the pose is fresh and sufficiently certain in a usable tracking state, and active tracks have no unresolved conflicts. Otherwise it displays **FATALITY DENIED // VALIDATION INCOMPLETE** with explicit failed checks.
+
+Infrared overlays are reported when available but are not required for readiness, since a missing optional sensor must not fabricate data or disable the rest of VIGIL. Stale or frame-mismatched tracks are excluded from the assembled scene. This is a visualization/diagnostic gate only: the finishing banner does not authorize movement, unlocks, alarms, or any protected Coreless action. It is a named dramatic terminal state earned by validation, not a substitute for Coreless policy.
