@@ -1,5 +1,6 @@
 from vigil.blueprint import PoseEstimate, PoseState, register_blueprint
 from vigil.positioning import SpatialObservation
+from vigil.object_tracking import ObjectTrack
 from vigil.terminal import VigilTerminal
 
 
@@ -69,3 +70,24 @@ def test_terminal_field_sanitization_preserves_digits_and_hides_escape_controls(
     unsafe = VigilTerminal._fit("A\x1b[31mB", 20)
     assert "\x1b" not in unsafe
     assert unsafe.startswith("A?")
+
+
+
+def test_terminal_surfaces_object_track_conflicts_and_sensor_sources():
+    model = fixture_model()
+    track = ObjectTrack(
+        object_id="person-7", model_id=model.model_id, model_revision=model.revision,
+        frame_id=model.frame_id, position_m=(1.0, 2.0, 0.0),
+        velocity_mps=(0.0, 0.0, 0.0), uncertainty_m=0.2, last_seen_ns=10,
+        sensor_ids=("camera-1", "thermal-1"), modalities=("infrared", "vision"),
+        observation_count=2, association_id="entity-7",
+        provenance=("thermal-detector", "vision-reid"), conflict=True,
+        conflict_reasons=("position_disagreement",),
+        conflicting_sensor_ids=("camera-1", "thermal-1"),
+    )
+    output = VigilTerminal(color=False).render(
+        model, fixture_pose(model), [], now_ns=20, object_tracks=(track,)
+    )
+    assert "OBJECT TRACKING" in output
+    assert "person-7: CONFLICT position_disagreement" in output
+    assert "conflicting sensors: camera-1, thermal-1" in output
