@@ -66,6 +66,8 @@ class ObjectProjection:
     conflict: bool
     conflict_reasons: tuple[str, ...]
     conflicting_sensor_ids: tuple[str, ...]
+    # Bounded, timestamped trail for drawing motion in the same model frame.
+    motion_trail_m: tuple[tuple[int, tuple[float, float, float]], ...]
     inferred_level: str | None
     visible_on_selected_level: bool | None
 
@@ -198,6 +200,7 @@ def build_blueprint_view(
             conflict=track.conflict,
             conflict_reasons=track.conflict_reasons,
             conflicting_sensor_ids=track.conflicting_sensor_ids,
+            motion_trail_m=track.position_history_m or ((track.last_seen_ns, track.position_m),),
             inferred_level=inferred_level,
             visible_on_selected_level=visible_on_level,
         ))
