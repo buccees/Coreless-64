@@ -621,6 +621,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       ['Position uncertainty', typeof object.uncertainty_m === 'number' && Number.isFinite(object.uncertainty_m) ? object.uncertainty_m.toFixed(2) + ' m' : 'UNKNOWN'],
       ['Observations', Number.isInteger(object.observation_count) ? String(object.observation_count) : 'UNKNOWN'],
       ['Sensor sources', Array.isArray(object.sensor_ids) && object.sensor_ids.length ? object.sensor_ids.join(', ') : 'NOT PROVIDED'],
+      ['Evidence independence groups', Array.isArray(object.independence_groups) && object.independence_groups.length ? object.independence_groups.join(', ') : 'NOT PROVIDED — SENSOR IDS ARE NOT PROOF OF INDEPENDENCE'],
       ['Modalities', Array.isArray(object.modalities) && object.modalities.length ? object.modalities.join(', ') : 'NOT PROVIDED'],
       ['Conflict status', object.conflict === true ? 'FLAGGED' : 'NOT FLAGGED IN IMPORT'],
       ['Conflict reasons', Array.isArray(object.conflict_reasons) && object.conflict_reasons.length ? object.conflict_reasons.join(', ') : 'NONE PROVIDED'],
