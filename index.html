@@ -179,6 +179,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   <p class="muted" style="font-size:11px">Connect to a reachable HTTPS endpoint that exposes VIGIL's read-only <code>/events</code> API. A local-only endpoint is not automatically reachable from this hosted page. No endpoint is contacted until you press CONNECT.</p>
   <div class="sensor-live-controls"><label for="sensor-api-url">EVENT API BASE URL</label><input id="sensor-api-url" type="url" inputmode="url" placeholder="https://your-host.example/vigil" autocomplete="url"><button type="button" id="sensor-connect">CONNECT</button><button type="button" id="sensor-disconnect" disabled>DISCONNECT</button></div>
   <div id="sensor-live-summary" class="sensor-live-summary" aria-live="polite">Showing the clearly labeled synthetic demonstration below. Live data has not been loaded.</div>
+  <p class="muted" style="font-size:10px;margin:5px 0 0">LIVE FEED POLICY // Refreshes every 3 seconds only after CONNECT. DISCONNECT stops polling and aborts an in-flight request. Two consecutive failed refreshes mark the feed stale; event-level age and freshness remain visible.</p>
   <div id="sensor-live-events" class="sensor-live-events" hidden></div>
   <details class="sensor-runner-guide">
     <summary>LOCAL FEED RUNNER // SETUP</summary>
@@ -719,7 +720,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if (sensorGrid) sensorGrid.classList.toggle('sensor-paused', frozen);
     if (sensorFeedState) sensorFeedState.textContent = frozen ? 'FROZEN' : 'RUNNING';
   });
-  // Optional live feed connector: explicit user action, no polling by default.
+  // Live feed is opt-in; poll only while connected and never overlap requests.
   var feedUrlInput = document.getElementById('sensor-api-url');
   var feedConnect = document.getElementById('sensor-connect');
   var feedDisconnect = document.getElementById('sensor-disconnect');
@@ -727,6 +728,12 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   var feedSummary = document.getElementById('sensor-live-summary');
   var feedEvents = document.getElementById('sensor-live-events');
   var feedAbort = null;
+  var feedTimer = null;
+  var feedBaseUrl = null;
+  var feedRequestActive = false;
+  var feedLastSuccessAt = 0;
+  var feedFailureCount = 0;
+  var feedPollMs = 3000;
   function renderLiveEvents(rows) {
     while (feedEvents.firstChild) feedEvents.removeChild(feedEvents.firstChild);
     rows.forEach(function(row) {
@@ -737,7 +744,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       var detail = document.createElement('div');
       detail.textContent = 'STATUS ' + String(row.status || 'unknown').toUpperCase() +
         ' · FRESHNESS ' + String(row.freshness || 'unspecified').toUpperCase() +
-        ' · AGE ' + (Number.isFinite(row.age_ns) ? String(Math.round(row.age_ns / 1e6)) + ' ms' : 'unknown');
+        ' · EVENT AGE ' + (Number.isFinite(row.age_ns) && row.age_ns >= 0 ? String(Math.round(row.age_ns / 1e6)) + ' ms' : 'unknown');
       var reason = document.createElement('div');
       reason.textContent = String(row.reason || 'No reason supplied.');
       item.appendChild(title); item.appendChild(detail); item.appendChild(reason);
@@ -745,17 +752,59 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     });
     feedEvents.hidden = rows.length === 0;
   }
+  function stopFeedTimer() {
+    if (feedTimer !== null) window.clearInterval(feedTimer);
+    feedTimer = null;
+  }
   function disconnectFeed(message) {
+    stopFeedTimer();
     if (feedAbort) feedAbort.abort();
     feedAbort = null;
+    feedBaseUrl = null;
+    feedRequestActive = false;
     feedConnect.disabled = false;
     feedDisconnect.disabled = true;
     feedState.textContent = 'DISCONNECTED · DEMO MODE';
     feedState.classList.remove('connected');
-    feedSummary.textContent = message || 'Live feed disconnected. Synthetic demo remains visible.';
+    feedState.classList.remove('stale');
+    feedSummary.textContent = message || 'Live feed disconnected. Synthetic demo remains visible below.';
     feedEvents.hidden = true;
   }
-  if (feedConnect && feedDisconnect && feedUrlInput) {
+  function pollFeed() {
+    if (!feedBaseUrl || feedRequestActive) return;
+    feedRequestActive = true;
+    if (feedAbort) feedAbort.abort();
+    feedAbort = new AbortController();
+    fetch(feedBaseUrl + '/events?limit=50', {
+      method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store',
+      headers: { 'Accept': 'application/json' }, signal: feedAbort.signal
+    }).then(function(response) {
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      return response.json();
+    }).then(function(data) {
+      if (!feedBaseUrl || !data || !Array.isArray(data.events)) {
+        if (feedBaseUrl) throw new Error('Unexpected API response: expected an events array.');
+        return;
+      }
+      feedLastSuccessAt = Date.now();
+      feedFailureCount = 0;
+      renderLiveEvents(data.events);
+      feedState.textContent = 'CONNECTED · POLLING 3S';
+      feedState.classList.add('connected');
+      feedState.classList.remove('stale');
+      feedSummary.textContent = 'Updated ' + new Date(feedLastSuccessAt).toLocaleTimeString() + ' · ' + data.events.length + ' event(s). Event age/freshness comes from the API; this confirms software feed reachability, not physical sensor connectivity.';
+    }).catch(function(error) {
+      if (error.name === 'AbortError' || !feedBaseUrl) return;
+      feedFailureCount++;
+      feedState.classList.remove('connected');
+      feedState.classList.add('stale');
+      feedState.textContent = feedFailureCount >= 2 ? 'FEED STALE · RETRYING' : 'REFRESH FAILED';
+      feedSummary.textContent = 'Refresh failed (' + error.message + '). Last successful update: ' +
+        (feedLastSuccessAt ? new Date(feedLastSuccessAt).toLocaleTimeString() : 'none') +
+        '. Will retry automatically while connected. Check HTTPS, CORS and /events.';
+    }).finally(function() { feedRequestActive = false; });
+  }
+  if (feedConnect && feedDisconnect && feedUrlInput && feedState && feedSummary && feedEvents) {
     feedConnect.addEventListener('click', function() {
       var raw = feedUrlInput.value.trim().replace(/\/+$/, '');
       var base;
@@ -767,31 +816,19 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         feedSummary.textContent = 'For this hosted page, use an HTTPS endpoint without embedded credentials.';
         return;
       }
-      feedAbort = new AbortController();
+      stopFeedTimer();
+      if (feedAbort) feedAbort.abort();
+      feedBaseUrl = base.href.replace(/\/+$/, '');
+      feedLastSuccessAt = 0;
+      feedFailureCount = 0;
       feedConnect.disabled = true;
       feedDisconnect.disabled = false;
       feedState.textContent = 'CONNECTING…';
       feedState.classList.remove('connected');
-      feedSummary.textContent = 'Requesting read-only event snapshot…';
-      fetch(base.href + '/events?limit=50', {
-        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store',
-        headers: { 'Accept': 'application/json' }, signal: feedAbort.signal
-      }).then(function(response) {
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        return response.json();
-      }).then(function(data) {
-        if (!data || !Array.isArray(data.events)) throw new Error('Unexpected API response: expected an events array.');
-        renderLiveEvents(data.events);
-        feedState.textContent = 'CONNECTED · READ ONLY';
-        feedState.classList.add('connected');
-        feedSummary.textContent = 'Loaded ' + data.events.length + ' event(s). This feed reports software records only; it does not verify physical sensor connectivity.';
-        feedConnect.disabled = false;
-      }).catch(function(error) {
-        if (error.name === 'AbortError') return;
-        feedState.textContent = 'FEED UNAVAILABLE';
-        feedState.classList.remove('connected');
-        feedSummary.textContent = 'Could not load feed (' + error.message + '). Check HTTPS reachability, CORS policy, and the /events endpoint. Demo data remains separate below.';
-      });
+      feedState.classList.remove('stale');
+      feedSummary.textContent = 'Connecting to read-only event feed; refresh interval is 3 seconds.';
+      pollFeed();
+      feedTimer = window.setInterval(pollFeed, feedPollMs);
     });
     feedDisconnect.addEventListener('click', function() { disconnectFeed(); });
   }
