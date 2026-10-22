@@ -20,7 +20,7 @@ header{display:grid;grid-template-columns:1.3fr 1fr .65fr;margin-bottom:9px}head
 .status{display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center}.statusbox{border:1px solid var(--g);padding:8px;text-align:center;font-size:18px;color:var(--g)}
 .diagram{position:relative;overflow:hidden;background-image:linear-gradient(#0a5d4629 1px,transparent 1px),linear-gradient(90deg,#0a5d4629 1px,transparent 1px);background-size:18px 18px}.diagram svg{width:100%;height:auto;display:block}
 .caption{text-align:center;border-top:1px solid var(--line);padding:7px;color:var(--g);letter-spacing:1px}.hazard{border:1px solid var(--warn);padding:8px;color:#ff8989;letter-spacing:1px}
-.spatial-stage{border:1px solid var(--line);background:radial-gradient(ellipse at 50% 35%,#063a2b 0%,#020907 70%);padding:8px}.spatial-stage svg{width:100%;height:auto;display:block}.spatial-legend{display:flex;gap:8px;flex-wrap:wrap;padding:8px 0}.spatial-legend span{border:1px solid var(--line);padding:5px 7px;font-size:10px}.confidence-high{color:#29f5b2}.confidence-mid{color:#e2d86a}.confidence-low{color:#ff8989}.spatial-readout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.spatial-readout .stat b{font-size:16px}.fluid-note{border-left:2px solid var(--g);padding:7px 10px;background:#03120e;color:var(--dim)}@media(max-width:760px){.spatial-readout{grid-template-columns:1fr}}
+.spatial-stage{border:1px solid var(--line);background:radial-gradient(ellipse at 50% 35%,#063a2b 0%,#020907 70%);padding:8px}.spatial-controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 0}.spatial-controls label{color:var(--dim);font-size:10px}.spatial-controls select,.spatial-controls button{background:#020907;color:var(--g);border:1px solid var(--line);padding:7px;font:inherit;font-size:11px}.spatial-controls button{cursor:pointer}.spatial-controls button:focus-visible,.spatial-controls select:focus-visible{outline:2px solid var(--g);outline-offset:2px}.spatial-stage .floor-slice{transition:opacity .25s,filter .25s}.spatial-stage .data-stream{stroke-dasharray:7 10;animation:flow 2.8s linear infinite}.spatial-stage.paused .data-stream{animation-play-state:paused}.spatial-stage.hide-tracks .track-marker{opacity:0}.spatial-stage.hide-infrared .ir-overlay{opacity:0}.spatial-stage.hide-streams .data-stream{opacity:0}@keyframes flow{to{stroke-dashoffset:-68}}@media(prefers-reduced-motion:reduce){.spatial-stage .data-stream{animation:none}}.spatial-stage svg{width:100%;height:auto;display:block}.spatial-legend{display:flex;gap:8px;flex-wrap:wrap;padding:8px 0}.spatial-legend span{border:1px solid var(--line);padding:5px 7px;font-size:10px}.confidence-high{color:#29f5b2}.confidence-mid{color:#e2d86a}.confidence-low{color:#ff8989}.spatial-readout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.spatial-readout .stat b{font-size:16px}.fluid-note{border-left:2px solid var(--g);padding:7px 10px;background:#03120e;color:var(--dim)}@media(max-width:760px){.spatial-readout{grid-template-columns:1fr}}
 footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:center;margin-top:9px;padding:9px;color:var(--dim);font-size:10px;letter-spacing:1px}footer span:nth-child(2){text-align:center}footer span:nth-child(3){text-align:right}.messenger-contact{display:inline-block;border:1px solid var(--g);padding:9px 11px;color:var(--g);background:#03120e;text-decoration:none;text-align:center;font:inherit;letter-spacing:1px;white-space:nowrap}.messenger-contact:hover,.messenger-contact:focus-visible{color:#020907;background:var(--g);box-shadow:0 0 12px #29f5b277;outline:none}
 @media(max-width:760px){body{padding:112px 5px 5px}.nav-panel{justify-content:flex-start;padding:6px 5px;gap:4px}.nav-button{flex:0 0 auto;min-height:44px;padding:9px 10px;font-size:10px;line-height:1.2;touch-action:manipulation}.layout,.workspace .layout{grid-template-columns:1fr}header{grid-template-columns:1fr}header>div{border-right:0;border-bottom:1px solid var(--line)}.project{grid-template-columns:1fr;gap:6px}footer{grid-template-columns:1fr;gap:8px}footer span,footer span:nth-child(2),footer span:nth-child(3){text-align:left}footer .messenger-contact{justify-self:start;white-space:normal;max-width:100%}}
 </style></head>
@@ -53,17 +53,22 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 <defs><linearGradient id="fluid" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#29f5b2" stop-opacity=".05"/><stop offset=".5" stop-color="#29f5b2" stop-opacity=".42"/><stop offset="1" stop-color="#62b8ff" stop-opacity=".08"/></linearGradient><linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b4736" stop-opacity=".92"/><stop offset="1" stop-color="#03130f" stop-opacity=".94"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
 <g fill="none" stroke="#29f5b2" stroke-opacity=".28"><path d="M28 100C145 20 205 150 320 85S510 25 730 105"/><path d="M20 190C150 115 240 235 350 165S580 120 740 210"/><path d="M35 315C170 230 250 350 390 275S600 260 735 330"/><path d="M30 425C180 350 270 460 420 390S610 370 735 445"/></g>
 <g fill="url(#fluid)" stroke="#29f5b2" stroke-opacity=".7" stroke-width="1.3"><path d="M165 118L375 42L605 128L395 208Z"/><path d="M165 228L375 152L605 238L395 318Z"/><path d="M165 338L375 262L605 348L395 428Z"/></g>
-<g stroke="#29f5b2" stroke-width="1.5" fill="url(#floor)"><path d="M95 175L375 70L665 175L385 282Z"/><path d="M95 175L385 282L385 304L95 197Z" fill="#03110d"/><path d="M665 175L385 282L385 304L665 197Z" fill="#041b13"/>
-<path d="M95 285L375 180L665 285L385 392Z"/><path d="M95 285L385 392L385 414L95 307Z" fill="#03110d"/><path d="M665 285L385 392L385 414L665 307Z" fill="#041b13"/>
-<path d="M95 395L375 290L665 395L385 502Z"/><path d="M95 395L385 502L385 524L95 417Z" fill="#03110d"/><path d="M665 395L385 502L385 524L665 417Z" fill="#041b13"/></g>
+<g stroke="#29f5b2" stroke-width="1.5" fill="url(#floor)"><path class="floor-slice" data-level="2" d="M95 175L375 70L665 175L385 282Z"/><path d="M95 175L385 282L385 304L95 197Z" fill="#03110d"/><path d="M665 175L385 282L385 304L665 197Z" fill="#041b13"/>
+<path class="floor-slice" data-level="1" d="M95 285L375 180L665 285L385 392Z"/><path d="M95 285L385 392L385 414L95 307Z" fill="#03110d"/><path d="M665 285L385 392L385 414L665 307Z" fill="#041b13"/>
+<path class="floor-slice" data-level="0" d="M95 395L375 290L665 395L385 502Z"/><path d="M95 395L385 502L385 524L95 417Z" fill="#03110d"/><path d="M665 395L385 502L385 524L665 417Z" fill="#041b13"/></g>
 <g fill="none" stroke="#29f5b2" stroke-width="1" stroke-opacity=".7"><path d="M235 123L375 173L515 123M165 175L305 227L445 175L585 227M235 234L375 284L515 234M165 285L305 337L445 285L585 337M235 344L375 394L515 344M165 395L305 447L445 395L585 447"/><path d="M375 70V180M385 282V290M445 145V255M305 200V310M515 230V340" stroke-dasharray="4 5"/></g>
 <g fill="#29f5b2" fill-opacity=".16" stroke="#29f5b2"><path d="M255 126L335 96L420 127L340 158Z"/><path d="M190 174L270 145L320 164L240 194Z"/><path d="M420 173L500 143L555 163L475 193Z"/><path d="M250 236L330 206L415 237L335 267Z"/><path d="M405 284L485 254L545 276L465 306Z"/><path d="M245 345L325 315L410 346L330 376Z"/><path d="M425 393L505 363L565 385L485 415Z"/></g>
 <g fill="#6df6db" font-family="Courier New,monospace" font-size="12"><text x="20" y="40">VIGIL / SUSPENDED SCENE VOLUME</text><text x="28" y="167">LEVEL +02</text><text x="28" y="277">LEVEL +01</text><text x="28" y="387">LEVEL 00</text><text x="500" y="62">SHARED FRAME</text><text x="500" y="77" font-size="10">MODEL REVISION LOCK</text><text x="520" y="510" font-size="10">NOT TO SCALE</text></g>
-<g fill="none" stroke-width="2.5" filter="url(#glow)"><path d="M90 85C180 120 175 220 275 245S445 255 520 330S620 385 675 455" stroke="#29f5b2"/><path d="M670 115C575 160 590 230 480 270S330 345 245 420" stroke="#62b8ff"/><path d="M70 350C160 315 200 350 285 390S430 445 510 450" stroke="#e2d86a"/></g>
-<g stroke-width="2" filter="url(#glow)"><circle cx="340" cy="145" r="8" fill="#29f5b2" stroke="#b7ffe9"/><circle cx="470" cy="282" r="9" fill="#e2d86a" stroke="#fff4a3"/><circle cx="330" cy="397" r="10" fill="#ff8989" stroke="#ffd1d1"/><circle cx="530" cy="180" r="5" fill="#29f5b2" stroke="#b7ffe9"/></g>
+<g class="data-stream" fill="none" stroke-width="2.5" filter="url(#glow)"><path d="M90 85C180 120 175 220 275 245S445 255 520 330S620 385 675 455" stroke="#29f5b2"/><path d="M670 115C575 160 590 230 480 270S330 345 245 420" stroke="#62b8ff"/><path d="M70 350C160 315 200 350 285 390S430 445 510 450" stroke="#e2d86a"/></g>
+<g class="track-marker" stroke-width="2" filter="url(#glow)"><circle cx="340" cy="145" r="8" fill="#29f5b2" stroke="#b7ffe9"/><circle cx="470" cy="282" r="9" fill="#e2d86a" stroke="#fff4a3"/><circle cx="330" cy="397" r="10" fill="#ff8989" stroke="#ffd1d1"/><circle cx="530" cy="180" r="5" fill="#29f5b2" stroke="#b7ffe9"/></g>
 <g fill="#6df6db" font-family="Courier New,monospace" font-size="10"><text x="352" y="141">TRACK A / HIGH</text><text x="483" y="278">TRACK B / DEGRADED</text><text x="343" y="394">CONFLICT / REVIEW</text><text x="540" y="177">IR</text></g>
-<g fill="none" stroke="#62b8ff" stroke-width="2"><path d="M530 180L560 163L585 176L555 193Z"/><path d="M555 193V218L585 201V176"/></g>
+<g class="ir-overlay" fill="none" stroke="#62b8ff" stroke-width="2"><path d="M530 180L560 163L585 176L555 193Z"/><path d="M555 193V218L585 201V176"/></g>
 </svg><div class="caption">MULTI-FLOOR MAP // SENSOR EVIDENCE AS FLOW // NO PHYSICAL ENCLOSURE</div></div>
+<div class="spatial-controls" aria-label="Spatial visualization controls">
+<label for="spatial-level">ACTIVE LEVEL</label><select id="spatial-level"><option value="all">ALL LEVELS</option><option value="2">LEVEL +02</option><option value="1">LEVEL +01</option><option value="0">LEVEL 00</option></select>
+<label for="spatial-layer">DATA LAYER</label><select id="spatial-layer"><option value="all">ALL EVIDENCE</option><option value="tracks">OBJECT TRACKS</option><option value="infrared">INFRARED</option><option value="streams">DATA FLOWS</option></select>
+<button type="button" id="spatial-play" aria-pressed="false">PAUSE FLOW</button><button type="button" id="spatial-reset">RESET VIEW</button></div>
+<p id="spatial-status" class="muted" role="status" aria-live="polite">DEMO DATA // NO LIVE SENSORS CONNECTED</p>
 <div class="spatial-legend"><span class="confidence-high">● HIGH CONFIDENCE / FUSED TRACK</span><span class="confidence-mid">● DEGRADED / WIDER UNCERTAINTY</span><span class="confidence-low">● CONFLICT / HUMAN REVIEW</span><span>▧ CYAN = INFRARED OVERLAY</span></div>
 <div class="spatial-readout"><div class="stat"><b>01</b><span>SHARED MODEL FRAME</span></div><div class="stat"><b>+02 / +01 / 00</b><span>ADJACENT LEVELS VISUALIZED</span></div><div class="stat"><b>32 MAX</b><span>BOUNDED MOTION TRAIL POINTS</span></div></div>
 <div class="fluid-note"><b class="green">RENDERING RULE:</b> Never imply certainty from proximity alone. Markers retain uncertainty, timestamp, source provenance, frame/revision, and conflict state. Infrared samples render only when calibrated to the active model revision, coordinate frame, and floor.</div>
@@ -105,6 +110,45 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       }
     });
   }
+  var spatialStage = document.querySelector('.spatial-stage');
+  var spatialLevel = document.getElementById('spatial-level');
+  var spatialLayer = document.getElementById('spatial-layer');
+  var spatialPlay = document.getElementById('spatial-play');
+  var spatialReset = document.getElementById('spatial-reset');
+  var spatialStatus = document.getElementById('spatial-status');
+  function updateSpatialView() {
+    if (!spatialStage) return;
+    var level = spatialLevel ? spatialLevel.value : 'all';
+    spatialStage.querySelectorAll('[data-level]').forEach(function(slice) {
+      var visible = level === 'all' || slice.getAttribute('data-level') === level;
+      slice.style.opacity = visible ? '1' : '.12';
+      slice.style.filter = visible ? 'drop-shadow(0 0 3px #29f5b2)' : 'none';
+    });
+    var layer = spatialLayer ? spatialLayer.value : 'all';
+    spatialStage.classList.toggle('hide-tracks', layer === 'infrared' || layer === 'streams');
+    spatialStage.classList.toggle('hide-infrared', layer === 'tracks' || layer === 'streams');
+    spatialStage.classList.toggle('hide-streams', layer === 'tracks' || layer === 'infrared');
+    if (spatialStatus) {
+      var levelLabel = level === 'all' ? 'ALL LEVELS' : 'LEVEL ' + (level === '0' ? '00' : '+' + ('0' + level).slice(-2));
+      var layerLabel = layer === 'all' ? 'ALL EVIDENCE' : layer.toUpperCase();
+      spatialStatus.textContent = 'DEMO DATA // ' + levelLabel + ' // ' + layerLabel + ' // NO LIVE SENSORS CONNECTED';
+    }
+  }
+  if (spatialLevel) spatialLevel.addEventListener('change', updateSpatialView);
+  if (spatialLayer) spatialLayer.addEventListener('change', updateSpatialView);
+  if (spatialPlay && spatialStage) spatialPlay.addEventListener('click', function() {
+    var paused = spatialStage.classList.toggle('paused');
+    spatialPlay.setAttribute('aria-pressed', String(paused));
+    spatialPlay.textContent = paused ? 'RESUME FLOW' : 'PAUSE FLOW';
+  });
+  if (spatialReset && spatialStage) spatialReset.addEventListener('click', function() {
+    if (spatialLevel) spatialLevel.value = 'all';
+    if (spatialLayer) spatialLayer.value = 'all';
+    spatialStage.classList.remove('paused');
+    if (spatialPlay) { spatialPlay.setAttribute('aria-pressed', 'false'); spatialPlay.textContent = 'PAUSE FLOW'; }
+    updateSpatialView();
+  });
+  updateSpatialView();
   var initialView = (window.location.hash || '').replace(/^#/, '').replace(/-panel$/, '');
   var knownView = buttons.some(function(link) { return link.getAttribute('data-view') === initialView; });
   selectCategory(knownView ? initialView : 'overview');
