@@ -1,3 +1,4 @@
+import pytest
 from vigil.blueprint import PoseEstimate, PoseState, register_blueprint
 from vigil.object_tracking import ObjectTrack
 from vigil.infrared_floor_mapping import InfraredFloorMap
@@ -148,3 +149,58 @@ def test_stale_ir_overlay_does_not_appear_in_scene_floor_list():
     )
     assert scene.infrared_levels == ()
     assert scene.finishing_move_ready
+
+
+
+def test_scene_reports_usable_uncertain_and_conflicted_tracks_separately():
+    model = model_fixture()
+    usable = track_fixture(model)
+    uncertain = ObjectTrack(
+        **{**usable.__dict__, "object_id": "target-uncertain",
+           "uncertainty_m": 2.5, "conflict": False, "conflict_reasons": (),
+           "conflicting_sensor_ids": ()}
+    )
+    conflicted = ObjectTrack(
+        **{**usable.__dict__, "object_id": "target-conflicted",
+           "conflict": True, "conflict_reasons": ("position_disagreement",),
+           "conflicting_sensor_ids": ("camera-1", "uwb-1")}
+    )
+    scene = assemble_spatial_scene(
+        model, pose_fixture(model), (usable, uncertain, conflicted),
+        selected_level="L1", now_ns=110, max_track_uncertainty_m=1.0,
+    )
+    assert scene.usable_track_count == 1
+    assert scene.uncertain_track_count == 1
+    assert scene.conflict_count == 1
+    assert scene.unknown_uncertainty_track_count == 0
+    quality = next(check for check in scene.checks if check.name == "object_track_quality")
+    assert quality.passed
+    assert "1 usable track(s)" in quality.detail
+    assert "1 uncertain track(s)" in quality.detail
+    assert "1 conflicted track(s)" in quality.detail
+    assert not scene.finishing_move_ready
+
+
+def test_scene_unknown_track_uncertainty_fails_quality_gate():
+    model = model_fixture()
+    track = track_fixture(model)
+    unknown = ObjectTrack(
+        **{**track.__dict__, "object_id": "target-unknown", "uncertainty_m": float("nan")}
+    )
+    scene = assemble_spatial_scene(
+        model, pose_fixture(model), (unknown,), selected_level="L1", now_ns=110,
+    )
+    assert scene.unknown_uncertainty_track_count == 1
+    assert not scene.finishing_move_ready
+    assert "object_track_uncertainty_known" in {
+        check.name for check in scene.checks if not check.passed
+    }
+
+
+def test_scene_rejects_invalid_track_uncertainty_threshold():
+    model = model_fixture()
+    with pytest.raises(ValueError, match="max_track_uncertainty_m"):
+        assemble_spatial_scene(
+            model, pose_fixture(model), selected_level="L1", now_ns=110,
+            max_track_uncertainty_m=float("inf"),
+        )
