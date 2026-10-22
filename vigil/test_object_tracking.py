@@ -253,3 +253,21 @@ def test_tracker_does_not_drop_same_timestamp_conflict_after_initial_detection()
     assert tracks[0].conflict is True
     assert tracks[0].conflict_reasons == ("position_disagreement",)
     assert tracks[0].conflicting_sensor_ids == ("camera", "thermal")
+
+
+def test_tracker_exposes_bounded_timestamped_motion_trail_in_model_frame():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    tracker = ObjectTracker(alpha=1.0, max_history_points=2)
+    for timestamp, x in ((1_000_000_000, 0.0), (2_000_000_000, 2.0), (3_000_000_000, 5.0)):
+        tracks = tracker.update(
+            model, [observation(model, timestamp=timestamp, position=(x, 0.0, 0.0))],
+            now_ns=timestamp,
+        )
+    trail = tracks[0].position_history_m
+    assert trail == (
+        (2_000_000_000, (2.0, 0.0, 0.0)),
+        (3_000_000_000, (5.0, 0.0, 0.0)),
+    )
