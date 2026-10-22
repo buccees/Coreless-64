@@ -91,5 +91,26 @@ class SensorEventTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             SensorEventLedger(allowed_lateness_ns=-1)
 
+    def test_explicit_clock_offsets_align_sensor_times_without_mutating_source(self):
+        ledger = SensorEventLedger(clock_offsets_ns={"ir-01": 25})
+        ledger.append(make_event("camera", timestamp_ns=200, sequence=1))
+        ledger.append(make_event("ir", timestamp_ns=175, sequence=1, sensor_id="ir-01"))
+        camera = ledger.alignment_for("camera")
+        infrared = ledger.alignment_for("ir")
+        self.assertEqual(camera["aligned_timestamp_ns"], 200)
+        self.assertEqual(infrared["aligned_timestamp_ns"], 200)
+        self.assertEqual(infrared["clock_offset_ns"], 25)
+        self.assertEqual(ledger.snapshot(now_ns=200)[0].event_id, "ir")
+        self.assertEqual(ledger.snapshot(now_ns=200)[1].event_id, "camera")
+
+    def test_clock_offset_cannot_make_timestamp_negative(self):
+        ledger = SensorEventLedger(clock_offsets_ns={"cam-01": -101})
+        with self.assertRaisesRegex(ValueError, "negative aligned timestamp"):
+            ledger.append(make_event(timestamp_ns=100))
+
+    def test_clock_offset_must_be_integer_nanoseconds(self):
+        with self.assertRaisesRegex(ValueError, "integer nanoseconds"):
+            SensorEventLedger(clock_offsets_ns={"cam-01": 1.5})
+
 if __name__ == "__main__":
     unittest.main()
