@@ -97,6 +97,7 @@ class ObjectTracker:
         max_position_disagreement_m: float = 2.0,
         max_fusion_skew_ns: int = 100_000_000,
         max_history_points: int = 32,
+        conflict_resolution_min_sensors: int = 2,
     ) -> None:
         if not isfinite(alpha) or not 0 < alpha <= 1:
             raise ValueError("alpha must be finite and in (0, 1]")
@@ -108,11 +109,16 @@ class ObjectTracker:
             raise ValueError("max_position_disagreement_m must be finite and positive")
         if isinstance(max_fusion_skew_ns, bool) or not isinstance(max_fusion_skew_ns, int) or max_fusion_skew_ns < 0:
             raise ValueError("max_fusion_skew_ns must be a non-negative integer")
+        if (isinstance(conflict_resolution_min_sensors, bool)
+                or not isinstance(conflict_resolution_min_sensors, int)
+                or conflict_resolution_min_sensors < 2):
+            raise ValueError("conflict_resolution_min_sensors must be an integer of at least 2")
         self.alpha = alpha
         self.max_tracks = max_tracks
         self.max_position_disagreement_m = max_position_disagreement_m
         self.max_fusion_skew_ns = max_fusion_skew_ns
         self.max_history_points = max_history_points
+        self.conflict_resolution_min_sensors = conflict_resolution_min_sensors
         self._tracks: dict[str, ObjectTrack] = {}
 
     def update(
@@ -175,6 +181,24 @@ class ObjectTracker:
                 )
                 measurement_uncertainty = sqrt(1.0 / total)
             previous = self._tracks.get(tracking_key)
+            current_sensor_ids = {item.sensor_id for item in group}
+            # A conflict remains unresolved until a later, clean measurement epoch
+            # is corroborated by the configured number of distinct sensor IDs.
+            can_resolve_previous_conflict = (
+                previous is not None
+                and timestamp > previous.last_seen_ns
+                and not conflict_reasons
+                and len(current_sensor_ids) >= self.conflict_resolution_min_sensors
+            )
+            unresolved_previous_conflict = (
+                previous is not None and previous.conflict
+                and not can_resolve_previous_conflict
+            )
+            effective_conflict_reasons = set(conflict_reasons)
+            effective_conflicting_sensors = set(conflicting_sensors)
+            if unresolved_previous_conflict:
+                effective_conflict_reasons.update(previous.conflict_reasons)
+                effective_conflicting_sensors.update(previous.conflicting_sensor_ids)
             if previous is None:
                 position = measured
                 velocity = (0.0, 0.0, 0.0)
@@ -202,12 +226,12 @@ class ObjectTracker:
                         provenance=tuple(sorted(set(previous.provenance) | {
                             item.provenance for item in current_sources
                         })),
-                        conflict=bool(conflict_reasons),
-                        conflict_reasons=tuple(sorted(conflict_reasons)),
+                        conflict=bool(effective_conflict_reasons),
+                        conflict_reasons=tuple(sorted(effective_conflict_reasons)),
                         conflicting_sensor_ids=tuple(sorted(
-                            conflicting_sensors or (
+                            effective_conflicting_sensors or (
                                 {item.sensor_id for item in current_sources}
-                                if conflict_reasons else set()
+                                if effective_conflict_reasons else set()
                             )
                         )),
                         position_history_sensor_ids=(
@@ -250,9 +274,9 @@ class ObjectTracker:
                 observation_count=count,
                 association_id=group[0].association_id,
                 provenance=tuple(sorted(old_provenance | {item.provenance for item in group})),
-                conflict=bool(conflict_reasons),
-                conflict_reasons=tuple(sorted(conflict_reasons)),
-                conflicting_sensor_ids=tuple(sorted(conflicting_sensors)),
+                conflict=bool(effective_conflict_reasons),
+                conflict_reasons=tuple(sorted(effective_conflict_reasons)),
+                conflicting_sensor_ids=tuple(sorted(effective_conflicting_sensors)),
                 position_history_m=(
                     ((timestamp, position),) if previous is None else
                     (previous.position_history_m + ((timestamp, position),))[-self.max_history_points:]
