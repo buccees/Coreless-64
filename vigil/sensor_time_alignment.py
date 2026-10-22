@@ -59,6 +59,9 @@ def group_temporal_evidence(
             "window_ns": window_ns,
             "event_ids": [event.event_id for event in group_events],
             "modalities": sorted({event.modality for event in group_events}),
+            "declared_independence_groups": sorted({event.independence_group for event in group_events if event.independence_group is not None}),
+            "lineage_undeclared_event_ids": [event.event_id for event in group_events if not event.lineage_declared],
+            "independent_corroboration_verified": False,
             "context_event_ids": context_ids,
             "members": [
                 {
@@ -77,6 +80,8 @@ def group_temporal_evidence(
                     "model_id": event.model_id,
                     "model_revision": event.model_revision,
                     "frame_id": event.frame_id,
+                    "independence_group": event.independence_group,
+                    "lineage_declared": event.lineage_declared,
                     "alignment": dict(alignment),
                 }
                 for aligned, event, alignment in members
