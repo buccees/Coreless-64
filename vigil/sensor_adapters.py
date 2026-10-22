@@ -188,4 +188,7 @@ def to_object_observation(
         modality=modality,
         provenance=provenance,
         independence_group=independence_group,
+        calibration_status=("failed" if "failed" in calibration_states else "unverified" if "unverified" in calibration_states else "verified"),
+        calibration_ids=tuple(calibration_ids),
+        lineage_declared=bool(measurements) and all(item.independence_group for item in measurements) and len(groups) == 1,
     )
