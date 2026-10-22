@@ -63,5 +63,33 @@ class SensorEventTests(unittest.TestCase):
         self.assertEqual(data["frame_id"], "level-00")
 
 
+    def test_ledger_rejects_out_of_order_timestamp_by_default(self):
+        ledger = SensorEventLedger()
+        ledger.append(make_event("newer", timestamp_ns=200, sequence=2))
+        with self.assertRaisesRegex(ValueError, "late event"):
+            ledger.append(make_event("older", timestamp_ns=150, sequence=3))
+        self.assertEqual(len(ledger.snapshot(now_ns=500)), 1)
+
+    def test_bounded_late_event_is_retained_with_alignment_warning(self):
+        ledger = SensorEventLedger(allowed_lateness_ns=50)
+        ledger.append(make_event("newer", timestamp_ns=200, sequence=2))
+        ledger.append(make_event("slightly-late", timestamp_ns=175, sequence=3))
+        self.assertEqual(ledger.alignment_for("slightly-late"), {
+            "status": "late_within_tolerance",
+            "reason": "event arrived behind the sensor watermark; retained with warning",
+            "lateness_ns": 25,
+        })
+        self.assertEqual(ledger.alignment_for("newer")["status"], "aligned")
+
+    def test_ledger_rejects_non_increasing_sequence(self):
+        ledger = SensorEventLedger()
+        ledger.append(make_event("seq-4", timestamp_ns=100, sequence=4))
+        with self.assertRaisesRegex(ValueError, "out-of-order sequence"):
+            ledger.append(make_event("seq-3", timestamp_ns=110, sequence=3))
+
+    def test_invalid_lateness_tolerance_is_rejected(self):
+        with self.assertRaises(ValueError):
+            SensorEventLedger(allowed_lateness_ns=-1)
+
 if __name__ == "__main__":
     unittest.main()
