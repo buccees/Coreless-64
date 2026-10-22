@@ -151,3 +151,15 @@ def test_view_uses_surveyed_floor_elevations_without_guessing_when_unavailable()
     unknown = build_blueprint_view(no_elevations, selected_level="L1", object_tracks=(tracked_object(no_elevations),))
     assert unknown.objects[0].inferred_level is None
     assert unknown.objects[0].visible_on_selected_level is None
+
+
+def test_view_exposes_timestamped_motion_trail_and_falls_back_for_legacy_tracks():
+    m = model()
+    track = tracked_object(
+        m, position_history_m=((400, (2.0, 2.0, 0.0)), (500, (3.0, 2.0, 0.2)))
+    )
+    view = build_blueprint_view(m, selected_level="L1", object_tracks=(track,))
+    assert view.objects[0].motion_trail_m == track.position_history_m
+    legacy = tracked_object(m, position_history_m=())
+    legacy_view = build_blueprint_view(m, object_tracks=(legacy,))
+    assert legacy_view.objects[0].motion_trail_m == ((legacy.last_seen_ns, legacy.position_m),)
