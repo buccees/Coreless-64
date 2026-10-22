@@ -47,7 +47,7 @@ header{display:grid;grid-template-columns:1.3fr 1fr .65fr;margin-bottom:9px}head
 .subhead{border:1px solid var(--line);padding:7px 11px;margin-bottom:9px;color:var(--g);font-weight:bold}
 .report-shell{display:grid;grid-template-columns:minmax(0,1fr);gap:9px;align-items:start}.nav-panel{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;gap:4px;align-items:stretch;justify-content:center;padding:7px max(8px,calc((100vw - 1240px)/2));background:#020907f5;border-bottom:2px solid var(--g);box-shadow:0 5px 14px #000b;overflow-x:auto;overscroll-behavior-x:contain}.nav-button{display:flex;align-items:center;justify-content:center;flex:1 0 auto;min-height:44px;white-space:nowrap;text-align:center;text-decoration:none;margin:0;padding:10px 14px;border:1px solid var(--line);border-bottom:3px solid var(--line);background:#03120e;color:var(--dim);font:inherit;cursor:pointer;letter-spacing:.5px}.nav-button:hover,.nav-button[aria-pressed="true"]{color:var(--g);border-color:var(--g);border-bottom-color:var(--g);background:#073324;box-shadow:inset 0 -2px var(--g)}.layout{display:grid;grid-template-columns:.92fr 1.08fr;gap:9px}.stack{display:grid;gap:9px;align-content:start}.report-panel[hidden]{display:none}.workspace .layout{grid-template-columns:1fr 1fr}
 .terminal-code{white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--line);background:#010604;padding:10px;color:var(--g);font:12px/1.5 "Courier New",monospace}.panel h2{font-size:15px;color:var(--g);margin:0 0 8px;border-bottom:1px solid var(--line);padding:7px 9px}.content{padding:9px 11px}.content p{margin:4px 0 9px}
-.muted{color:var(--muted)}.green{color:var(--g)}ul{margin:5px 0;padding-left:18px}li{margin:4px 0}.statrow{display:grid;grid-template-columns:1fr 1fr;gap:6px}.stat{border:1px solid var(--line);padding:8px}.stat b{display:block;font-size:22px;color:var(--g)}.stat span{font-size:10px;color:var(--dim)}.spatial-flag-row{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:6px}.spatial-flag-row .stat{padding:6px 8px}.spatial-flag-row .stat b{font-size:18px}.spatial-flag-note{font-size:10px;letter-spacing:.3px}.spatial-filter-bar{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:8px 0}.spatial-filter-bar>span{font-size:10px;color:var(--dim);margin-right:3px}.spatial-review-filter{font:10px "Courier New",monospace;color:var(--g);background:#03100b;border:1px solid var(--line);padding:7px 9px;cursor:pointer}.spatial-review-filter[aria-pressed="true"]{border-color:var(--g);background:#0b2a1d;box-shadow:inset 0 0 8px #29f5b21c}.spatial-review-filter:focus-visible{outline:2px solid var(--g);outline-offset:2px}
+.muted{color:var(--muted)}.green{color:var(--g)}ul{margin:5px 0;padding-left:18px}li{margin:4px 0}.statrow{display:grid;grid-template-columns:1fr 1fr;gap:6px}.stat{border:1px solid var(--line);padding:8px}.stat b{display:block;font-size:22px;color:var(--g)}.stat span{font-size:10px;color:var(--dim)}.spatial-flag-row{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:6px}.spatial-flag-row .stat{padding:6px 8px}.spatial-flag-row .stat b{font-size:18px}.spatial-flag-note{font-size:10px;letter-spacing:.3px}.spatial-filter-bar{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:8px 0}.spatial-filter-bar>span{font-size:10px;color:var(--dim);margin-right:3px}.spatial-review-filter{font:10px "Courier New",monospace;color:var(--g);background:#03100b;border:1px solid var(--line);padding:7px 9px;cursor:pointer}.spatial-review-filter[aria-pressed="true"]{border-color:var(--g);background:#0b2a1d;box-shadow:inset 0 0 8px #29f5b21c}.spatial-review-filter:focus-visible{outline:2px solid var(--g);outline-offset:2px}.spatial-track-detail{border:1px solid var(--line);padding:9px;margin:8px 0;background:#020a07;overflow-wrap:anywhere}.spatial-track-detail strong{display:block;color:var(--g);font-size:11px;letter-spacing:.5px}.spatial-track-detail p{margin:5px 0 0;color:var(--dim);font-size:11px}.spatial-track-detail dl{display:grid;grid-template-columns:minmax(110px,.7fr) minmax(0,2fr);gap:5px 10px;margin:8px 0 0;font-size:11px}.spatial-track-detail dt{color:var(--dim)}.spatial-track-detail dd{margin:0;color:var(--text);overflow-wrap:anywhere}.spatial-stage [data-track-id]{cursor:pointer}.spatial-stage [data-track-id]:focus{outline:none;filter:drop-shadow(0 0 5px #29f5b2)}@media(max-width:600px){.spatial-track-detail dl{grid-template-columns:1fr;gap:2px}.spatial-track-detail dd{margin-bottom:5px}}
 .status{display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center}.statusbox{border:1px solid var(--g);padding:8px;text-align:center;font-size:18px;color:var(--g)}
 .diagram{position:relative;overflow:hidden;background-image:linear-gradient(#0a5d4629 1px,transparent 1px),linear-gradient(90deg,#0a5d4629 1px,transparent 1px);background-size:18px 18px}.diagram svg{width:100%;height:auto;display:block}
 .caption{text-align:center;border-top:1px solid var(--line);padding:7px;color:var(--g);letter-spacing:1px}.hazard{border:1px solid var(--warn);padding:8px;color:#ff8989;letter-spacing:1px}
@@ -81,7 +81,8 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 <p><span class="green">VISUALIZATION MODE:</span> SUSPENDED INFORMATION / ISOMETRIC MULTI-FLOOR MAP</p>
 <div class="statrow" aria-label="Spatial confidence interpretation"><div class="stat"><b id="spatial-stable-count" class="confidence-high">—</b><span>TRACKS // STABLE</span></div><div class="stat"><b id="spatial-review-count" class="confidence-mid">—</b><span>TRACKS // REVIEW</span></div></div>
 <div class="statrow spatial-flag-row" aria-label="Independent review flags"><div class="stat"><b id="spatial-conflict-count" class="confidence-mid">—</b><span>FLAGS // SENSOR CONFLICT</span></div><div class="stat"><b id="spatial-uncertain-count" class="confidence-mid">—</b><span>FLAGS // UNCERTAINTY OVER 1 M</span></div><div class="stat"><b id="spatial-missing-count" class="confidence-mid">—</b><span>FLAGS // UNCERTAINTY UNKNOWN</span></div></div><p class="muted spatial-flag-note">IMPORTED TRACK FLAGS // Independent categories; one track may trigger multiple flags. Counts describe imported tracks, not live sensor activity.</p>
-<div class="spatial-filter-bar" role="group" aria-label="Filter imported tracks for review"><span>ISOLATE:</span><button type="button" class="spatial-review-filter" data-review-filter="all" aria-pressed="true">ALL TRACKS</button><button type="button" class="spatial-review-filter" data-review-filter="conflict" aria-pressed="false">CONFLICT</button><button type="button" class="spatial-review-filter" data-review-filter="uncertain" aria-pressed="false">UNCERTAINTY &gt; 1 M</button><button type="button" class="spatial-review-filter" data-review-filter="missing" aria-pressed="false">UNKNOWN</button><button type="button" class="spatial-review-filter" data-review-filter="review" aria-pressed="false">ALL REVIEW</button></div><p class="fluid-note"><strong class="green">EVIDENCE RULE:</strong> a plotted marker is not automatically a confirmed fact. Preserve source sensor, timestamp, coordinate frame, and uncertainty; flag conflicts instead of silently averaging them. Imported scene data may drive the overlay. Without an import, the scene remains DEMONSTRATION DATA — NO LIVE SENSORS CONNECTED.</p>
+<div class="spatial-filter-bar" role="group" aria-label="Filter imported tracks for review"><span>ISOLATE:</span><button type="button" class="spatial-review-filter" data-review-filter="all" aria-pressed="true">ALL TRACKS</button><button type="button" class="spatial-review-filter" data-review-filter="conflict" aria-pressed="false">CONFLICT</button><button type="button" class="spatial-review-filter" data-review-filter="uncertain" aria-pressed="false">UNCERTAINTY &gt; 1 M</button><button type="button" class="spatial-review-filter" data-review-filter="missing" aria-pressed="false">UNKNOWN</button><button type="button" class="spatial-review-filter" data-review-filter="review" aria-pressed="false">ALL REVIEW</button></div>
+<div id="spatial-track-detail" class="spatial-track-detail" aria-live="polite"><strong>TRACK INSPECTOR // STANDBY</strong><p>Select an imported object marker to inspect its reported evidence, uncertainty, and sensor conflicts.</p></div><p class="fluid-note"><strong class="green">EVIDENCE RULE:</strong> a plotted marker is not automatically a confirmed fact. Preserve source sensor, timestamp, coordinate frame, and uncertainty; flag conflicts instead of silently averaging them. Imported scene data may drive the overlay. Without an import, the scene remains DEMONSTRATION DATA — NO LIVE SENSORS CONNECTED.</p>
 <p class="muted">3D floor plan of the spatial engine: coordinate-aligned floors suspended in a shared scene model, with sensor evidence flowing between levels as a continuous field of information.</p>
 <div class="spatial-stage"><svg viewBox="0 0 760 540" role="img" aria-label="Isometric three-level building floor plan suspended in a glowing fluid of information, with sensor streams, infrared overlays, tracked objects, and confidence markers">
 <defs><linearGradient id="fluid" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#29f5b2" stop-opacity=".05"/><stop offset=".5" stop-color="#29f5b2" stop-opacity=".42"/><stop offset="1" stop-color="#62b8ff" stop-opacity=".08"/></linearGradient><linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b4736" stop-opacity=".92"/><stop offset="1" stop-color="#03130f" stop-opacity=".94"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
@@ -309,7 +310,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       var uncertaintyKnown = typeof object.uncertainty_m === 'number' && Number.isFinite(object.uncertainty_m);
       var reviewFlags = [object.conflict === true ? 'conflict' : '', uncertaintyKnown && object.uncertainty_m > 1 ? 'uncertain' : '', !uncertaintyKnown ? 'missing' : '', object.conflict === true || !uncertaintyKnown || object.uncertainty_m > 1 ? 'review' : ''].filter(Boolean).join(' ');
       var cls = object.conflict ? 'imported-object conflict' : (object.uncertainty_m > 1 ? 'imported-object degraded' : 'imported-object normal');
-      var marker = svgNode('circle',{cx:p.x,cy:p.y,r:radius,class:cls,'data-level':levelCode(level),'data-review-flags':reviewFlags});
+      var marker = svgNode('circle',{cx:p.x,cy:p.y,r:radius,class:cls,'data-level':levelCode(level),'data-review-flags':reviewFlags,'data-track-id':String(object.object_id || 'OBJECT'),'tabindex':'0','role':'button','aria-label':'Inspect track '+String(object.object_id || 'OBJECT')});
       var detail = [object.object_id || 'OBJECT', 'uncertainty=' + (Number.isFinite(object.uncertainty_m) ? object.uncertainty_m.toFixed(2)+'m' : 'unknown'), 'observations=' + (Number.isInteger(object.observation_count) ? object.observation_count : 'unknown'), 'sensors=' + (Array.isArray(object.sensor_ids)?object.sensor_ids.join(','):'unknown'), 'modalities=' + (Array.isArray(object.modalities)?object.modalities.join(','):'unknown'), 'conflict=' + Boolean(object.conflict), 'conflict_reasons=' + (Array.isArray(object.conflict_reasons) && object.conflict_reasons.length ? object.conflict_reasons.join(',') : 'none'), 'conflicting_sensors=' + (Array.isArray(object.conflicting_sensor_ids) && object.conflicting_sensor_ids.length ? object.conflicting_sensor_ids.join(',') : 'none')];
       marker.appendChild(svgNode('title',{},detail.join(' | ')));
       objectLayer.appendChild(marker);
@@ -432,10 +433,47 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         showImportStatus('IMPORTED ' + importedScene.model_id + ' / REV ' + importedScene.revision + ' / FRAME ' + importedScene.frame_id, counts);
         applyImportedLevelFilter();
         applySpatialReviewFilter(spatialReviewFilter);
+        bindSpatialTrackInspection(importedScene);
       } else {
         spatialStatus.textContent = 'DEMO DATA // ' + levelLabel + ' // ' + layerLabel + ' // NO LIVE SENSORS CONNECTED';
       }
     }
+  }
+  var spatialTrackDetail = document.getElementById('spatial-track-detail');
+  function inspectSpatialTrack(object) {
+    if (!spatialTrackDetail || !object) return;
+    while (spatialTrackDetail.firstChild) spatialTrackDetail.removeChild(spatialTrackDetail.firstChild);
+    var heading = document.createElement('strong');
+    heading.textContent = 'TRACK INSPECTOR // ' + String(object.object_id || 'OBJECT');
+    spatialTrackDetail.appendChild(heading);
+    var rows = [
+      ['Position uncertainty', typeof object.uncertainty_m === 'number' && Number.isFinite(object.uncertainty_m) ? object.uncertainty_m.toFixed(2) + ' m' : 'UNKNOWN'],
+      ['Observations', Number.isInteger(object.observation_count) ? String(object.observation_count) : 'UNKNOWN'],
+      ['Sensor sources', Array.isArray(object.sensor_ids) && object.sensor_ids.length ? object.sensor_ids.join(', ') : 'NOT PROVIDED'],
+      ['Modalities', Array.isArray(object.modalities) && object.modalities.length ? object.modalities.join(', ') : 'NOT PROVIDED'],
+      ['Conflict status', object.conflict === true ? 'FLAGGED' : 'NOT FLAGGED IN IMPORT'],
+      ['Conflict reasons', Array.isArray(object.conflict_reasons) && object.conflict_reasons.length ? object.conflict_reasons.join(', ') : 'NONE PROVIDED'],
+      ['Conflicting sensors', Array.isArray(object.conflicting_sensor_ids) && object.conflicting_sensor_ids.length ? object.conflicting_sensor_ids.join(', ') : 'NONE PROVIDED']
+    ];
+    var list = document.createElement('dl');
+    rows.forEach(function(pair) {
+      var term = document.createElement('dt'); term.textContent = pair[0];
+      var value = document.createElement('dd'); value.textContent = pair[1];
+      list.appendChild(term); list.appendChild(value);
+    });
+    spatialTrackDetail.appendChild(list);
+  }
+  function bindSpatialTrackInspection(data) {
+    if (!spatialStage) return;
+    var byId = {};
+    (data && Array.isArray(data.objects) ? data.objects : []).forEach(function(object) { byId[String(object.object_id || 'OBJECT')] = object; });
+    spatialStage.querySelectorAll('[data-track-id]').forEach(function(marker) {
+      var inspect = function() { inspectSpatialTrack(byId[marker.getAttribute('data-track-id')]); };
+      marker.addEventListener('click', inspect);
+      marker.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); inspect(); }
+      });
+    });
   }
   var spatialReviewFilters = Array.prototype.slice.call(document.querySelectorAll('.spatial-review-filter'));
   var spatialReviewFilter = 'all';
