@@ -204,3 +204,34 @@ def test_scene_rejects_invalid_track_uncertainty_threshold():
             model, pose_fixture(model), selected_level="L1", now_ns=110,
             max_track_uncertainty_m=float("inf"),
         )
+
+
+
+def test_scene_blocks_failed_calibration_and_surfaces_unverified_lineage():
+    model = model_fixture()
+    base = track_fixture(model)
+    failed = ObjectTrack(
+        **{**base.__dict__, "object_id": "failed-calibration",
+           "calibration_status": "failed", "calibration_ids": ("cal-17",),
+           "lineage_declared": True}
+    )
+    scene = assemble_spatial_scene(
+        model, pose_fixture(model), (failed,), selected_level="L1", now_ns=110,
+    )
+    assert not scene.finishing_move_ready
+    calibration_gate = next(check for check in scene.checks if check.name == "track_calibration_valid")
+    assert not calibration_gate.passed
+    assert "failed calibration" in calibration_gate.detail
+
+    unverified = ObjectTrack(
+        **{**base.__dict__, "object_id": "unverified-calibration",
+           "calibration_status": "unverified", "lineage_declared": False}
+    )
+    warning_scene = assemble_spatial_scene(
+        model, pose_fixture(model), (unverified,), selected_level="L1", now_ns=110,
+    )
+    assert warning_scene.finishing_move_ready
+    calibration_warning = next(check for check in warning_scene.checks if check.name == "track_calibration_verified")
+    lineage_warning = next(check for check in warning_scene.checks if check.name == "source_lineage_declared")
+    assert calibration_warning.passed and "WARNING" in calibration_warning.detail
+    assert lineage_warning.passed and "WARNING" in lineage_warning.detail
