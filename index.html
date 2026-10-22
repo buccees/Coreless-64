@@ -620,8 +620,10 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if (gate) gate.textContent = mode.gate;
     if (description) description.textContent = mode.description;
     if (limit) limit.textContent = mode.limit;
-    if (syncVisual && typeof selectSensorVisualMode === 'function') {
-      selectSensorVisualMode(key === 'acoustic' ? 'sonar' : key);
+    if (syncVisual && sensorVisualDisplay) {
+      var visualKey = key === 'acoustic' ? 'sonar' : key;
+      var linkedButton = sensorVisualDisplay.querySelector('[data-visual-mode="' + visualKey + '"]');
+      if (linkedButton) linkedButton.click();
     }
   }
   if (rfEvidenceSelector) rfEvidenceSelector.querySelectorAll('[data-evidence-mode]').forEach(function(button) {
