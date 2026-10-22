@@ -57,6 +57,7 @@ def make_sensor_event_handler(
                 row = event.to_dict()
                 row["age_ns"] = now_ns - event.timestamp_ns
                 row["freshness"] = "stale" if max_age_ns is not None and row["age_ns"] > max_age_ns else "current"
+                row["alignment"] = ledger.alignment_for(event.event_id)
                 rows.append(row)
             self._json(200, {
                 "feed": "read_only",
