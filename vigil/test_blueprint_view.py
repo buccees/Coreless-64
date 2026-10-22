@@ -199,7 +199,41 @@ def test_view_marks_candidate_floor_transitions_from_timestamped_history():
     assert transitions[0].to_elevation_m == 4.0
     assert transitions[0].from_sensor_ids == ("uwb-entry", "vision-east")
     assert transitions[0].to_sensor_ids == ("infrared-stair",)
+    assert transitions[0].evidence_status == "TRACK CONFLICT NOT LOCALIZED"
+    assert transitions[0].conflicting_sensor_ids == ("ir-2", "uwb-1")
 
+
+
+def test_view_localizes_conflicting_sensor_on_candidate_transition():
+    m = register_blueprint(
+        "building", "r1", frame_id="building/frame", units="m",
+        features=[
+            {"feature_id": "a", "label": "L1", "position": [0, 0, 0], "level": "L1"},
+            {"feature_id": "b", "label": "L2", "position": [10, 10, 4], "level": "L2"},
+        ],
+        metadata={"floor_elevations_m": {"L1": 0.0, "L2": 4.0}},
+    )
+    track = tracked_object(
+        m,
+        conflict=True,
+        conflicting_sensor_ids=("vision-east",),
+        position_history_m=(
+            (100, (1.0, 1.0, 0.1)),
+            (200, (2.0, 1.0, 0.2)),
+            (300, (3.0, 2.0, 4.1)),
+            (400, (4.0, 2.0, 3.9)),
+        ),
+        position_history_sensor_ids=(
+            (100, ("uwb-entry",)),
+            (200, ("vision-east",)),
+            (300, ("infrared-stair",)),
+            (400, ("infrared-stair",)),
+        ),
+    )
+    view = build_blueprint_view(m, object_tracks=(track,))
+    transition = view.objects[0].floor_transitions[0]
+    assert transition.evidence_status == "CONFLICT FLAGGED"
+    assert transition.conflicting_sensor_ids == ("vision-east",)
 
 
 def test_view_ignores_single_sample_floor_spike():
