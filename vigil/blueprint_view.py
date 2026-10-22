@@ -60,6 +60,8 @@ class FloorTransitionProjection:
     to_elevation_m: float
     from_sensor_ids: tuple[str, ...] = ()
     to_sensor_ids: tuple[str, ...] = ()
+    evidence_status: str = "INSUFFICIENT SENSOR PROVENANCE"
+    conflicting_sensor_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -135,6 +137,8 @@ def _candidate_floor_transitions(
     elevations: dict[str, float],
     tolerance_m: float,
     sensor_history: Sequence[tuple[int, tuple[str, ...]]] = (),
+    track_conflict: bool = False,
+    conflicting_sensor_ids: Sequence[str] = (),
 ) -> tuple[FloorTransitionProjection, ...]:
     """Find sustained changes between surveyed floor elevations.
 
@@ -161,14 +165,28 @@ def _candidate_floor_transitions(
             and previous_run[-1][1] != current_run[0][1]
             and len(current_run) >= 2
         ):
+            from_sensors = sensors_by_timestamp.get(previous_run[-1][0], ())
+            to_sensors = sensors_by_timestamp.get(current_run[0][0], ())
+            conflict_sources = tuple(sorted(set(conflicting_sensor_ids)))
+            localized_conflicts = tuple(sorted(set(from_sensors + to_sensors) & set(conflict_sources)))
+            if track_conflict and (not conflict_sources or localized_conflicts):
+                evidence_status = "CONFLICT FLAGGED"
+            elif not from_sensors or not to_sensors:
+                evidence_status = "INSUFFICIENT SENSOR PROVENANCE"
+            elif track_conflict:
+                evidence_status = "TRACK CONFLICT NOT LOCALIZED"
+            else:
+                evidence_status = "PROVENANCE AVAILABLE — REVIEW REQUIRED"
             transitions.append(FloorTransitionProjection(
                 timestamp_ns=current_run[0][0],
                 from_level=previous_run[-1][1],
                 to_level=current_run[0][1],
                 from_elevation_m=previous_run[-1][2],
                 to_elevation_m=current_run[0][2],
-                from_sensor_ids=sensors_by_timestamp.get(previous_run[-1][0], ()),
-                to_sensor_ids=sensors_by_timestamp.get(current_run[0][0], ()),
+                from_sensor_ids=from_sensors,
+                to_sensor_ids=to_sensors,
+                evidence_status=evidence_status,
+                conflicting_sensor_ids=localized_conflicts or (conflict_sources if track_conflict else ()),
             ))
         previous_run = current_run
         current_run = []
@@ -279,6 +297,8 @@ def build_blueprint_view(
             floor_transitions=_candidate_floor_transitions(
                 track.position_history_m, elevations, floor_elevation_tolerance_m,
                 track.position_history_sensor_ids,
+                track.conflict,
+                track.conflicting_sensor_ids,
             ),
         ))
 
