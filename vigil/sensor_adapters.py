@@ -30,6 +30,11 @@ class RangeMeasurement:
     uncertainty_m: float
     modality: TrackingModality
     provenance: str
+    # Optional lineage for feeds known to share a receiver or upstream processing.
+    independence_group: str | None = None
+    # verified / unverified / failed; unverified is retained as a warning, failed is rejected.
+    calibration_status: str = "unverified"
+    calibration_id: str | None = None
 
     def __post_init__(self) -> None:
         if not all(isinstance(v, str) and v.strip() for v in (
@@ -47,6 +52,12 @@ class RangeMeasurement:
             raise ValueError("uncertainty_m must be finite and positive")
         if self.modality not in (TrackingModality.RF_2_4_GHZ, TrackingModality.ACOUSTIC_SONAR):
             raise ValueError("range modality must be RF 2.4 GHz or acoustic sonar")
+        if self.independence_group is not None and not self.independence_group.strip():
+            raise ValueError("independence_group must be non-empty when provided")
+        if self.calibration_status not in ("verified", "unverified", "failed"):
+            raise ValueError("calibration_status must be verified, unverified, or failed")
+        if self.calibration_id is not None and not self.calibration_id.strip():
+            raise ValueError("calibration_id must be non-empty when provided")
 
 
 def rf_tof_range_m(round_trip_seconds: float) -> float:
@@ -98,6 +109,8 @@ def trilaterate_3d(measurements: Sequence[RangeMeasurement]) -> tuple[tuple[floa
     if len(measurements) < 4:
         raise ValueError("3D trilateration requires at least four range measurements")
     first = measurements[0]
+    if any(item.calibration_status == "failed" for item in measurements):
+        raise ValueError("range measurements with failed calibration cannot be used for positioning")
     for item in measurements:
         if (item.model_id, item.model_revision, item.frame_id, item.object_id) != (
             first.model_id, first.model_revision, first.frame_id, first.object_id
@@ -153,6 +166,16 @@ def to_object_observation(
         # Do not pretend the ranges share a physical propagation model. A fused
         # upstream solver may combine modalities, but that is a separate contract.
         raise ValueError("one trilateration solve must use a single sensing modality")
+    groups = sorted({item.independence_group for item in measurements if item.independence_group})
+    calibration_ids = sorted({item.calibration_id for item in measurements if item.calibration_id})
+    calibration_states = sorted({item.calibration_status for item in measurements})
+    provenance = "trilateration:" + ",".join(sorted({item.provenance for item in measurements}))
+    if "unverified" in calibration_states:
+        provenance += "|calibration=UNVERIFIED"
+    if calibration_ids:
+        provenance += "|calibration_ids=" + ",".join(calibration_ids)
+    # Use a shared token only when every contributing range declares the same lineage.
+    independence_group = groups[0] if len(groups) == 1 and all(item.independence_group for item in measurements) else None
     return ObjectObservation(
         object_id=first.object_id,
         sensor_id="+".join(sorted({item.sensor_id for item in measurements})),
@@ -163,5 +186,6 @@ def to_object_observation(
         position_m=position,
         uncertainty_m=max(residual, sqrt(sum(item.uncertainty_m ** 2 for item in measurements) / len(measurements))),
         modality=modality,
-        provenance="trilateration:" + ",".join(sorted({item.provenance for item in measurements})),
+        provenance=provenance,
+        independence_group=independence_group,
     )
