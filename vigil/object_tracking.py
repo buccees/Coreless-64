@@ -41,6 +41,9 @@ class ObjectObservation:
     # Sensors sharing this token are treated as one evidence source for
     # conflict resolution (e.g. two derived feeds from one physical receiver).
     independence_group: str | None = None
+    calibration_status: str = "unverified"
+    calibration_ids: tuple[str, ...] = ()
+    lineage_declared: bool = False
 
     def __post_init__(self) -> None:
         if not all((self.object_id.strip(), self.sensor_id.strip(), self.model_id.strip(),
@@ -50,6 +53,12 @@ class ObjectObservation:
             raise ValueError("association_id must be non-empty when provided")
         if self.independence_group is not None and not self.independence_group.strip():
             raise ValueError("independence_group must be non-empty when provided")
+        if self.calibration_status not in ("verified", "unverified", "failed"):
+            raise ValueError("calibration_status must be verified, unverified, or failed")
+        if any(not isinstance(value, str) or not value.strip() for value in self.calibration_ids):
+            raise ValueError("calibration_ids must contain non-empty strings")
+        if not isinstance(self.lineage_declared, bool):
+            raise ValueError("lineage_declared must be a boolean")
         if self.timestamp_ns < 0:
             raise ValueError("timestamp_ns must be non-negative")
         _validate_vector(self.position_m, "object position")
@@ -97,6 +106,9 @@ class ObjectTrack:
     position_history_m: tuple[tuple[int, tuple[float, float, float]], ...] = ()
     # Sensor IDs contributing to each timestamped position; aligned by timestamp.
     position_history_sensor_ids: tuple[tuple[int, tuple[str, ...]], ...] = ()
+    calibration_status: str = "unverified"
+    calibration_ids: tuple[str, ...] = ()
+    lineage_declared: bool = False
 
 
 class ObjectTracker:
@@ -229,6 +241,9 @@ class ObjectTracker:
                 old_modalities: set[str] = set()
                 old_provenance: set[str] = set()
                 old_independence_groups: set[str] = set()
+                old_calibration_ids: set[str] = set()
+                old_calibration_status = "verified"
+                old_lineage_declared = True
             else:
                 dt_ns = timestamp - previous.last_seen_ns
                 if dt_ns <= 0:
@@ -250,6 +265,9 @@ class ObjectTracker:
                         independence_groups=tuple(sorted(set(previous.independence_groups) | {
                             item.evidence_independence_group for item in current_sources
                         })),
+                        calibration_status=("failed" if previous.calibration_status == "failed" or any(item.calibration_status == "failed" for item in current_sources) else "unverified" if previous.calibration_status == "unverified" or any(item.calibration_status == "unverified" for item in current_sources) else "verified"),
+                        calibration_ids=tuple(sorted(set(previous.calibration_ids) | {value for item in current_sources for value in item.calibration_ids})),
+                        lineage_declared=previous.lineage_declared and all(item.lineage_declared for item in current_sources),
                         conflict=bool(effective_conflict_reasons),
                         conflict_reasons=tuple(sorted(effective_conflict_reasons)),
                         conflicting_sensor_ids=tuple(sorted(
@@ -290,6 +308,9 @@ class ObjectTracker:
                 old_modalities = set(previous.modalities)
                 old_provenance = set(previous.provenance)
                 old_independence_groups = set(previous.independence_groups)
+                old_calibration_ids = set(previous.calibration_ids)
+                old_calibration_status = previous.calibration_status
+                old_lineage_declared = previous.lineage_declared
             updated[tracking_key] = ObjectTrack(
                 object_id=object_id, model_id=model.model_id, model_revision=model.revision,
                 frame_id=model.frame_id, position_m=position, velocity_mps=velocity,
@@ -305,6 +326,9 @@ class ObjectTracker:
                 independence_groups=tuple(sorted(old_independence_groups | {
                     item.evidence_independence_group for item in group
                 })),
+                calibration_status=("failed" if old_calibration_status == "failed" or any(item.calibration_status == "failed" for item in group) else "unverified" if old_calibration_status == "unverified" or any(item.calibration_status == "unverified" for item in group) else "verified"),
+                calibration_ids=tuple(sorted(old_calibration_ids | {value for item in group for value in item.calibration_ids})),
+                lineage_declared=old_lineage_declared and all(item.lineage_declared for item in group),
                 position_history_m=(
                     ((timestamp, position),) if previous is None else
                     (previous.position_history_m + ((timestamp, position),))[-self.max_history_points:]
