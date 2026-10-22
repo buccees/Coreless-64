@@ -431,23 +431,23 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         var counts = renderImportedScene(importedScene);
         showImportStatus('IMPORTED ' + importedScene.model_id + ' / REV ' + importedScene.revision + ' / FRAME ' + importedScene.frame_id, counts);
         applyImportedLevelFilter();
+        applySpatialReviewFilter(spatialReviewFilter);
       } else {
         spatialStatus.textContent = 'DEMO DATA // ' + levelLabel + ' // ' + layerLabel + ' // NO LIVE SENSORS CONNECTED';
       }
     }
   }
   var spatialReviewFilters = Array.prototype.slice.call(document.querySelectorAll('.spatial-review-filter'));
+  var spatialReviewFilter = 'all';
   function applySpatialReviewFilter(filter) {
-    spatialReviewFilters.forEach(function(button) { button.setAttribute('aria-pressed', String(button.getAttribute('data-review-filter') === filter)); });
-    if (spatialStatus) spatialStatus.setAttribute('data-review-filter', filter);
-    var matched = 0;
+    spatialReviewFilter = filter || 'all';
+    spatialReviewFilters.forEach(function(button) { button.setAttribute('aria-pressed', String(button.getAttribute('data-review-filter') === spatialReviewFilter)); });
+    if (spatialStatus) spatialStatus.setAttribute('data-review-filter', spatialReviewFilter);
     spatialStage.querySelectorAll('[data-review-flags]').forEach(function(node) {
-      var flags = (node.getAttribute('data-review-flags') || '').split(/\\s+/);
-      var visible = filter === 'all' || flags.indexOf(filter) !== -1;
+      var flags = (node.getAttribute('data-review-flags') || '').split(/\s+/);
+      var visible = spatialReviewFilter === 'all' || flags.indexOf(spatialReviewFilter) !== -1;
       node.style.opacity = visible ? '1' : '.12';
-      if (visible && node.tagName.toLowerCase() === 'circle') matched++;
     });
-    if (spatialStatus && importedScene) spatialStatus.textContent += ' // FILTER ' + filter.toUpperCase() + ' // MATCHED MARKERS ' + matched;
   }
   spatialReviewFilters.forEach(function(button) { button.addEventListener('click', function() { applySpatialReviewFilter(button.getAttribute('data-review-filter')); }); });
   if (spatialLevel) spatialLevel.addEventListener('change', updateSpatialView);
@@ -462,6 +462,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if (spatialLayer) spatialLayer.value = 'all';
     spatialStage.classList.remove('paused');
     if (spatialPlay) { spatialPlay.setAttribute('aria-pressed', 'false'); spatialPlay.textContent = 'PAUSE FLOW'; }
+    applySpatialReviewFilter('all');
     updateSpatialView();
   });
   updateSpatialView();
