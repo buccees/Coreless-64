@@ -58,6 +58,8 @@ class FloorTransitionProjection:
     to_level: str
     from_elevation_m: float
     to_elevation_m: float
+    from_sensor_ids: tuple[str, ...] = ()
+    to_sensor_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -132,6 +134,7 @@ def _candidate_floor_transitions(
     history: Sequence[tuple[int, tuple[float, float, float]]],
     elevations: dict[str, float],
     tolerance_m: float,
+    sensor_history: Sequence[tuple[int, tuple[str, ...]]] = (),
 ) -> tuple[FloorTransitionProjection, ...]:
     """Find sustained changes between surveyed floor elevations.
 
@@ -144,6 +147,7 @@ def _candidate_floor_transitions(
     if len(elevations) < 2 or len(history) < 2:
         return ()
     ordered = sorted(history, key=lambda item: item[0])
+    sensors_by_timestamp = {timestamp: tuple(sorted(set(sensor_ids))) for timestamp, sensor_ids in sensor_history}
     transitions: list[FloorTransitionProjection] = []
     previous_run: list[tuple[int, str, float]] = []
     current_run: list[tuple[int, str, float]] = []
@@ -163,6 +167,8 @@ def _candidate_floor_transitions(
                 to_level=current_run[0][1],
                 from_elevation_m=previous_run[-1][2],
                 to_elevation_m=current_run[0][2],
+                from_sensor_ids=sensors_by_timestamp.get(previous_run[-1][0], ()),
+                to_sensor_ids=sensors_by_timestamp.get(current_run[0][0], ()),
             ))
         previous_run = current_run
         current_run = []
@@ -271,7 +277,8 @@ def build_blueprint_view(
             inferred_level=inferred_level,
             visible_on_selected_level=visible_on_level,
             floor_transitions=_candidate_floor_transitions(
-                track.position_history_m, elevations, floor_elevation_tolerance_m
+                track.position_history_m, elevations, floor_elevation_tolerance_m,
+                track.position_history_sensor_ids,
             ),
         ))
 
