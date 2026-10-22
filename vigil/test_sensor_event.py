@@ -8,9 +8,10 @@ def make_event(event_id="evt-1", timestamp_ns=100, status=SensorEventStatus.ACCE
     kwargs.setdefault("confidence", 0.86)
     kwargs.setdefault("calibration_status", "demo_only")
     kwargs.setdefault("reason", "demo detection accepted")
+    sensor_id = kwargs.pop("sensor_id", "cam-01")
     return SensorEventRecord(
         event_id=event_id,
-        sensor_id="cam-01",
+        sensor_id=sensor_id,
         timestamp_ns=timestamp_ns,
         modality="vision",
         event_kind="object_detection",
