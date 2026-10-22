@@ -284,6 +284,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       if (importedScene) {
         var counts = renderImportedScene(importedScene);
         showImportStatus('IMPORTED ' + importedScene.model_id + ' / REV ' + importedScene.revision + ' / FRAME ' + importedScene.frame_id, counts);
+        applyImportedLevelFilter();
       } else {
         spatialStatus.textContent = 'DEMO DATA // ' + levelLabel + ' // ' + layerLabel + ' // NO LIVE SENSORS CONNECTED';
       }
