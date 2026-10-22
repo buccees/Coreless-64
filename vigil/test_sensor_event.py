@@ -5,6 +5,9 @@ from vigil.sensor_event import SensorEventLedger, SensorEventRecord, SensorEvent
 
 
 def make_event(event_id="evt-1", timestamp_ns=100, status=SensorEventStatus.ACCEPTED, **kwargs):
+    kwargs.setdefault("confidence", 0.86)
+    kwargs.setdefault("calibration_status", "demo_only")
+    kwargs.setdefault("reason", "demo detection accepted")
     return SensorEventRecord(
         event_id=event_id,
         sensor_id="cam-01",
@@ -12,9 +15,6 @@ def make_event(event_id="evt-1", timestamp_ns=100, status=SensorEventStatus.ACCE
         modality="vision",
         event_kind="object_detection",
         status=status,
-        reason="demo detection accepted",
-        confidence=0.86,
-        calibration_status="demo_only",
         **kwargs,
     )
 
