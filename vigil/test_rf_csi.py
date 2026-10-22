@@ -1,8 +1,8 @@
-"""Tests for Wi-Fi CSI feature extraction."""
+"""Tests for Wi-Fi CSI feature extraction and temporal filtering."""
 import math
 import unittest
 
-from vigil.rf_csi import extract_csi_features
+from vigil.rf_csi import MotionEvidenceFilter, extract_csi_features
 
 
 class CsiFeatureTests(unittest.TestCase):
@@ -36,6 +36,29 @@ class CsiFeatureTests(unittest.TestCase):
             extract_csi_features([1+0j], [0j])
         with self.assertRaises(ValueError):
             extract_csi_features([complex(float("nan"), 0)], [1+0j])
+
+    def test_filter_requires_sustained_motion_to_enter(self):
+        f = MotionEvidenceFilter(alpha=1, high_threshold=.5, low_threshold=.2, enter_samples=2)
+        self.assertFalse(f.update(.8).active)
+        self.assertTrue(f.update(.8).active)
+
+    def test_filter_hysteresis_prevents_immediate_exit(self):
+        f = MotionEvidenceFilter(alpha=1, high_threshold=.5, low_threshold=.2, enter_samples=1, exit_samples=2)
+        self.assertTrue(f.update(.8).active)
+        self.assertTrue(f.update(.1).active)
+        self.assertFalse(f.update(.1).active)
+
+    def test_filter_rejects_invalid_evidence(self):
+        f = MotionEvidenceFilter()
+        for value in (-.1, 1.1, float("nan")):
+            with self.assertRaises(ValueError):
+                f.update(value)
+
+    def test_filter_rejects_invalid_configuration(self):
+        with self.assertRaises(ValueError):
+            MotionEvidenceFilter(alpha=0)
+        with self.assertRaises(ValueError):
+            MotionEvidenceFilter(low_threshold=.5, high_threshold=.5)
 
 
 if __name__ == "__main__":
