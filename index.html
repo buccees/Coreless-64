@@ -489,13 +489,15 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         var conflictTag = object.conflict === true ? ' // SENSOR CONFLICT FLAGGED — DO NOT CONFIRM' : ' // CANDIDATE — REVIEW REQUIRED';
         var fromSensors = transition && Array.isArray(transition.from_sensor_ids) && transition.from_sensor_ids.length ? transition.from_sensor_ids.join(', ') : 'NOT PROVIDED';
         var toSensors = transition && Array.isArray(transition.to_sensor_ids) && transition.to_sensor_ids.length ? transition.to_sensor_ids.join(', ') : 'NOT PROVIDED';
-        item.textContent = fromLevel + ' → ' + toLevel + ' // timestamp_ns=' + timestamp + ' // SOURCE SENSORS: ' + fromSensors + ' // DESTINATION SENSORS: ' + toSensors + conflictTag;
+        var evidenceStatus = transition && typeof transition.evidence_status === 'string' ? transition.evidence_status : 'EVIDENCE STATUS NOT PROVIDED';
+        var conflictingSensors = transition && Array.isArray(transition.conflicting_sensor_ids) && transition.conflicting_sensor_ids.length ? transition.conflicting_sensor_ids.join(', ') : 'NONE LOCALIZED';
+        item.textContent = fromLevel + ' → ' + toLevel + ' // timestamp_ns=' + timestamp + ' // EVIDENCE: ' + evidenceStatus + ' // SOURCE SENSORS: ' + fromSensors + ' // DESTINATION SENSORS: ' + toSensors + ' // CONFLICTING SENSORS: ' + conflictingSensors + conflictTag;
         transitionList.appendChild(item);
       });
       spatialTrackDetail.appendChild(transitionList);
     }
     var note = document.createElement('p');
-    note.textContent = 'FLOOR CONTINUITY NOTE // A candidate requires at least two consecutive samples assigned to the destination floor; its timestamp is the first destination sample. Per-sample source and destination sensor IDs are shown when supplied by the import. Missing IDs mean provenance was not provided, not that a sensor was absent. A track-level sensor conflict flags every listed transition for review; history alone does not prove the route taken.';
+    note.textContent = 'FLOOR CONTINUITY NOTE // Evidence status distinguishes a flagged conflict, missing sensor provenance, an unlocalized track conflict, and provenance available for review. Conflicting sensor IDs are localized only when they overlap the source/destination sample IDs; otherwise the track-level conflict remains unlocalized. No status automatically confirms a floor change, and history alone does not prove the route taken.';
     spatialTrackDetail.appendChild(note);
   }
   function bindSpatialTrackInspection(data) {
