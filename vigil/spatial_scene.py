@@ -6,6 +6,7 @@ pass. This module does not authorize physical actions or replace Coreless policy
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 from typing import Sequence
 
 from .blueprint import BlueprintModel, PoseEstimate
@@ -59,7 +60,7 @@ def assemble_spatial_scene(
         raise ValueError("timestamps and age limits must be non-negative")
     if max_pose_uncertainty_m <= 0:
         raise ValueError("max_pose_uncertainty_m must be positive")
-    if not isinstance(max_track_uncertainty_m, (int, float)) or isinstance(max_track_uncertainty_m, bool) or not __import__("math").isfinite(max_track_uncertainty_m) or max_track_uncertainty_m <= 0:
+    if not isinstance(max_track_uncertainty_m, (int, float)) or isinstance(max_track_uncertainty_m, bool) or not isfinite(max_track_uncertainty_m) or max_track_uncertainty_m <= 0:
         raise ValueError("max_track_uncertainty_m must be finite and positive")
 
     checks: list[SceneCheck] = []
@@ -151,7 +152,7 @@ def assemble_spatial_scene(
     unknown_uncertainty_track_count = sum(
         not isinstance(track.uncertainty_m, (int, float))
         or isinstance(track.uncertainty_m, bool)
-        or not __import__("math").isfinite(track.uncertainty_m)
+        or not isfinite(track.uncertainty_m)
         or track.uncertainty_m <= 0
         for track in valid_tracks
     )
