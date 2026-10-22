@@ -67,7 +67,7 @@ def test_fusion_rejects_stale_future_and_wrong_frame_evidence():
         position_m=(0, 0, 0), uncertainty_m=0.1,
         modality=TrackingModality.VISION, provenance="test",
     )
-    snapshot = MultiSensorFusion(active, max_csi_skew_ns=10, max_ir_age_ns=10).fuse(
+    snapshot = MultiSensorFusion(active, max_age_ns=10, max_csi_skew_ns=10, max_ir_age_ns=10).fuse(
         now_ns=100, observations=[wrong, observation(active, timestamp=1)],
         csi_results=[csi(50), csi(101, sensor_id="future")],
         infrared_maps=[ir_map(active, timestamp=1), ir_map(active, timestamp=101, level="future")],
