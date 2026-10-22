@@ -170,6 +170,45 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 </div></section>
 <section id="sensors-panel" class="panel report-panel" data-category="sensors"><h2>SENSOR INPUT BAY // RAW FEEDS &amp; HEALTH</h2><div class="content">
 <p><span class="green">DISPLAY MODE:</span> EXAMPLE TELEMETRY / MULTI-SENSOR INPUT MONITORS</p>
+<div class="sensor-console" id="temporal-evidence-monitor" aria-label="Temporal sensor evidence monitor">
+  <div class="sensor-console-title"><span>TEMPORAL EVIDENCE MONITOR // SENSOR INPUTS SCREEN</span><span class="sensor-demo-tag">SYNTHETIC REVIEW DATA</span></div>
+  <div class="sensor-console-metrics">
+    <div class="sensor-console-metric"><b id="temporal-count-fresh">02</b><span>FRESH EXAMPLES</span></div>
+    <div class="sensor-console-metric"><b id="temporal-count-review">02</b><span>NEEDS REVIEW</span></div>
+    <div class="sensor-console-metric"><b id="temporal-count-context">01</b><span>CONTEXT ONLY</span></div>
+    <div class="sensor-console-metric"><b>50 ms</b><span>DEMO GROUP WINDOW</span></div>
+  </div>
+  <div class="sensor-console-pane">
+    <h3>EVENT SEQUENCE // TIME-ALIGNED VIEW</h3>
+    <div class="sensor-toolbar" role="group" aria-label="Filter temporal evidence examples">
+      <button type="button" data-temporal-filter="all" aria-pressed="true">ALL EVENTS</button>
+      <button type="button" data-temporal-filter="fresh" aria-pressed="false">FRESH</button>
+      <button type="button" data-temporal-filter="review" aria-pressed="false">REVIEW</button>
+      <button type="button" data-temporal-filter="context" aria-pressed="false">CONTEXT</button>
+    </div>
+    <table class="sensor-event-table">
+      <thead><tr><th>TIME</th><th>SOURCE / EVIDENCE</th><th>LINEAGE / CALIBRATION</th><th>DISPOSITION</th></tr></thead>
+      <tbody id="temporal-evidence-rows">
+        <tr data-temporal-kind="fresh"><td>+0 ms</td><td>RANGE-A<br><span class="muted">calibrated spatial observation</span></td><td>Declared group A<br>Verified</td><td class="accept">FRESH</td></tr>
+        <tr data-temporal-kind="fresh"><td>+18 ms</td><td>RANGE-B<br><span class="muted">spatial observation</span></td><td>Declared group B<br>Verified</td><td class="accept">FRESH</td></tr>
+        <tr data-temporal-kind="review"><td>+27 ms</td><td>IR-FLOOR-1<br><span class="muted">floor context</span></td><td>Lineage undeclared<br>Calibration unknown</td><td>REVIEW</td></tr>
+        <tr data-temporal-kind="context"><td>+34 ms</td><td>WIFI-CSI-1<br><span class="muted">motion/context evidence</span></td><td>Declared group RF-1<br>Not a position fix</td><td>CONTEXT</td></tr>
+        <tr data-temporal-kind="review"><td>+43 ms</td><td>RANGE-C<br><span class="muted">spatial observation</span></td><td>Declared group A<br>Calibration unverified</td><td class="reject">REVIEW</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="sensor-console-pane">
+    <h3>INTERPRETATION // CONFIDENCE GUARDS</h3>
+    <div class="terminal-code">TIME WINDOW: 0–50 ms
+POSITION UPDATE: spatial observations only
+CSI CONTRIBUTION: motion context
+INDEPENDENCE: declared metadata, not proof
+UNKNOWN LINEAGE: visible warning
+UNVERIFIED CALIBRATION: review required</div>
+    <p class="muted">Use the filters to isolate example event classes. These rows are illustrative UI fixtures—not live radio, infrared, or ranging measurements.</p>
+  </div>
+  <div id="temporal-filter-status" class="sensor-console-note" aria-live="polite">Showing all 5 synthetic events. No live hardware data is represented.</div>
+</div>
 <div class="hazard" style="border-color:#e2d86a;color:#e2d86a">SIMULATED FEED // EXAMPLE SIGNALS ONLY // NO HARDWARE CONNECTED</div>
 <p class="muted">This screen demonstrates how VIGIL could inspect incoming visual and ranging evidence before fusion. Values and waveforms below are synthetic; they are not readings from this device.</p>\n<div class="fluid-note" style="margin:8px 0;border-left-color:#29f5b2"><strong class="green">PRIORITY SENSOR PATH // 2.4 GHz WI-FI RF SENSING (“WI-FI SONAR”)</strong><br>VIGIL prioritizes compatible Wi-Fi channel-state information (CSI), multi-antenna phase/amplitude changes, and time-aligned RF observations as evidence for motion and object tracking. RSSI alone is not a distance measurement; range requires a supported, calibrated ranging method. Acoustic sonar remains a complementary, distinct modality. No live Wi-Fi hardware is connected in this demo.</div><div class="terminal-code" aria-label="CSI feature extraction implementation status"><strong>CSI FEATURE PIPELINE // SOFTWARE MILESTONE</strong><br>• Aligned complex subcarrier samples → normalized amplitude deltas<br>• Wrapped phase deltas → phase-change features<br>• Baseline amplitude variability + bounded motion-evidence score<br>• Rejects empty, zero-magnitude, non-finite, or misaligned samples<br><br>STATUS: deterministic feature extraction + unit tests committed. This score is evidence, not a probability or range. Device-specific calibration, multi-antenna synchronization, live capture, and real-world tracking benchmarks remain pending.<br><br><strong>MULTI-SENSOR FUSION // EVIDENCE COORDINATION</strong><br>VIGIL now has a time-aligned fusion coordinator for calibrated spatial observations, 2.4 GHz Wi-Fi CSI motion evidence, and calibrated infrared floor maps. It checks model/revision/frame alignment and freshness, retains contributing evidence, and reports rejected inputs instead of silently mixing incompatible data. Spatial observations update object tracks; CSI contributes motion context, while infrared maps contribute floor context. Neither is promoted into a 3D object location without a calibrated detection adapter. Sensor timestamps, uncertainty, and modality remain explicit. Hardware synchronization, sensor-specific calibration, and labeled field validation remain outstanding.<br><br><strong>UNIFIED SPATIAL SCENE // LIVE STATUS CONTRACT</strong><br>The new scene coordinator connects multi-sensor fusion to the existing blueprint view and its quality gates. The scene now carries readable status for 2.4 GHz Wi-Fi CSI, infrared floor-map alignment, and calibrated spatial observations, alongside warnings for stale evidence, missing position updates, and failed pose checks. Scene readiness still depends on the registered blueprint, selected floor, fresh aligned pose, and consistent tracks; a motion flag alone can never lock a location. This is a software integration contract using supplied sensor records, not a claim of connected live hardware.<br><br>RANGE-TO-TRACK // SPATIAL BRIDGE
 Calibrated range epochs now have an explicit route into the existing object tracker: validate blueprint model/revision/frame, solve a 3D position from at least four same-epoch anchors, reject excessive residuals, then update timestamped tracks with sensor provenance. RF 2.4 GHz ranging and acoustic sonar remain separate propagation modalities. CSI motion scores are never converted into fake coordinates; this bridge requires calibrated range measurements from real sensor adapters. Live hardware calibration and field accuracy tests remain outstanding.<br><br>CSI PIPELINE // END-TO-END EVIDENCE
@@ -879,5 +918,26 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   var knownView = buttons.some(function(link) { return link.getAttribute('data-view') === initialView; });
   selectCategory(knownView ? initialView : 'overview');
 })();
+  var temporalMonitor = document.getElementById('temporal-evidence-monitor');
+  if (temporalMonitor) {
+    var temporalButtons = Array.prototype.slice.call(temporalMonitor.querySelectorAll('[data-temporal-filter]'));
+    var temporalRows = Array.prototype.slice.call(temporalMonitor.querySelectorAll('#temporal-evidence-rows tr'));
+    var temporalStatus = document.getElementById('temporal-filter-status');
+    temporalButtons.forEach(function(button) {
+      button.addEventListener('click', function() {
+        var filter = button.getAttribute('data-temporal-filter');
+        var shown = 0;
+        temporalButtons.forEach(function(item) {
+          item.setAttribute('aria-pressed', item === button ? 'true' : 'false');
+        });
+        temporalRows.forEach(function(row) {
+          var visible = filter === 'all' || row.getAttribute('data-temporal-kind') === filter;
+          row.hidden = !visible;
+          if (visible) shown++;
+        });
+        temporalStatus.textContent = 'Showing ' + shown + ' of ' + temporalRows.length + ' synthetic events. No live hardware data is represented.';
+      });
+    });
+  }
 </script></body></html>
 <!-- GitHub Pages retry after confirmed settings; report content unchanged. -->
