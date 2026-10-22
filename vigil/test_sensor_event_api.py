@@ -38,6 +38,7 @@ class SensorEventApiTests(unittest.TestCase):
         self.assertEqual(data["events"][0]["freshness"], "current")
         self.assertEqual(data["events"][0]["evidence_score"], 0.4)
         self.assertEqual(data["events"][0]["status"], "context")
+        self.assertEqual(data["events"][0]["alignment"]["status"], "aligned")
 
     def test_health_does_not_claim_hardware_connected(self):
         with urlopen(self.base + "/health") as response:
