@@ -37,6 +37,8 @@ class SensorEventRecord:
     model_id: str | None = None
     model_revision: str | None = None
     frame_id: str | None = None
+    independence_group: str | None = None
+    lineage_declared: bool = False
 
     def __post_init__(self) -> None:
         for name in ("event_id", "sensor_id", "modality", "event_kind", "reason", "calibration_status"):
@@ -61,6 +63,10 @@ class SensorEventRecord:
             raise ValueError("evidence_score must be in [0, 1]")
         if self.uncertainty_m is not None and self.uncertainty_m < 0:
             raise ValueError("uncertainty_m must be non-negative")
+        if self.independence_group is not None and (not isinstance(self.independence_group, str) or not self.independence_group.strip()):
+            raise ValueError("independence_group must be non-empty when provided")
+        if not isinstance(self.lineage_declared, bool):
+            raise ValueError("lineage_declared must be a boolean")
         for name in ("model_id", "model_revision", "frame_id"):
             value = getattr(self, name)
             if value is not None and (not isinstance(value, str) or not value.strip()):
