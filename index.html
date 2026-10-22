@@ -445,12 +445,20 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     while (spatialTrackDetail.firstChild) spatialTrackDetail.removeChild(spatialTrackDetail.firstChild);
     var mappedLevel = object.inferred_level || object.level || null;
     var activeLevel = spatialLevel ? spatialLevel.value : 'all';
+    var trail = Array.isArray(object.motion_trail_m) ? object.motion_trail_m.filter(function(item) { return Array.isArray(item) && item.length > 1 && finite3(item[1]); }) : [];
+    var verticalSpan = 'UNKNOWN';
+    if (trail.length) {
+      var heights = trail.map(function(item) { return item[1][2]; });
+      verticalSpan = (Math.min.apply(null, heights)).toFixed(2) + '–' + (Math.max.apply(null, heights)).toFixed(2) + ' m Z';
+    }
     var heading = document.createElement('strong');
     heading.textContent = 'TRACK INSPECTOR // ' + String(object.object_id || 'OBJECT') + ' // LEVEL ' + (mappedLevel === null ? 'UNKNOWN' : String(mappedLevel));
     spatialTrackDetail.appendChild(heading);
     var rows = [
       ['Mapped floor', mappedLevel === null ? 'UNKNOWN — NO LEVEL EVIDENCE' : String(mappedLevel)],
       ['Active floor view', activeLevel === 'all' ? 'ALL LEVELS' : activeLevel],
+      ['Motion-trail samples', trail.length ? String(trail.length) : 'NO TRAIL SAMPLES'],
+      ['Observed vertical coordinate span', verticalSpan],
       ['Position uncertainty', typeof object.uncertainty_m === 'number' && Number.isFinite(object.uncertainty_m) ? object.uncertainty_m.toFixed(2) + ' m' : 'UNKNOWN'],
       ['Observations', Number.isInteger(object.observation_count) ? String(object.observation_count) : 'UNKNOWN'],
       ['Sensor sources', Array.isArray(object.sensor_ids) && object.sensor_ids.length ? object.sensor_ids.join(', ') : 'NOT PROVIDED'],
@@ -467,7 +475,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     });
     spatialTrackDetail.appendChild(list);
     var note = document.createElement('p');
-    note.textContent = 'FLOOR CONTINUITY NOTE // This imported track is mapped to one inferred floor. Its motion trail is projected on that floor; a vertical transition is not asserted unless the input provides level-transition evidence.';
+    note.textContent = 'FLOOR CONTINUITY NOTE // Vertical span reports the Z coordinates in the imported motion history. It is not, by itself, proof of a floor transition. The trail is currently projected on the mapped floor; explicit transition evidence is not inferred from proximity alone.';
     spatialTrackDetail.appendChild(note);
   }
   function bindSpatialTrackInspection(data) {
