@@ -82,6 +82,58 @@ def test_trilateration_rejects_too_few_mismatched_or_degenerate_ranges():
         trilaterate_3d(same_plane)
 
 
+def test_failed_calibration_is_rejected_before_positioning():
+    active = model()
+    measurements = ranges(active)
+    first = measurements[0]
+    measurements[0] = RangeMeasurement(
+        sensor_id=first.sensor_id, object_id=first.object_id, model_id=first.model_id,
+        model_revision=first.model_revision, frame_id=first.frame_id,
+        timestamp_ns=first.timestamp_ns, anchor_position_m=first.anchor_position_m,
+        range_m=first.range_m, uncertainty_m=first.uncertainty_m,
+        modality=first.modality, provenance=first.provenance,
+        calibration_status="failed", calibration_id="cal-2026-04",
+    )
+    with pytest.raises(ValueError, match="failed calibration"):
+        trilaterate_3d(measurements)
+
+
+def test_adapter_propagates_declared_shared_lineage_and_marks_unverified_calibration():
+    active = model()
+    measurements = ranges(active)
+    measurements = [
+        RangeMeasurement(
+            sensor_id=item.sensor_id, object_id=item.object_id, model_id=item.model_id,
+            model_revision=item.model_revision, frame_id=item.frame_id,
+            timestamp_ns=item.timestamp_ns, anchor_position_m=item.anchor_position_m,
+            range_m=item.range_m, uncertainty_m=item.uncertainty_m,
+            modality=item.modality, provenance=item.provenance,
+            independence_group="shared-ranging-chain",
+            calibration_status="unverified", calibration_id="cal-check-pending",
+        )
+        for item in measurements
+    ]
+    observation = to_object_observation(active, measurements)
+    assert observation.independence_group == "shared-ranging-chain"
+    assert "calibration=UNVERIFIED" in observation.provenance
+    assert "cal-check-pending" in observation.provenance
+
+
+def test_adapter_does_not_invent_one_lineage_for_mixed_or_missing_groups():
+    active = model()
+    measurements = ranges(active)
+    measurements[0] = RangeMeasurement(
+        sensor_id=measurements[0].sensor_id, object_id=measurements[0].object_id,
+        model_id=measurements[0].model_id, model_revision=measurements[0].model_revision,
+        frame_id=measurements[0].frame_id, timestamp_ns=measurements[0].timestamp_ns,
+        anchor_position_m=measurements[0].anchor_position_m, range_m=measurements[0].range_m,
+        uncertainty_m=measurements[0].uncertainty_m, modality=measurements[0].modality,
+        provenance=measurements[0].provenance, independence_group="one-source",
+    )
+    observation = to_object_observation(active, measurements)
+    assert observation.independence_group is None
+
+
 def test_single_solve_cannot_mix_rf_and_acoustic_measurements():
     active = model()
     measurements = ranges(active)
