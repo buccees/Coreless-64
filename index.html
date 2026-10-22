@@ -721,6 +721,8 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if (sensorGrid) sensorGrid.classList.toggle('sensor-paused', frozen);
     if (sensorFeedState) sensorFeedState.textContent = frozen ? 'FROZEN' : 'RUNNING';
   });
+  // Event timestamps are source times. The API reports per-sensor ordering checks;
+  // late events beyond its configured tolerance are rejected before they reach this view.
   // Live feed is opt-in; poll only while connected and never overlap requests.
   var feedUrlInput = document.getElementById('sensor-api-url');
   var feedConnect = document.getElementById('sensor-connect');
@@ -744,9 +746,17 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       var title = document.createElement('strong');
       title.textContent = String(row.sensor_id || 'UNKNOWN SENSOR') + ' · ' + String(row.event_kind || 'EVENT');
       var detail = document.createElement('div');
+      var alignment = row.alignment && typeof row.alignment === 'object' ? row.alignment : {};
       detail.textContent = 'STATUS ' + String(row.status || 'unknown').toUpperCase() +
+        ' · ALIGNMENT ' + String(alignment.status || 'unspecified').toUpperCase() +
+        ' · LATENESS ' + (Number.isFinite(alignment.lateness_ns) ? String(alignment.lateness_ns) + ' ns' : 'unknown') +
         ' · FRESHNESS ' + String(row.freshness || 'unspecified').toUpperCase() +
         ' · EVENT AGE ' + (Number.isFinite(row.age_ns) && row.age_ns >= 0 ? String(Math.round(row.age_ns / 1e6)) + ' ms' : 'unknown');
+      if (alignment.reason) {
+        var alignmentNote = document.createElement('div');
+        alignmentNote.textContent = 'TIME ALIGNMENT: ' + String(alignment.reason);
+        item.appendChild(alignmentNote);
+      }
       var reason = document.createElement('div');
       reason.textContent = String(row.reason || 'No reason supplied.');
       item.appendChild(title); item.appendChild(detail); item.appendChild(reason);
