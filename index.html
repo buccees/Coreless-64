@@ -112,7 +112,7 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 <div class="panel-note" style="border:1px solid var(--line);padding:12px;margin:12px 0;background:rgba(41,245,178,.035)">
 <strong class="green">TEMPORAL EVIDENCE WINDOW // CROSS-SENSOR GROUPING</strong>
 <p>VIGIL groups normalized observations by calibrated event time before any spatial reasoning. The software primitive uses a configurable window anchored at the earliest event in each group; it preserves per-event source time, aligned time, modality, calibration, uncertainty, model/frame provenance, and alignment warnings.</p>
-<p><span class="green">GUARDRAIL:</span> time proximity is not proof that observations describe the same object. Wi-Fi CSI remains contextual motion evidence—not a position fix. Position and identity require independently calibrated spatial observations and downstream validation.</p>
+<p><span class="green">GUARDRAIL:</span> time proximity is not proof that observations describe the same object. Wi-Fi CSI remains contextual motion evidence—not a position fix. Position and identity require independently calibrated spatial observations and downstream validation.</p><p><span class="green">SPATIAL QUALITY GATE:</span> the fusion layer now has a configurable maximum observation-uncertainty ceiling (default 10 m). Spatial observations exceeding it are excluded and counted. Tune this ceiling to the environment and sensor calibration; passing it does not certify a detection as correct.</p>
 <p class="muted">Default library window: 50 ms. This is a configurable software default, not a claim about sensor accuracy or hardware synchronization.</p>
 </div>
 </div>
