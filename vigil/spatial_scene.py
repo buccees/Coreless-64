@@ -186,6 +186,27 @@ def assemble_spatial_scene(
         f"{max_track_uncertainty_m:.2f} m; {conflict_count} conflicted track(s). "
         "Uncertain tracks remain visible but must not be treated as precise fixes.",
     ))
+    failed_calibration_count = sum(track.calibration_status == "failed" for track in valid_tracks)
+    unverified_calibration_count = sum(track.calibration_status == "unverified" for track in valid_tracks)
+    unknown_lineage_count = sum(not track.lineage_declared for track in valid_tracks)
+    checks.append(SceneCheck(
+        "track_calibration_valid", failed_calibration_count == 0,
+        "no active track uses failed calibration"
+        if failed_calibration_count == 0
+        else f"{failed_calibration_count} active track(s) depend on failed calibration; scene readiness blocked",
+    ))
+    checks.append(SceneCheck(
+        "track_calibration_verified", True,
+        "all active track calibrations explicitly verified"
+        if unverified_calibration_count == 0
+        else f"WARNING: {unverified_calibration_count} active track(s) have unverified calibration; software metadata is not physical validation",
+    ))
+    checks.append(SceneCheck(
+        "source_lineage_declared", True,
+        "all active tracks declare source lineage"
+        if unknown_lineage_count == 0
+        else f"WARNING: {unknown_lineage_count} active track(s) have undeclared source lineage; sensor IDs alone do not prove independent hardware",
+    ))
     # Infrared is optional for readiness, but only fresh, time-aligned maps are exposed.
     ir_detail = (
         f"{aligned_ir_count} fresh aligned map(s) across {len(valid_ir_levels)} floor(s)"
