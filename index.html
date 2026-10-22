@@ -24,6 +24,7 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:9px;padding:9px
 @media(max-width:760px){body{padding:112px 5px 5px}.nav-panel{justify-content:flex-start;padding:6px 5px;gap:4px}.nav-button{flex:0 0 auto;min-height:44px;padding:9px 10px;font-size:10px;line-height:1.2;touch-action:manipulation}.layout,.workspace .layout{grid-template-columns:1fr}header{grid-template-columns:1fr}header>div{border-right:0;border-bottom:1px solid var(--line)}.project{grid-template-columns:1fr;gap:6px}footer{grid-template-columns:1fr;gap:5px}footer span,footer span:nth-child(2),footer span:last-child{text-align:left}}
 </style></head>
 <body><nav class="nav-panel" aria-label="VIGIL control room sections"><a class="nav-button" href="#overview-panel" data-view="overview" aria-pressed="true">01 // OVERVIEW</a><a class="nav-button" href="#architecture-panel" data-view="architecture" aria-pressed="false">02 // ARCHITECTURE</a><a class="nav-button" href="#specimen-panel" data-view="specimen" aria-pressed="false">03 // SPECIMEN PLATE</a><a class="nav-button" href="#notes-panel" data-view="notes" aria-pressed="false">04 // RESEARCH NOTES</a><a class="nav-button" href="#handoff-panel" data-view="handoff" aria-pressed="false">05 // HANDOFF</a><a class="nav-button" href="#roadmap-panel" data-view="roadmap" aria-pressed="false">06 // ROADMAP</a><a class="nav-button" href="#ci-panel" data-view="ci" aria-pressed="false">07 // CI &amp; TESTS</a><a class="nav-button" href="#environment-panel" data-view="environment" aria-pressed="false">08 // ENVIRONMENT</a><a class="nav-button" href="#changelog-panel" data-view="changelog" aria-pressed="false">09 // CHANGELOG</a></nav><main class="sheet">
+<div id="intro-blocks" data-intro="true">
 <header>
 <div><div class="brand">WY // WEYLAND–YUTANI<small>BUILDING BETTER WORLDS</small></div></div>
 <div class="meta">RESEARCH &amp; DEVELOPMENT<br>XENOBIOLOGY / SPATIAL SYSTEMS<br><span class="green">PROJECT FILE: C-64 / VIGIL</span></div>
@@ -31,6 +32,7 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr;margin-top:9px;padding:9px
 </header>
 <div class="project"><strong>PROJECT: VIGIL / XENONEURAL</strong><span class="classification">CLASSIFIED // EYES ONLY</span></div>
 <div class="subhead">ALIEN NEURAL DISSECTION / SPATIAL INTELLIGENCE RECONSTRUCTION / CORELESS-64</div>
+</div>
 <div class="report-shell"><div class="workspace"><div class="layout"><div class="stack">
 <section id="overview-panel" class="panel report-panel" data-category="overview"><h2>SPECIMEN OVERVIEW</h2><div class="content">
 <p><span class="green">SPECIMEN:</span> XN-01 / Xenomorph-type organism (fictional)</p><p><span class="green">EXAMINATION:</span> Cranial carapace and xenoneural network</p><p><span class="green">OBJECTIVE:</span> Reverse-engineer the conceptual architecture of distributed spatial perception for VIGIL.</p><p class="muted">Working hypothesis: multiple sensory channels converge into a shared environmental model. Fictional research scenario; not a claim about real biology.</p></div></section>
@@ -53,6 +55,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   var nav = document.querySelector('.nav-panel');
   var buttons = Array.prototype.slice.call(document.querySelectorAll('.nav-button[data-view]'));
   var panels = Array.prototype.slice.call(document.querySelectorAll('.report-panel[data-category]'));
+  var introBlocks = document.getElementById('intro-blocks');
   function selectCategory(category) {
     var found = false;
     buttons.forEach(function(link) {
@@ -61,6 +64,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       if (active) found = true;
     });
     if (!found) return;
+    if (introBlocks) introBlocks.hidden = category !== 'overview';
     panels.forEach(function(panel) {
       panel.hidden = panel.getAttribute('data-category') !== category;
     });
