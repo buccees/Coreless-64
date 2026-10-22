@@ -38,6 +38,9 @@ class ObjectObservation:
     # Sensors may use different local detection IDs. Only a shared, upstream
     # association ID explicitly asserts that those detections refer to one entity.
     association_id: str | None = None
+    # Sensors sharing this token are treated as one evidence source for
+    # conflict resolution (e.g. two derived feeds from one physical receiver).
+    independence_group: str | None = None
 
     def __post_init__(self) -> None:
         if not all((self.object_id.strip(), self.sensor_id.strip(), self.model_id.strip(),
@@ -45,6 +48,8 @@ class ObjectObservation:
             raise ValueError("object, sensor, model, frame, and provenance are required")
         if self.association_id is not None and not self.association_id.strip():
             raise ValueError("association_id must be non-empty when provided")
+        if self.independence_group is not None and not self.independence_group.strip():
+            raise ValueError("independence_group must be non-empty when provided")
         if self.timestamp_ns < 0:
             raise ValueError("timestamp_ns must be non-negative")
         _validate_vector(self.position_m, "object position")
@@ -52,6 +57,15 @@ class ObjectObservation:
             raise ValueError("uncertainty_m must be finite and positive")
         if not isinstance(self.modality, TrackingModality):
             raise ValueError("modality must be a TrackingModality")
+
+    @property
+    def evidence_independence_group(self) -> str:
+        """Return declared source lineage, or sensor ID as a compatibility default.
+
+        The default preserves existing behavior; it does not certify physical
+        independence. Adapters should share a group when feeds share a source.
+        """
+        return self.independence_group or self.sensor_id
 
     @property
     def tracking_key(self) -> str:
@@ -77,6 +91,8 @@ class ObjectTrack:
     conflict: bool = False
     conflict_reasons: tuple[str, ...] = ()
     conflicting_sensor_ids: tuple[str, ...] = ()
+    # Declared evidence lineage tokens accumulated across this track.
+    independence_groups: tuple[str, ...] = ()
     # Timestamped positions in the same model frame, oldest first.
     position_history_m: tuple[tuple[int, tuple[float, float, float]], ...] = ()
     # Sensor IDs contributing to each timestamped position; aligned by timestamp.
@@ -89,7 +105,10 @@ class ObjectTracker:
     Cross-sensor detections merge only when their object IDs match or the adapters
     supply the same explicit association_id. Spatial proximity alone never proves
     identity. Positions from the newest timestamp epoch are inverse-variance fused;
-    track metadata accumulates the contributing sensors, modalities, and provenance.
+    track metadata accumulates sensors, modalities, provenance, and evidence groups.
+    Conflict resolution counts distinct independence groups, not just sensor IDs.
+    Unspecified groups default to sensor_id for compatibility; that default does not
+    prove that two physical sources are independent.
     """
 
     def __init__(
@@ -182,13 +201,14 @@ class ObjectTracker:
                 measurement_uncertainty = sqrt(1.0 / total)
             previous = self._tracks.get(tracking_key)
             current_sensor_ids = {item.sensor_id for item in group}
+            current_independence_groups = {item.evidence_independence_group for item in group}
             # A conflict remains unresolved until a later, clean measurement epoch
-            # is corroborated by the configured number of distinct sensor IDs.
+            # is corroborated by enough distinct declared evidence groups.
             can_resolve_previous_conflict = (
                 previous is not None
                 and timestamp > previous.last_seen_ns
                 and not conflict_reasons
-                and len(current_sensor_ids) >= self.conflict_resolution_min_sensors
+                and len(current_independence_groups) >= self.conflict_resolution_min_sensors
             )
             unresolved_previous_conflict = (
                 previous is not None and previous.conflict
@@ -208,6 +228,7 @@ class ObjectTracker:
                 old_sensors: set[str] = set()
                 old_modalities: set[str] = set()
                 old_provenance: set[str] = set()
+                old_independence_groups: set[str] = set()
             else:
                 dt_ns = timestamp - previous.last_seen_ns
                 if dt_ns <= 0:
@@ -225,6 +246,9 @@ class ObjectTracker:
                         })),
                         provenance=tuple(sorted(set(previous.provenance) | {
                             item.provenance for item in current_sources
+                        })),
+                        independence_groups=tuple(sorted(set(previous.independence_groups) | {
+                            item.evidence_independence_group for item in current_sources
                         })),
                         conflict=bool(effective_conflict_reasons),
                         conflict_reasons=tuple(sorted(effective_conflict_reasons)),
@@ -265,6 +289,7 @@ class ObjectTracker:
                 old_sensors = set(previous.sensor_ids)
                 old_modalities = set(previous.modalities)
                 old_provenance = set(previous.provenance)
+                old_independence_groups = set(previous.independence_groups)
             updated[tracking_key] = ObjectTrack(
                 object_id=object_id, model_id=model.model_id, model_revision=model.revision,
                 frame_id=model.frame_id, position_m=position, velocity_mps=velocity,
@@ -277,6 +302,9 @@ class ObjectTracker:
                 conflict=bool(effective_conflict_reasons),
                 conflict_reasons=tuple(sorted(effective_conflict_reasons)),
                 conflicting_sensor_ids=tuple(sorted(effective_conflicting_sensors)),
+                independence_groups=tuple(sorted(old_independence_groups | {
+                    item.evidence_independence_group for item in group
+                })),
                 position_history_m=(
                     ((timestamp, position),) if previous is None else
                     (previous.position_history_m + ((timestamp, position),))[-self.max_history_points:]
