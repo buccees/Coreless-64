@@ -31,6 +31,7 @@ class SensorEventRecord:
     sequence: int | None = None
     signal_dbm: float | None = None
     confidence: float | None = None
+    evidence_score: float | None = None
     uncertainty_m: float | None = None
     calibration_status: str = "unknown"
     model_id: str | None = None
@@ -50,12 +51,14 @@ class SensorEventRecord:
             isinstance(self.sequence, bool) or not isinstance(self.sequence, int) or self.sequence < 0
         ):
             raise ValueError("sequence must be a non-negative integer when provided")
-        for name in ("signal_dbm", "confidence", "uncertainty_m"):
+        for name in ("signal_dbm", "confidence", "evidence_score", "uncertainty_m"):
             value = getattr(self, name)
             if value is not None and not isfinite(value):
                 raise ValueError(f"{name} must be finite when provided")
         if self.confidence is not None and not 0 <= self.confidence <= 1:
             raise ValueError("confidence must be in [0, 1]")
+        if self.evidence_score is not None and not 0 <= self.evidence_score <= 1:
+            raise ValueError("evidence_score must be in [0, 1]")
         if self.uncertainty_m is not None and self.uncertainty_m < 0:
             raise ValueError("uncertainty_m must be non-negative")
         for name in ("model_id", "model_revision", "frame_id"):
