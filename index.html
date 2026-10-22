@@ -459,6 +459,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       ['Active floor view', activeLevel === 'all' ? 'ALL LEVELS' : activeLevel],
       ['Motion-trail samples', trail.length ? String(trail.length) : 'NO TRAIL SAMPLES'],
       ['Observed vertical coordinate span', verticalSpan],
+      ['Candidate floor transitions', Array.isArray(object.floor_transitions) ? String(object.floor_transitions.length) : 'NOT PROVIDED IN IMPORT'],
       ['Position uncertainty', typeof object.uncertainty_m === 'number' && Number.isFinite(object.uncertainty_m) ? object.uncertainty_m.toFixed(2) + ' m' : 'UNKNOWN'],
       ['Observations', Number.isInteger(object.observation_count) ? String(object.observation_count) : 'UNKNOWN'],
       ['Sensor sources', Array.isArray(object.sensor_ids) && object.sensor_ids.length ? object.sensor_ids.join(', ') : 'NOT PROVIDED'],
@@ -474,8 +475,24 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       list.appendChild(term); list.appendChild(value);
     });
     spatialTrackDetail.appendChild(list);
+    if (Array.isArray(object.floor_transitions) && object.floor_transitions.length) {
+      var transitionHeading = document.createElement('strong');
+      transitionHeading.textContent = 'CANDIDATE FLOOR TRANSITIONS // REVIEW REQUIRED';
+      transitionHeading.style.marginTop = '10px';
+      spatialTrackDetail.appendChild(transitionHeading);
+      var transitionList = document.createElement('ul');
+      object.floor_transitions.forEach(function(transition) {
+        var item = document.createElement('li');
+        var fromLevel = transition && transition.from_level !== undefined ? String(transition.from_level) : 'UNKNOWN';
+        var toLevel = transition && transition.to_level !== undefined ? String(transition.to_level) : 'UNKNOWN';
+        var timestamp = transition && Number.isFinite(transition.timestamp_ns) ? String(transition.timestamp_ns) : 'UNKNOWN TIME';
+        item.textContent = fromLevel + ' → ' + toLevel + ' // timestamp_ns=' + timestamp;
+        transitionList.appendChild(item);
+      });
+      spatialTrackDetail.appendChild(transitionList);
+    }
     var note = document.createElement('p');
-    note.textContent = 'FLOOR CONTINUITY NOTE // Vertical span reports the Z coordinates in the imported motion history. It is not, by itself, proof of a floor transition. The trail is currently projected on the mapped floor; explicit transition evidence is not inferred from proximity alone.';
+    note.textContent = 'FLOOR CONTINUITY NOTE // Vertical span reports Z coordinates from the imported history. Candidate transitions are derived only when adjacent valid samples map to distinct surveyed floor elevations within tolerance. They still require review; the history alone does not prove the route taken.';
     spatialTrackDetail.appendChild(note);
   }
   function bindSpatialTrackInspection(data) {
