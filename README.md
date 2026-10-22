@@ -1,7 +1,3 @@
-# Coreless
-
-[**Coreless-64 album cover artwork — Claude**](./Coreless-64%20album%20cover%20artwork%20-%20Claude.html)
-
 <p align="center">
   <a href="https://buccees.github.io/Coreless-64/">
     <img src="https://img.shields.io/badge/WEYLAND%E2%80%93YUTANI-LOGIN-03120e?style=for-the-badge&labelColor=03120e&color=29f5b2" alt="WEYLAND–YUTANI LOGIN — Open VIGIL Lab Report">
