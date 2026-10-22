@@ -31,6 +31,9 @@ class SpatialScene:
     infrared_levels: tuple[str, ...]
     object_count: int
     conflict_count: int
+    usable_track_count: int
+    uncertain_track_count: int
+    unknown_uncertainty_track_count: int
     checks: tuple[SceneCheck, ...]
     finishing_move_ready: bool
     banner: str
@@ -48,6 +51,7 @@ def assemble_spatial_scene(
     max_object_age_ns: int = 2_000_000_000,
     max_ir_age_ns: int = 2_000_000_000,
     max_pose_uncertainty_m: float = 2.0,
+    max_track_uncertainty_m: float = 1.0,
     require_conflict_free_tracks: bool = True,
 ) -> SpatialScene:
     """Build a render-ready scene and explain exactly why it is or isn't ready."""
@@ -55,6 +59,8 @@ def assemble_spatial_scene(
         raise ValueError("timestamps and age limits must be non-negative")
     if max_pose_uncertainty_m <= 0:
         raise ValueError("max_pose_uncertainty_m must be positive")
+    if not isinstance(max_track_uncertainty_m, (int, float)) or isinstance(max_track_uncertainty_m, bool) or not __import__("math").isfinite(max_track_uncertainty_m) or max_track_uncertainty_m <= 0:
+        raise ValueError("max_track_uncertainty_m must be finite and positive")
 
     checks: list[SceneCheck] = []
     aligned_pose = False
@@ -142,9 +148,43 @@ def assemble_spatial_scene(
                              f"{pose.state.value}; uncertainty within {max_pose_uncertainty_m:.2f} m" if pose_precise and pose is not None else "pose not tracking/degraded, position missing, or uncertainty exceeds limit"))
 
     conflict_count = sum(track.conflict for track in valid_tracks)
+    unknown_uncertainty_track_count = sum(
+        not isinstance(track.uncertainty_m, (int, float))
+        or isinstance(track.uncertainty_m, bool)
+        or not __import__("math").isfinite(track.uncertainty_m)
+        or track.uncertainty_m <= 0
+        for track in valid_tracks
+    )
+    uncertain_track_count = sum(
+        isinstance(track.uncertainty_m, (int, float))
+        and not isinstance(track.uncertainty_m, bool)
+        and __import__("math").isfinite(track.uncertainty_m)
+        and track.uncertainty_m > max_track_uncertainty_m
+        for track in valid_tracks
+    )
+    usable_track_count = sum(
+        not track.conflict
+        and isinstance(track.uncertainty_m, (int, float))
+        and not isinstance(track.uncertainty_m, bool)
+        and __import__("math").isfinite(track.uncertainty_m)
+        and 0 < track.uncertainty_m <= max_track_uncertainty_m
+        for track in valid_tracks
+    )
     tracks_clear = conflict_count == 0 or not require_conflict_free_tracks
     checks.append(SceneCheck("object_tracks_consistent", tracks_clear,
                              "no active track conflicts" if conflict_count == 0 else f"{conflict_count} active track conflict(s)"))
+    checks.append(SceneCheck(
+        "object_track_uncertainty_known", unknown_uncertainty_track_count == 0,
+        "uncertainty is known and valid for every active track"
+        if unknown_uncertainty_track_count == 0
+        else f"{unknown_uncertainty_track_count} active track(s) have missing or invalid uncertainty",
+    ))
+    checks.append(SceneCheck(
+        "object_track_quality", True,
+        f"{usable_track_count} usable track(s); {uncertain_track_count} uncertain track(s) above "
+        f"{max_track_uncertainty_m:.2f} m; {conflict_count} conflicted track(s). "
+        "Uncertain tracks remain visible but must not be treated as precise fixes.",
+    ))
     # Infrared is optional for readiness, but only fresh, time-aligned maps are exposed.
     ir_detail = (
         f"{aligned_ir_count} fresh aligned map(s) across {len(valid_ir_levels)} floor(s)"
@@ -171,6 +211,9 @@ def assemble_spatial_scene(
         infrared_levels=tuple(sorted(valid_ir_levels)),
         object_count=len(valid_tracks),
         conflict_count=conflict_count,
+        usable_track_count=usable_track_count,
+        uncertain_track_count=uncertain_track_count,
+        unknown_uncertainty_track_count=unknown_uncertainty_track_count,
         checks=tuple(checks),
         finishing_move_ready=ready,
         banner="FATALITY // SPATIAL SCENE LOCKED" if ready else "FATALITY DENIED // VALIDATION INCOMPLETE",
