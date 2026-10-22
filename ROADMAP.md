@@ -246,7 +246,7 @@ This is an optimization layer over the existing Coreless machine architecture, n
 
 ## Documentation checkpoint — 2026-10-07: Qwen3 tensor boundary verified
 
-The existing implementation already provides TensorRuntime-backed Qwen3 KV-cache append/persistence plus native head reshape, repeat, grouped-attention movement, and regression coverage. This roadmap item is now recorded as complete. The next implementation priority is concrete host transport adapters and persistent-storage-hosted execution; official trained Qwen3-0.6B validation remains deferred until that boundary is stable.
+The existing implementation provides the Qwen3 KV-cache/head-data **software boundary** through TensorRuntime-backed append/persistence, head reshape/repeat, grouped attention, and focused regression coverage. Code reviewed on 2026-10-22 in `ai/qwen3.py`, `ai/tensor_runtime.py`, `ai/test_qwen3.py`, and `ai/test_tensor_runtime.py` confirms this checklist item is complete; do not reopen it as missing implementation. Scope limit: Tensor payloads still use Python numeric tuples, and several runtime operations execute Python-level loops/fallbacks, so this is not proof of hardware-native data movement or trained-model end-to-end inference. Open checkpoints remain: deeper native Coreless execution and performance validation, concrete host transport adapters, and official trained Qwen3-0.6B end-to-end validation.
 
 
 ## Documentation checkpoint — 2026-10-07: persistent runtime launcher
