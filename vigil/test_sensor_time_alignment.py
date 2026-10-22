@@ -46,6 +46,21 @@ class TemporalEvidenceGroupingTests(unittest.TestCase):
         self.assertFalse(groups[0]["spatial_position_inferred"])
         self.assertEqual(groups[0]["members"][0]["reason"], "CSI motion context only")
 
+    def test_preserves_source_lineage_without_claiming_independence(self):
+        camera = event("camera", 100, modality="vision", sensor_id="cam-1",
+                       independence_group="room-sensor-bus", lineage_declared=True)
+        csi = event("csi", 105, modality="wifi_csi", status=SensorEventStatus.CONTEXT,
+                    sensor_id="radio-1", independence_group="room-sensor-bus",
+                    lineage_declared=True)
+        unknown = event("unknown", 108, modality="infrared", sensor_id="ir-1")
+        group = group_temporal_evidence([camera, csi, unknown], window_ns=20)[0]
+        self.assertEqual(group["declared_independence_groups"], ["room-sensor-bus"])
+        self.assertEqual(group["lineage_undeclared_event_ids"], ["unknown"])
+        self.assertFalse(group["independent_corroboration_verified"])
+        self.assertEqual(group["members"][0]["independence_group"], "room-sensor-bus")
+        self.assertTrue(group["members"][0]["lineage_declared"])
+        self.assertFalse(group["members"][2]["lineage_declared"])
+
     def test_output_order_is_deterministic_for_equal_timestamps(self):
         events = [event("z", 20), event("a", 20)]
         self.assertEqual(group_temporal_evidence(events, window_ns=0)[0]["event_ids"], ["a", "z"])
