@@ -79,6 +79,22 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 .sensor-console-note{grid-column:1/-1;color:var(--dim);font-size:10px;border-top:1px solid #14533e;padding-top:7px}
 @media(max-width:760px){.sensor-console{grid-template-columns:minmax(0,1fr)}.sensor-console-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sensor-console-title{align-items:flex-start;flex-direction:column}.sensor-console-pane{overflow-x:auto}.sensor-event-table{min-width:310px}}
 
+
+.sensor-live-connect{border:1px solid #14533e;background:#010805;padding:10px;margin:10px 0}
+.sensor-live-head{display:flex;justify-content:space-between;gap:8px;align-items:center;color:var(--g);font-size:11px;letter-spacing:1px}
+.sensor-live-state{font-size:10px;color:#e2d86a;border:1px solid #7d7739;padding:3px 6px}
+.sensor-live-state.connected{color:#29f5b2;border-color:#29f5b2}
+.sensor-live-controls{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center}
+.sensor-live-controls label{grid-column:1/-1;color:var(--dim);font-size:10px}
+.sensor-live-controls input{min-width:0;width:100%;background:#020907;color:var(--g);border:1px solid #14533e;padding:8px;font:inherit}
+.sensor-live-controls button{background:#03150e;color:var(--g);border:1px solid #29f5b2;padding:8px;font:inherit;font-size:10px;cursor:pointer}
+.sensor-live-controls button:disabled{opacity:.45;cursor:not-allowed}
+.sensor-live-summary{font-size:11px;color:var(--dim);margin-top:8px}
+.sensor-live-events{margin-top:8px;max-height:240px;overflow:auto;border-top:1px solid #14533e}
+.sensor-live-event{padding:7px 2px;border-bottom:1px solid #124b3b;font-size:10px;overflow-wrap:anywhere}
+.sensor-live-event strong{color:var(--g)}
+@media(max-width:520px){.sensor-live-head{align-items:flex-start;flex-direction:column}.sensor-live-controls{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.sensor-live-controls label{grid-column:1/-1}.sensor-live-controls input{grid-column:1/-1}.sensor-live-controls button{width:100%}}
+
 </style></head>
 <body><nav class="nav-panel" aria-label="VIGIL control room sections"><a class="nav-button" href="#overview-panel" data-view="overview" aria-pressed="true">01 // OVERVIEW</a><a class="nav-button" href="#architecture-panel" data-view="architecture" aria-pressed="false">02 // ARCHITECTURE</a><a class="nav-button" href="#spatial-panel" data-view="spatial" aria-pressed="false">03 // SPATIAL INTELLIGENCE</a><a class="nav-button" href="#sensors-panel" data-view="sensors" aria-pressed="false">04 // SENSOR INPUTS</a><a class="nav-button" href="#specimen-panel" data-view="specimen" aria-pressed="false">05 // SPECIMEN PLATE</a><a class="nav-button" href="#notes-panel" data-view="notes" aria-pressed="false">06 // RESEARCH NOTES</a><a class="nav-button" href="#handoff-panel" data-view="handoff" aria-pressed="false">07 // HANDOFF</a><a class="nav-button" href="#roadmap-panel" data-view="roadmap" aria-pressed="false">08 // ROADMAP</a><a class="nav-button" href="#ci-panel" data-view="ci" aria-pressed="false">09 // CI &amp; TESTS</a><a class="nav-button" href="#environment-panel" data-view="environment" aria-pressed="false">10 // ENVIRONMENT</a><a class="nav-button" href="#changelog-panel" data-view="changelog" aria-pressed="false">11 // CHANGELOG</a><a class="nav-button" href="#hardware-panel" data-view="hardware" aria-pressed="false">12 // VIRTUAL HARDWARE</a><a class="nav-button" href="#biology-panel" data-view="biology" aria-pressed="false">13 // BIO-SIMULATION</a><a class="nav-button" href="#archive-panel" data-view="archive" aria-pressed="false">14 // ARCHIVE PLATE</a></nav><main class="sheet">
 <div id="intro-blocks" data-intro="true">
@@ -155,6 +171,13 @@ VIGIL now has a local SQLite telemetry event store for router/CSI diagnostics. I
 TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation reduces sensitivity to isolated subcarrier spikes. An exponential moving average plus separate enter/exit thresholds requires sustained evidence before toggling the motion state, reducing flicker. Thresholds remain provisional until tuned on labeled recordings from the target radio and environment.</div>
 
 <div class="fluid-note" style="margin:8px 0;border-left-color:#29f5b2"><strong class="green">STRUCTURED SENSOR EVENT MODEL // NEW SOFTWARE MILESTONE</strong><br>VIGIL now defines a validated, normalized event record for dashboard and API handoff: event ID, sensor ID, monotonic-domain timestamp, modality, event kind, accepted/context/rejected/warning status, explicit reason, sequence, optional signal/confidence/uncertainty, calibration state, and blueprint model/revision/frame provenance. Validation rejects invalid timestamps, confidence outside 0–1, negative uncertainty, malformed IDs, and duplicate ledger event IDs. The in-memory ledger provides newest-first snapshots with age and count limits. The CSI/telemetry adapter maps existing pipeline outputs into this contract, preserving signal and evidence scores separately from confidence. A new opt-in, read-only local HTTP feed provides /health and /events endpoints, bounded snapshots, age metadata, and current/stale freshness labels; writes are rejected. Bind it to loopback when starting a local server. CSI remains context-only and cannot create a position fix, object identity, or range. This is software integration, not a live hardware claim; the dashboard still uses illustrative static values until connected inputs are wired into the display.</div>
+<div class="sensor-live-connect" aria-label="Live sensor event feed connection">
+  <div class="sensor-live-head"><strong>EVENT FEED LINK // OPTIONAL</strong><span id="sensor-live-state" class="sensor-live-state" role="status">DISCONNECTED · DEMO MODE</span></div>
+  <p class="muted" style="font-size:11px">Connect to a reachable HTTPS endpoint that exposes VIGIL's read-only <code>/events</code> API. A local-only endpoint is not automatically reachable from this hosted page. No endpoint is contacted until you press CONNECT.</p>
+  <div class="sensor-live-controls"><label for="sensor-api-url">EVENT API BASE URL</label><input id="sensor-api-url" type="url" inputmode="url" placeholder="https://your-host.example/vigil" autocomplete="url"><button type="button" id="sensor-connect">CONNECT</button><button type="button" id="sensor-disconnect" disabled>DISCONNECT</button></div>
+  <div id="sensor-live-summary" class="sensor-live-summary" aria-live="polite">Showing the clearly labeled synthetic demonstration below. Live data has not been loaded.</div>
+  <div id="sensor-live-events" class="sensor-live-events" hidden></div>
+</div>
 <div class="sensor-console" aria-label="Illustrative VIGIL sensor input dashboard">
   <div class="sensor-console-title"><span>VIGIL // VISUAL SENSOR-INPUT DISPLAY</span><span class="sensor-demo-tag">SYNTHETIC DATASET · NOT LIVE</span></div>
   <div class="sensor-console-metrics">
@@ -685,6 +708,83 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if (sensorGrid) sensorGrid.classList.toggle('sensor-paused', frozen);
     if (sensorFeedState) sensorFeedState.textContent = frozen ? 'FROZEN' : 'RUNNING';
   });
+  // Optional live feed connector: explicit user action, no polling by default.
+  var feedUrlInput = document.getElementById('sensor-api-url');
+  var feedConnect = document.getElementById('sensor-connect');
+  var feedDisconnect = document.getElementById('sensor-disconnect');
+  var feedState = document.getElementById('sensor-live-state');
+  var feedSummary = document.getElementById('sensor-live-summary');
+  var feedEvents = document.getElementById('sensor-live-events');
+  var feedAbort = null;
+  function renderLiveEvents(rows) {
+    while (feedEvents.firstChild) feedEvents.removeChild(feedEvents.firstChild);
+    rows.forEach(function(row) {
+      var item = document.createElement('div');
+      item.className = 'sensor-live-event';
+      var title = document.createElement('strong');
+      title.textContent = String(row.sensor_id || 'UNKNOWN SENSOR') + ' · ' + String(row.event_kind || 'EVENT');
+      var detail = document.createElement('div');
+      detail.textContent = 'STATUS ' + String(row.status || 'unknown').toUpperCase() +
+        ' · FRESHNESS ' + String(row.freshness || 'unspecified').toUpperCase() +
+        ' · AGE ' + (Number.isFinite(row.age_ns) ? String(Math.round(row.age_ns / 1e6)) + ' ms' : 'unknown');
+      var reason = document.createElement('div');
+      reason.textContent = String(row.reason || 'No reason supplied.');
+      item.appendChild(title); item.appendChild(detail); item.appendChild(reason);
+      feedEvents.appendChild(item);
+    });
+    feedEvents.hidden = rows.length === 0;
+  }
+  function disconnectFeed(message) {
+    if (feedAbort) feedAbort.abort();
+    feedAbort = null;
+    feedConnect.disabled = false;
+    feedDisconnect.disabled = true;
+    feedState.textContent = 'DISCONNECTED · DEMO MODE';
+    feedState.classList.remove('connected');
+    feedSummary.textContent = message || 'Live feed disconnected. Synthetic demo remains visible.';
+    feedEvents.hidden = true;
+  }
+  if (feedConnect && feedDisconnect && feedUrlInput) {
+    feedConnect.addEventListener('click', function() {
+      var raw = feedUrlInput.value.trim().replace(/\/+$/, '');
+      var base;
+      try { base = new URL(raw); } catch (e) {
+        feedSummary.textContent = 'Enter a valid HTTPS API base URL.';
+        return;
+      }
+      if (base.protocol !== 'https:' || base.username || base.password) {
+        feedSummary.textContent = 'For this hosted page, use an HTTPS endpoint without embedded credentials.';
+        return;
+      }
+      feedAbort = new AbortController();
+      feedConnect.disabled = true;
+      feedDisconnect.disabled = false;
+      feedState.textContent = 'CONNECTING…';
+      feedState.classList.remove('connected');
+      feedSummary.textContent = 'Requesting read-only event snapshot…';
+      fetch(base.href + '/events?limit=50', {
+        method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store',
+        headers: { 'Accept': 'application/json' }, signal: feedAbort.signal
+      }).then(function(response) {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.json();
+      }).then(function(data) {
+        if (!data || !Array.isArray(data.events)) throw new Error('Unexpected API response: expected an events array.');
+        renderLiveEvents(data.events);
+        feedState.textContent = 'CONNECTED · READ ONLY';
+        feedState.classList.add('connected');
+        feedSummary.textContent = 'Loaded ' + data.events.length + ' event(s). This feed reports software records only; it does not verify physical sensor connectivity.';
+        feedConnect.disabled = false;
+      }).catch(function(error) {
+        if (error.name === 'AbortError') return;
+        feedState.textContent = 'FEED UNAVAILABLE';
+        feedState.classList.remove('connected');
+        feedSummary.textContent = 'Could not load feed (' + error.message + '). Check HTTPS reachability, CORS policy, and the /events endpoint. Demo data remains separate below.';
+      });
+    });
+    feedDisconnect.addEventListener('click', function() { disconnectFeed(); });
+  }
+
   var initialView = (window.location.hash || '').replace(/^#/, '').replace(/-panel$/, '');
   var knownView = buttons.some(function(link) { return link.getAttribute('data-view') === initialView; });
   selectCategory(knownView ? initialView : 'overview');
