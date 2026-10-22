@@ -150,31 +150,7 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 <section id="spatial-panel" class="panel report-panel" data-category="spatial"><h2>VIGIL SPATIAL INTELLIGENCE // CONTAINERLESS SCENE MODEL</h2><div class="content">
 <p><span class="green">VISUALIZATION MODE:</span> SUSPENDED INFORMATION / ISOMETRIC MULTI-FLOOR MAP</p>
 
-<div class="sensor-visual-display" aria-label="Illustrative sensor visual input display">
-  <div class="sensor-display-head"><strong>LIVE INPUT DISPLAY // SENSOR CONVERGENCE</strong><span id="spatial-display-state">SCHEMATIC MODE / NO LIVE FEED</span></div>
-  <div class="sensor-display-screen">
-    <svg viewBox="0 0 720 300" role="img" aria-label="Illustrative room map with Wi-Fi CSI wavefronts, infrared field, sensor nodes and an uncertain object track; schematic only">
-      <defs>
-        <pattern id="sd-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#14533d" stroke-width=".7"/></pattern>
-        <radialGradient id="sd-field"><stop offset="0" stop-color="#29f5b2" stop-opacity=".2"/><stop offset="1" stop-color="#29f5b2" stop-opacity="0"/></radialGradient>
-      </defs>
-      <rect width="720" height="300" fill="#020907"/><rect width="720" height="300" fill="url(#sd-grid)"/>
-      <path d="M75 42H630V246H75Z M245 42V118H365V42 M365 168H500V246 M75 168H245V246" fill="none" stroke="#4abf91" stroke-width="2"/>
-      <ellipse cx="330" cy="145" rx="210" ry="112" fill="url(#sd-field)"/>
-      <g fill="none" stroke="#29f5b2" stroke-width="1.5" opacity=".8"><path d="M125 85 Q185 145 125 205"/><path d="M105 65 Q205 145 105 225"/><path d="M85 45 Q225 145 85 245"/><path d="M590 90 Q535 145 590 200"/><path d="M610 70 Q515 145 610 220"/></g>
-      <g fill="#62b8ff" fill-opacity=".14" stroke="#62b8ff" stroke-width="1.5"><rect x="255" y="78" width="74" height="70"/><rect x="400" y="174" width="82" height="48"/></g>
-      <g fill="#62b8ff" font-family="monospace" font-size="10"><text x="260" y="94">IR FIELD</text><text x="404" y="190">THERMAL</text></g>
-      <g stroke="#29f5b2" stroke-width="2" fill="#020907"><circle cx="125" cy="145" r="7"/><circle cx="590" cy="145" r="7"/><circle cx="360" cy="246" r="7"/></g>
-      <g fill="#b7ffe9" font-family="monospace" font-size="10"><text x="88" y="132">CSI RX-A</text><text x="552" y="132">CSI RX-B</text><text x="326" y="268">SENSOR C</text></g>
-      <g fill="none" stroke="#e2d86a" stroke-width="2" stroke-dasharray="6 5"><path d="M205 205L305 155L410 174L500 118"/></g>
-      <circle cx="305" cy="155" r="15" fill="none" stroke="#e2d86a" stroke-width="2"/><circle cx="305" cy="155" r="4" fill="#e2d86a"/>
-      <g fill="#e2d86a" font-family="monospace" font-size="10"><text x="322" y="151">TRACK CANDIDATE</text><text x="322" y="164">UNCERTAINTY / REVIEW</text></g>
-      <g fill="#29f5b2" font-family="monospace" font-size="10"><text x="16" y="20">RF / CSI MOTION CONTEXT</text><text x="16" y="286">WAVEFRONTS = ILLUSTRATIVE ONLY</text><text x="532" y="286">NOT A POSITION FIX</text></g>
-    </svg>
-  </div>
-  <div class="sensor-display-legend"><span><i class="legend-dot csi-dot"></i> 2.4 GHz Wi-Fi CSI / MOTION CONTEXT</span><span><i class="legend-dot ir-dot"></i> IR / THERMAL LAYER</span><span><i class="legend-dot review-dot"></i> TRACK CANDIDATE / REVIEW</span></div>
-  <p class="muted">DISPLAY CONTRACT // This is an illustrative visual input screen, not measured sensor output. Imported blueprint tracks remain separate until their source IDs, timestamps, calibration, and coordinate frames can be checked.</p>
-</div>
+
 <div class="statrow" aria-label="Spatial confidence interpretation"><div class="stat"><b id="spatial-stable-count" class="confidence-high">—</b><span>TRACKS // STABLE</span></div><div class="stat"><b id="spatial-review-count" class="confidence-mid">—</b><span>TRACKS // REVIEW</span></div></div>
 <div class="statrow spatial-flag-row" aria-label="Independent review flags"><div class="stat"><b id="spatial-conflict-count" class="confidence-mid">—</b><span>FLAGS // SENSOR CONFLICT</span></div><div class="stat"><b id="spatial-uncertain-count" class="confidence-mid">—</b><span>FLAGS // UNCERTAINTY OVER 1 M</span></div><div class="stat"><b id="spatial-missing-count" class="confidence-mid">—</b><span>FLAGS // UNCERTAINTY UNKNOWN</span></div></div><p class="muted spatial-flag-note">IMPORTED TRACK FLAGS // Independent categories; one track may trigger multiple flags. Counts describe imported tracks, not live sensor activity.</p>
 <div class="spatial-transition-summary" aria-label="Calibration and lineage review policy"><strong>CALIBRATION / LINEAGE GATE</strong><div><span>CALIBRATION<b>Verified required</b></span><span>LINEAGE<b>Declared required</b></span><span>FAILED CALIBRATION<b>Block readiness</b></span><span>UNKNOWN METADATA<b>Review track</b></span></div><p>Imported tracks with absent calibration or lineage metadata are conservatively marked for review. A declared independence group is descriptive metadata, not proof of physical sensor independence.</p></div>
@@ -221,6 +197,31 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 </div></section>
 <section id="sensors-panel" class="panel report-panel" data-category="sensors"><h2>SENSOR INPUT BAY // RAW FEEDS &amp; HEALTH</h2><div class="content">
 <p><span class="green">DISPLAY MODE:</span> EXAMPLE TELEMETRY / MULTI-SENSOR INPUT MONITORS</p>
+<div class="sensor-visual-display" aria-label="Illustrative sensor visual input display">
+  <div class="sensor-display-head"><strong>LIVE INPUT DISPLAY // SENSOR CONVERGENCE</strong><span id="spatial-display-state">SCHEMATIC MODE / NO LIVE FEED</span></div>
+  <div class="sensor-display-screen">
+    <svg viewBox="0 0 720 300" role="img" aria-label="Illustrative room map with Wi-Fi CSI wavefronts, infrared field, sensor nodes and an uncertain object track; schematic only">
+      <defs>
+        <pattern id="sd-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#14533d" stroke-width=".7"/></pattern>
+        <radialGradient id="sd-field"><stop offset="0" stop-color="#29f5b2" stop-opacity=".2"/><stop offset="1" stop-color="#29f5b2" stop-opacity="0"/></radialGradient>
+      </defs>
+      <rect width="720" height="300" fill="#020907"/><rect width="720" height="300" fill="url(#sd-grid)"/>
+      <path d="M75 42H630V246H75Z M245 42V118H365V42 M365 168H500V246 M75 168H245V246" fill="none" stroke="#4abf91" stroke-width="2"/>
+      <ellipse cx="330" cy="145" rx="210" ry="112" fill="url(#sd-field)"/>
+      <g fill="none" stroke="#29f5b2" stroke-width="1.5" opacity=".8"><path d="M125 85 Q185 145 125 205"/><path d="M105 65 Q205 145 105 225"/><path d="M85 45 Q225 145 85 245"/><path d="M590 90 Q535 145 590 200"/><path d="M610 70 Q515 145 610 220"/></g>
+      <g fill="#62b8ff" fill-opacity=".14" stroke="#62b8ff" stroke-width="1.5"><rect x="255" y="78" width="74" height="70"/><rect x="400" y="174" width="82" height="48"/></g>
+      <g fill="#62b8ff" font-family="monospace" font-size="10"><text x="260" y="94">IR FIELD</text><text x="404" y="190">THERMAL</text></g>
+      <g stroke="#29f5b2" stroke-width="2" fill="#020907"><circle cx="125" cy="145" r="7"/><circle cx="590" cy="145" r="7"/><circle cx="360" cy="246" r="7"/></g>
+      <g fill="#b7ffe9" font-family="monospace" font-size="10"><text x="88" y="132">CSI RX-A</text><text x="552" y="132">CSI RX-B</text><text x="326" y="268">SENSOR C</text></g>
+      <g fill="none" stroke="#e2d86a" stroke-width="2" stroke-dasharray="6 5"><path d="M205 205L305 155L410 174L500 118"/></g>
+      <circle cx="305" cy="155" r="15" fill="none" stroke="#e2d86a" stroke-width="2"/><circle cx="305" cy="155" r="4" fill="#e2d86a"/>
+      <g fill="#e2d86a" font-family="monospace" font-size="10"><text x="322" y="151">TRACK CANDIDATE</text><text x="322" y="164">UNCERTAINTY / REVIEW</text></g>
+      <g fill="#29f5b2" font-family="monospace" font-size="10"><text x="16" y="20">RF / CSI MOTION CONTEXT</text><text x="16" y="286">WAVEFRONTS = ILLUSTRATIVE ONLY</text><text x="532" y="286">NOT A POSITION FIX</text></g>
+    </svg>
+  </div>
+  <div class="sensor-display-legend"><span><i class="legend-dot csi-dot"></i> 2.4 GHz Wi-Fi CSI / MOTION CONTEXT</span><span><i class="legend-dot ir-dot"></i> IR / THERMAL LAYER</span><span><i class="legend-dot review-dot"></i> TRACK CANDIDATE / REVIEW</span></div>
+  <p class="muted">DISPLAY CONTRACT // This is an illustrative visual input screen, not measured sensor output. Imported blueprint tracks remain separate until their source IDs, timestamps, calibration, and coordinate frames can be checked.</p>
+</div>
 <div class="sensor-console" id="temporal-evidence-monitor" aria-label="Temporal sensor evidence monitor">
   <div class="sensor-console-title"><span>TEMPORAL EVIDENCE MONITOR // SENSOR INPUTS SCREEN</span><span class="sensor-demo-tag">SYNTHETIC REVIEW DATA</span></div>
   <div class="sensor-console-metrics">
@@ -385,7 +386,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <p><span class="green">LOCATION:</span> Control Room / Lab Report tab</p>
 <p><span class="green">LATEST WORK:</span> Sensor-source lineage, calibration health, and scene-readiness diagnostics.</p>
 <p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes an interactive temporal evidence monitor with ALL / FRESH / REVIEW / CONTEXT filters, event timestamps, lineage declarations, calibration status, and a clear synthetic-data label. The monitor is a front-end demonstration; connecting an event feed is still a separate, explicit action.</p>
-<p><span class="green">SCREEN DISPLAY ADDED:</span> 03 // SPATIAL INTELLIGENCE now has a dedicated sensor visual-input display showing illustrative 2.4 GHz Wi-Fi CSI wavefronts, IR/thermal overlays, sensor nodes, and an uncertain track candidate. The screen is explicitly labeled schematic, not live measurements or a standalone position fix.</p>
+<p><span class="green">SCREEN DISPLAY ADDED:</span> 04 // SENSOR INPUTS now has a dedicated sensor visual-input display showing illustrative 2.4 GHz Wi-Fi CSI wavefronts, IR/thermal overlays, sensor nodes, and an uncertain track candidate. The screen is explicitly labeled schematic, not live measurements or a standalone position fix.</p>
 <p><span class="green">SCREEN UPDATED:</span> 03 // SPATIAL INTELLIGENCE now includes a CSI motion-association review panel for imported track candidates. It checks only declared Wi-Fi / CSI modality or source metadata, shows observation/trail metadata when available, and keeps position confirmation separate from motion context. Review marks are local to the page session; no live CSI feed or synthetic-to-track correlation is implied.</p>
 <p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes an interactive RF / RANGE CLASSIFIER that switches between Wi-Fi CSI motion context, calibrated spatial ranging, and acoustic sonar, with each mode's output, prerequisites, and limits. It does not present RSSI as range or conflate RF sensing with acoustic time-of-flight.</p>
 <p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes a cross-screen evidence bridge that reads the currently imported Screen 03 scene and summarizes its tracks, review-gate counts, modalities, and source IDs. Clearing the import resets the bridge. The synthetic temporal examples remain separate and are never represented as correlated live events.</p>
