@@ -20,7 +20,7 @@ header{display:grid;grid-template-columns:1.3fr 1fr .65fr;margin-bottom:9px}head
 .status{display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center}.statusbox{border:1px solid var(--g);padding:8px;text-align:center;font-size:18px;color:var(--g)}
 .diagram{position:relative;overflow:hidden;background-image:linear-gradient(#0a5d4629 1px,transparent 1px),linear-gradient(90deg,#0a5d4629 1px,transparent 1px);background-size:18px 18px}.diagram svg{width:100%;height:auto;display:block}
 .caption{text-align:center;border-top:1px solid var(--line);padding:7px;color:var(--g);letter-spacing:1px}.hazard{border:1px solid var(--warn);padding:8px;color:#ff8989;letter-spacing:1px}
-.spatial-stage{border:1px solid var(--line);background:radial-gradient(ellipse at 50% 35%,#063a2b 0%,#020907 70%);padding:8px}.spatial-controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 0}.spatial-controls label{color:var(--dim);font-size:10px}.spatial-controls select,.spatial-controls button{background:#020907;color:var(--g);border:1px solid var(--line);padding:7px;font:inherit;font-size:11px}.spatial-controls button{cursor:pointer}.spatial-controls button:focus-visible,.spatial-controls select:focus-visible{outline:2px solid var(--g);outline-offset:2px}.spatial-stage .floor-slice{transition:opacity .25s,filter .25s}.spatial-stage .data-stream{stroke-dasharray:7 10;animation:flow 2.8s linear infinite}.spatial-stage.paused .data-stream{animation-play-state:paused}.spatial-stage.hide-tracks .track-marker{opacity:0}.spatial-stage.hide-infrared .ir-overlay{opacity:0}.spatial-stage.hide-streams .data-stream{opacity:0}@keyframes flow{to{stroke-dashoffset:-68}}@media(prefers-reduced-motion:reduce){.spatial-stage .data-stream{animation:none}}.spatial-stage svg{width:100%;height:auto;display:block}.spatial-legend{display:flex;gap:8px;flex-wrap:wrap;padding:8px 0}.spatial-legend span{border:1px solid var(--line);padding:5px 7px;font-size:10px}.confidence-high{color:#29f5b2}.confidence-mid{color:#e2d86a}.confidence-low{color:#ff8989}.spatial-readout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.spatial-readout .stat b{font-size:16px}.fluid-note{border-left:2px solid var(--g);padding:7px 10px;background:#03120e;color:var(--dim)}@media(max-width:760px){.spatial-readout{grid-template-columns:1fr}}
+.spatial-stage{border:1px solid var(--line);background:radial-gradient(ellipse at 50% 35%,#063a2b 0%,#020907 70%);padding:8px}.spatial-controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 0}.spatial-controls label{color:var(--dim);font-size:10px}.spatial-controls select,.spatial-controls button{background:#020907;color:var(--g);border:1px solid var(--line);padding:7px;font:inherit;font-size:11px}.spatial-controls button{cursor:pointer}.spatial-controls button:focus-visible,.spatial-controls select:focus-visible{outline:2px solid var(--g);outline-offset:2px}.spatial-stage .floor-slice{transition:opacity .25s,filter .25s}.spatial-stage .data-stream{stroke-dasharray:7 10;animation:flow 2.8s linear infinite}.spatial-controls input[type=file]{color:var(--dim);font:10px "Courier New",monospace;max-width:230px}.imported-marker{cursor:default}.imported-label{fill:#b7ffe9;font:10px "Courier New",monospace;paint-order:stroke;stroke:#020907;stroke-width:3px;stroke-linejoin:round}.imported-feature{fill:#62b8ff;stroke:#b7e4ff;stroke-width:1.5}.imported-object{stroke-width:2;filter:drop-shadow(0 0 4px currentColor)}.imported-object.conflict{fill:#ff5555;stroke:#ffd1d1}.imported-object.normal{fill:#29f5b2;stroke:#b7ffe9}.imported-object.degraded{fill:#e2d86a;stroke:#fff4a3}.imported-uncertainty{fill:none;stroke:#e2d86a;stroke-width:1;stroke-dasharray:3 3;opacity:.85}.imported-ir{fill:#62b8ff;fill-opacity:.35;stroke:#a6ddff;stroke-width:1.5}.spatial-stage.paused .data-stream{animation-play-state:paused}.spatial-stage.hide-tracks .track-marker{opacity:0}.spatial-stage.hide-infrared .ir-overlay{opacity:0}.spatial-stage.hide-streams .data-stream{opacity:0}@keyframes flow{to{stroke-dashoffset:-68}}@media(prefers-reduced-motion:reduce){.spatial-stage .data-stream{animation:none}}.spatial-stage svg{width:100%;height:auto;display:block}.spatial-legend{display:flex;gap:8px;flex-wrap:wrap;padding:8px 0}.spatial-legend span{border:1px solid var(--line);padding:5px 7px;font-size:10px}.confidence-high{color:#29f5b2}.confidence-mid{color:#e2d86a}.confidence-low{color:#ff8989}.spatial-readout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.spatial-readout .stat b{font-size:16px}.fluid-note{border-left:2px solid var(--g);padding:7px 10px;background:#03120e;color:var(--dim)}@media(max-width:760px){.spatial-readout{grid-template-columns:1fr}}
 footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:center;margin-top:9px;padding:9px;color:var(--dim);font-size:10px;letter-spacing:1px}footer span:nth-child(2){text-align:center}footer span:nth-child(3){text-align:right}.messenger-contact{display:inline-block;border:1px solid var(--g);padding:9px 11px;color:var(--g);background:#03120e;text-decoration:none;text-align:center;font:inherit;letter-spacing:1px;white-space:nowrap}.messenger-contact:hover,.messenger-contact:focus-visible{color:#020907;background:var(--g);box-shadow:0 0 12px #29f5b277;outline:none}
 @media(max-width:760px){body{padding:112px 5px 5px}.nav-panel{justify-content:flex-start;padding:6px 5px;gap:4px}.nav-button{flex:0 0 auto;min-height:44px;padding:9px 10px;font-size:10px;line-height:1.2;touch-action:manipulation}.layout,.workspace .layout{grid-template-columns:1fr}header{grid-template-columns:1fr}header>div{border-right:0;border-bottom:1px solid var(--line)}.project{grid-template-columns:1fr;gap:6px}footer{grid-template-columns:1fr;gap:8px}footer span,footer span:nth-child(2),footer span:nth-child(3){text-align:left}footer .messenger-contact{justify-self:start;white-space:normal;max-width:100%}}
 </style></head>
@@ -63,11 +63,17 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 <g class="track-marker" stroke-width="2" filter="url(#glow)"><circle cx="340" cy="145" r="8" fill="#29f5b2" stroke="#b7ffe9"/><circle cx="470" cy="282" r="9" fill="#e2d86a" stroke="#fff4a3"/><circle cx="330" cy="397" r="10" fill="#ff8989" stroke="#ffd1d1"/><circle cx="530" cy="180" r="5" fill="#29f5b2" stroke="#b7ffe9"/></g>
 <g fill="#6df6db" font-family="Courier New,monospace" font-size="10"><text x="352" y="141">TRACK A / HIGH</text><text x="483" y="278">TRACK B / DEGRADED</text><text x="343" y="394">CONFLICT / REVIEW</text><text x="540" y="177">IR</text></g>
 <g class="ir-overlay" fill="none" stroke="#62b8ff" stroke-width="2"><path d="M530 180L560 163L585 176L555 193Z"/><path d="M555 193V218L585 201V176"/></g>
+<g id="imported-feature-layer" aria-label="Imported blueprint features"></g>
+<g id="imported-trail-layer" aria-label="Imported object motion trails"></g>
+<g id="imported-object-layer" aria-label="Imported tracked objects"></g>
+<g id="imported-ir-layer" aria-label="Imported infrared samples"></g>
 </svg><div class="caption">MULTI-FLOOR MAP // SENSOR EVIDENCE AS FLOW // NO PHYSICAL ENCLOSURE</div></div>
 <div class="spatial-controls" aria-label="Spatial visualization controls">
 <label for="spatial-level">ACTIVE LEVEL</label><select id="spatial-level"><option value="all">ALL LEVELS</option><option value="2">LEVEL +02</option><option value="1">LEVEL +01</option><option value="0">LEVEL 00</option></select>
 <label for="spatial-layer">DATA LAYER</label><select id="spatial-layer"><option value="all">ALL EVIDENCE</option><option value="tracks">OBJECT TRACKS</option><option value="infrared">INFRARED</option><option value="streams">DATA FLOWS</option></select>
-<button type="button" id="spatial-play" aria-pressed="false">PAUSE FLOW</button><button type="button" id="spatial-reset">RESET VIEW</button></div>
+<button type="button" id="spatial-play" aria-pressed="false">PAUSE FLOW</button><button type="button" id="spatial-reset">RESET VIEW</button>
+<label for="spatial-json">LOAD BLUEPRINT VIEW JSON</label><input id="spatial-json" type="file" accept=".json,application/json" aria-describedby="spatial-import-note"><button type="button" id="spatial-clear-data">CLEAR IMPORT</button></div>
+<p id="spatial-import-note" class="muted">Import a JSON export of the repository's BlueprintView (model_id, revision, frame_id, features, objects). Processed in this browser only; no upload is sent to a server.</p>
 <p id="spatial-status" class="muted" role="status" aria-live="polite">DEMO DATA // NO LIVE SENSORS CONNECTED</p>
 <div class="spatial-legend"><span class="confidence-high">● HIGH CONFIDENCE / FUSED TRACK</span><span class="confidence-mid">● DEGRADED / WIDER UNCERTAINTY</span><span class="confidence-low">● CONFLICT / HUMAN REVIEW</span><span>▧ CYAN = INFRARED OVERLAY</span></div>
 <div class="spatial-readout"><div class="stat"><b>01</b><span>SHARED MODEL FRAME</span></div><div class="stat"><b>+02 / +01 / 00</b><span>ADJACENT LEVELS VISUALIZED</span></div><div class="stat"><b>32 MAX</b><span>BOUNDED MOTION TRAIL POINTS</span></div></div>
@@ -116,6 +122,138 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   var spatialPlay = document.getElementById('spatial-play');
   var spatialReset = document.getElementById('spatial-reset');
   var spatialStatus = document.getElementById('spatial-status');
+  var spatialJson = document.getElementById('spatial-json');
+  var spatialClearData = document.getElementById('spatial-clear-data');
+  var importedScene = null;
+  var svgNS = 'http://www.w3.org/2000/svg';
+  function svgNode(name, attrs, label) {
+    var node = document.createElementNS(svgNS, name);
+    Object.keys(attrs || {}).forEach(function(key) { node.setAttribute(key, String(attrs[key])); });
+    if (label) node.textContent = label;
+    return node;
+  }
+  function clearImportedLayers() {
+    ['imported-feature-layer','imported-trail-layer','imported-object-layer','imported-ir-layer'].forEach(function(id) {
+      var layer = document.getElementById(id);
+      if (layer) while (layer.firstChild) layer.removeChild(layer.firstChild);
+    });
+  }
+  function finite3(point) {
+    return Array.isArray(point) && point.length >= 3 && point.slice(0,3).every(function(n) { return typeof n === 'number' && Number.isFinite(n); });
+  }
+  function levelCode(level) {
+    if (level === null || level === undefined || level === '') return null;
+    var value = String(level).trim().toUpperCase();
+    if (value === '00' || value === '0' || value === 'LEVEL 00' || value === 'GROUND') return '0';
+    if (value === '1' || value === '+01' || value === '01' || value === 'LEVEL +01') return '1';
+    if (value === '2' || value === '+02' || value === '02' || value === 'LEVEL +02') return '2';
+    return null;
+  }
+  function planePoint(normalized, level) {
+    if (!finite3(normalized)) return null;
+    var code = levelCode(level);
+    if (code === null) return null;
+    var nx = Math.max(0, Math.min(1, normalized[0]));
+    var ny = Math.max(0, Math.min(1, normalized[1]));
+    var baseY = code === '2' ? 175 : (code === '1' ? 285 : 395);
+    return {x:95 + nx * 290 + ny * 280, y:baseY - nx * 105 + ny * 107};
+  }
+  function renderImportedScene(data) {
+    clearImportedLayers();
+    var counts = {features:0,objects:0,trails:0,infrared:0,skipped:0};
+    var featureLayer = document.getElementById('imported-feature-layer');
+    var trailLayer = document.getElementById('imported-trail-layer');
+    var objectLayer = document.getElementById('imported-object-layer');
+    var irLayer = document.getElementById('imported-ir-layer');
+    (data.features || []).forEach(function(feature) {
+      var p = planePoint(feature.normalized_position, feature.level);
+      if (!p) { counts.skipped++; return; }
+      var g = svgNode('g', {class:'imported-marker'});
+      g.appendChild(svgNode('circle',{cx:p.x,cy:p.y,r:4,class:'imported-feature'}));
+      g.appendChild(svgNode('title',{},String(feature.label || feature.feature_id || 'Blueprint feature')));
+      g.appendChild(svgNode('text',{x:p.x+7,y:p.y-6,class:'imported-label'},String(feature.label || feature.feature_id || 'FEATURE').slice(0,42)));
+      featureLayer.appendChild(g); counts.features++;
+    });
+    (data.objects || []).forEach(function(object) {
+      var level = object.inferred_level || object.level || null;
+      var p = planePoint(object.normalized_position, level);
+      if (!p) { counts.skipped++; return; }
+      var radius = object.conflict ? 7 : (object.uncertainty_m > 1 ? 6 : 5);
+      if (typeof object.uncertainty_m === 'number' && Number.isFinite(object.uncertainty_m)) {
+        var ring = svgNode('circle',{cx:p.x,cy:p.y,r:Math.max(8,Math.min(28,8+object.uncertainty_m*4)),class:'imported-uncertainty'});
+        objectLayer.appendChild(ring);
+      }
+      var trail = Array.isArray(object.motion_trail_m) ? object.motion_trail_m : [];
+      var pts = trail.map(function(item) {
+        if (!Array.isArray(item) || !finite3(item[1])) return null;
+        var bounds = data.bounds_m;
+        var norm = item[1].map(function(v,axis) {
+          var b = bounds && bounds[axis];
+          if (!b || typeof b.minimum !== 'number' || typeof b.maximum !== 'number' || b.maximum <= b.minimum) return 0.5;
+          return (v-b.minimum)/(b.maximum-b.minimum);
+        });
+        var q = planePoint(norm, level);
+        return q ? q.x+','+q.y : null;
+      }).filter(Boolean);
+      if (pts.length > 1) { trailLayer.appendChild(svgNode('polyline',{points:pts.join(' '),fill:'none',stroke:object.conflict?'#ff5555':'#29f5b2','stroke-width':2,'stroke-dasharray':'4 4'})); counts.trails++; }
+      var cls = object.conflict ? 'imported-object conflict' : (object.uncertainty_m > 1 ? 'imported-object degraded' : 'imported-object normal');
+      var marker = svgNode('circle',{cx:p.x,cy:p.y,r:radius,class:cls});
+      var detail = [object.object_id || 'OBJECT', 'uncertainty=' + (Number.isFinite(object.uncertainty_m) ? object.uncertainty_m.toFixed(2)+'m' : 'unknown'), 'sensors=' + (Array.isArray(object.sensor_ids)?object.sensor_ids.join(','):'unknown'), 'modalities=' + (Array.isArray(object.modalities)?object.modalities.join(','):'unknown'), 'conflict=' + Boolean(object.conflict)];
+      marker.appendChild(svgNode('title',{},detail.join(' | ')));
+      objectLayer.appendChild(marker);
+      objectLayer.appendChild(svgNode('text',{x:p.x+8,y:p.y-8,class:'imported-label'},String(object.object_id || 'OBJECT').slice(0,28)));
+      counts.objects++;
+    });
+    var ir = Array.isArray(data.infrared_samples) ? data.infrared_samples : [];
+    ir.forEach(function(sample) {
+      var pos = sample.normalized_position;
+      if (!finite3(pos) && finite3(sample.position_m) && Array.isArray(data.bounds_m)) {
+        pos = sample.position_m.map(function(v,axis) {
+          var b = data.bounds_m[axis];
+          if (!b || typeof b.minimum !== 'number' || typeof b.maximum !== 'number' || b.maximum <= b.minimum) return 0.5;
+          return (v-b.minimum)/(b.maximum-b.minimum);
+        });
+      }
+      var p = planePoint(pos, sample.level_id || sample.level);
+      if (!p) { counts.skipped++; return; }
+      var intensity = typeof sample.intensity === 'number' ? Math.max(0,Math.min(1,sample.intensity)) : .5;
+      irLayer.appendChild(svgNode('circle',{cx:p.x,cy:p.y,r:4+intensity*7,class:'imported-ir'}));
+      counts.infrared++;
+    });
+    return counts;
+  }
+  function showImportStatus(prefix, counts) {
+    if (!spatialStatus) return;
+    spatialStatus.textContent = prefix + ' // FEATURES ' + counts.features + ' // TRACKS ' + counts.objects + ' // TRAILS ' + counts.trails + ' // IR ' + counts.infrared + ' // SKIPPED ' + counts.skipped;
+  }
+  if (spatialJson) spatialJson.addEventListener('change', function() {
+    var file = spatialJson.files && spatialJson.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function() {
+      try {
+        var data = JSON.parse(String(reader.result || ''));
+        if (!data || typeof data !== 'object' || typeof data.model_id !== 'string' || typeof data.revision !== 'string' || typeof data.frame_id !== 'string' || !Array.isArray(data.features) || !Array.isArray(data.objects)) {
+          throw new Error('Expected a BlueprintView JSON export with model_id, revision, frame_id, features, and objects.');
+        }
+        importedScene = data;
+        var counts = renderImportedScene(data);
+        showImportStatus('IMPORTED ' + data.model_id + ' / REV ' + data.revision + ' / FRAME ' + data.frame_id, counts);
+      } catch (error) {
+        importedScene = null;
+        clearImportedLayers();
+        spatialStatus.textContent = 'IMPORT REJECTED // ' + (error && error.message ? error.message : 'Invalid JSON');
+      }
+    };
+    reader.onerror = function() { spatialStatus.textContent = 'IMPORT FAILED // FILE COULD NOT BE READ'; };
+    reader.readAsText(file);
+  });
+  if (spatialClearData) spatialClearData.addEventListener('click', function() {
+    importedScene = null;
+    clearImportedLayers();
+    if (spatialJson) spatialJson.value = '';
+    updateSpatialView();
+  });
   function updateSpatialView() {
     if (!spatialStage) return;
     var level = spatialLevel ? spatialLevel.value : 'all';
