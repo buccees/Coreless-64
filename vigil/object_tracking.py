@@ -79,6 +79,8 @@ class ObjectTrack:
     conflicting_sensor_ids: tuple[str, ...] = ()
     # Timestamped positions in the same model frame, oldest first.
     position_history_m: tuple[tuple[int, tuple[float, float, float]], ...] = ()
+    # Sensor IDs contributing to each timestamped position; aligned by timestamp.
+    position_history_sensor_ids: tuple[tuple[int, tuple[str, ...]], ...] = ()
 
 
 class ObjectTracker:
@@ -208,6 +210,17 @@ class ObjectTracker:
                                 if conflict_reasons else set()
                             )
                         )),
+                        position_history_sensor_ids=(
+                            previous.position_history_sensor_ids[:-1] + ((
+                                previous.position_history_sensor_ids[-1][0],
+                                tuple(sorted(set(previous.position_history_sensor_ids[-1][1]) | {
+                                    item.sensor_id for item in current_sources
+                                })),
+                            ),)
+                            if previous.position_history_sensor_ids
+                            and previous.position_history_sensor_ids[-1][0] == timestamp
+                            else previous.position_history_sensor_ids
+                        ),
                     )
                     continue
                 dt = dt_ns / 1_000_000_000
@@ -243,6 +256,13 @@ class ObjectTracker:
                 position_history_m=(
                     ((timestamp, position),) if previous is None else
                     (previous.position_history_m + ((timestamp, position),))[-self.max_history_points:]
+                ),
+                position_history_sensor_ids=(
+                    ((timestamp, tuple(sorted({item.sensor_id for item in group}))),)
+                    if previous is None else
+                    (previous.position_history_sensor_ids + ((
+                        timestamp, tuple(sorted({item.sensor_id for item in group}))
+                    ),))[-self.max_history_points:]
                 ),
             )
 
