@@ -133,32 +133,53 @@ def _candidate_floor_transitions(
     elevations: dict[str, float],
     tolerance_m: float,
 ) -> tuple[FloorTransitionProjection, ...]:
-    """Find adjacent history samples assigned to distinct surveyed floors.
+    """Find sustained changes between surveyed floor elevations.
 
-    These are candidates, not proof of a traversable route: each sample must be
-    within tolerance of a surveyed elevation, and unknown samples break continuity.
+    A candidate requires at least two consecutive samples assigned to the
+    destination floor. Its timestamp is the first destination-floor sample,
+    with later samples providing confirmation. Unknown-height samples break
+    continuity. Candidates are evidence for review, not proof of a traversable
+    route.
     """
     if len(elevations) < 2 or len(history) < 2:
         return ()
     ordered = sorted(history, key=lambda item: item[0])
     transitions: list[FloorTransitionProjection] = []
-    previous: tuple[int, str, float] | None = None
+    previous_run: list[tuple[int, str, float]] = []
+    current_run: list[tuple[int, str, float]] = []
+
+    def finish_run() -> None:
+        nonlocal previous_run, current_run
+        if not current_run:
+            return
+        if (
+            previous_run
+            and previous_run[-1][1] != current_run[0][1]
+            and len(current_run) >= 2
+        ):
+            transitions.append(FloorTransitionProjection(
+                timestamp_ns=current_run[0][0],
+                from_level=previous_run[-1][1],
+                to_level=current_run[0][1],
+                from_elevation_m=previous_run[-1][2],
+                to_elevation_m=current_run[0][2],
+            ))
+        previous_run = current_run
+        current_run = []
+
     for timestamp_ns, position in ordered:
         z = position[2]
         level, elevation = min(elevations.items(), key=lambda item: abs(z - item[1]))
         if abs(z - elevation) > tolerance_m:
-            previous = None
+            finish_run()
+            previous_run = []
             continue
-        current = (timestamp_ns, level, elevation)
-        if previous is not None and previous[1] != level:
-            transitions.append(FloorTransitionProjection(
-                timestamp_ns=timestamp_ns,
-                from_level=previous[1],
-                to_level=level,
-                from_elevation_m=previous[2],
-                to_elevation_m=elevation,
-            ))
-        previous = current
+        sample = (timestamp_ns, level, elevation)
+        if current_run and current_run[-1][1] != level:
+            finish_run()
+        current_run.append(sample)
+
+    finish_run()
     return tuple(transitions)
 
 
