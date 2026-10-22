@@ -81,12 +81,25 @@ class SensorEventLedger:
     the per-sensor timestamp watermark never moves backwards.
     """
 
-    def __init__(self, *, allowed_lateness_ns: int = 0) -> None:
+    def __init__(
+        self,
+        *,
+        allowed_lateness_ns: int = 0,
+        clock_offsets_ns: dict[str, int] | None = None,
+    ) -> None:
         if isinstance(allowed_lateness_ns, bool) or not isinstance(allowed_lateness_ns, int) or allowed_lateness_ns < 0:
             raise ValueError("allowed_lateness_ns must be a non-negative integer")
         self.allowed_lateness_ns = allowed_lateness_ns
+        self.clock_offsets_ns: dict[str, int] = {}
+        for sensor_id, offset in (clock_offsets_ns or {}).items():
+            if not isinstance(sensor_id, str) or not sensor_id.strip():
+                raise ValueError("clock offset sensor IDs must be non-empty strings")
+            if isinstance(offset, bool) or not isinstance(offset, int):
+                raise ValueError("clock offsets must be integer nanoseconds")
+            self.clock_offsets_ns[sensor_id] = offset
         self._events: dict[str, SensorEventRecord] = {}
         self._alignment: dict[str, dict[str, str | int | None]] = {}
+        self._aligned_timestamp: dict[str, int] = {}
         self._latest_timestamp: dict[str, int] = {}
         self._latest_sequence: dict[str, int] = {}
 
@@ -95,6 +108,10 @@ class SensorEventLedger:
             raise TypeError("event must be a SensorEventRecord")
         if event.event_id in self._events:
             raise ValueError(f"duplicate event_id: {event.event_id}")
+        clock_offset = self.clock_offsets_ns.get(event.sensor_id, 0)
+        aligned_timestamp = event.timestamp_ns + clock_offset
+        if aligned_timestamp < 0:
+            raise ValueError("clock offset would produce a negative aligned timestamp")
         latest_timestamp = self._latest_timestamp.get(event.sensor_id)
         latest_sequence = self._latest_sequence.get(event.sensor_id)
         if event.sequence is not None and latest_sequence is not None and event.sequence <= latest_sequence:
@@ -103,9 +120,11 @@ class SensorEventLedger:
             "status": "aligned",
             "reason": "first event for sensor" if latest_timestamp is None else "timestamp and sequence checks passed",
             "lateness_ns": 0,
+            "clock_offset_ns": clock_offset,
+            "aligned_timestamp_ns": aligned_timestamp,
         }
-        if latest_timestamp is not None and event.timestamp_ns < latest_timestamp:
-            lateness = latest_timestamp - event.timestamp_ns
+        if latest_timestamp is not None and aligned_timestamp < latest_timestamp:
+            lateness = latest_timestamp - aligned_timestamp
             if lateness > self.allowed_lateness_ns:
                 raise ValueError(
                     f"late event for sensor {event.sensor_id}: {lateness} ns exceeds "
@@ -115,10 +134,13 @@ class SensorEventLedger:
                 "status": "late_within_tolerance",
                 "reason": "event arrived behind the sensor watermark; retained with warning",
                 "lateness_ns": lateness,
+                "clock_offset_ns": clock_offset,
+                "aligned_timestamp_ns": aligned_timestamp,
             }
         self._events[event.event_id] = event
         self._alignment[event.event_id] = alignment
-        self._latest_timestamp[event.sensor_id] = max(event.timestamp_ns, latest_timestamp or 0)
+        self._aligned_timestamp[event.event_id] = aligned_timestamp
+        self._latest_timestamp[event.sensor_id] = max(aligned_timestamp, latest_timestamp or 0)
         if event.sequence is not None:
             self._latest_sequence[event.sensor_id] = event.sequence
 
@@ -141,8 +163,8 @@ class SensorEventLedger:
             raise ValueError("limit must be an integer from 1 to 10000")
         items = [
             event for event in self._events.values()
-            if event.timestamp_ns <= now_ns
-            and (max_age_ns is None or now_ns - event.timestamp_ns <= max_age_ns)
+            if self._aligned_timestamp[event.event_id] <= now_ns
+            and (max_age_ns is None or now_ns - self._aligned_timestamp[event.event_id] <= max_age_ns)
         ]
-        items.sort(key=lambda event: (event.timestamp_ns, event.sequence or -1, event.event_id), reverse=True)
+        items.sort(key=lambda event: (self._aligned_timestamp[event.event_id], event.sequence or -1, event.event_id), reverse=True)
         return tuple(items[:limit])
