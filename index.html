@@ -749,6 +749,8 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       var alignment = row.alignment && typeof row.alignment === 'object' ? row.alignment : {};
       detail.textContent = 'STATUS ' + String(row.status || 'unknown').toUpperCase() +
         ' · ALIGNMENT ' + String(alignment.status || 'unspecified').toUpperCase() +
+        ' · CLOCK OFFSET ' + (Number.isFinite(alignment.clock_offset_ns) ? String(alignment.clock_offset_ns) + ' ns' : '0 ns') +
+        ' · ALIGNED TIME ' + (Number.isFinite(alignment.aligned_timestamp_ns) ? String(alignment.aligned_timestamp_ns) : 'unknown') +
         ' · LATENESS ' + (Number.isFinite(alignment.lateness_ns) ? String(alignment.lateness_ns) + ' ns' : 'unknown') +
         ' · FRESHNESS ' + String(row.freshness || 'unspecified').toUpperCase() +
         ' · EVENT AGE ' + (Number.isFinite(row.age_ns) && row.age_ns >= 0 ? String(Math.round(row.age_ns / 1e6)) + ' ms' : 'unknown');
