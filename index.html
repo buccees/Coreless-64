@@ -113,7 +113,7 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 .sensor-display-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;color:var(--g);font-size:11px;letter-spacing:.08em;margin-bottom:9px}
 .sensor-display-head span{color:var(--dim);font-size:10px}
 .sensor-display-screen{border:1px solid #17553b;background:#020907;overflow:hidden}
-.sensor-display-screen svg{display:block;width:100%;height:auto;min-height:160px}
+.sensor-display-screen svg{display:block;width:100%;height:auto;min-height:160px}.sensor-visual-controls{margin-top:10px}.sensor-visual-controls button{flex:1 1 145px}.sensor-visual-controls button[aria-pressed=true]{box-shadow:inset 0 0 12px #0b5a3d;text-shadow:0 0 5px #29f5b2}.sensor-visual-display [data-visual-layer]{transition:opacity .15s ease}
 .sensor-display-legend{display:flex;gap:12px 18px;flex-wrap:wrap;padding:9px 2px 2px;font-size:10px;color:var(--dim)}
 .sensor-display-legend span{display:inline-flex;align-items:center;gap:6px}
 .legend-dot{width:8px;height:8px;display:inline-block;border-radius:50%}.csi-dot{background:#29f5b2}.ir-dot{background:#62b8ff}.review-dot{background:#e2d86a}
@@ -199,8 +199,17 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 <p><span class="green">DISPLAY MODE:</span> EXAMPLE TELEMETRY / MULTI-SENSOR INPUT MONITORS</p>
 <div class="sensor-visual-display" aria-label="Illustrative sensor visual input display">
   <div class="sensor-display-head"><strong>LIVE INPUT DISPLAY // SENSOR CONVERGENCE</strong><span id="spatial-display-state">SCHEMATIC MODE / NO LIVE FEED</span></div>
+  <div class="sensor-toolbar sensor-visual-controls" role="group" aria-label="Choose sensor visual input">
+    <button type="button" data-visual-mode="csi" aria-pressed="true">2.4 GHz WI-FI CSI</button>
+    <button type="button" data-visual-mode="infrared" aria-pressed="false">IR / THERMAL</button>
+    <button type="button" data-visual-mode="range" aria-pressed="false">SPATIAL RANGING</button>
+    <button type="button" data-visual-mode="sonar" aria-pressed="false">ACOUSTIC SONAR</button>
+    <button type="button" data-visual-mode="tracking" aria-pressed="false">OBJECT TRACKING</button>
+    <button type="button" data-visual-mode="fusion" aria-pressed="false">FUSED VIEW</button>
+  </div>
+  <p class="muted" id="sensor-visual-description" aria-live="polite">WI-FI CSI // wavefront illustration for motion-context evidence; not a direct position fix.</p>
   <div class="sensor-display-screen">
-    <svg viewBox="0 0 720 300" role="img" aria-label="Illustrative room map with Wi-Fi CSI wavefronts, infrared field, sensor nodes and an uncertain object track; schematic only">
+    <svg id="sensor-visual-svg" class="visual-mode-csi" viewBox="0 0 720 300" role="img" aria-label="Selectable schematic sensor input view; illustrative only">
       <defs>
         <pattern id="sd-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#14533d" stroke-width=".7"/></pattern>
         <radialGradient id="sd-field"><stop offset="0" stop-color="#29f5b2" stop-opacity=".2"/><stop offset="1" stop-color="#29f5b2" stop-opacity="0"/></radialGradient>
@@ -208,18 +217,29 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
       <rect width="720" height="300" fill="#020907"/><rect width="720" height="300" fill="url(#sd-grid)"/>
       <path d="M75 42H630V246H75Z M245 42V118H365V42 M365 168H500V246 M75 168H245V246" fill="none" stroke="#4abf91" stroke-width="2"/>
       <ellipse cx="330" cy="145" rx="210" ry="112" fill="url(#sd-field)"/>
-      <g fill="none" stroke="#29f5b2" stroke-width="1.5" opacity=".8"><path d="M125 85 Q185 145 125 205"/><path d="M105 65 Q205 145 105 225"/><path d="M85 45 Q225 145 85 245"/><path d="M590 90 Q535 145 590 200"/><path d="M610 70 Q515 145 610 220"/></g>
-      <g fill="#62b8ff" fill-opacity=".14" stroke="#62b8ff" stroke-width="1.5"><rect x="255" y="78" width="74" height="70"/><rect x="400" y="174" width="82" height="48"/></g>
-      <g fill="#62b8ff" font-family="monospace" font-size="10"><text x="260" y="94">IR FIELD</text><text x="404" y="190">THERMAL</text></g>
-      <g stroke="#29f5b2" stroke-width="2" fill="#020907"><circle cx="125" cy="145" r="7"/><circle cx="590" cy="145" r="7"/><circle cx="360" cy="246" r="7"/></g>
-      <g fill="#b7ffe9" font-family="monospace" font-size="10"><text x="88" y="132">CSI RX-A</text><text x="552" y="132">CSI RX-B</text><text x="326" y="268">SENSOR C</text></g>
-      <g fill="none" stroke="#e2d86a" stroke-width="2" stroke-dasharray="6 5"><path d="M205 205L305 155L410 174L500 118"/></g>
-      <circle cx="305" cy="155" r="15" fill="none" stroke="#e2d86a" stroke-width="2"/><circle cx="305" cy="155" r="4" fill="#e2d86a"/>
-      <g fill="#e2d86a" font-family="monospace" font-size="10"><text x="322" y="151">TRACK CANDIDATE</text><text x="322" y="164">UNCERTAINTY / REVIEW</text></g>
-      <g fill="#29f5b2" font-family="monospace" font-size="10"><text x="16" y="20">RF / CSI MOTION CONTEXT</text><text x="16" y="286">WAVEFRONTS = ILLUSTRATIVE ONLY</text><text x="532" y="286">NOT A POSITION FIX</text></g>
+      <g data-visual-layer="csi" fill="none" stroke="#29f5b2" stroke-width="1.5" opacity=".8"><path d="M125 85 Q185 145 125 205"/><path d="M105 65 Q205 145 105 225"/><path d="M85 45 Q225 145 85 245"/><path d="M590 90 Q535 145 590 200"/><path d="M610 70 Q515 145 610 220"/></g>
+      <g data-visual-layer="infrared" fill="#62b8ff" fill-opacity=".14" stroke="#62b8ff" stroke-width="1.5"><rect x="255" y="78" width="74" height="70"/><rect x="400" y="174" width="82" height="48"/></g>
+      <g data-visual-layer="infrared" fill="#62b8ff" font-family="monospace" font-size="10"><text x="260" y="94">IR FIELD</text><text x="404" y="190">THERMAL</text></g>
+      <g data-visual-layer="nodes" stroke="#29f5b2" stroke-width="2" fill="#020907"><circle cx="125" cy="145" r="7"/><circle cx="590" cy="145" r="7"/><circle cx="360" cy="246" r="7"/></g>
+      <g data-visual-layer="nodes" fill="#b7ffe9" font-family="monospace" font-size="10"><text x="88" y="132">CSI RX-A</text><text x="552" y="132">CSI RX-B</text><text x="326" y="268">SENSOR C</text></g>
+      <g data-visual-layer="tracking">
+        <path d="M205 205L305 155L410 174L500 118" fill="none" stroke="#e2d86a" stroke-width="2" stroke-dasharray="6 5"/>
+        <circle cx="305" cy="155" r="15" fill="none" stroke="#e2d86a" stroke-width="2"/><circle cx="305" cy="155" r="4" fill="#e2d86a"/>
+        <g fill="#e2d86a" font-family="monospace" font-size="10"><text x="322" y="151">TRACK CANDIDATE</text><text x="322" y="164">UNCERTAINTY / REVIEW</text></g>
+      </g>
+      <g data-visual-layer="range" fill="none" stroke="#ff9b58" stroke-width="1.5" stroke-dasharray="4 4">
+        <circle cx="125" cy="145" r="78"/><circle cx="590" cy="145" r="112"/><path d="M125 145L360 246L590 145"/>
+        <text x="150" y="72" fill="#ffb47d" stroke="none" font-size="10">CALIBRATED RANGE CONSTRAINTS</text>
+      </g>
+      <g data-visual-layer="sonar" fill="none" stroke="#a98cff" stroke-width="2">
+        <circle cx="360" cy="246" r="28"/><circle cx="360" cy="246" r="54"/><circle cx="360" cy="246" r="82"/>
+        <path d="M360 246L305 155L245 118" stroke-dasharray="4 5"/>
+        <text x="385" y="232" fill="#c8b7ff" stroke="none" font-size="10">ACOUSTIC ECHO / TOF</text>
+      </g>
+      <g fill="#29f5b2" font-family="monospace" font-size="10"><text id="sensor-visual-caption" x="16" y="20">RF / CSI MOTION CONTEXT</text><text x="16" y="286">SCHEMATIC INPUT / NO LIVE FEED</text><text id="sensor-visual-footer" x="532" y="286">NOT A POSITION FIX</text></g>
     </svg>
   </div>
-  <div class="sensor-display-legend"><span><i class="legend-dot csi-dot"></i> 2.4 GHz Wi-Fi CSI / MOTION CONTEXT</span><span><i class="legend-dot ir-dot"></i> IR / THERMAL LAYER</span><span><i class="legend-dot review-dot"></i> TRACK CANDIDATE / REVIEW</span></div>
+  <div class="sensor-display-legend" id="sensor-visual-legend"><span><i class="legend-dot csi-dot"></i> 2.4 GHz Wi-Fi CSI / MOTION CONTEXT</span><span><i class="legend-dot ir-dot"></i> IR / THERMAL LAYER</span><span><i class="legend-dot review-dot"></i> TRACK CANDIDATE / REVIEW</span></div>
   <p class="muted">DISPLAY CONTRACT // This is an illustrative visual input screen, not measured sensor output. Imported blueprint tracks remain separate until their source IDs, timestamps, calibration, and coordinate frames can be checked.</p>
 </div>
 <div class="sensor-console" id="temporal-evidence-monitor" aria-label="Temporal sensor evidence monitor">
@@ -387,6 +407,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <p><span class="green">LATEST WORK:</span> Sensor-source lineage, calibration health, and scene-readiness diagnostics.</p>
 <p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes an interactive temporal evidence monitor with ALL / FRESH / REVIEW / CONTEXT filters, event timestamps, lineage declarations, calibration status, and a clear synthetic-data label. The monitor is a front-end demonstration; connecting an event feed is still a separate, explicit action.</p>
 <p><span class="green">SCREEN DISPLAY ADDED:</span> 04 // SENSOR INPUTS now has a dedicated sensor visual-input display showing illustrative 2.4 GHz Wi-Fi CSI wavefronts, IR/thermal overlays, sensor nodes, and an uncertain track candidate. The screen is explicitly labeled schematic, not live measurements or a standalone position fix.</p>
+<p><span class="green">SCREEN INTERACTION UPDATED:</span> 04 // SENSOR INPUTS now lets the operator switch the visual display between Wi-Fi CSI, IR/thermal coverage, spatial ranging, acoustic sonar, object tracking, and a layered fused schematic. Each selection changes the rendered layers, title, legend, and evidence limits. All views remain clearly labeled schematic; no live hardware feed is implied.</p>
 <p><span class="green">SCREEN UPDATED:</span> 03 // SPATIAL INTELLIGENCE now includes a CSI motion-association review panel for imported track candidates. It checks only declared Wi-Fi / CSI modality or source metadata, shows observation/trail metadata when available, and keeps position confirmation separate from motion context. Review marks are local to the page session; no live CSI feed or synthetic-to-track correlation is implied.</p>
 <p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes an interactive RF / RANGE CLASSIFIER that switches between Wi-Fi CSI motion context, calibrated spatial ranging, and acoustic sonar, with each mode's output, prerequisites, and limits. It does not present RSSI as range or conflate RF sensing with acoustic time-of-flight.</p>
 <p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes a cross-screen evidence bridge that reads the currently imported Screen 03 scene and summarizes its tracks, review-gate counts, modalities, and source IDs. Clearing the import resets the bridge. The synthetic temporal examples remain separate and are never represented as correlated live events.</p>
@@ -528,6 +549,42 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var ny = Math.max(0, Math.min(1, normalized[1]));
     var baseY = code === '2' ? 175 : (code === '1' ? 285 : 395);
     return {x:95 + nx * 290 + ny * 280, y:baseY - nx * 105 + ny * 107};
+  }
+  var sensorVisualModes = {
+    csi: {layers:['csi','nodes'],title:'RF / CSI MOTION CONTEXT',footer:'NOT A POSITION FIX',description:'WI-FI CSI // wavefront illustration for motion-context evidence; not a direct position fix.',legend:'CSI WAVEFRONTS / SENSOR NODES',state:'SCHEMATIC MODE / NO LIVE FEED'},
+    infrared: {layers:['infrared','nodes'],title:'INFRARED / THERMAL COVERAGE',footer:'CALIBRATION REQUIRED',description:'IR / THERMAL // illustrative floor-coverage zones. Real mapping needs calibrated sensors, pose, and floor coordinates.',legend:'IR FIELD / THERMAL ZONES / SENSOR NODES',state:'IR SCHEMATIC / NO LIVE FEED'},
+    range: {layers:['range','nodes'],title:'SPATIAL RANGE CONSTRAINTS',footer:'GEOMETRY REQUIRED',description:'SPATIAL RANGING // illustrative range rings and anchor geometry; no range has been measured in this demo.',legend:'RANGE RINGS / ANCHOR GEOMETRY',state:'RANGE SCHEMATIC / NO LIVE FEED'},
+    sonar: {layers:['sonar','nodes'],title:'ACOUSTIC ECHO / TIME OF FLIGHT',footer:'SOUND IS NOT RF',description:'ACOUSTIC SONAR // illustrative sound-echo wavefronts. Requires a transducer, timing, and echo validation; separate from Wi-Fi.',legend:'ACOUSTIC ECHO FRONTS / SENSOR NODES',state:'SONAR SCHEMATIC / NO LIVE FEED'},
+    tracking: {layers:['tracking','nodes'],title:'OBJECT TRACK / UNCERTAINTY',footer:'CANDIDATE ONLY',description:'OBJECT TRACKING // illustrative candidate path and uncertainty marker; not a confirmed object or live position.',legend:'TRACK CANDIDATE / REVIEW REQUIRED',state:'TRACK REVIEW / NO LIVE FEED'},
+    fusion: {layers:['csi','infrared','nodes','tracking','range','sonar'],title:'MULTI-SENSOR FUSION OVERVIEW',footer:'EVIDENCE ≠ CERTAINTY',description:'FUSED VIEW // layered schematic for comparing modalities. Evidence stays separate until timestamps, calibration, lineage, and frames agree.',legend:'CSI + IR + RANGE + SONAR + TRACK REVIEW',state:'FUSION SCHEMATIC / NO LIVE FEED'}
+  };
+  var sensorVisualDisplay = document.querySelector('.sensor-visual-display');
+  if (sensorVisualDisplay) {
+    var visualButtons = Array.prototype.slice.call(sensorVisualDisplay.querySelectorAll('[data-visual-mode]'));
+    function selectSensorVisualMode(key) {
+      var mode = sensorVisualModes[key];
+      if (!mode) return;
+      visualButtons.forEach(function(button) { button.setAttribute('aria-pressed', String(button.getAttribute('data-visual-mode') === key)); });
+      sensorVisualDisplay.querySelectorAll('[data-visual-layer]').forEach(function(layer) {
+        layer.style.display = mode.layers.indexOf(layer.getAttribute('data-visual-layer')) >= 0 ? '' : 'none';
+      });
+      var description = document.getElementById('sensor-visual-description');
+      var caption = document.getElementById('sensor-visual-caption');
+      var footer = document.getElementById('sensor-visual-footer');
+      var state = document.getElementById('spatial-display-state');
+      var legend = document.getElementById('sensor-visual-legend');
+      if (description) description.textContent = mode.description;
+      if (caption) caption.textContent = mode.title;
+      if (footer) footer.textContent = mode.footer;
+      if (state) state.textContent = mode.state;
+      if (legend) legend.textContent = 'DISPLAY LAYERS // ' + mode.legend + ' // ILLUSTRATIVE ONLY';
+      var svg = document.getElementById('sensor-visual-svg');
+      if (svg) svg.setAttribute('aria-label', mode.title + '; ' + mode.description + ' Synthetic schematic, no live sensor feed.');
+    }
+    visualButtons.forEach(function(button) {
+      button.addEventListener('click', function() { selectSensorVisualMode(button.getAttribute('data-visual-mode')); });
+    });
+    selectSensorVisualMode('csi');
   }
   var rfEvidenceModes = {
     csi: {title:'MODE A // WI-FI CHANNEL-STATE INFORMATION',output:'MOTION CONTEXT',position:'NO',gate:'CSI CAPABLE RADIO',description:'Track time-varying subcarrier amplitude and phase features from a compatible radio to flag motion-related changes. This is evidence for association and tracking, not a direct distance measurement.',limit:'RSSI alone is not range. Device-specific capture, antenna synchronization, a stable baseline, and field validation are required before making stronger claims.'},
