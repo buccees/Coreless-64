@@ -487,13 +487,15 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         var toLevel = transition && transition.to_level !== undefined ? String(transition.to_level) : 'UNKNOWN';
         var timestamp = transition && Number.isFinite(transition.timestamp_ns) ? String(transition.timestamp_ns) : 'UNKNOWN TIME';
         var conflictTag = object.conflict === true ? ' // SENSOR CONFLICT FLAGGED — DO NOT CONFIRM' : ' // CANDIDATE — REVIEW REQUIRED';
-        item.textContent = fromLevel + ' → ' + toLevel + ' // timestamp_ns=' + timestamp + conflictTag;
+        var fromSensors = transition && Array.isArray(transition.from_sensor_ids) && transition.from_sensor_ids.length ? transition.from_sensor_ids.join(', ') : 'NOT PROVIDED';
+        var toSensors = transition && Array.isArray(transition.to_sensor_ids) && transition.to_sensor_ids.length ? transition.to_sensor_ids.join(', ') : 'NOT PROVIDED';
+        item.textContent = fromLevel + ' → ' + toLevel + ' // timestamp_ns=' + timestamp + ' // SOURCE SENSORS: ' + fromSensors + ' // DESTINATION SENSORS: ' + toSensors + conflictTag;
         transitionList.appendChild(item);
       });
       spatialTrackDetail.appendChild(transitionList);
     }
     var note = document.createElement('p');
-    note.textContent = 'FLOOR CONTINUITY NOTE // A candidate requires at least two consecutive samples assigned to the destination floor; its timestamp is the first destination sample. Unknown-height samples break continuity. A track-level sensor conflict flags every listed transition for review, but the import does not provide per-sample sensor attribution, so conflict cannot be localized to a specific transition. Even without a conflict flag, history alone does not prove the route taken.';
+    note.textContent = 'FLOOR CONTINUITY NOTE // A candidate requires at least two consecutive samples assigned to the destination floor; its timestamp is the first destination sample. Per-sample source and destination sensor IDs are shown when supplied by the import. Missing IDs mean provenance was not provided, not that a sensor was absent. A track-level sensor conflict flags every listed transition for review; history alone does not prove the route taken.';
     spatialTrackDetail.appendChild(note);
   }
   function bindSpatialTrackInspection(data) {
