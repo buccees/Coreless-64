@@ -229,6 +229,59 @@ def test_tracker_clears_conflict_flag_when_new_consistent_epoch_arrives():
 
 
 
+
+def test_tracker_requires_multi_sensor_corroboration_to_clear_conflict():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    tracker = ObjectTracker(alpha=1.0)
+    tracker.update(model, [
+        ObjectObservation(
+            "thermal-target", "thermal", model.model_id, model.revision,
+            model.frame_id, 1_000_000_000, (0.0, 0.0, 0.0), 0.1,
+            TrackingModality.INFRARED, "thermal-detector", association_id="entity-1",
+        ),
+        ObjectObservation(
+            "vision-target", "camera", model.model_id, model.revision,
+            model.frame_id, 1_000_000_000, (10.0, 0.0, 0.0), 0.1,
+            TrackingModality.VISION, "vision-reid", association_id="entity-1",
+        ),
+    ], now_ns=1_000_000_000)
+
+    single_sensor = tracker.update(model, [
+        ObjectObservation(
+            "thermal-target", "thermal", model.model_id, model.revision,
+            model.frame_id, 2_000_000_000, (1.0, 0.0, 0.0), 0.1,
+            TrackingModality.INFRARED, "thermal-detector", association_id="entity-1",
+        ),
+    ], now_ns=2_000_000_000)
+    assert single_sensor[0].conflict is True
+    assert "position_disagreement" in single_sensor[0].conflict_reasons
+    assert single_sensor[0].conflicting_sensor_ids == ("camera", "thermal")
+
+    corroborated = tracker.update(model, [
+        ObjectObservation(
+            "thermal-target", "thermal", model.model_id, model.revision,
+            model.frame_id, 3_000_000_000, (2.0, 0.0, 0.0), 0.1,
+            TrackingModality.INFRARED, "thermal-detector", association_id="entity-1",
+        ),
+        ObjectObservation(
+            "vision-target", "camera", model.model_id, model.revision,
+            model.frame_id, 3_000_000_000, (2.1, 0.0, 0.0), 0.1,
+            TrackingModality.VISION, "vision-reid", association_id="entity-1",
+        ),
+    ], now_ns=3_000_000_000)
+    assert corroborated[0].conflict is False
+    assert corroborated[0].conflict_reasons == ()
+    assert corroborated[0].conflicting_sensor_ids == ()
+
+
+def test_tracker_validates_conflict_resolution_sensor_threshold():
+    with pytest.raises(ValueError, match="conflict_resolution_min_sensors"):
+        ObjectTracker(conflict_resolution_min_sensors=1)
+
+
 def test_tracker_does_not_drop_same_timestamp_conflict_after_initial_detection():
     model = register_blueprint(
         "site", "r1", frame_id="site/building", units="m",
