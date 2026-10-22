@@ -80,6 +80,9 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 @media(max-width:760px){.sensor-console{grid-template-columns:minmax(0,1fr)}.sensor-console-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sensor-console-title{align-items:flex-start;flex-direction:column}.sensor-console-pane{overflow-x:auto}.sensor-event-table{min-width:310px}}
 
 
+.sensor-runner-guide{border-top:1px solid #14533e;margin-top:10px;padding-top:8px;font-size:11px;color:var(--dim)}
+.sensor-runner-guide summary{color:var(--g);cursor:pointer;letter-spacing:1px;padding:5px 0}
+.sensor-runner-guide pre{font-size:10px}
 .sensor-live-connect{border:1px solid #14533e;background:#010805;padding:10px;margin:10px 0}
 .sensor-live-head{display:flex;justify-content:space-between;gap:8px;align-items:center;color:var(--g);font-size:11px;letter-spacing:1px}
 .sensor-live-state{font-size:10px;color:#e2d86a;border:1px solid #7d7739;padding:3px 6px}
@@ -177,6 +180,14 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   <div class="sensor-live-controls"><label for="sensor-api-url">EVENT API BASE URL</label><input id="sensor-api-url" type="url" inputmode="url" placeholder="https://your-host.example/vigil" autocomplete="url"><button type="button" id="sensor-connect">CONNECT</button><button type="button" id="sensor-disconnect" disabled>DISCONNECT</button></div>
   <div id="sensor-live-summary" class="sensor-live-summary" aria-live="polite">Showing the clearly labeled synthetic demonstration below. Live data has not been loaded.</div>
   <div id="sensor-live-events" class="sensor-live-events" hidden></div>
+  <details class="sensor-runner-guide">
+    <summary>LOCAL FEED RUNNER // SETUP</summary>
+    <p>For an end-to-end software test, provide already-captured CSI samples as JSON Lines. The runner processes each sample through VIGIL's CSI pipeline and serves normalized events; it does not capture radio traffic or connect to hardware.</p>
+    <pre class="terminal-code">python -m vigil.sensor_event_runner --input-jsonl samples.jsonl --port 8765</pre>
+    <p>Each non-empty line is one JSON object with <code>timestamp_ns</code>, <code>sensor_id</code>, <code>channel_mhz</code>, <code>baseline</code>, and <code>current</code>. Vectors are arrays of real numbers or <code>[real, imaginary]</code> pairs. Optional fields: <code>packet_length</code> and <code>signal_dbm</code>.</p>
+    <pre class="terminal-code">{"timestamp_ns":1000000000,"sensor_id":"csi-1","channel_mhz":2412,"baseline":[[1,0],[1,0]],"current":[[1.1,0.1],[0.9,-0.1]],"signal_dbm":-48}</pre>
+    <p>After the runner starts, test <code>http://127.0.0.1:8765/health</code> and <code>http://127.0.0.1:8765/events</code>. The website hosted on GitHub Pages cannot directly reach your device's loopback address. For hosted-page use, configure a separately secured HTTPS reverse proxy with suitable CORS; never expose the development runner directly to the public internet. CSI output remains contextual motion evidence, not an object position.</p>
+  </details>
 </div>
 <div class="sensor-console" aria-label="Illustrative VIGIL sensor input dashboard">
   <div class="sensor-console-title"><span>VIGIL // VISUAL SENSOR-INPUT DISPLAY</span><span class="sensor-demo-tag">SYNTHETIC DATASET · NOT LIVE</span></div>
