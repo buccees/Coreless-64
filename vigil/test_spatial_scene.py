@@ -1,5 +1,6 @@
 from vigil.blueprint import PoseEstimate, PoseState, register_blueprint
 from vigil.object_tracking import ObjectTrack
+from vigil.infrared_floor_mapping import InfraredFloorMap
 from vigil.spatial_scene import assemble_spatial_scene
 from vigil.terminal import VigilTerminal
 
@@ -104,3 +105,46 @@ def test_finisher_requires_a_real_selected_floor_when_model_has_floor_labels():
     assert "active_floor_selected" in {
         check.name for check in scene.checks if not check.passed
     }
+
+
+
+def ir_map(model, *, timestamp=100, revision=None, frame=None, level="L1"):
+    return InfraredFloorMap(
+        sensor_id="thermal-1", model_id=model.model_id,
+        model_revision=revision or model.revision,
+        frame_id=frame or model.frame_id, level_id=level,
+        timestamp_ns=timestamp, image_width=64, image_height=64,
+        calibration_rms_m=0.05, samples=(),
+    )
+
+
+def test_spatial_scene_only_exposes_fresh_aligned_ir_floor_maps():
+    model = model_fixture()
+    scene = assemble_spatial_scene(
+        model, pose_fixture(model),
+        infrared_maps=(
+            ir_map(model, timestamp=95, level="L1"),
+            ir_map(model, timestamp=70, level="L2"),
+            ir_map(model, timestamp=120, level="L3"),
+            ir_map(model, revision="old", level="L4"),
+        ),
+        selected_level="L1", now_ns=100, max_ir_age_ns=10,
+    )
+    assert scene.infrared_levels == ("L1",)
+    ir_check = next(check for check in scene.checks if check.name == "infrared_overlay_optional")
+    assert ir_check.passed
+    assert "1 fresh aligned map(s)" in ir_check.detail
+    assert "1 stale" in ir_check.detail
+    assert "1 future-dated" in ir_check.detail
+    assert "1 frame/revision/floor-invalid" in ir_check.detail
+    assert scene.finishing_move_ready
+
+
+def test_stale_ir_overlay_does_not_appear_in_scene_floor_list():
+    model = model_fixture()
+    scene = assemble_spatial_scene(
+        model, pose_fixture(model), infrared_maps=(ir_map(model, timestamp=1),),
+        selected_level="L1", now_ns=100, max_ir_age_ns=10,
+    )
+    assert scene.infrared_levels == ()
+    assert scene.finishing_move_ready
