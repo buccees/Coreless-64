@@ -6,11 +6,11 @@ from vigil.object_tracking import ObjectObservation, ObjectTracker, TrackingModa
 
 def observation(model, *, timestamp, position, sensor="rf-node-a",
                 modality=TrackingModality.RF_2_4_GHZ, uncertainty=0.25,
-                object_id="cart", frame=None):
+                object_id="cart", frame=None, independence_group=None):
     return ObjectObservation(
         object_id, sensor, model.model_id, model.revision,
         frame or model.frame_id, timestamp, position, uncertainty, modality,
-        "calibrated-sensor-adapter",
+        "calibrated-sensor-adapter", independence_group=independence_group,
     )
 
 
@@ -275,6 +275,95 @@ def test_tracker_requires_multi_sensor_corroboration_to_clear_conflict():
     assert corroborated[0].conflict is False
     assert corroborated[0].conflict_reasons == ()
     assert corroborated[0].conflicting_sensor_ids == ()
+
+
+def test_shared_evidence_group_does_not_count_as_independent_corroboration():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    tracker = ObjectTracker(alpha=1.0)
+    tracker.update(model, [
+        ObjectObservation(
+            "thermal-target", "thermal", model.model_id, model.revision,
+            model.frame_id, 1_000_000_000, (0.0, 0.0, 0.0), 0.1,
+            TrackingModality.INFRARED, "derived-feed-a", association_id="entity-1",
+        ),
+        ObjectObservation(
+            "vision-target", "camera", model.model_id, model.revision,
+            model.frame_id, 1_000_000_000, (10.0, 0.0, 0.0), 0.1,
+            TrackingModality.VISION, "derived-feed-b", association_id="entity-1",
+        ),
+    ], now_ns=1_000_000_000)
+
+    same_source = tracker.update(model, [
+        ObjectObservation(
+            "thermal-target", "thermal", model.model_id, model.revision,
+            model.frame_id, 2_000_000_000, (2.0, 0.0, 0.0), 0.1,
+            TrackingModality.INFRARED, "derived-feed-a", association_id="entity-1",
+            independence_group="shared-receiver",
+        ),
+        ObjectObservation(
+            "vision-target", "camera", model.model_id, model.revision,
+            model.frame_id, 2_000_000_000, (2.1, 0.0, 0.0), 0.1,
+            TrackingModality.VISION, "derived-feed-b", association_id="entity-1",
+            independence_group="shared-receiver",
+        ),
+    ], now_ns=2_000_000_000)
+
+    assert same_source[0].conflict is True
+    assert same_source[0].independence_groups == ("camera", "shared-receiver", "thermal")
+
+
+def test_independent_groups_can_clear_conflict_and_are_exposed_on_track():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    tracker = ObjectTracker(alpha=1.0)
+    tracker.update(model, [
+        ObjectObservation(
+            "thermal-target", "thermal", model.model_id, model.revision,
+            model.frame_id, 1_000_000_000, (0.0, 0.0, 0.0), 0.1,
+            TrackingModality.INFRARED, "thermal-detector", association_id="entity-1",
+        ),
+        ObjectObservation(
+            "vision-target", "camera", model.model_id, model.revision,
+            model.frame_id, 1_000_000_000, (10.0, 0.0, 0.0), 0.1,
+            TrackingModality.VISION, "vision-reid", association_id="entity-1",
+        ),
+    ], now_ns=1_000_000_000)
+
+    tracks = tracker.update(model, [
+        ObjectObservation(
+            "thermal-target", "thermal", model.model_id, model.revision,
+            model.frame_id, 2_000_000_000, (2.0, 0.0, 0.0), 0.1,
+            TrackingModality.INFRARED, "thermal-detector", association_id="entity-1",
+            independence_group="thermal-chain",
+        ),
+        ObjectObservation(
+            "vision-target", "camera", model.model_id, model.revision,
+            model.frame_id, 2_000_000_000, (2.1, 0.0, 0.0), 0.1,
+            TrackingModality.VISION, "vision-reid", association_id="entity-1",
+            independence_group="vision-chain",
+        ),
+    ], now_ns=2_000_000_000)
+
+    assert tracks[0].conflict is False
+    assert tracks[0].independence_groups == ("camera", "thermal", "thermal-chain", "vision-chain")
+
+
+def test_tracker_rejects_blank_independence_group():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    with pytest.raises(ValueError, match="independence_group"):
+        ObjectObservation(
+            "cart", "sensor", model.model_id, model.revision, model.frame_id,
+            1, (0, 0, 0), 0.1, TrackingModality.VISION, "test",
+            independence_group="   ",
+        )
 
 
 def test_tracker_validates_conflict_resolution_sensor_threshold():
