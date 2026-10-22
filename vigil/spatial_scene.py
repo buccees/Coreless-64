@@ -46,11 +46,12 @@ def assemble_spatial_scene(
     now_ns: int,
     max_pose_age_ns: int = 2_000_000_000,
     max_object_age_ns: int = 2_000_000_000,
+    max_ir_age_ns: int = 2_000_000_000,
     max_pose_uncertainty_m: float = 2.0,
     require_conflict_free_tracks: bool = True,
 ) -> SpatialScene:
     """Build a render-ready scene and explain exactly why it is or isn't ready."""
-    if now_ns < 0 or max_pose_age_ns < 0 or max_object_age_ns < 0:
+    if now_ns < 0 or max_pose_age_ns < 0 or max_object_age_ns < 0 or max_ir_age_ns < 0:
         raise ValueError("timestamps and age limits must be non-negative")
     if max_pose_uncertainty_m <= 0:
         raise ValueError("max_pose_uncertainty_m must be positive")
@@ -62,6 +63,10 @@ def assemble_spatial_scene(
     pose_state_usable = False
     valid_tracks: list[ObjectTrack] = []
     valid_ir_levels: set[str] = set()
+    aligned_ir_count = 0
+    stale_ir_count = 0
+    future_ir_count = 0
+    mismatched_ir_count = 0
     view = None
 
     checks.append(SceneCheck("blueprint_registered", model is not None,
@@ -74,10 +79,23 @@ def assemble_spatial_scene(
             and 0 <= now_ns - track.last_seen_ns <= max_object_age_ns
         ]
         for item in infrared_maps:
-            if (item.model_id, item.model_revision, item.frame_id) == (
+            if (item.model_id, item.model_revision, item.frame_id) != (
                 model.model_id, model.revision, model.frame_id
-            ) and item.level_id.strip():
-                valid_ir_levels.add(item.level_id)
+            ):
+                mismatched_ir_count += 1
+                continue
+            if not item.level_id.strip():
+                mismatched_ir_count += 1
+                continue
+            age_ns = now_ns - item.timestamp_ns
+            if age_ns < 0:
+                future_ir_count += 1
+                continue
+            if age_ns > max_ir_age_ns:
+                stale_ir_count += 1
+                continue
+            valid_ir_levels.add(item.level_id)
+            aligned_ir_count += 1
         try:
             view = build_blueprint_view(
                 model, pose, selected_level=selected_level, object_tracks=valid_tracks
@@ -127,9 +145,21 @@ def assemble_spatial_scene(
     tracks_clear = conflict_count == 0 or not require_conflict_free_tracks
     checks.append(SceneCheck("object_tracks_consistent", tracks_clear,
                              "no active track conflicts" if conflict_count == 0 else f"{conflict_count} active track conflict(s)"))
-    # Infrared is an optional overlay, not a mandatory readiness dependency.
-    checks.append(SceneCheck("infrared_overlay_optional", True,
-                             f"{len(valid_ir_levels)} calibrated floor overlay(s)" if valid_ir_levels else "no aligned IR overlay; scene remains eligible"))
+    # Infrared is optional for readiness, but only fresh, time-aligned maps are exposed.
+    ir_detail = (
+        f"{aligned_ir_count} fresh aligned map(s) across {len(valid_ir_levels)} floor(s)"
+        if aligned_ir_count else "no fresh aligned IR overlay; scene remains eligible"
+    )
+    ir_rejections = []
+    if stale_ir_count:
+        ir_rejections.append(f"{stale_ir_count} stale")
+    if future_ir_count:
+        ir_rejections.append(f"{future_ir_count} future-dated")
+    if mismatched_ir_count:
+        ir_rejections.append(f"{mismatched_ir_count} frame/revision/floor-invalid")
+    if ir_rejections:
+        ir_detail += "; excluded " + ", ".join(ir_rejections)
+    checks.append(SceneCheck("infrared_overlay_optional", True, ir_detail))
 
     ready = all(check.passed for check in checks if check.name != "infrared_overlay_optional")
     return SpatialScene(
