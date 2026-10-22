@@ -182,6 +182,12 @@ def test_view_marks_candidate_floor_transitions_from_timestamped_history():
             (300, (3.0, 2.0, 4.1)),
             (400, (4.0, 2.0, 3.9)),
         ),
+        position_history_sensor_ids=(
+            (100, ("uwb-entry",)),
+            (200, ("uwb-entry", "vision-east")),
+            (300, ("infrared-stair",)),
+            (400, ("infrared-stair", "uwb-roof")),
+        ),
     )
     view = build_blueprint_view(m, object_tracks=(track,))
     transitions = view.objects[0].floor_transitions
@@ -191,6 +197,8 @@ def test_view_marks_candidate_floor_transitions_from_timestamped_history():
     assert transitions[0].to_level == "L2"
     assert transitions[0].from_elevation_m == 0.0
     assert transitions[0].to_elevation_m == 4.0
+    assert transitions[0].from_sensor_ids == ("uwb-entry", "vision-east")
+    assert transitions[0].to_sensor_ids == ("infrared-stair",)
 
 
 
