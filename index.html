@@ -77,7 +77,7 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 <section id="specimen-panel" class="panel report-panel" data-category="specimen"><h2>SPECIMEN PLATE A // CRANIAL XENONEURAL COMPLEX</h2><div class="content"><div class="diagram"><svg viewBox="0 0 620 220" role="img" aria-label="Technical outline for alien cranial specimen"><g fill="none" stroke="#29f5b2" stroke-width="1.5"><path d="M120 135C95 90 120 36 190 27C260 10 330 35 352 83C370 122 340 163 285 173L188 173C155 168 132 156 120 135Z"/><path d="M145 130C135 90 164 54 207 48C256 42 306 64 320 96C332 123 304 145 271 151L190 151Z"/><path d="M175 119C174 85 200 66 232 67C266 67 288 87 288 111C286 135 263 143 234 139C201 137 178 134 175 119Z"/><path d="M185 89L145 55M300 83L354 48M278 146L343 180M190 151L152 185M145 55H45M354 48H450M343 180H470M152 185H45" stroke-dasharray="4 4"/><circle cx="232" cy="105" r="7"/></g><g fill="#6df6db" font-family="Courier New,monospace" font-size="11"><text x="18" y="46">01 / CARAPACE</text><text x="456" y="42">02 / RIDGE</text><text x="475" y="184">03 / NEURAL CAVITY</text><text x="18" y="202">04 / SENSOR CONVERGENCE</text><text x="365" y="108">XN-01</text></g></svg></div><p class="muted">CRANIAL XENONEURAL LINE PLATE // XN-01 RESEARCH ARCHIVE</p></div></section>
 <section id="spatial-panel" class="panel report-panel" data-category="spatial"><h2>VIGIL SPATIAL INTELLIGENCE // CONTAINERLESS SCENE MODEL</h2><div class="content">
 <p><span class="green">VISUALIZATION MODE:</span> SUSPENDED INFORMATION / ISOMETRIC MULTI-FLOOR MAP</p>
-<div class="statrow" aria-label="Spatial confidence interpretation"><div class="stat"><b class="confidence-high">HIGH</b><span>CONSISTENT OBSERVATIONS</span></div><div class="stat"><b class="confidence-mid">REVIEW</b><span>UNCERTAINTY / SENSOR DISAGREEMENT</span></div></div><p class="fluid-note"><strong class="green">EVIDENCE RULE:</strong> a plotted marker is not automatically a confirmed fact. Preserve source sensor, timestamp, coordinate frame, and uncertainty; flag conflicts instead of silently averaging them. Imported scene data may drive the overlay. Without an import, the scene remains DEMONSTRATION DATA — NO LIVE SENSORS CONNECTED.</p>
+<div class="statrow" aria-label="Spatial confidence interpretation"><div class="stat"><b id="spatial-stable-count" class="confidence-high">—</b><span>TRACKS // STABLE</span></div><div class="stat"><b id="spatial-review-count" class="confidence-mid">—</b><span>TRACKS // REVIEW</span></div></div><p class="fluid-note"><strong class="green">EVIDENCE RULE:</strong> a plotted marker is not automatically a confirmed fact. Preserve source sensor, timestamp, coordinate frame, and uncertainty; flag conflicts instead of silently averaging them. Imported scene data may drive the overlay. Without an import, the scene remains DEMONSTRATION DATA — NO LIVE SENSORS CONNECTED.</p>
 <p class="muted">3D floor plan of the spatial engine: coordinate-aligned floors suspended in a shared scene model, with sensor evidence flowing between levels as a continuous field of information.</p>
 <div class="spatial-stage"><svg viewBox="0 0 760 540" role="img" aria-label="Isometric three-level building floor plan suspended in a glowing fluid of information, with sensor streams, infrared overlays, tracked objects, and confidence markers">
 <defs><linearGradient id="fluid" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#29f5b2" stop-opacity=".05"/><stop offset=".5" stop-color="#29f5b2" stop-opacity=".42"/><stop offset="1" stop-color="#62b8ff" stop-opacity=".08"/></linearGradient><linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b4736" stop-opacity=".92"/><stop offset="1" stop-color="#03130f" stop-opacity=".94"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
@@ -310,6 +310,20 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       objectLayer.appendChild(svgNode('text',{x:p.x+8,y:p.y-8,class:'imported-label','data-level':levelCode(level)},String(object.object_id || 'OBJECT').slice(0,28)));
       counts.objects++;
     });
+    var stableCount = 0;
+    var reviewCount = 0;
+    (data.objects || []).forEach(function(object) {
+      var uncertainty = object.uncertainty_m;
+      if (object.conflict === true || typeof uncertainty !== 'number' || !Number.isFinite(uncertainty) || uncertainty > 1) {
+        reviewCount++;
+      } else {
+        stableCount++;
+      }
+    });
+    var stableReadout = document.getElementById('spatial-stable-count');
+    var reviewReadout = document.getElementById('spatial-review-count');
+    if (stableReadout) stableReadout.textContent = String(stableCount);
+    if (reviewReadout) reviewReadout.textContent = String(reviewCount);
     var ir = Array.isArray(data.infrared_samples) ? data.infrared_samples : [];
     ir.forEach(function(sample) {
       var pos = sample.normalized_position;
@@ -374,6 +388,12 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   }
   function updateSpatialView() {
     if (!spatialStage) return;
+    if (!importedScene) {
+      var stableReadout = document.getElementById('spatial-stable-count');
+      var reviewReadout = document.getElementById('spatial-review-count');
+      if (stableReadout) stableReadout.textContent = '—';
+      if (reviewReadout) reviewReadout.textContent = '—';
+    }
     var level = spatialLevel ? spatialLevel.value : 'all';
     spatialStage.querySelectorAll('[data-level]').forEach(function(slice) {
       var visible = level === 'all' || slice.getAttribute('data-level') === level;
