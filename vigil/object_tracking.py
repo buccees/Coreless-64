@@ -77,6 +77,8 @@ class ObjectTrack:
     conflict: bool = False
     conflict_reasons: tuple[str, ...] = ()
     conflicting_sensor_ids: tuple[str, ...] = ()
+    # Timestamped positions in the same model frame, oldest first.
+    position_history_m: tuple[tuple[int, tuple[float, float, float]], ...] = ()
 
 
 class ObjectTracker:
@@ -92,11 +94,14 @@ class ObjectTracker:
         self, *, alpha: float = 0.65, max_tracks: int = 256,
         max_position_disagreement_m: float = 2.0,
         max_fusion_skew_ns: int = 100_000_000,
+        max_history_points: int = 32,
     ) -> None:
         if not isfinite(alpha) or not 0 < alpha <= 1:
             raise ValueError("alpha must be finite and in (0, 1]")
         if max_tracks < 1:
             raise ValueError("max_tracks must be positive")
+        if isinstance(max_history_points, bool) or not isinstance(max_history_points, int) or max_history_points < 1:
+            raise ValueError("max_history_points must be a positive integer")
         if not isfinite(max_position_disagreement_m) or max_position_disagreement_m <= 0:
             raise ValueError("max_position_disagreement_m must be finite and positive")
         if isinstance(max_fusion_skew_ns, bool) or not isinstance(max_fusion_skew_ns, int) or max_fusion_skew_ns < 0:
@@ -105,6 +110,7 @@ class ObjectTracker:
         self.max_tracks = max_tracks
         self.max_position_disagreement_m = max_position_disagreement_m
         self.max_fusion_skew_ns = max_fusion_skew_ns
+        self.max_history_points = max_history_points
         self._tracks: dict[str, ObjectTrack] = {}
 
     def update(
@@ -234,6 +240,10 @@ class ObjectTracker:
                 conflict=bool(conflict_reasons),
                 conflict_reasons=tuple(sorted(conflict_reasons)),
                 conflicting_sensor_ids=tuple(sorted(conflicting_sensors)),
+                position_history_m=(
+                    ((timestamp, position),) if previous is None else
+                    (previous.position_history_m + ((timestamp, position),))[-self.max_history_points:]
+                ),
             )
 
         # Retain only fresh tracks, then bound memory by most recently seen.
