@@ -408,6 +408,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes an interactive temporal evidence monitor with ALL / FRESH / REVIEW / CONTEXT filters, event timestamps, lineage declarations, calibration status, and a clear synthetic-data label. The monitor is a front-end demonstration; connecting an event feed is still a separate, explicit action.</p>
 <p><span class="green">SCREEN DISPLAY ADDED:</span> 04 // SENSOR INPUTS now has a dedicated sensor visual-input display showing illustrative 2.4 GHz Wi-Fi CSI wavefronts, IR/thermal overlays, sensor nodes, and an uncertain track candidate. The screen is explicitly labeled schematic, not live measurements or a standalone position fix.</p>
 <p><span class="green">SCREEN INTERACTION UPDATED:</span> 04 // SENSOR INPUTS now lets the operator switch the visual display between Wi-Fi CSI, IR/thermal coverage, spatial ranging, acoustic sonar, object tracking, and a layered fused schematic. Each selection changes the rendered layers, title, legend, and evidence limits. All views remain clearly labeled schematic; no live hardware feed is implied.</p>
+<p><span class="green">SCREEN 04 // SELECTORS LINKED:</span> Choosing Wi-Fi CSI, calibrated ranging, or acoustic sonar in the Evidence Role Selector now synchronizes the corresponding visual layer (CSI, range, or sonar) and updates evidence requirements and limitations. Selecting those three visual layers also updates the evidence role. IR/thermal, object-tracking, and fusion views remain display-only and explicitly do not promote context into a confirmed detection or position fix.</p>
 <p><span class="green">SCREEN UPDATED:</span> 03 // SPATIAL INTELLIGENCE now includes a CSI motion-association review panel for imported track candidates. It checks only declared Wi-Fi / CSI modality or source metadata, shows observation/trail metadata when available, and keeps position confirmation separate from motion context. Review marks are local to the page session; no live CSI feed or synthetic-to-track correlation is implied.</p>
 <p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes an interactive RF / RANGE CLASSIFIER that switches between Wi-Fi CSI motion context, calibrated spatial ranging, and acoustic sonar, with each mode's output, prerequisites, and limits. It does not present RSSI as range or conflate RF sensing with acoustic time-of-flight.</p>
 <p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes a cross-screen evidence bridge that reads the currently imported Screen 03 scene and summarizes its tracks, review-gate counts, modalities, and source IDs. Clearing the import resets the bridge. The synthetic temporal examples remain separate and are never represented as correlated live events.</p>
@@ -582,7 +583,16 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       if (svg) svg.setAttribute('aria-label', mode.title + '; ' + mode.description + ' Synthetic schematic, no live sensor feed.');
     }
     visualButtons.forEach(function(button) {
-      button.addEventListener('click', function() { selectSensorVisualMode(button.getAttribute('data-visual-mode')); });
+      button.addEventListener('click', function() {
+        var key = button.getAttribute('data-visual-mode');
+        selectSensorVisualMode(key);
+        var linkedEvidence = key === 'sonar' ? 'acoustic' : (key === 'csi' || key === 'range' ? key : null);
+        if (linkedEvidence) applyRfEvidenceMode(linkedEvidence, false);
+        else {
+          var displayDescription = document.getElementById('sensor-visual-description');
+          if (displayDescription) displayDescription.textContent += ' DISPLAY-ONLY LAYER // This view does not change the selected evidence role or independently establish a detection or position.';
+        }
+      });
     });
     selectSensorVisualMode('csi');
   }
@@ -592,17 +602,31 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     acoustic: {title:'MODE C // ACOUSTIC SONAR',output:'ACOUSTIC ECHO',position:'CONDITIONAL',gate:'TRANSDUCER + TIMING',description:'An acoustic transmitter/receiver estimates distance from sound propagation and echo timing. It is distinct from 2.4 GHz Wi-Fi RF/CSI and can provide complementary observations when hardware and environment support it.',limit:'Sound speed, temperature, echo association, transducer geometry, and multipath affect results. Do not merge acoustic time-of-flight with RF timing or assumptions.'}
   };
   var rfEvidenceSelector = document.getElementById('rf-evidence-selector');
+  function applyRfEvidenceMode(key, syncVisual) {
+    var mode = rfEvidenceModes[key];
+    if (!mode) return;
+    if (rfEvidenceSelector) rfEvidenceSelector.querySelectorAll('[data-evidence-mode]').forEach(function(other) {
+      other.setAttribute('aria-pressed', String(other.getAttribute('data-evidence-mode') === key));
+    });
+    var title = document.getElementById('rf-evidence-title');
+    var output = document.getElementById('rf-evidence-output');
+    var position = document.getElementById('rf-evidence-position');
+    var gate = document.getElementById('rf-evidence-gate');
+    var description = document.getElementById('rf-evidence-description');
+    var limit = document.getElementById('rf-evidence-limit');
+    if (title) title.textContent = mode.title;
+    if (output) output.textContent = mode.output;
+    if (position) position.textContent = mode.position;
+    if (gate) gate.textContent = mode.gate;
+    if (description) description.textContent = mode.description;
+    if (limit) limit.textContent = mode.limit;
+    if (syncVisual && typeof selectSensorVisualMode === 'function') {
+      selectSensorVisualMode(key === 'acoustic' ? 'sonar' : key);
+    }
+  }
   if (rfEvidenceSelector) rfEvidenceSelector.querySelectorAll('[data-evidence-mode]').forEach(function(button) {
     button.addEventListener('click', function() {
-      var mode = rfEvidenceModes[button.getAttribute('data-evidence-mode')];
-      if (!mode) return;
-      rfEvidenceSelector.querySelectorAll('[data-evidence-mode]').forEach(function(other) { other.setAttribute('aria-pressed', other === button ? 'true' : 'false'); });
-      document.getElementById('rf-evidence-title').textContent = mode.title;
-      document.getElementById('rf-evidence-output').textContent = mode.output;
-      document.getElementById('rf-evidence-position').textContent = mode.position;
-      document.getElementById('rf-evidence-gate').textContent = mode.gate;
-      document.getElementById('rf-evidence-description').textContent = mode.description;
-      document.getElementById('rf-evidence-limit').textContent = mode.limit;
+      applyRfEvidenceMode(button.getAttribute('data-evidence-mode'), true);
     });
   });
   function updateEvidenceBridge(data) {
