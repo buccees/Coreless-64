@@ -2,6 +2,12 @@
 
 [**Coreless-64 album cover artwork — Claude**](./Coreless-64%20album%20cover%20artwork%20-%20Claude.html)
 
+<p align="center">
+  <a href="https://buccees.github.io/Coreless-64/" style="display:inline-block;background:#03120e;color:#29f5b2;border:2px solid #29f5b2;padding:14px 24px;font-family:monospace;font-weight:bold;letter-spacing:2px;text-decoration:none;border-radius:4px;">
+    ▸ WEYLAND–YUTANI LOGIN // OPEN VIGIL LAB REPORT
+  </a>
+</p>
+
 **Coreless is a computer architecture in which the complete digital computer can be carried by persistent storage and executed by a digital Coreless execution engine.**
 
 > **Coreless is the computer. Persistent storage carries the machine state. The Coreless digital execution engine runs the machine. External equipment provides power and I/O.**
