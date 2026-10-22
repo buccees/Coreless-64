@@ -74,18 +74,59 @@ class SensorEventRecord:
 
 
 class SensorEventLedger:
-    """Small deterministic in-memory event ledger with duplicate-ID protection."""
+    """In-memory ledger with duplicate, per-sensor ordering, and late-arrival checks.
 
-    def __init__(self) -> None:
+    Timestamps are source event times, not ingestion times. Default late-arrival
+    tolerance is zero. An explicitly allowed late event is retained with a warning;
+    the per-sensor timestamp watermark never moves backwards.
+    """
+
+    def __init__(self, *, allowed_lateness_ns: int = 0) -> None:
+        if isinstance(allowed_lateness_ns, bool) or not isinstance(allowed_lateness_ns, int) or allowed_lateness_ns < 0:
+            raise ValueError("allowed_lateness_ns must be a non-negative integer")
+        self.allowed_lateness_ns = allowed_lateness_ns
         self._events: dict[str, SensorEventRecord] = {}
+        self._alignment: dict[str, dict[str, str | int | None]] = {}
+        self._latest_timestamp: dict[str, int] = {}
+        self._latest_sequence: dict[str, int] = {}
 
     def append(self, event: SensorEventRecord) -> None:
         if not isinstance(event, SensorEventRecord):
             raise TypeError("event must be a SensorEventRecord")
         if event.event_id in self._events:
             raise ValueError(f"duplicate event_id: {event.event_id}")
+        latest_timestamp = self._latest_timestamp.get(event.sensor_id)
+        latest_sequence = self._latest_sequence.get(event.sensor_id)
+        if event.sequence is not None and latest_sequence is not None and event.sequence <= latest_sequence:
+            raise ValueError(f"out-of-order sequence for sensor {event.sensor_id}: {event.sequence} <= {latest_sequence}")
+        alignment: dict[str, str | int | None] = {
+            "status": "aligned",
+            "reason": "first event for sensor" if latest_timestamp is None else "timestamp and sequence checks passed",
+            "lateness_ns": 0,
+        }
+        if latest_timestamp is not None and event.timestamp_ns < latest_timestamp:
+            lateness = latest_timestamp - event.timestamp_ns
+            if lateness > self.allowed_lateness_ns:
+                raise ValueError(
+                    f"late event for sensor {event.sensor_id}: {lateness} ns exceeds "
+                    f"allowed tolerance {self.allowed_lateness_ns} ns"
+                )
+            alignment = {
+                "status": "late_within_tolerance",
+                "reason": "event arrived behind the sensor watermark; retained with warning",
+                "lateness_ns": lateness,
+            }
         self._events[event.event_id] = event
+        self._alignment[event.event_id] = alignment
+        self._latest_timestamp[event.sensor_id] = max(event.timestamp_ns, latest_timestamp or 0)
+        if event.sequence is not None:
+            self._latest_sequence[event.sensor_id] = event.sequence
 
+    def alignment_for(self, event_id: str) -> dict[str, str | int | None]:
+        """Return explicit ordering metadata without mutating the source event."""
+        if event_id not in self._alignment:
+            raise KeyError(f"unknown event_id: {event_id}")
+        return dict(self._alignment[event_id])
     def snapshot(
         self, *, now_ns: int, max_age_ns: int | None = None, limit: int = 100
     ) -> tuple[SensorEventRecord, ...]:
