@@ -247,13 +247,16 @@ Completed in the current batch:
 3. Qwen3 rotary trig, causal masking, scalar scaling, and greedy argmax routing through TensorRuntime
 4. focused regression tests for these runtime boundaries
 
-Next priority:
+Verified status after code-and-test reconciliation (2026-10-22):
 
-1. move Qwen3 KV-cache storage from nested Python lists into TensorRuntime-backed state
-2. add native head reshape/repeat and GQA cache movement primitives
-3. move attention data movement away from direct host-side tensor data manipulation
-4. preserve deterministic fallbacks where the runtime cannot yet execute a shape natively
-5. add focused boundary tests before CI
+- Qwen3 KV-cache state is represented as per-layer Tensor objects, and when a TensorRuntime is bound, cache append uses `TensorRuntime.append_sequence`.
+- Cache save/restore routes through `TensorRuntime.save/load`.
+- Qwen3 head reshape/repeat and grouped-query attention route through TensorRuntime methods; grouped attention avoids explicitly repeating KV heads in the runtime path.
+- Focused tests in `ai/test_qwen3.py` and `ai/test_tensor_runtime.py` cover cache append/equivalence, runtime-boundary calls, persistence/restore, GQA layout, and grouped-attention equivalence.
+
+Therefore the earlier checklist to add these same API-level boundaries is complete and must not be restarted as if absent. Important limit: Tensor values still use Python numeric tuples, and several TensorRuntime operations are implemented with Python-level loops/fallbacks. This verifies the software/runtime boundary, not hardware-native data movement or trained-model end-to-end inference.
+
+Remaining execution-boundary work should be tracked as a distinct future milestone: move supported operations onto genuinely native Coreless execution where available, profile and reduce host-side data movement, preserve deterministic fallback semantics, and add performance/correctness tests. Keep official trained Qwen3-0.6B inference as a separate, still-open validation milestone.
 
 ### 3. Real trained Qwen3-0.6B execution
 
@@ -340,7 +343,7 @@ Perform a final cross-layer audit covering:
 
 Continue the **deep Qwen3/Coreless tensor execution boundary** and the **autonomous component/hub architecture** in parallel.
 
-The immediate Qwen3 resume point is the KV-cache/head-data path: replace remaining nested Python cache/head structures with TensorRuntime-backed operations while keeping model semantics unchanged.
+The Qwen3 KV-cache/head-data API boundary is implemented and covered by focused tests. Do not reopen the old “replace nested Python cache/head structures” task. Remaining open work is deeper native Coreless execution/performance validation and official trained Qwen3-0.6B end-to-end validation.
 
 **Green resume point:** continue from the latest verified control-flow conformance checkpoint; do not infer CI status from documentation.**
 
@@ -352,7 +355,7 @@ Latest repository head:
 
 This checkpoint includes the latest Qwen3/TensorRuntime transpose integration.
 
-**Next session:** continue Qwen3 KV-cache/head data movement through TensorRuntime, then concrete host transport integration and real trained Qwen3-0.6B validation.
+**Next session checkpoint:** resume VIGIL spatial intelligence (blueprint/floor continuity, sensor fusion, IR mapping, object-track association) alongside the already-started Coreless milestones. Qwen3 cache/head API boundary reconciliation is complete; deeper native execution and official trained-model validation remain later checkpoints. Concrete host transport integration also remains open.
 
 Do not restart from the older Qwen3-only handoff. The tensor runtime and Transformer routing work described above is already in `main`.
 
