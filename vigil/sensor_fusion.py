@@ -24,6 +24,7 @@ class SensorFusionSnapshot:
     infrared_levels: tuple[str, ...]
     accepted_observation_count: int
     rejected_observation_count: int
+    rejected_uncertainty_count: int
     rejected_csi_count: int
     rejected_infrared_count: int
     notes: tuple[str, ...]
@@ -40,14 +41,18 @@ class MultiSensorFusion:
         max_age_ns: int = 1_000_000_000,
         max_csi_skew_ns: int = 250_000_000,
         max_ir_age_ns: int = 2_000_000_000,
+        max_observation_uncertainty_m: float = 10.0,
     ) -> None:
         for name, value in (("max_age_ns", max_age_ns),
                             ("max_csi_skew_ns", max_csi_skew_ns),
                             ("max_ir_age_ns", max_ir_age_ns)):
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                 raise ValueError(f"{name} must be a non-negative integer")
+        if not isfinite(max_observation_uncertainty_m) or max_observation_uncertainty_m <= 0:
+            raise ValueError("max_observation_uncertainty_m must be finite and positive")
         self.model = model
         self.tracker = tracker or ObjectTracker()
+        self.max_observation_uncertainty_m = max_observation_uncertainty_m
         self.max_age_ns = max_age_ns
         self.max_csi_skew_ns = max_csi_skew_ns
         self.max_ir_age_ns = max_ir_age_ns
@@ -66,15 +71,19 @@ class MultiSensorFusion:
 
         accepted: list[ObjectObservation] = []
         rejected_observations = 0
+        rejected_uncertainty = 0
         for item in observations:
             aligned = (item.model_id, item.model_revision, item.frame_id) == (
                 self.model.model_id, self.model.revision, self.model.frame_id
             )
             fresh = 0 <= now_ns - item.timestamp_ns <= self.max_age_ns
-            if aligned and fresh:
+            precise_enough = item.uncertainty_m <= self.max_observation_uncertainty_m
+            if aligned and fresh and precise_enough:
                 accepted.append(item)
             else:
                 rejected_observations += 1
+                if not precise_enough:
+                    rejected_uncertainty += 1
 
         active_csi: set[str] = set()
         rejected_csi = 0
@@ -107,7 +116,9 @@ class MultiSensorFusion:
         if infrared_levels:
             notes.append("Infrared maps are calibrated floor context; mapped pixels are not automatically object tracks.")
         if rejected_observations:
-            notes.append("Some spatial observations were rejected for age or model/frame mismatch.")
+            notes.append("Some spatial observations were rejected for age, model/frame mismatch, or uncertainty.")
+        if rejected_uncertainty:
+            notes.append("Some spatial observations exceeded the configured uncertainty ceiling.")
         if rejected_csi:
             notes.append("Some CSI evidence was rejected for time skew or future timestamps.")
         if rejected_ir:
@@ -121,6 +132,7 @@ class MultiSensorFusion:
             infrared_levels=tuple(sorted(infrared_levels)),
             accepted_observation_count=len(accepted),
             rejected_observation_count=rejected_observations,
+            rejected_uncertainty_count=rejected_uncertainty,
             rejected_csi_count=rejected_csi,
             rejected_infrared_count=rejected_ir,
             notes=tuple(notes),
