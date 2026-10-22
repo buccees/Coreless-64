@@ -486,13 +486,14 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         var fromLevel = transition && transition.from_level !== undefined ? String(transition.from_level) : 'UNKNOWN';
         var toLevel = transition && transition.to_level !== undefined ? String(transition.to_level) : 'UNKNOWN';
         var timestamp = transition && Number.isFinite(transition.timestamp_ns) ? String(transition.timestamp_ns) : 'UNKNOWN TIME';
-        item.textContent = fromLevel + ' → ' + toLevel + ' // timestamp_ns=' + timestamp;
+        var conflictTag = object.conflict === true ? ' // SENSOR CONFLICT FLAGGED — DO NOT CONFIRM' : ' // CANDIDATE — REVIEW REQUIRED';
+        item.textContent = fromLevel + ' → ' + toLevel + ' // timestamp_ns=' + timestamp + conflictTag;
         transitionList.appendChild(item);
       });
       spatialTrackDetail.appendChild(transitionList);
     }
     var note = document.createElement('p');
-    note.textContent = 'FLOOR CONTINUITY NOTE // Vertical span reports Z coordinates from the imported history. Candidate transitions are derived only when adjacent valid samples map to distinct surveyed floor elevations within tolerance. They still require review; the history alone does not prove the route taken.';
+    note.textContent = 'FLOOR CONTINUITY NOTE // A candidate requires at least two consecutive samples assigned to the destination floor; its timestamp is the first destination sample. Unknown-height samples break continuity. A track-level sensor conflict flags every listed transition for review, but the import does not provide per-sample sensor attribution, so conflict cannot be localized to a specific transition. Even without a conflict flag, history alone does not prove the route taken.';
     spatialTrackDetail.appendChild(note);
   }
   function bindSpatialTrackInspection(data) {
