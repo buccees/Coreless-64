@@ -210,6 +210,17 @@ UNVERIFIED CALIBRATION: review required</div>
   </div>
   <div id="temporal-filter-status" class="sensor-console-note" aria-live="polite">Showing all 5 synthetic events. No live hardware data is represented.</div>
 </div>
+<div class="sensor-console sensor-bridge" id="spatial-evidence-bridge" aria-label="Shared evidence bridge to Spatial Intelligence">
+  <div class="sensor-console-title"><span>CROSS-SCREEN EVIDENCE BRIDGE // IMPORTED TRACKS</span><span class="sensor-demo-tag">SHARED IMPORT STATE</span></div>
+  <p class="muted">This panel reads the same BlueprintView JSON currently loaded by Screen 03. It does not turn the synthetic timeline above into sensor readings or infer a match between unrelated events.</p>
+  <div class="sensor-console-metrics">
+    <div class="sensor-console-metric"><b id="bridge-scene-state">NO</b><span>SCENE IMPORTED</span></div>
+    <div class="sensor-console-metric"><b id="bridge-track-count">—</b><span>IMPORTED TRACKS</span></div>
+    <div class="sensor-console-metric"><b id="bridge-stable-count">—</b><span>PASSING REVIEW GATES</span></div>
+    <div class="sensor-console-metric"><b id="bridge-review-count">—</b><span>REVIEW REQUIRED</span></div>
+  </div>
+  <div class="terminal-code" id="bridge-scene-detail" aria-live="polite">WAITING FOR SCREEN 03 IMPORT // Load a BlueprintView JSON file in Spatial Intelligence to populate this shared summary.</div>
+</div>
 <div class="hazard" style="border-color:#e2d86a;color:#e2d86a">SIMULATED FEED // EXAMPLE SIGNALS ONLY // NO HARDWARE CONNECTED</div>
 <p class="muted">This screen demonstrates how VIGIL could inspect incoming visual and ranging evidence before fusion. Values and waveforms below are synthetic; they are not readings from this device.</p>\n<div class="fluid-note" style="margin:8px 0;border-left-color:#29f5b2"><strong class="green">PRIORITY SENSOR PATH // 2.4 GHz WI-FI RF SENSING (“WI-FI SONAR”)</strong><br>VIGIL prioritizes compatible Wi-Fi channel-state information (CSI), multi-antenna phase/amplitude changes, and time-aligned RF observations as evidence for motion and object tracking. RSSI alone is not a distance measurement; range requires a supported, calibrated ranging method. Acoustic sonar remains a complementary, distinct modality. No live Wi-Fi hardware is connected in this demo.</div><div class="terminal-code" aria-label="CSI feature extraction implementation status"><strong>CSI FEATURE PIPELINE // SOFTWARE MILESTONE</strong><br>• Aligned complex subcarrier samples → normalized amplitude deltas<br>• Wrapped phase deltas → phase-change features<br>• Baseline amplitude variability + bounded motion-evidence score<br>• Rejects empty, zero-magnitude, non-finite, or misaligned samples<br><br>STATUS: deterministic feature extraction + unit tests committed. This score is evidence, not a probability or range. Device-specific calibration, multi-antenna synchronization, live capture, and real-world tracking benchmarks remain pending.<br><br><strong>MULTI-SENSOR FUSION // EVIDENCE COORDINATION</strong><br>VIGIL now has a time-aligned fusion coordinator for calibrated spatial observations, 2.4 GHz Wi-Fi CSI motion evidence, and calibrated infrared floor maps. It checks model/revision/frame alignment and freshness, retains contributing evidence, and reports rejected inputs instead of silently mixing incompatible data. Spatial observations update object tracks; CSI contributes motion context, while infrared maps contribute floor context. Neither is promoted into a 3D object location without a calibrated detection adapter. Sensor timestamps, uncertainty, and modality remain explicit. Hardware synchronization, sensor-specific calibration, and labeled field validation remain outstanding.<br><br><strong>UNIFIED SPATIAL SCENE // LIVE STATUS CONTRACT</strong><br>The new scene coordinator connects multi-sensor fusion to the existing blueprint view and its quality gates. The scene now carries readable status for 2.4 GHz Wi-Fi CSI, infrared floor-map alignment, and calibrated spatial observations, alongside warnings for stale evidence, missing position updates, and failed pose checks. Scene readiness still depends on the registered blueprint, selected floor, fresh aligned pose, and consistent tracks; a motion flag alone can never lock a location. This is a software integration contract using supplied sensor records, not a claim of connected live hardware.<br><br>RANGE-TO-TRACK // SPATIAL BRIDGE
 Calibrated range epochs now have an explicit route into the existing object tracker: validate blueprint model/revision/frame, solve a 3D position from at least four same-epoch anchors, reject excessive residuals, then update timestamped tracks with sensor provenance. RF 2.4 GHz ranging and acoustic sonar remain separate propagation modalities. CSI motion scores are never converted into fake coordinates; this bridge requires calibrated range measurements from real sensor adapters. Live hardware calibration and field accuracy tests remain outstanding.<br><br>CSI PIPELINE // END-TO-END EVIDENCE
@@ -305,6 +316,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <p><span class="green">LOCATION:</span> Control Room / Lab Report tab</p>
 <p><span class="green">LATEST WORK:</span> Sensor-source lineage, calibration health, and scene-readiness diagnostics.</p>
 <p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes an interactive temporal evidence monitor with ALL / FRESH / REVIEW / CONTEXT filters, event timestamps, lineage declarations, calibration status, and a clear synthetic-data label. The monitor is a front-end demonstration; connecting an event feed is still a separate, explicit action.</p>
+<p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes a cross-screen evidence bridge that reads the currently imported Screen 03 scene and summarizes its tracks, review-gate counts, modalities, and source IDs. Clearing the import resets the bridge. The synthetic temporal examples remain separate and are never represented as correlated live events.</p>
 <p><span class="green">SCREEN UPDATED:</span> 03 // SPATIAL INTELLIGENCE now treats missing or unverified calibration and undeclared source lineage as track-review conditions. Track inspection exposes calibration status, calibration IDs, lineage declaration, and independence-group metadata when provided. This is conservative review logic for imported records; it does not establish that sensors are physically independent or calibrated.</p>
 <ul>
 <li>Failed calibration now blocks scene readiness.</li>
@@ -443,6 +455,37 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var ny = Math.max(0, Math.min(1, normalized[1]));
     var baseY = code === '2' ? 175 : (code === '1' ? 285 : 395);
     return {x:95 + nx * 290 + ny * 280, y:baseY - nx * 105 + ny * 107};
+  }
+  function updateEvidenceBridge(data) {
+    var state = document.getElementById('bridge-scene-state');
+    var total = document.getElementById('bridge-track-count');
+    var stableNode = document.getElementById('bridge-stable-count');
+    var reviewNode = document.getElementById('bridge-review-count');
+    var detail = document.getElementById('bridge-scene-detail');
+    if (!state || !total || !stableNode || !reviewNode || !detail) return;
+    if (!data) {
+      state.textContent = 'NO'; total.textContent = '—'; stableNode.textContent = '—'; reviewNode.textContent = '—';
+      detail.textContent = 'WAITING FOR SCREEN 03 IMPORT // Load a BlueprintView JSON file in Spatial Intelligence to populate this shared summary.';
+      return;
+    }
+    var objects = Array.isArray(data.objects) ? data.objects : [];
+    var stable = 0, review = 0, modalities = Object.create(null), sourceIds = Object.create(null);
+    objects.forEach(function(object) {
+      var uncertainty = object.uncertainty_m;
+      var uncertaintyKnown = typeof uncertainty === 'number' && Number.isFinite(uncertainty);
+      var calibration = String(object.calibration_status || 'unknown').toLowerCase();
+      var needsReview = object.conflict === true || !uncertaintyKnown || uncertainty > 1 || calibration !== 'verified' || object.lineage_declared !== true;
+      if (needsReview) review++; else stable++;
+      (Array.isArray(object.modalities) ? object.modalities : []).forEach(function(value) { modalities[String(value)] = true; });
+      (Array.isArray(object.sensor_ids) ? object.sensor_ids : []).forEach(function(value) { sourceIds[String(value)] = true; });
+    });
+    state.textContent = 'YES'; total.textContent = String(objects.length); stableNode.textContent = String(stable); reviewNode.textContent = String(review);
+    var modalityList = Object.keys(modalities);
+    var sourceList = Object.keys(sourceIds);
+    detail.textContent = 'MODEL ' + String(data.model_id || 'UNSPECIFIED') + ' / REV ' + String(data.revision || 'UNSPECIFIED') + ' / FRAME ' + String(data.frame_id || 'UNSPECIFIED') +
+      ' // MODALITIES ' + (modalityList.length ? modalityList.join(', ') : 'NOT DECLARED') +
+      ' // SOURCES ' + (sourceList.length ? sourceList.join(', ') : 'NOT DECLARED') +
+      ' // POLICY: conflict, unknown/high uncertainty, unverified calibration, or undeclared lineage => REVIEW';
   }
   function renderImportedScene(data) {
     clearImportedLayers();
@@ -599,6 +642,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
           throw new Error('Expected a BlueprintView JSON export with model_id, revision, frame_id, features, and objects.');
         }
         importedScene = data;
+        updateEvidenceBridge(data);
         var counts = renderImportedScene(data);
         showImportStatus('IMPORTED ' + data.model_id + ' / REV ' + data.revision + ' / FRAME ' + data.frame_id, counts);
       } catch (error) {
@@ -612,6 +656,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   });
   if (spatialClearData) spatialClearData.addEventListener('click', function() {
     importedScene = null;
+    updateEvidenceBridge(null);
     clearImportedLayers();
     if (spatialJson) spatialJson.value = '';
     updateSpatialView();
