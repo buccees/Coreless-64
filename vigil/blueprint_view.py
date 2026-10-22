@@ -50,6 +50,17 @@ class PoseProjection:
 
 
 @dataclass(frozen=True)
+class FloorTransitionProjection:
+    """Evidence-derived candidate transition between surveyed floor elevations."""
+
+    timestamp_ns: int
+    from_level: str
+    to_level: str
+    from_elevation_m: float
+    to_elevation_m: float
+
+
+@dataclass(frozen=True)
 class ObjectProjection:
     """Renderer-ready track marker; all coordinates remain in the model frame."""
 
@@ -70,6 +81,7 @@ class ObjectProjection:
     motion_trail_m: tuple[tuple[int, tuple[float, float, float]], ...]
     inferred_level: str | None
     visible_on_selected_level: bool | None
+    floor_transitions: tuple[FloorTransitionProjection, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -114,6 +126,40 @@ def _floor_elevations(model: BlueprintModel) -> dict[str, float]:
         if isinstance(level, str) and isinstance(elevation, (int, float)) and not isinstance(elevation, bool) and isfinite(float(elevation)):
             result[level] = float(elevation)
     return result
+
+
+def _candidate_floor_transitions(
+    history: Sequence[tuple[int, tuple[float, float, float]]],
+    elevations: dict[str, float],
+    tolerance_m: float,
+) -> tuple[FloorTransitionProjection, ...]:
+    """Find adjacent history samples assigned to distinct surveyed floors.
+
+    These are candidates, not proof of a traversable route: each sample must be
+    within tolerance of a surveyed elevation, and unknown samples break continuity.
+    """
+    if len(elevations) < 2 or len(history) < 2:
+        return ()
+    ordered = sorted(history, key=lambda item: item[0])
+    transitions: list[FloorTransitionProjection] = []
+    previous: tuple[int, str, float] | None = None
+    for timestamp_ns, position in ordered:
+        z = position[2]
+        level, elevation = min(elevations.items(), key=lambda item: abs(z - item[1]))
+        if abs(z - elevation) > tolerance_m:
+            previous = None
+            continue
+        current = (timestamp_ns, level, elevation)
+        if previous is not None and previous[1] != level:
+            transitions.append(FloorTransitionProjection(
+                timestamp_ns=timestamp_ns,
+                from_level=previous[1],
+                to_level=level,
+                from_elevation_m=previous[2],
+                to_elevation_m=elevation,
+            ))
+        previous = current
+    return tuple(transitions)
 
 
 def build_blueprint_view(
@@ -203,6 +249,9 @@ def build_blueprint_view(
             motion_trail_m=track.position_history_m or ((track.last_seen_ns, track.position_m),),
             inferred_level=inferred_level,
             visible_on_selected_level=visible_on_level,
+            floor_transitions=_candidate_floor_transitions(
+                track.position_history_m, elevations, floor_elevation_tolerance_m
+            ),
         ))
 
     return BlueprintView(
