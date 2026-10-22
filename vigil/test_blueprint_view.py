@@ -163,3 +163,49 @@ def test_view_exposes_timestamped_motion_trail_and_falls_back_for_legacy_tracks(
     legacy = tracked_object(m, position_history_m=())
     legacy_view = build_blueprint_view(m, object_tracks=(legacy,))
     assert legacy_view.objects[0].motion_trail_m == ((legacy.last_seen_ns, legacy.position_m),)
+
+def test_view_marks_candidate_floor_transitions_from_timestamped_history():
+    m = register_blueprint(
+        "building", "r1", frame_id="building/frame", units="m",
+        features=[
+            {"feature_id": "a", "label": "L1", "position": [0, 0, 0], "level": "L1"},
+            {"feature_id": "b", "label": "L2", "position": [10, 10, 4], "level": "L2"},
+        ],
+        metadata={"floor_elevations_m": {"L1": 0.0, "L2": 4.0}},
+    )
+    track = tracked_object(
+        m,
+        position_m=(3.0, 2.0, 4.1),
+        position_history_m=(
+            (100, (1.0, 1.0, 0.2)),
+            (200, (2.0, 1.0, 0.5)),
+            (300, (3.0, 2.0, 4.1)),
+            (400, (4.0, 2.0, 3.9)),
+        ),
+    )
+    view = build_blueprint_view(m, object_tracks=(track,))
+    transitions = view.objects[0].floor_transitions
+    assert len(transitions) == 1
+    assert transitions[0].timestamp_ns == 300
+    assert transitions[0].from_level == "L1"
+    assert transitions[0].to_level == "L2"
+    assert transitions[0].from_elevation_m == 0.0
+    assert transitions[0].to_elevation_m == 4.0
+
+
+def test_view_does_not_infer_floor_transition_from_unknown_height_samples():
+    m = register_blueprint(
+        "building", "r1", frame_id="building/frame", units="m",
+        features=[
+            {"feature_id": "a", "label": "L1", "position": [0, 0, 0], "level": "L1"},
+            {"feature_id": "b", "label": "L2", "position": [10, 10, 4], "level": "L2"},
+        ],
+        metadata={"floor_elevations_m": {"L1": 0.0, "L2": 4.0}},
+    )
+    track = tracked_object(
+        m,
+        position_history_m=((100, (1.0, 1.0, 0.2)), (200, (2.0, 2.0, 2.0)), (300, (3.0, 2.0, 4.1))),
+    )
+    view = build_blueprint_view(m, object_tracks=(track,))
+    assert view.objects[0].floor_transitions == ()
+
