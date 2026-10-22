@@ -734,6 +734,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   var feedRequestActive = false;
   var feedLastSuccessAt = 0;
   var feedFailureCount = 0;
+  var feedConnectionGeneration = 0;
   var feedPollMs = 3000;
   function renderLiveEvents(rows) {
     while (feedEvents.firstChild) feedEvents.removeChild(feedEvents.firstChild);
@@ -759,6 +760,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   }
   function disconnectFeed(message) {
     stopFeedTimer();
+    feedConnectionGeneration++;
     if (feedAbort) feedAbort.abort();
     feedAbort = null;
     feedBaseUrl = null;
@@ -774,6 +776,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   function pollFeed() {
     if (!feedBaseUrl || feedRequestActive) return;
     feedRequestActive = true;
+    var requestGeneration = feedConnectionGeneration;
     if (feedAbort) feedAbort.abort();
     feedAbort = new AbortController();
     fetch(feedBaseUrl + '/events?limit=50', {
@@ -783,9 +786,9 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       if (!response.ok) throw new Error('HTTP ' + response.status);
       return response.json();
     }).then(function(data) {
-      if (!feedBaseUrl || !data || !Array.isArray(data.events)) {
-        if (feedBaseUrl) throw new Error('Unexpected API response: expected an events array.');
-        return;
+      if (requestGeneration !== feedConnectionGeneration || !feedBaseUrl) return;
+      if (!data || !Array.isArray(data.events)) {
+        throw new Error('Unexpected API response: expected an events array.');
       }
       feedLastSuccessAt = Date.now();
       feedFailureCount = 0;
@@ -795,7 +798,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       feedState.classList.remove('stale');
       feedSummary.textContent = 'Updated ' + new Date(feedLastSuccessAt).toLocaleTimeString() + ' · ' + data.events.length + ' event(s). Event age/freshness comes from the API; this confirms software feed reachability, not physical sensor connectivity.';
     }).catch(function(error) {
-      if (error.name === 'AbortError' || !feedBaseUrl) return;
+      if (error.name === 'AbortError' || !feedBaseUrl || requestGeneration !== feedConnectionGeneration) return;
       feedFailureCount++;
       feedState.classList.remove('connected');
       feedState.classList.add('stale');
@@ -803,7 +806,9 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       feedSummary.textContent = 'Refresh failed (' + error.message + '). Last successful update: ' +
         (feedLastSuccessAt ? new Date(feedLastSuccessAt).toLocaleTimeString() : 'none') +
         '. Will retry automatically while connected. Check HTTPS, CORS and /events.';
-    }).finally(function() { feedRequestActive = false; });
+    }).finally(function() {
+      if (requestGeneration === feedConnectionGeneration) feedRequestActive = false;
+    });
   }
   if (feedConnect && feedDisconnect && feedUrlInput && feedState && feedSummary && feedEvents) {
     feedConnect.addEventListener('click', function() {
@@ -818,7 +823,9 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         return;
       }
       stopFeedTimer();
+      feedConnectionGeneration++;
       if (feedAbort) feedAbort.abort();
+      feedRequestActive = false;
       feedBaseUrl = base.href.replace(/\/+$/, '');
       feedLastSuccessAt = 0;
       feedFailureCount = 0;
