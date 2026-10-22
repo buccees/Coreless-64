@@ -87,3 +87,28 @@ def test_fusion_validates_time_and_handles_empty_snapshot():
     snapshot = fusion.fuse(now_ns=100)
     assert snapshot.tracks == ()
     assert any("no new object position" in note for note in snapshot.notes)
+
+
+def test_fusion_rejects_spatial_observations_above_uncertainty_ceiling():
+    active = model()
+    uncertain = ObjectObservation(
+        object_id="cart", sensor_id="range-array", model_id=active.model_id,
+        model_revision=active.revision, frame_id=active.frame_id,
+        timestamp_ns=100, position_m=(2.0, 3.0, 4.0), uncertainty_m=12.0,
+        modality=TrackingModality.RF_2_4_GHZ, provenance="calibrated-position",
+        association_id="cart-7",
+    )
+    snapshot = MultiSensorFusion(active, max_observation_uncertainty_m=5.0).fuse(
+        now_ns=100, observations=[uncertain],
+    )
+    assert snapshot.tracks == ()
+    assert snapshot.accepted_observation_count == 0
+    assert snapshot.rejected_observation_count == 1
+    assert snapshot.rejected_uncertainty_count == 1
+    assert any("uncertainty ceiling" in note for note in snapshot.notes)
+
+
+def test_fusion_validates_uncertainty_ceiling():
+    active = model()
+    with pytest.raises(ValueError, match="max_observation_uncertainty_m"):
+        MultiSensorFusion(active, max_observation_uncertainty_m=float("inf"))
