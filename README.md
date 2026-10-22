@@ -3,8 +3,8 @@
 [**Coreless-64 album cover artwork — Claude**](./Coreless-64%20album%20cover%20artwork%20-%20Claude.html)
 
 <p align="center">
-  <a href="https://buccees.github.io/Coreless-64/" style="display:inline-block;background:#03120e;color:#29f5b2;border:2px solid #29f5b2;padding:14px 24px;font-family:monospace;font-weight:bold;letter-spacing:2px;text-decoration:none;border-radius:4px;">
-    ▸ WEYLAND–YUTANI LOGIN // OPEN VIGIL LAB REPORT
+  <a href="https://buccees.github.io/Coreless-64/">
+    <img src="https://img.shields.io/badge/WEYLAND%E2%80%93YUTANI-LOGIN-03120e?style=for-the-badge&labelColor=03120e&color=29f5b2" alt="WEYLAND–YUTANI LOGIN — Open VIGIL Lab Report">
   </a>
 </p>
 
