@@ -116,7 +116,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\\nStopping VIGIL event feed.")
+        print("Stopping VIGIL event feed.")
     finally:
         server.server_close()
     return 0
