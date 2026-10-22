@@ -47,7 +47,16 @@ header{display:grid;grid-template-columns:1.3fr 1fr .65fr;margin-bottom:9px}head
 .subhead{border:1px solid var(--line);padding:7px 11px;margin-bottom:9px;color:var(--g);font-weight:bold}
 .report-shell{display:grid;grid-template-columns:minmax(0,1fr);gap:9px;align-items:start}.nav-panel{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;gap:4px;align-items:stretch;justify-content:center;padding:7px max(8px,calc((100vw - 1240px)/2));background:#020907f5;border-bottom:2px solid var(--g);box-shadow:0 5px 14px #000b;overflow-x:auto;overscroll-behavior-x:contain}.nav-button{display:flex;align-items:center;justify-content:center;flex:1 0 auto;min-height:44px;white-space:nowrap;text-align:center;text-decoration:none;margin:0;padding:10px 14px;border:1px solid var(--line);border-bottom:3px solid var(--line);background:#03120e;color:var(--dim);font:inherit;cursor:pointer;letter-spacing:.5px}.nav-button:hover,.nav-button[aria-pressed="true"]{color:var(--g);border-color:var(--g);border-bottom-color:var(--g);background:#073324;box-shadow:inset 0 -2px var(--g)}.layout{display:grid;grid-template-columns:.92fr 1.08fr;gap:9px}.stack{display:grid;gap:9px;align-content:start}.report-panel[hidden]{display:none}.workspace .layout{grid-template-columns:1fr 1fr}
 .terminal-code{white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--line);background:#010604;padding:10px;color:var(--g);font:12px/1.5 "Courier New",monospace}.panel h2{font-size:15px;color:var(--g);margin:0 0 8px;border-bottom:1px solid var(--line);padding:7px 9px}.content{padding:9px 11px}.content p{margin:4px 0 9px}
-.muted{color:var(--muted)}.green{color:var(--g)}ul{margin:5px 0;padding-left:18px}li{margin:4px 0}.statrow{display:grid;grid-template-columns:1fr 1fr;gap:6px}.stat{border:1px solid var(--line);padding:8px}.stat b{display:block;font-size:22px;color:var(--g)}.stat span{font-size:10px;color:var(--dim)}.spatial-flag-row{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:6px}.spatial-flag-row .stat{padding:6px 8px}.spatial-flag-row .stat b{font-size:18px}.spatial-flag-note{font-size:10px;letter-spacing:.3px}.spatial-filter-bar{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:8px 0}.spatial-filter-bar>span{font-size:10px;color:var(--dim);margin-right:3px}.spatial-review-filter{font:10px "Courier New",monospace;color:var(--g);background:#03100b;border:1px solid var(--line);padding:7px 9px;cursor:pointer}.spatial-review-filter[aria-pressed="true"]{border-color:var(--g);background:#0b2a1d;box-shadow:inset 0 0 8px #29f5b21c}.spatial-review-filter:focus-visible{outline:2px solid var(--g);outline-offset:2px}.spatial-transition-summary{border:1px solid var(--line);padding:9px;margin:8px 0;background:#020a07;font-size:10px;letter-spacing:.3px}.spatial-transition-summary>strong{display:block;color:var(--g);margin-bottom:7px}.spatial-transition-summary>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.spatial-transition-summary>div span{border:1px solid #244b3a;padding:6px;color:var(--dim)}.spatial-transition-summary b{display:block;color:var(--text);font-size:16px;margin-top:4px}.spatial-transition-summary p{margin:7px 0 0;color:var(--dim);letter-spacing:0}@media(max-width:600px){.spatial-transition-summary>div{grid-template-columns:repeat(2,minmax(0,1fr))}}.spatial-track-detail{border:1px solid var(--line);padding:9px;margin:8px 0;background:#020a07;overflow-wrap:anywhere}.spatial-track-detail strong{display:block;color:var(--g);font-size:11px;letter-spacing:.5px}.spatial-track-detail p{margin:5px 0 0;color:var(--dim);font-size:11px}.spatial-track-detail dl{display:grid;grid-template-columns:minmax(110px,.7fr) minmax(0,2fr);gap:5px 10px;margin:8px 0 0;font-size:11px}.spatial-track-detail dt{color:var(--dim)}.spatial-track-detail dd{margin:0;color:var(--text);overflow-wrap:anywhere}.spatial-stage [data-track-id]{cursor:pointer}.spatial-stage [data-track-id]:focus{outline:none;filter:drop-shadow(0 0 5px #29f5b2)}@media(max-width:600px){.spatial-track-detail dl{grid-template-columns:1fr;gap:2px}.spatial-track-detail dd{margin-bottom:5px}}
+.muted{color:var(--muted)}.green{color:var(--g)}ul{margin:5px 0;padding-left:18px}li{margin:4px 0}.statrow{display:grid;grid-template-columns:1fr 1fr;gap:6px}.stat{border:1px solid var(--line);padding:8px}.stat b{display:block;font-size:22px;color:var(--g)}.stat span{font-size:10px;color:var(--dim)}.spatial-flag-row{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:6px}.spatial-flag-row .stat{padding:6px 8px}.spatial-flag-row .stat b{font-size:18px}.spatial-flag-note{font-size:10px;letter-spacing:.3px}.spatial-filter-bar{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:8px 0}.spatial-filter-bar>span{font-size:10px;color:var(--dim);margin-right:3px}.spatial-review-filter{font:10px "Courier New",monospace;color:var(--g);background:#03100b;border:1px solid var(--line);padding:7px 9px;cursor:pointer}.spatial-review-filter[aria-pressed="true"]{border-color:var(--g);background:#0b2a1d;box-shadow:inset 0 0 8px #29f5b21c}.spatial-review-filter:focus-visible{outline:2px solid var(--g);outline-offset:2px}.spatial-transition-summary{border:1px solid var(--line);padding:9px;margin:8px 0;background:#020a07;font-size:10px;letter-spacing:.3px}.spatial-transition-summary>strong{display:block;color:var(--g);margin-bottom:7px}.spatial-transition-summary>div{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.spatial-transition-summary>div span{border:1px solid #244b3a;padding:6px;color:var(--dim)}.spatial-transition-summary b{display:block;color:var(--text);font-size:16px;margin-top:4px}.spatial-transition-summary p{margin:7px 0 0;color:var(--dim);letter-spacing:0}@media(max-width:600px){.spatial-transition-summary>div{grid-template-columns:repeat(2,minmax(0,1fr))}}.spatial-track-detail{border:1px solid var(--line);padding:9px;margin:8px 0;background:#020a07;overflow-wrap:anywhere}
+.csi-association-panel{margin:1rem 0;border:1px solid rgba(41,245,178,.35);padding:1rem;background:rgba(0,24,17,.52)}
+.csi-association-controls{display:flex;flex-wrap:wrap;align-items:center;gap:.65rem;margin:.8rem 0}
+.csi-association-controls label{color:#29f5b2;font-size:.78rem;letter-spacing:.08em}
+.csi-association-controls select{min-width:min(100%,18rem);max-width:100%;background:#061a13;color:#b9ffe5;border:1px solid #29f5b2;padding:.6rem;font:inherit}
+.csi-association-controls button{background:#0a3023;color:#b9ffe5;border:1px solid #29f5b2;padding:.6rem .8rem;font:inherit;cursor:pointer}
+.csi-association-controls button:disabled,.csi-association-controls select:disabled{opacity:.45;cursor:not-allowed}
+#csi-association-detail p{overflow-wrap:anywhere}
+@media(max-width:600px){.csi-association-controls{align-items:stretch;flex-direction:column}.csi-association-controls select,.csi-association-controls button{width:100%}}
+.spatial-track-detail strong{display:block;color:var(--g);font-size:11px;letter-spacing:.5px}.spatial-track-detail p{margin:5px 0 0;color:var(--dim);font-size:11px}.spatial-track-detail dl{display:grid;grid-template-columns:minmax(110px,.7fr) minmax(0,2fr);gap:5px 10px;margin:8px 0 0;font-size:11px}.spatial-track-detail dt{color:var(--dim)}.spatial-track-detail dd{margin:0;color:var(--text);overflow-wrap:anywhere}.spatial-stage [data-track-id]{cursor:pointer}.spatial-stage [data-track-id]:focus{outline:none;filter:drop-shadow(0 0 5px #29f5b2)}@media(max-width:600px){.spatial-track-detail dl{grid-template-columns:1fr;gap:2px}.spatial-track-detail dd{margin-bottom:5px}}
 .status{display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center}.statusbox{border:1px solid var(--g);padding:8px;text-align:center;font-size:18px;color:var(--g)}
 .diagram{position:relative;overflow:hidden;background-image:linear-gradient(#0a5d4629 1px,transparent 1px),linear-gradient(90deg,#0a5d4629 1px,transparent 1px);background-size:18px 18px}.diagram svg{width:100%;height:auto;display:block}
 .caption{text-align:center;border-top:1px solid var(--line);padding:7px;color:var(--g);letter-spacing:1px}.hazard{border:1px solid var(--warn);padding:8px;color:#ff8989;letter-spacing:1px}
@@ -134,7 +143,12 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 <div class="statrow spatial-flag-row" aria-label="Independent review flags"><div class="stat"><b id="spatial-conflict-count" class="confidence-mid">—</b><span>FLAGS // SENSOR CONFLICT</span></div><div class="stat"><b id="spatial-uncertain-count" class="confidence-mid">—</b><span>FLAGS // UNCERTAINTY OVER 1 M</span></div><div class="stat"><b id="spatial-missing-count" class="confidence-mid">—</b><span>FLAGS // UNCERTAINTY UNKNOWN</span></div></div><p class="muted spatial-flag-note">IMPORTED TRACK FLAGS // Independent categories; one track may trigger multiple flags. Counts describe imported tracks, not live sensor activity.</p>
 <div class="spatial-transition-summary" aria-label="Calibration and lineage review policy"><strong>CALIBRATION / LINEAGE GATE</strong><div><span>CALIBRATION<b>Verified required</b></span><span>LINEAGE<b>Declared required</b></span><span>FAILED CALIBRATION<b>Block readiness</b></span><span>UNKNOWN METADATA<b>Review track</b></span></div><p>Imported tracks with absent calibration or lineage metadata are conservatively marked for review. A declared independence group is descriptive metadata, not proof of physical sensor independence.</p></div>
 <div class="spatial-filter-bar" role="group" aria-label="Filter imported tracks for review"><span>ISOLATE:</span><button type="button" class="spatial-review-filter" data-review-filter="all" aria-pressed="true">ALL TRACKS</button><button type="button" class="spatial-review-filter" data-review-filter="conflict" aria-pressed="false">CONFLICT</button><button type="button" class="spatial-review-filter" data-review-filter="uncertain" aria-pressed="false">UNCERTAINTY &gt; 1 M</button><button type="button" class="spatial-review-filter" data-review-filter="missing" aria-pressed="false">UNKNOWN</button><button type="button" class="spatial-review-filter" data-review-filter="review" aria-pressed="false">ALL REVIEW</button></div>
-<div id="spatial-track-detail" class="spatial-track-detail" aria-live="polite"><strong>TRACK INSPECTOR // STANDBY</strong><p>Select an imported object marker to inspect its reported evidence, uncertainty, and sensor conflicts.</p></div><p class="fluid-note"><strong class="green">EVIDENCE RULE:</strong> a plotted marker is not automatically a confirmed fact. Preserve source sensor, timestamp, coordinate frame, and uncertainty; flag conflicts instead of silently averaging them. Imported scene data may drive the overlay. Without an import, the scene remains DEMONSTRATION DATA — NO LIVE SENSORS CONNECTED.</p><p class="fluid-note"><strong class="green">CONFLICT RESOLUTION POLICY:</strong> once a track is disputed, a later update cannot clear the warning unless a later clean epoch is corroborated by at least two distinct evidence-independence groups. Sensor IDs are still shown for audit, but two feeds declared to share a receiver, upstream detector, or other common source count as one group. If no group is declared, the tracker falls back to sensor ID for compatibility; that fallback does not prove physical independence. Scene readiness continues to block on unresolved active conflicts.</p><p class="fluid-note"><strong class="green">TRACK QUALITY GATE:</strong> scene diagnostics distinguish usable tracks (known uncertainty at or below 1.0 m by default), uncertain tracks (above the configured threshold), and unresolved conflicts. Uncertain tracks remain visible for review but are not precise fixes; missing, invalid, or non-finite uncertainty fails readiness. The threshold is configurable and must be matched to sensor calibration and environment.</p><p class="fluid-note"><strong class="green">SOURCE LINEAGE / CALIBRATION GATE:</strong> range adapters carry calibration status and IDs into each tracked object, alongside explicitly declared source lineage. FAILED calibration blocks scene readiness; UNVERIFIED calibration remains a visible warning and is never silently upgraded to verified. Missing lineage is also surfaced as a warning: distinct sensor IDs alone do not prove independent hardware. A position may remain visible for review while these warnings are present, but readiness cannot pass when a contributing track is marked FAILED. Hardware drivers must supply trustworthy metadata; software labels alone cannot validate physical sensors.</p>
+<div id="spatial-track-detail" class="spatial-track-detail" aria-live="polite"><strong>TRACK INSPECTOR // STANDBY</strong><p>Select an imported object marker to inspect its reported evidence, uncertainty, and sensor conflicts.</p></div><div id="csi-association-panel" class="spatial-track-detail csi-association-panel" aria-live="polite">
+<strong>CSI MOTION ASSOCIATION // TRACK CANDIDATES</strong>
+<p class="fluid-note">Review Wi-Fi CSI motion context against an imported track record. This panel only inspects metadata already present in the imported scene; it does not create detections, correlate synthetic examples, or imply a live radio feed.</p>
+<div class="csi-association-controls"><label for="csi-track-select">IMPORTED TRACK</label><select id="csi-track-select" aria-label="Select imported track"><option value="">WAITING FOR SCENE IMPORT</option></select><button id="csi-review-toggle" type="button" aria-pressed="false">MARK REVIEWED</button></div>
+<div id="csi-association-detail"><strong>NO SCENE IMPORTED</strong><p>Load a BlueprintView JSON file to inspect declared Wi-Fi / CSI sources.</p></div>
+</div><p class="fluid-note"><strong class="green">EVIDENCE RULE:</strong> a plotted marker is not automatically a confirmed fact. Preserve source sensor, timestamp, coordinate frame, and uncertainty; flag conflicts instead of silently averaging them. Imported scene data may drive the overlay. Without an import, the scene remains DEMONSTRATION DATA — NO LIVE SENSORS CONNECTED.</p><p class="fluid-note"><strong class="green">CONFLICT RESOLUTION POLICY:</strong> once a track is disputed, a later update cannot clear the warning unless a later clean epoch is corroborated by at least two distinct evidence-independence groups. Sensor IDs are still shown for audit, but two feeds declared to share a receiver, upstream detector, or other common source count as one group. If no group is declared, the tracker falls back to sensor ID for compatibility; that fallback does not prove physical independence. Scene readiness continues to block on unresolved active conflicts.</p><p class="fluid-note"><strong class="green">TRACK QUALITY GATE:</strong> scene diagnostics distinguish usable tracks (known uncertainty at or below 1.0 m by default), uncertain tracks (above the configured threshold), and unresolved conflicts. Uncertain tracks remain visible for review but are not precise fixes; missing, invalid, or non-finite uncertainty fails readiness. The threshold is configurable and must be matched to sensor calibration and environment.</p><p class="fluid-note"><strong class="green">SOURCE LINEAGE / CALIBRATION GATE:</strong> range adapters carry calibration status and IDs into each tracked object, alongside explicitly declared source lineage. FAILED calibration blocks scene readiness; UNVERIFIED calibration remains a visible warning and is never silently upgraded to verified. Missing lineage is also surfaced as a warning: distinct sensor IDs alone do not prove independent hardware. A position may remain visible for review while these warnings are present, but readiness cannot pass when a contributing track is marked FAILED. Hardware drivers must supply trustworthy metadata; software labels alone cannot validate physical sensors.</p>
 <p class="muted">3D floor plan of the spatial engine: coordinate-aligned floors suspended in a shared scene model, with sensor evidence flowing between levels as a continuous field of information.</p>
 <div class="spatial-stage"><svg viewBox="0 0 760 540" role="img" aria-label="Isometric three-level building floor plan suspended in a glowing fluid of information, with sensor streams, infrared overlays, tracked objects, and confidence markers">
 <defs><linearGradient id="fluid" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#29f5b2" stop-opacity=".05"/><stop offset=".5" stop-color="#29f5b2" stop-opacity=".42"/><stop offset="1" stop-color="#62b8ff" stop-opacity=".08"/></linearGradient><linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b4736" stop-opacity=".92"/><stop offset="1" stop-color="#03130f" stop-opacity=".94"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
@@ -335,6 +349,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <p><span class="green">LOCATION:</span> Control Room / Lab Report tab</p>
 <p><span class="green">LATEST WORK:</span> Sensor-source lineage, calibration health, and scene-readiness diagnostics.</p>
 <p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes an interactive temporal evidence monitor with ALL / FRESH / REVIEW / CONTEXT filters, event timestamps, lineage declarations, calibration status, and a clear synthetic-data label. The monitor is a front-end demonstration; connecting an event feed is still a separate, explicit action.</p>
+<p><span class="green">SCREEN UPDATED:</span> 03 // SPATIAL INTELLIGENCE now includes a CSI motion-association review panel for imported track candidates. It checks only declared Wi-Fi / CSI modality or source metadata, shows observation/trail metadata when available, and keeps position confirmation separate from motion context. Review marks are local to the page session; no live CSI feed or synthetic-to-track correlation is implied.</p>
 <p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes an interactive RF / RANGE CLASSIFIER that switches between Wi-Fi CSI motion context, calibrated spatial ranging, and acoustic sonar, with each mode's output, prerequisites, and limits. It does not present RSSI as range or conflate RF sensing with acoustic time-of-flight.</p>
 <p><span class="green">SCREEN UPDATED:</span> 04 // SENSOR INPUTS now includes a cross-screen evidence bridge that reads the currently imported Screen 03 scene and summarizes its tracks, review-gate counts, modalities, and source IDs. Clearing the import resets the bridge. The synthetic temporal examples remain separate and are never represented as correlated live events.</p>
 <p><span class="green">SCREEN UPDATED:</span> 03 // SPATIAL INTELLIGENCE now treats missing or unverified calibration and undeclared source lineage as track-review conditions. Track inspection exposes calibration status, calibration IDs, lineage declaration, and independence-group metadata when provided. This is conservative review logic for imported records; it does not establish that sensors are physically independent or calibrated.</p>
@@ -740,8 +755,10 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         applyImportedLevelFilter();
         applySpatialReviewFilter(spatialReviewFilter);
         bindSpatialTrackInspection(importedScene);
+        updateCsiAssociation(importedScene);
       } else {
         spatialStatus.textContent = 'DEMO DATA // ' + levelLabel + ' // ' + layerLabel + ' // NO LIVE SENSORS CONNECTED';
+        updateCsiAssociation(null);
       }
     }
   }
@@ -807,6 +824,76 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     note.textContent = 'FLOOR CONTINUITY NOTE // Evidence status distinguishes a flagged conflict, missing sensor provenance, an unlocalized track conflict, and provenance available for review. Conflicting sensor IDs are localized only when they overlap the source/destination sample IDs; otherwise the track-level conflict remains unlocalized. No status automatically confirms a floor change, and history alone does not prove the route taken.';
     spatialTrackDetail.appendChild(note);
   }
+  var csiTrackSelect = document.getElementById('csi-track-select');
+  var csiAssociationDetail = document.getElementById('csi-association-detail');
+  var csiReviewToggle = document.getElementById('csi-review-toggle');
+  var csiReviewedTracks = {};
+  function updateCsiAssociation(data) {
+    if (!csiTrackSelect || !csiAssociationDetail) return;
+    var objects = data && Array.isArray(data.objects) ? data.objects : [];
+    var previous = csiTrackSelect.value;
+    while (csiTrackSelect.firstChild) csiTrackSelect.removeChild(csiTrackSelect.firstChild);
+    if (!data) {
+      var empty = document.createElement('option'); empty.value = ''; empty.textContent = 'WAITING FOR SCENE IMPORT'; csiTrackSelect.appendChild(empty);
+      csiTrackSelect.disabled = true;
+      csiAssociationDetail.textContent = 'NO SCENE IMPORTED // Load a BlueprintView JSON file to inspect declared Wi-Fi / CSI sources.';
+      if (csiReviewToggle) { csiReviewToggle.disabled = true; csiReviewToggle.setAttribute('aria-pressed','false'); csiReviewToggle.textContent = 'MARK REVIEWED'; }
+      return;
+    }
+    csiTrackSelect.disabled = objects.length === 0;
+    objects.forEach(function(object) {
+      var id = String(object.object_id || 'OBJECT');
+      var option = document.createElement('option'); option.value = id;
+      option.textContent = id + ' // ' + String(object.inferred_level || object.level || 'LEVEL UNKNOWN');
+      csiTrackSelect.appendChild(option);
+    });
+    if (!objects.length) {
+      var none = document.createElement('option'); none.value = ''; none.textContent = 'NO TRACKS IN IMPORT'; csiTrackSelect.appendChild(none);
+      csiAssociationDetail.textContent = 'NO TRACK CANDIDATES // This scene import contains no object records.';
+      if (csiReviewToggle) csiReviewToggle.disabled = true;
+      return;
+    }
+    var chosen = objects.some(function(object) { return String(object.object_id || 'OBJECT') === previous; }) ? previous : String(objects[0].object_id || 'OBJECT');
+    csiTrackSelect.value = chosen;
+    var object = objects.find(function(item) { return String(item.object_id || 'OBJECT') === chosen; }) || objects[0];
+    var modalities = Array.isArray(object.modalities) ? object.modalities.map(String) : [];
+    var sources = Array.isArray(object.sensor_ids) ? object.sensor_ids.map(String) : [];
+    var declared = modalities.concat(sources).filter(function(value) { return /wifi|wi-fi|802\.11|\bcsi\b|channel.state.information/i.test(value); });
+    var heading = document.createElement('strong');
+    heading.textContent = declared.length ? 'CSI SOURCE DECLARED — REVIEW NEEDED' : 'NO CSI ASSOCIATION DECLARED';
+    csiAssociationDetail.appendChild(heading);
+    var rows = [
+      ['Track ID', chosen],
+      ['Declared modality/source match', declared.length ? declared.join(', ') : 'NONE FOUND IN IMPORTED METADATA'],
+      ['All declared modalities', modalities.length ? modalities.join(', ') : 'NOT DECLARED'],
+      ['Sensor IDs', sources.length ? sources.join(', ') : 'NOT DECLARED'],
+      ['Observation count', object.observation_count === undefined ? 'NOT PROVIDED' : String(object.observation_count)],
+      ['Motion trail samples', Array.isArray(object.motion_trail_m) ? String(object.motion_trail_m.length) : 'NOT PROVIDED'],
+      ['Position status', 'UNCHANGED IMPORTED POSITION — NOT CONFIRMED BY CSI'],
+      ['Review state', csiReviewedTracks[chosen] ? 'REVIEWED IN THIS PAGE SESSION' : 'NOT REVIEWED']
+    ];
+    rows.forEach(function(row) {
+      var p = document.createElement('p');
+      var label = document.createElement('span'); label.className = 'green'; label.textContent = row[0] + ': ';
+      p.appendChild(label); p.appendChild(document.createTextNode(row[1])); csiAssociationDetail.appendChild(p);
+    });
+    var note = document.createElement('p'); note.className = 'fluid-note';
+    note.textContent = declared.length
+      ? 'ASSOCIATION LIMIT // Metadata names a possible Wi-Fi / CSI source, but this does not prove that source produced the track or that motion evidence is synchronized. Inspect timestamps, lineage, calibration, and environment before drawing conclusions.'
+      : 'ASSOCIATION LIMIT // No Wi-Fi / CSI modality or source ID is declared for this track. Do not infer a match from proximity or from the separate synthetic temporal monitor.';
+    csiAssociationDetail.appendChild(note);
+    if (csiReviewToggle) {
+      csiReviewToggle.disabled = false;
+      csiReviewToggle.setAttribute('aria-pressed', String(!!csiReviewedTracks[chosen]));
+      csiReviewToggle.textContent = csiReviewedTracks[chosen] ? 'MARK UNREVIEWED' : 'MARK REVIEWED';
+    }
+  }
+  if (csiTrackSelect) csiTrackSelect.addEventListener('change', function() { updateCsiAssociation(importedScene); });
+  if (csiReviewToggle) csiReviewToggle.addEventListener('click', function() {
+    if (!csiTrackSelect || !csiTrackSelect.value) return;
+    var id = csiTrackSelect.value; csiReviewedTracks[id] = !csiReviewedTracks[id];
+    updateCsiAssociation(importedScene);
+  });
   function bindSpatialTrackInspection(data) {
     if (!spatialStage) return;
     var byId = {};
