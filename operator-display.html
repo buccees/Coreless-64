@@ -84,7 +84,7 @@
       item.appendChild(textNode('h3','',String(sensor.sensor_id)+' / '+String(sensor.modality)));
       item.appendChild(textNode('p','', 'STATE: '+String(sensor.state).toUpperCase()+' · CALIBRATION: '+String(sensor.calibration||'unspecified')));
       item.appendChild(textNode('p','',sensor.reason||'No additional status detail.'));
-      item.appendChild(textNode('p','muted','SOURCE TIME: '+(Number.isSafeInteger(sensor.source_timestamp_ns)?String(sensor.source_timestamp_ns)+' ns':'unavailable')));
+      item.appendChild(textNode('p','muted','SOURCE TIME: '+(validNs(sensor.source_timestamp_ns)?sensor.source_timestamp_ns+' ns':'unavailable')));
       sensorList.appendChild(item);
     });
     if(!sensors.length)showEmpty(sensorList,'Runtime reported no sensor status entries.');
@@ -104,12 +104,12 @@
   function validate(data){
     if(!data||typeof data!=='object'||data.protocol_version!==1)throw new Error('Unsupported or missing protocol version.');
     if(!Number.isSafeInteger(data.sequence)||data.sequence<0)throw new Error('Invalid sequence number.');
-    if(!Number.isSafeInteger(data.generated_at_ns)||data.generated_at_ns<0||!Number.isSafeInteger(data.source_timestamp_ns)||data.source_timestamp_ns<0)throw new Error('Invalid snapshot timestamps.');
+    function validNs(value){return typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value);} if(!validNs(data.generated_at_ns)||!validNs(data.source_timestamp_ns))throw new Error('Invalid snapshot timestamps.');
     if(['connected','stale','disconnected','degraded'].indexOf(data.connection_state)<0)throw new Error('Invalid connection state.');
     if(['ready','starting','degraded','stopped','faulted'].indexOf(data.runtime_state)<0)throw new Error('Invalid runtime state.');
     if(!Array.isArray(data.sensors)||!Array.isArray(data.alerts))throw new Error('Invalid sensor/alert collections.');
-    data.sensors.forEach(function(s){if(!s||typeof s.sensor_id!=='string'||typeof s.modality!=='string'||['ready','stale','disconnected','degraded','unavailable'].indexOf(s.state)<0)throw new Error('Invalid sensor entry.');});
-    data.alerts.forEach(function(a){if(!a||typeof a.alert_id!=='string'||typeof a.message!=='string'||typeof a.source!=='string'||['info','warning','critical'].indexOf(a.severity)<0||!Number.isSafeInteger(a.source_timestamp_ns))throw new Error('Invalid alert entry.');});
+    data.sensors.forEach(function(s){if(!s||typeof s.sensor_id!=='string'||typeof s.modality!=='string'||['ready','stale','disconnected','degraded','unavailable'].indexOf(s.state)<0||(s.source_timestamp_ns!==null&&!validNs(s.source_timestamp_ns)))throw new Error('Invalid sensor entry.');});
+    data.alerts.forEach(function(a){if(!a||typeof a.alert_id!=='string'||typeof a.message!=='string'||typeof a.source!=='string'||['info','warning','critical'].indexOf(a.severity)<0||!validNs(a.source_timestamp_ns))throw new Error('Invalid alert entry.');});
     return data;
   }
   function render(data){
