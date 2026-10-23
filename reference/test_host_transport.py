@@ -745,3 +745,32 @@ def test_hotplug_reconcile_detaches_removed_or_changed_endpoint():
     ))
     assert controller.reconcile() == ("hotplug-refresh",)
     assert not refreshed_interface.attached
+
+
+def test_hotplug_failed_arrival_preserves_unrelated_existing_attachment():
+    from host_transport import HostHotplugController
+
+    first = HostEndpoint(
+        "hotplug-first",
+        CorelessIdentity("hotplug-first"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    second = HostEndpoint(
+        "hotplug-second",
+        CorelessIdentity("hotplug-second"),
+        HostCapabilities(network=True),
+        device_capabilities={"network"},
+    )
+    adapter = MemoryHostTransportAdapter([first, second])
+    controller = HostHotplugController(adapter)
+    interface = CorelessHostInterface(CorelessIdentity("hotplug-first"))
+    adapter.connect(first, interface)
+
+    with pytest.raises(ValueError, match="verification failed"):
+        controller.device_arrived(second.endpoint_id, interface)
+
+    assert interface.attached
+    assert interface.identity == first.identity
+    assert interface.negotiated == frozenset({"display"})
+    assert controller.attached_endpoint_ids == ()
