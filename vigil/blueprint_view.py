@@ -85,6 +85,8 @@ class ObjectProjection:
     motion_trail_m: tuple[tuple[int, tuple[float, float, float]], ...]
     inferred_level: str | None
     visible_on_selected_level: bool | None
+    motion_state: str
+    speed_mps: float | None
     floor_transitions: tuple[FloorTransitionProjection, ...] = ()
 
 
@@ -214,6 +216,7 @@ def build_blueprint_view(
     selected_level: str | None = None,
     object_tracks: Sequence[ObjectTrack] = (),
     floor_elevation_tolerance_m: float = 1.5,
+    motion_threshold_mps: float = 0.05,
 ) -> BlueprintView:
     """Build stable feature, pose, and object-marker data for a blueprint renderer.
 
@@ -227,6 +230,8 @@ def build_blueprint_view(
         raise ValueError("selected_level must not be empty")
     if not isfinite(floor_elevation_tolerance_m) or floor_elevation_tolerance_m <= 0:
         raise ValueError("floor_elevation_tolerance_m must be finite and positive")
+    if not isfinite(motion_threshold_mps) or motion_threshold_mps < 0:
+        raise ValueError("motion_threshold_mps must be finite and non-negative")
     visible = tuple(
         feature for feature in model.features
         if selected_level is None or feature.level is None or feature.level == selected_level
@@ -277,6 +282,16 @@ def build_blueprint_view(
                 inferred_level = nearest_level
             if selected_level is not None:
                 visible_on_level = inferred_level == selected_level
+        speed_mps = sum(component * component for component in track.velocity_mps) ** 0.5
+        history = track.position_history_m
+        has_motion_baseline = (
+            len(history) >= 2 and history[-1][0] > history[-2][0]
+        )
+        motion_state = (
+            "UNKNOWN" if not has_motion_baseline
+            else "MOVING" if speed_mps >= motion_threshold_mps
+            else "STATIONARY"
+        )
         object_projections.append(ObjectProjection(
             object_id=track.object_id,
             association_id=track.association_id,
@@ -294,6 +309,8 @@ def build_blueprint_view(
             motion_trail_m=track.position_history_m or ((track.last_seen_ns, track.position_m),),
             inferred_level=inferred_level,
             visible_on_selected_level=visible_on_level,
+            motion_state=motion_state,
+            speed_mps=speed_mps if has_motion_baseline else None,
             floor_transitions=_candidate_floor_transitions(
                 track.position_history_m, elevations, floor_elevation_tolerance_m,
                 track.position_history_sensor_ids,
