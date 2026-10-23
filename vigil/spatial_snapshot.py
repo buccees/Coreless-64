@@ -190,6 +190,23 @@ def build_spatial_snapshot(
                 (item.object_id, item.association_id)
             ].raw_observations],
             "presence_state": item.presence_state,
+            "track_validity": (
+                "TIME_UNCERTAIN" if item.last_seen_ns > now_ns else
+                "REACQUIRE" if item.presence_state == "REACQUIRE" else
+                "STALE_LAST_KNOWN" if now_ns - item.last_seen_ns > max_age_ns else
+                "DEGRADED" if item.conflict or tracks_by_identity[(item.object_id, item.association_id)].calibration_status != "verified" else
+                "CURRENT"
+            ),
+            "track_validity_reasons": [
+                reason for reason, condition in (
+                    ("future_timestamp", item.last_seen_ns > now_ns),
+                    ("restored_track_requires_reacquisition", item.presence_state == "REACQUIRE"),
+                    ("measurement_age_exceeds_max_age", item.last_seen_ns <= now_ns and now_ns - item.last_seen_ns > max_age_ns),
+                    ("sensor_conflict_unresolved", item.conflict),
+                    ("calibration_failed", tracks_by_identity[(item.object_id, item.association_id)].calibration_status == "failed"),
+                    ("calibration_unverified", tracks_by_identity[(item.object_id, item.association_id)].calibration_status == "unverified"),
+                ) if condition
+            ],
             "motion_state": item.motion_state,
             "visible_on_selected_level": item.visible_on_selected_level,
             "motion_trail_m": [{
