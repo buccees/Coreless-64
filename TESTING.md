@@ -30,7 +30,7 @@ Reference/CI testing validates the software implementation. It does not by itsel
 - complete persistent-storage-hosted Coreless runtime environment
 - live five-core inference on Coreless
 
-## Reference tests
+## Bootable carrier image\n\nThe first UEFI x86_64 carrier-image build and boot-console contract are documented in [Bootable Coreless carrier image](specification/bootable_carrier.md). CI checks Python and shell syntax; the full disk-image build and real UEFI boot still require a Linux build machine and hardware/VM validation.\n\n## Reference tests
 
 ```bash
 python -m pytest
