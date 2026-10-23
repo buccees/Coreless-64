@@ -276,3 +276,35 @@ def test_expected_sensor_configuration_survives_workspace_restart():
         assert SpatialWorkspace(registry_store=store).expected_sensor_coverage == ()
     finally:
         store.close()
+
+
+def test_provider_lifecycle_retains_last_success_and_counts_failures_then_recovers():
+    class FlakyProvider:
+        def __init__(self):
+            self.fail = False
+        def read(self):
+            if self.fail:
+                raise OSError("device temporarily unavailable")
+            return SensorBatch()
+
+    workspace = SpatialWorkspace()
+    provider = FlakyProvider()
+    workspace.register_sensor_provider("flaky", provider)
+    online = workspace.poll_sensors()[0]
+    assert online.state == "ONLINE" and online.last_success_ns is not None
+    provider.fail = True
+    failed = workspace.poll_sensors()[0]
+    assert failed.state == "ERROR"
+    assert failed.consecutive_failures == 1
+    assert failed.last_success_ns == online.last_success_ns
+    failed_again = workspace.poll_sensors()[0]
+    assert failed_again.consecutive_failures == 2
+    provider.fail = False
+    recovered = workspace.poll_sensors()[0]
+    assert recovered.state == "ONLINE"
+    assert recovered.consecutive_failures == 0
+    assert recovered.last_success_ns is not None
+    assert workspace.unregister_sensor_provider("flaky") is True
+    disconnected = next(s for s in workspace.sensor_poll_statuses if s.provider_id == "flaky")
+    assert disconnected.state == "DISCONNECTED"
+    assert disconnected.last_success_ns == recovered.last_success_ns
