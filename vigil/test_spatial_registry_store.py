@@ -1,7 +1,7 @@
 import pytest
 
 from vigil.blueprint import register_blueprint
-from vigil.object_tracking import ObjectTrack
+from vigil.object_tracking import ObjectObservation, ObjectTrack, TrackingModality
 from vigil.raster_calibration import RasterBlueprintCalibration, RasterControlPoint
 from vigil.spatial_regions import SpatialRegion
 from vigil.spatial_registry_store import SpatialRegistryStore
@@ -126,6 +126,14 @@ def test_active_model_set_requires_registered_revision_and_sql_like_ids_are_data
 
 def test_object_tracks_round_trip_with_evidence_and_history_intact():
     active = model()
+    raw_observation = ObjectObservation(
+        object_id="cart-7", sensor_id="uwb-array", model_id=active.model_id,
+        model_revision=active.revision, frame_id=active.frame_id,
+        timestamp_ns=100, position_m=(2.0, 3.0, 0.0), uncertainty_m=0.2,
+        modality=TrackingModality.UWB, provenance="calibrated-ranging",
+        independence_group="uwb-array", calibration_status="verified",
+        calibration_ids=("survey-1",), lineage_declared=True,
+    )
     track = ObjectTrack(
         object_id="cart-7", model_id=active.model_id,
         model_revision=active.revision, frame_id=active.frame_id,
@@ -137,6 +145,7 @@ def test_object_tracks_round_trip_with_evidence_and_history_intact():
         position_history_sensor_ids=((50, ("uwb-array",)), (100, ("uwb-array",))),
         calibration_status="verified", calibration_ids=("survey-1",),
         lineage_declared=True, presence_state="STALE",
+        raw_observations=(raw_observation,),
     )
     store = SpatialRegistryStore()
     try:
