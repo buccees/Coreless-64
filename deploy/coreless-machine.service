@@ -2,6 +2,7 @@
 Description=Coreless-64 persistent machine console
 After=local-fs.target
 Before=getty@tty1.service
+Conflicts=getty@tty1.service
 
 [Service]
 Type=simple
