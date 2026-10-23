@@ -7,7 +7,7 @@
 <title>VIGIL // Remote Operator Display</title>
 <style>
 :root{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;color:#b9ffc0;background:#050b07;--green:#68ff83;--dim:#72a77b;--line:#245c32;--panel:#09140c;--warn:#ffcc68;--bad:#ff7272}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#102b17 0,#050b07 60%);line-height:1.5}a{color:var(--green)}button,input{font:inherit;color:inherit;background:#07100a;border:1px solid var(--line);border-radius:3px;padding:.65rem}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--green);outline-offset:3px}.shell{max-width:1120px;margin:auto;padding:clamp(1rem,3vw,2rem)}header{border-bottom:1px solid var(--line);padding-bottom:1rem;margin-bottom:1rem}.eyebrow{font-size:.75rem;letter-spacing:.18em;color:var(--dim)}h1{font-size:clamp(1.4rem,4vw,2.2rem);margin:.3rem 0;color:var(--green)}h2{font-size:1rem;color:var(--green);letter-spacing:.08em}.sub{color:var(--dim);max-width:75ch}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.panel{border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 92%,transparent);padding:1rem;min-width:0}.wide{grid-column:1/-1}.row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}.endpoint{display:flex;gap:.5rem;flex:1;min-width:min(100%,18rem)}.endpoint input{flex:1;min-width:0}.status{font-weight:700;letter-spacing:.06em}.dot{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;background:var(--dim);margin-right:.5rem}.ok{color:var(--green)}.stale{color:var(--warn)}.bad{color:var(--bad)}.muted{color:var(--dim);font-size:.85rem}.statgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin-top:1rem}.stat{border:1px solid #173d22;padding:.7rem;overflow-wrap:anywhere}.stat label{display:block;font-size:.72rem;color:var(--dim);letter-spacing:.08em}.stat strong{font-size:1.1rem}.list{display:grid;gap:.6rem}.item{border-left:2px solid var(--line);padding:.6rem .8rem;background:#07100a;overflow-wrap:anywhere}.item.warning{border-color:var(--warn)}.item.critical{border-color:var(--bad)}.item h3{font-size:.9rem;margin:0 0 .25rem}.item p{margin:.2rem 0;font-size:.85rem;color:#a7d7ae}.empty{color:var(--dim);border:1px dashed var(--line);padding:.9rem}.foot{border-top:1px solid var(--line);margin-top:1rem;padding-top:1rem;color:var(--dim);font-size:.8rem}code{overflow-wrap:anywhere;color:#d0ffd5}.spatial-map{display:block;width:100%;height:auto;min-height:16rem;background:#050b07;border:1px solid var(--line);margin-top:.8rem}.spatial-map .map-grid{stroke:#173d22;stroke-width:1}.spatial-map .map-feature{fill:#72a77b;stroke:#b9ffc0;stroke-width:1.2}.spatial-map .map-region{fill:#68ff83;fill-opacity:.07;stroke:#72a77b;stroke-width:1.5;stroke-dasharray:5 4}.spatial-map .map-region.inside{fill:#68ff83;fill-opacity:.15;stroke:#68ff83}.spatial-map .map-region.outside{stroke:#ffcc68}.spatial-map .map-region.unknown{stroke:#ffcc68;stroke-dasharray:3 5}.spatial-map .map-object{fill:#68ff83;stroke:#b9ffc0;stroke-width:2}.spatial-map .map-object.stale{fill:#ffcc68;stroke:#ffcc68;stroke-dasharray:3 2}.spatial-map .map-object.conflict{fill:#ff7272;stroke:#ff7272}.spatial-map .map-pose{fill:none;stroke:#83d9ff;stroke-width:3}.spatial-map .map-trail{fill:none;stroke:#68ff83;stroke-width:2;stroke-opacity:.7}.spatial-map .map-label{fill:#b9ffc0;font:13px ui-monospace,monospace;paint-order:stroke;stroke:#050b07;stroke-width:3px;stroke-linejoin:round}.spatial-map .map-region-label{fill:#72a77b;font:11px ui-monospace,monospace}.spatial-map .map-note{fill:#72a77b;font:16px ui-monospace,monospace}.spatial-meta{display:flex;justify-content:space-between;gap:.8rem;flex-wrap:wrap;margin:.5rem 0;color:var(--dim);font-size:.85rem}.spatial-legend{display:flex;gap:1rem;flex-wrap:wrap;color:var(--dim);font-size:.8rem;margin:.6rem 0}.spatial-legend span{display:flex;align-items:center;gap:.4rem}.spatial-key{width:.7rem;height:.7rem;border-radius:50%;display:inline-block;background:var(--green)}.spatial-key.stale{background:var(--warn)}.spatial-key.conflict{background:var(--bad)}.spatial-key.pose{background:#83d9ff}.spatial-objects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;margin-top:.8rem}.spatial-object{border-left:2px solid var(--green);background:#07100a;padding:.65rem .8rem;min-width:0;overflow-wrap:anywhere}.spatial-object.stale{border-color:var(--warn)}.spatial-object.conflict{border-color:var(--bad)}.spatial-object h3{font-size:.85rem;margin:0 0 .25rem}.spatial-object p{font-size:.78rem;color:#a7d7ae;margin:.15rem 0}.spatial-object .muted{color:var(--dim)}@media(max-width:700px){.spatial-objects{grid-template-columns:1fr}}@media(max-width:700px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.statgrid{grid-template-columns:1fr}.endpoint{flex-basis:100%}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#102b17 0,#050b07 60%);line-height:1.5}a{color:var(--green)}button,input{font:inherit;color:inherit;background:#07100a;border:1px solid var(--line);border-radius:3px;padding:.65rem}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--green);outline-offset:3px}.shell{max-width:1120px;margin:auto;padding:clamp(1rem,3vw,2rem)}header{border-bottom:1px solid var(--line);padding-bottom:1rem;margin-bottom:1rem}.eyebrow{font-size:.75rem;letter-spacing:.18em;color:var(--dim)}h1{font-size:clamp(1.4rem,4vw,2.2rem);margin:.3rem 0;color:var(--green)}h2{font-size:1rem;color:var(--green);letter-spacing:.08em}.sub{color:var(--dim);max-width:75ch}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.panel{border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 92%,transparent);padding:1rem;min-width:0}.wide{grid-column:1/-1}.row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}.endpoint{display:flex;gap:.5rem;flex:1;min-width:min(100%,18rem)}.endpoint input{flex:1;min-width:0}.status{font-weight:700;letter-spacing:.06em}.dot{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;background:var(--dim);margin-right:.5rem}.ok{color:var(--green)}.stale{color:var(--warn)}.bad{color:var(--bad)}.muted{color:var(--dim);font-size:.85rem}.statgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin-top:1rem}.stat{border:1px solid #173d22;padding:.7rem;overflow-wrap:anywhere}.stat label{display:block;font-size:.72rem;color:var(--dim);letter-spacing:.08em}.stat strong{font-size:1.1rem}.list{display:grid;gap:.6rem}.item{border-left:2px solid var(--line);padding:.6rem .8rem;background:#07100a;overflow-wrap:anywhere}.item.warning{border-color:var(--warn)}.item.critical{border-color:var(--bad)}.item h3{font-size:.9rem;margin:0 0 .25rem}.item p{margin:.2rem 0;font-size:.85rem;color:#a7d7ae}.empty{color:var(--dim);border:1px dashed var(--line);padding:.9rem}.foot{border-top:1px solid var(--line);margin-top:1rem;padding-top:1rem;color:var(--dim);font-size:.8rem}code{overflow-wrap:anywhere;color:#d0ffd5}.spatial-map{display:block;width:100%;height:auto;min-height:16rem;background:#050b07;border:1px solid var(--line);margin-top:.8rem}.spatial-map .map-grid{stroke:#173d22;stroke-width:1}.spatial-map .map-feature{fill:#72a77b;stroke:#b9ffc0;stroke-width:1.2}.spatial-map .map-region{fill:#68ff83;fill-opacity:.07;stroke:#72a77b;stroke-width:1.5;stroke-dasharray:5 4}.spatial-map .map-region.inside{fill:#68ff83;fill-opacity:.15;stroke:#68ff83}.spatial-map .map-region.outside{stroke:#ffcc68}.spatial-map .map-region.unknown{stroke:#ffcc68;stroke-dasharray:3 5}.spatial-map .map-object{fill:#68ff83;stroke:#b9ffc0;stroke-width:2}.spatial-map .map-object.stale{fill:#ffcc68;stroke:#ffcc68;stroke-dasharray:3 2}.spatial-map .map-object.conflict{fill:#ff7272;stroke:#ff7272}.spatial-map .map-pose{fill:none;stroke:#83d9ff;stroke-width:3}.spatial-map .map-trail{fill:none;stroke:#68ff83;stroke-width:2;stroke-opacity:.7}.spatial-map .map-label{fill:#b9ffc0;font:13px ui-monospace,monospace;paint-order:stroke;stroke:#050b07;stroke-width:3px;stroke-linejoin:round}.spatial-map .map-region-label{fill:#72a77b;font:11px ui-monospace,monospace}.spatial-map .map-note{fill:#72a77b;font:16px ui-monospace,monospace}.spatial-meta{display:flex;justify-content:space-between;gap:.8rem;flex-wrap:wrap;margin:.5rem 0;color:var(--dim);font-size:.85rem}.spatial-legend{display:flex;gap:1rem;flex-wrap:wrap;color:var(--dim);font-size:.8rem;margin:.6rem 0}.spatial-legend span{display:flex;align-items:center;gap:.4rem}.spatial-key{width:.7rem;height:.7rem;border-radius:50%;display:inline-block;background:var(--green)}.spatial-key.stale{background:var(--warn)}.spatial-key.conflict{background:var(--bad)}.spatial-key.pose{background:#83d9ff}.spatial-objects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;margin-top:.8rem}.spatial-object{border-left:2px solid var(--green);background:#07100a;padding:.65rem .8rem;min-width:0;overflow-wrap:anywhere}.spatial-object.stale{border-color:var(--warn)}.spatial-object.conflict{border-color:var(--bad)}.spatial-object h3{font-size:.85rem;margin:0 0 .25rem}.spatial-object p{font-size:.78rem;color:#a7d7ae;margin:.15rem 0}.spatial-object .muted{color:var(--dim)}.spatial-object[role=button]{cursor:pointer;border:1px solid var(--line);border-left:3px solid var(--green)}.spatial-object[aria-pressed=true]{outline:2px solid var(--green);background:#0b2111}.spatial-object:focus-visible{outline:2px solid var(--green);outline-offset:2px}.spatial-map .map-object{cursor:pointer}.spatial-map .map-object.selected{stroke:#83d9ff;stroke-width:4}.track-inspector{margin-top:.8rem;border:1px solid var(--line);background:#06100a;padding:1rem}.track-inspector h3{margin:.1rem 0 .5rem;color:var(--green);font-size:.95rem}.track-inspector-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}.track-inspector-block{border:1px solid #173d22;padding:.7rem;min-width:0;overflow-wrap:anywhere}.track-inspector-block h4{margin:0 0 .4rem;font-size:.78rem;color:var(--green)}.track-inspector-block p{font-size:.8rem;margin:.25rem 0;color:#a7d7ae}.track-history{width:100%;border-collapse:collapse;font-size:.78rem}.track-history th,.track-history td{text-align:left;padding:.4rem;border-bottom:1px solid #173d22;overflow-wrap:anywhere}.track-history th{color:var(--dim)}@media(max-width:700px){.track-inspector-grid{grid-template-columns:1fr}}@media(max-width:700px){.spatial-objects{grid-template-columns:1fr}}@media(max-width:700px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.statgrid{grid-template-columns:1fr}.endpoint{flex-basis:100%}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -76,6 +76,7 @@
 <span><i class="spatial-key"></i>Modeled feature</span><span><i class="spatial-key pose"></i>Current pose</span><span><i class="spatial-key"></i>Tracked object</span><span><i class="spatial-key stale"></i>Last known / stale</span><span><i class="spatial-key conflict"></i>Conflicting evidence</span>
 </div>
 <div id="spatial-objects" class="spatial-objects"><div class="empty">No object tracks reported.</div></div>
+<div id="track-inspector" class="track-inspector" aria-live="polite"><h3>OBJECT INSPECTOR / NO SELECTION</h3><p class="muted">Select a track marker or object card to inspect its combined sensor evidence, status, and recorded motion history.</p></div>
 </section>
 <footer class="foot">VIEW ONLY · No sensor readings or object locations are synthesized by this page. A stale marker means last known, not confirmed present or gone. <a href="./index.html">Return to Control Room / Lab Report</a></footer>
 </main>
@@ -146,7 +147,7 @@
 
   var spatialMap=document.getElementById('spatial-map'), spatialStatus=document.getElementById('spatial-status');
   var spatialModel=document.getElementById('spatial-model'), spatialDetail=document.getElementById('spatial-detail');
-  var spatialObjects=document.getElementById('spatial-objects'), spatialTimer=null, spatialInFlight=false, spatialController=null;
+  var spatialObjects=document.getElementById('spatial-objects'), trackInspector=document.getElementById('track-inspector'), selectedTrackKey=null, latestSpatialData=null, spatialTimer=null, spatialInFlight=false, spatialController=null;
   var SVG_NS='http://www.w3.org/2000/svg';
   function svgNode(tag,attrs,text){
     var node=document.createElementNS(SVG_NS,tag);
@@ -163,11 +164,60 @@
     spatialStatus.className='status stale';
     spatialModel.textContent='No active blueprint';
     spatialDetail.textContent=message;
-    showEmpty(spatialObjects,'No object tracks available.');
+    showEmpty(spatialObjects,'No object tracks available.');selectedTrackKey=null;latestSpatialData=null;renderTrackInspector(null);
+  }
+  function trackKey(object){return String(object.object_id)+'|'+String(object.association_id||'');}
+  function renderTrackInspector(object){
+    if(!trackInspector)return;
+    while(trackInspector.firstChild)trackInspector.removeChild(trackInspector.firstChild);
+    if(!object){trackInspector.appendChild(textNode('h3','','OBJECT INSPECTOR / NO SELECTION'));trackInspector.appendChild(textNode('p','muted','Select a track marker or object card to inspect its combined sensor evidence, status, and recorded motion history.'));return;}
+    var state=object.conflict?'CONFLICT / REVIEW':object.presence_state==='STALE'?'STALE / LAST KNOWN':String(object.motion_state||'MOTION UNKNOWN');
+    trackInspector.appendChild(textNode('h3','','SELECTED OBJECT / '+object.object_id+' / '+state));
+    trackInspector.appendChild(textNode('p','muted','Aggregated VIGIL evidence only. Sensor IDs do not prove independent hardware; per-sensor positions are not invented when unavailable.'));
+    var grid=textNode('div','track-inspector-grid',''), summary=textNode('section','track-inspector-block','');
+    summary.appendChild(textNode('h4','','TRACK ESTIMATE'));
+    summary.appendChild(textNode('p','','POSITION: '+(Array.isArray(object.position_m)?object.position_m.map(function(v){return Number(v).toFixed(3);}).join(', ')+' m':'unavailable')));
+    summary.appendChild(textNode('p','','SPEED: '+(object.speed_mps===null||object.speed_mps===undefined?'unknown':Number(object.speed_mps).toFixed(3)+' m/s')));
+    summary.appendChild(textNode('p','','UNCERTAINTY: '+(Number.isFinite(Number(object.uncertainty_m))?Number(object.uncertainty_m).toFixed(3)+' m':'unknown')));
+    summary.appendChild(textNode('p','','LAST SEEN: '+String(object.last_seen_ns||'unknown')+' ns · AGE: '+String(object.age_ns||'unknown')+' ns'));
+    summary.appendChild(textNode('p','','ASSOCIATION: '+String(object.association_id||'none declared')));grid.appendChild(summary);
+    var evidence=textNode('section','track-inspector-block','');evidence.appendChild(textNode('h4','','CONTRIBUTING SENSOR SOURCES'));
+    var sensors=Array.isArray(object.sensor_ids)?object.sensor_ids:[];
+    if(sensors.length)sensors.forEach(function(sensor){evidence.appendChild(textNode('p','','SENSOR: '+sensor));});else evidence.appendChild(textNode('p','muted','No sensor IDs reported for this track.'));
+    evidence.appendChild(textNode('p','','MODALITIES: '+((object.modalities||[]).join(', ')||'not reported')));
+    evidence.appendChild(textNode('p','','EVIDENCE PROVIDERS: '+((object.provenance||[]).join(', ')||'not reported')));
+    evidence.appendChild(textNode('p','','INDEPENDENCE GROUPS: '+((object.independence_groups||[]).join(', ')||'none declared')));grid.appendChild(evidence);
+    var quality=textNode('section','track-inspector-block','');quality.appendChild(textNode('h4','','CALIBRATION & REVIEW'));
+    quality.appendChild(textNode('p','','CALIBRATION: '+String(object.calibration_status||'unknown')));
+    quality.appendChild(textNode('p','','CALIBRATION IDS: '+((object.calibration_ids||[]).join(', ')||'none declared')));
+    quality.appendChild(textNode('p','','LINEAGE: '+(object.lineage_declared?'declared':'not declared')));
+    quality.appendChild(textNode('p','','OBSERVATIONS: '+String(object.observation_count===undefined?'unknown':object.observation_count)));
+    if(object.conflict_reasons&&object.conflict_reasons.length)quality.appendChild(textNode('p','bad','WARNINGS: '+object.conflict_reasons.join(', ')));
+    if(object.conflicting_sensor_ids&&object.conflicting_sensor_ids.length)quality.appendChild(textNode('p','bad','CONFLICTING SOURCES: '+object.conflicting_sensor_ids.join(', ')));grid.appendChild(quality);
+    var history=textNode('section','track-inspector-block','');history.appendChild(textNode('h4','','RECORDED MOTION HISTORY'));
+    var trail=Array.isArray(object.motion_trail_m)?object.motion_trail_m:[];
+    if(trail.length){
+      var table=document.createElement('table');table.className='track-history';var thead=document.createElement('thead'),hr=document.createElement('tr');
+      ['SOURCE TIME (ns)','X (m)','Y (m)','Z (m)'].forEach(function(label){hr.appendChild(textNode('th','',label));});thead.appendChild(hr);table.appendChild(thead);
+      var tbody=document.createElement('tbody');trail.slice(-12).forEach(function(point){var row=document.createElement('tr');row.appendChild(textNode('td','',String(point.timestamp_ns||'unknown')));
+        (Array.isArray(point.position_m)?point.position_m:[]).slice(0,3).forEach(function(value){row.appendChild(textNode('td','',Number(value).toFixed(3)));});
+        while(row.children.length<4)row.appendChild(textNode('td','','—'));tbody.appendChild(row);});table.appendChild(tbody);history.appendChild(table);
+      history.appendChild(textNode('p','muted','Latest '+Math.min(12,trail.length)+' recorded position(s); not raw per-sensor measurements.'));
+    }else history.appendChild(textNode('p','muted','No motion-history points supplied by the runtime.'));
+    grid.appendChild(history);trackInspector.appendChild(grid);
+  }
+  function selectSpatialTrack(key){
+    selectedTrackKey=key;if(!latestSpatialData)return;
+    var objects=latestSpatialData.objects||[], selected=null;
+    objects.some(function(object){if(trackKey(object)===key){selected=object;return true;}return false;});
+    renderTrackInspector(selected);
+    Array.prototype.forEach.call(spatialObjects.querySelectorAll('.spatial-object'),function(card){card.setAttribute('aria-pressed',String(card.getAttribute('data-track-key')===key));});
+    Array.prototype.forEach.call(spatialMap.querySelectorAll('.map-object[data-track-key]'),function(marker){if(marker.getAttribute('data-track-key')===key)marker.classList.add('selected');else marker.classList.remove('selected');});
   }
   function renderSpatial(data){
     if(!data||data.protocol_version!==1||typeof data.available!=='boolean'||!Array.isArray(data.features)||!Array.isArray(data.objects)||!Array.isArray(data.regions))throw new Error('Invalid VIGIL spatial snapshot contract.');
     if(!data.available||!data.model){emptySpatial('NO BLUEPRINT LOADED','SPATIAL WORKSPACE READY');return;}
+    latestSpatialData=data;
     var model=data.model, bounds=model.bounds_m;
     if(!Array.isArray(bounds)||bounds.length!==3||!bounds.every(function(b){return Number.isFinite(b.min)&&Number.isFinite(b.max)&&b.max>=b.min;}))throw new Error('Spatial model has invalid coordinate bounds.');
     var x0=bounds[0].min,x1=bounds[0].max,y0=bounds[1].min,y1=bounds[1].max;
@@ -201,7 +251,7 @@
       if(trail.length>1)spatialMap.appendChild(svgNode('polyline',{points:trail.map(function(p){return p.join(',');}).join(' '),class:'map-trail'}));
       var p=xy(object.position_m);if(!p)return;
       var klass=object.conflict?'conflict':object.presence_state==='STALE'?'stale':'';
-      spatialMap.appendChild(svgNode('circle',{cx:p[0],cy:p[1],r:8,class:'map-object '+klass}));
+      var marker=svgNode('circle',{cx:p[0],cy:p[1],r:8,class:'map-object '+klass,'data-track-key':trackKey(object),tabindex:0,role:'button','aria-label':'Select tracked object '+object.object_id});spatialMap.appendChild(marker);
       var state=object.conflict?'CONFLICT':object.presence_state==='STALE'?'LAST KNOWN':object.motion_state||'MOTION UNKNOWN';
       spatialMap.appendChild(svgNode('text',{x:p[0]+11,y:p[1]+5,class:'map-label'},object.object_id+' / '+state));
       spatialMap.appendChild(svgNode('title',{},object.object_id+' · '+state+' · '+object.position_m.map(function(v){return v.toFixed(2);}).join(', ')+' m · uncertainty '+Number(object.uncertainty_m).toFixed(2)+' m · sensors '+(object.sensor_ids||[]).join(', ')));
@@ -229,7 +279,7 @@
     visibleObjects.forEach(function(object){
       var statusText=object.conflict?'CONFLICT / REVIEW':object.presence_state==='STALE'?'STALE / LAST KNOWN':String(object.motion_state||'MOTION UNKNOWN');
       var klass=object.conflict?'conflict':object.presence_state==='STALE'?'stale':'';
-      var card=textNode('article','spatial-object '+klass,'');
+      var card=textNode('article','spatial-object '+klass,'');card.setAttribute('role','button');card.setAttribute('tabindex','0');card.setAttribute('data-track-key',trackKey(object));card.setAttribute('aria-pressed','false');
       card.appendChild(textNode('h3','',object.object_id+' / '+statusText));
       card.appendChild(textNode('p','','POSITION: '+object.position_m.map(function(v){return Number(v).toFixed(2);}).join(', ')+' m'));
       card.appendChild(textNode('p','','SPEED: '+(object.speed_mps===null?'unknown':Number(object.speed_mps).toFixed(2)+' m/s')+' · UNCERTAINTY: '+Number(object.uncertainty_m).toFixed(2)+' m'));
@@ -240,8 +290,13 @@
       if(object.conflict_reasons&&object.conflict_reasons.length)card.appendChild(textNode('p','', 'WARNINGS: '+object.conflict_reasons.join(', ')));
       spatialObjects.appendChild(card);
     });
-    if(!visibleObjects.length)showEmpty(spatialObjects,'No object tracks reported by the active VIGIL workspace.');
+    if(!visibleObjects.length){showEmpty(spatialObjects,'No object tracks reported by the active VIGIL workspace.');renderTrackInspector(null);selectedTrackKey=null;}
+    else {var selected=visibleObjects.filter(function(object){return trackKey(object)===selectedTrackKey;})[0]||visibleObjects[0];selectSpatialTrack(trackKey(selected));}
   }
+  spatialMap.addEventListener('click',function(event){var marker=event.target.closest?event.target.closest('[data-track-key]'):null;if(marker&&spatialMap.contains(marker))selectSpatialTrack(marker.getAttribute('data-track-key'));});
+  spatialMap.addEventListener('keydown',function(event){if(event.key!=='Enter'&&event.key!==' ')return;var marker=event.target.closest?event.target.closest('[data-track-key]'):null;if(marker&&spatialMap.contains(marker)){event.preventDefault();selectSpatialTrack(marker.getAttribute('data-track-key'));}});
+  spatialObjects.addEventListener('click',function(event){var card=event.target.closest?event.target.closest('.spatial-object[data-track-key]'):null;if(card)selectSpatialTrack(card.getAttribute('data-track-key'));});
+  spatialObjects.addEventListener('keydown',function(event){if(event.key!=='Enter'&&event.key!==' ')return;var card=event.target.closest?event.target.closest('.spatial-object[data-track-key]'):null;if(card){event.preventDefault();selectSpatialTrack(card.getAttribute('data-track-key'));}});
   function pollSpatial(){
     if(!sessionAuthenticated||!activeUrl||spatialInFlight)return;
     spatialInFlight=true;var request=new AbortController();spatialController=request;
