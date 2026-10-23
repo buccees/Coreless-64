@@ -67,7 +67,7 @@
   var sensorCount=document.getElementById('sensor-count'), sensorReady=document.getElementById('sensor-ready'), sensorAttention=document.getElementById('sensor-attention');
   var sensorList=document.getElementById('sensor-list'), alertList=document.getElementById('alert-list');
   var timer=null, controller=null, activeUrl='', generation=0, inFlight=false, lastSuccess=0, failures=0, lastSequence=-1;
-  var POLL_MS=3000, STALE_MS=10000;
+  var POLL_MS=3000, STALE_MS=10000, REQUEST_TIMEOUT_MS=8000;
   function validNs(value){return typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value);}
   function setState(kind,title,message){
     status.textContent=title; detail.textContent=message||'';
@@ -126,12 +126,13 @@
   }
   function poll(){
     if(!activeUrl||inFlight)return;
-    inFlight=true;var g=generation;controller=new AbortController();
-    fetch(activeUrl,{method:'GET',headers:{'Accept':'application/json'},credentials:'include',cache:'no-store',redirect:'error',signal:controller.signal})
+    inFlight=true;var g=generation;var requestController=new AbortController();var timedOut=false;controller=requestController;
+    var requestTimer=window.setTimeout(function(){timedOut=true;requestController.abort();},REQUEST_TIMEOUT_MS);
+    fetch(activeUrl,{method:'GET',headers:{'Accept':'application/json'},credentials:'include',cache:'no-store',redirect:'error',signal:requestController.signal})
       .then(function(response){if(!response.ok)throw new Error('HTTP '+response.status);var type=response.headers.get('content-type')||'';if(type.indexOf('application/json')===-1)throw new Error('Endpoint did not return JSON.');return response.json();})
-      .then(function(raw){if(g!==generation||!activeUrl)return;var data=validate(raw);if(data.sequence<lastSequence)throw new Error('Out-of-order snapshot rejected.');lastSequence=data.sequence;lastSuccess=Date.now();failures=0;render(data);setState(data.connection_state==='connected'?'connected':data.connection_state==='stale'?'stale':'degraded',String(data.connection_state).toUpperCase(),'Runtime '+String(data.runtime_state)+' · last response '+new Date(lastSuccess).toLocaleTimeString());})
-      .catch(function(err){if(err.name==='AbortError'||g!==generation||!activeUrl)return;failures++;setState(lastSuccess&&Date.now()-lastSuccess>STALE_MS?'stale':'disconnected',failures>1?'FEED STALE · RETRYING':'REQUEST FAILED',err.message+' · automatic retry remains enabled.');})
-      .finally(function(){if(g===generation)inFlight=false;});
+      .then(function(raw){if(g!==generation||!activeUrl)return;var data=validate(raw);if(data.sequence<lastSequence)throw new Error('Out-of-order snapshot rejected.');lastSequence=data.sequence;lastSuccess=Date.now();failures=0;render(data);var stateKind=data.connection_state==='connected'?'connected':data.connection_state==='stale'?'stale':data.connection_state==='disconnected'?'disconnected':'degraded';setState(stateKind,String(data.connection_state).toUpperCase(),'Runtime '+String(data.runtime_state)+' · last response '+new Date(lastSuccess).toLocaleTimeString());})
+      .catch(function(err){if(g!==generation||!activeUrl)return;if(err.name==='AbortError'&&!timedOut)return;failures++;var reason=timedOut?'Request timed out after '+Math.round(REQUEST_TIMEOUT_MS/1000)+' seconds.':err.message;setState(lastSuccess&&Date.now()-lastSuccess>STALE_MS?'stale':'disconnected',failures>1?'FEED STALE · RETRYING':'REQUEST FAILED',reason+' · automatic retry remains enabled.');})
+      .finally(function(){window.clearTimeout(requestTimer);if(g===generation){inFlight=false;if(controller===requestController)controller=null;}});
   }
   connect.addEventListener('click',function(){
     var raw=endpoint.value.trim(),url;try{url=new URL(raw,window.location.href);}catch(e){setState('disconnected','INVALID URL','Enter a valid HTTPS state endpoint.');return;}
