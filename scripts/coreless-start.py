@@ -88,6 +88,9 @@ class StartupWizard:
         self.server = None
         self.server_thread = None
         self.system = None
+        self.startup_thread = None
+        self._closing = threading.Event()
+        self._lifecycle_lock = threading.Lock()
         # Keep the default machine image beside the project so the project folder can live on a portable SSD.
         self.image = tk.StringVar(value=str(ROOT / "coreless.img"))
         self.access = tk.StringVar(value="local")
@@ -179,6 +182,8 @@ class StartupWizard:
         self.status.set("PASSWORD GENERATED // Copy it or keep it visible while signing in.")
 
     def start(self) -> None:
+        if self._closing.is_set() or (self.startup_thread and self.startup_thread.is_alive()):
+            return
         image_path = Path(self.image.get()).expanduser()
         password = self.password.get()
         try:
@@ -200,35 +205,57 @@ class StartupWizard:
         cert_path, key_path = Path(self.cert.get()).expanduser(), Path(self.key.get()).expanduser()
         self.start_button.configure(state="disabled")
         self.status.set("STARTING // Validating certificate and booting the Coreless machine…")
-        threading.Thread(
+        self.startup_thread = threading.Thread(
             target=self._start_worker,
             args=(image_path, password, host, connect_host, port, cert_path, key_path),
             daemon=True,
-        ).start()
+            name="coreless-startup",
+        )
+        self.startup_thread.start()
 
     def _start_worker(self, image_path: Path, password: str, host: str, connect_host: str,
                       port: int, cert_path: Path, key_path: Path) -> None:
         system = None
         server = None
         try:
+            if self._closing.is_set():
+                raise RuntimeError("Startup cancelled because the window is closing")
             if not cert_path.is_file() or not key_path.is_file():
                 self._set_status("SETUP // Creating a local HTTPS certificate…")
                 cert_path, key_path = make_local_certificate(cert_path.parent, connect_host)
+            if self._closing.is_set():
+                raise RuntimeError("Startup cancelled because the window is closing")
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             context.minimum_version = ssl.TLSVersion.TLSv1_2
             context.load_cert_chain(str(cert_path), str(key_path))
             self._set_status("BOOT // Starting Coreless machine…")
             system = CorelessSystem(storage_path=image_path)
             system.boot()
+            if self._closing.is_set():
+                raise RuntimeError("Startup cancelled because the window is closing")
             self._set_status("SERVICE // Starting authenticated operator display…")
             server = make_server(host, port, create_lan_app(password=password, system=system),
                                  server_class=WSGIServer, handler_class=QuietHandler)
             server.socket = context.wrap_socket(server.socket, server_side=True)
-            self.system, self.server = system, server
-            self.server_thread = threading.Thread(target=server.serve_forever, daemon=True)
-            self.server_thread.start()
+            with self._lifecycle_lock:
+                if self._closing.is_set():
+                    raise RuntimeError("Startup cancelled because the window is closing")
+                self.system, self.server = system, server
+                self.server_thread = threading.Thread(
+                    target=server.serve_forever, daemon=True, name="coreless-https-server"
+                )
+                try:
+                    self.server_thread.start()
+                except Exception:
+                    self.system = self.server = self.server_thread = None
+                    raise
             url = f"https://{connect_host}:{port}/"
-            self.root.after(0, self._started, url, host != "127.0.0.1")
+            if not self._closing.is_set():
+                try:
+                    self.root.after(0, self._started, url, host != "127.0.0.1")
+                except (RuntimeError, tk.TclError):
+                    # The listener remains owned by this app; a closed UI must not trigger rollback.
+                    pass
         except Exception as exc:
             # Startup is transactional: if the machine booted but the HTTPS
             # listener failed, release the listener and persist a clean state.
@@ -246,16 +273,23 @@ class StartupWizard:
                     system.shutdown()
                 except Exception as shutdown_exc:
                     exc = RuntimeError(f"{exc}; machine shutdown also failed: {shutdown_exc}")
-            try:
-                self.root.after(0, self._failed, str(exc))
-            except RuntimeError:
-                # The UI may already have closed while startup was running.
-                pass
+            if not self._closing.is_set():
+                try:
+                    self.root.after(0, self._failed, str(exc))
+                except (RuntimeError, tk.TclError):
+                    pass
 
     def _set_status(self, value: str) -> None:
-        self.root.after(0, self.status.set, value)
+        if self._closing.is_set():
+            return
+        try:
+            self.root.after(0, self.status.set, value)
+        except (RuntimeError, tk.TclError):
+            pass
 
     def _started(self, url: str, lan: bool) -> None:
+        if self._closing.is_set():
+            return
         self.status.set("RUNNING // Coreless booted; operator HTTPS service is listening.")
         self.start_button.configure(text="RUNNING", state="disabled")
         webbrowser.open(url)
@@ -263,6 +297,8 @@ class StartupWizard:
         messagebox.showinfo("Coreless is running", f"Operator display address:\n\n{url}\n\nSign in with the password entered in the startup window.{warning}")
 
     def _failed(self, error: str) -> None:
+        if self._closing.is_set():
+            return
         self.status.set("START FAILED // See the message for the next step.")
         self.start_button.configure(state="normal")
         messagebox.showerror("Coreless could not start", f"{error}\n\nNothing has been reported as running. Correct the setup shown on screen and try again.")
