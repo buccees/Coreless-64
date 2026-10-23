@@ -240,3 +240,10 @@ Discovery also snapshots each candidate's channel mapping when it constructs an 
 ## Provider attachment freshness
 
 The provider-backed adapter re-enumerates and validates the provider before a new attachment. It rejects endpoints that have disappeared or whose advertised endpoint record no longer matches the current discovery snapshot, before mutating the target interface. An already-open session remains bound to its established attachment; this freshness check governs new connections, not session continuity. This is a software lifecycle contract, not physical hot-plug validation.
+
+
+## Transport-neutral hot-plug lifecycle
+
+`reference/host_transport.py` provides `HostHotplugController` as the lifecycle coordinator for platform adapters. Native OS/device notifications should call `device_arrived(endpoint_id, interface, ...)` and `device_removed(endpoint_id)`. Arrival resolves the endpoint from a fresh validated enumeration before attachment; removal detaches the associated host interface while preserving Coreless-owned machine state. Duplicate removal notifications are harmless. `reconcile()` is a recovery sweep that detaches managed interfaces whose endpoint disappeared, changed, or detached unexpectedly.
+
+The controller deliberately does not claim to discover physical arrivals by itself: native USB/PCIe/serial/network event subscriptions and OS-specific attach/detach handling still belong in concrete platform adapters. Tests exercise the transport-neutral arrival, removal, and reconciliation contract with the in-memory adapter. Physical hot-plug behavior remains unvalidated until a platform adapter is implemented and exercised on real hardware.
