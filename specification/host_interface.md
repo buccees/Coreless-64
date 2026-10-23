@@ -7,11 +7,13 @@
 
 The Coreless host interface defines the narrow boundary between a Coreless computer and external equipment.
 
-The SSD holds the complete Coreless-64 machine: execution engine, OS/environment, configuration, and persistent machine state—not merely files or saved state. The OS runs on the SSD-carried machine, not as an application whose execution authority belongs to a host OS. This interface specification describes how the machine connects to external equipment. An external computer may provide selected I/O services or a compatible execution substrate only where explicitly specified, but it must not be silently treated as the owner of Coreless. The Coreless execution engine is part of the SSD-carried machine, and the OS runs on that engine. This host-interface contract does not relocate execution to the external host. The integrated engine-to-boot-to-OS path and physical I/O adapters must be validated as a system.
+The SSD holds the complete Coreless-64 machine, including its execution engine, OS/environment, configuration, and persistent state. The OS runs on the machine. **The machine's external-use requirement is a monitor/display plus input/output (I/O) connections.** External equipment supplies the display and I/O path only; it does not supply Coreless CPU execution, system memory, OS execution, AI computation, or architectural authority. Do not make a separate host computer a runtime dependency. Validate the integrated engine-to-boot-to-OS path and physical display/I/O adapters as a system.
 
 The target is a plug-and-play experience in which a host can discover a Coreless computer, verify its identity, negotiate supported interfaces, attach it, and provide only the external services required for operation.
 
 ## Host responsibilities
+
+The intended minimal external setup is **monitor/display + I/O**. Keep the Coreless machine self-contained; host-side services are transports for display and I/O, not substitute execution resources.
 
 The host may provide:
 
