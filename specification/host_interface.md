@@ -220,3 +220,10 @@ Hardware bring-up checklist:
 8. Only then test output pins with a current-limited LED/resistor or suitable driver; never power motors or high-current loads directly from GPIO pins.
 
 **Validation boundary:** software tests cover discovery filtering and the serial protocol. Real-board compilation, electrical behavior, port reconnection, and timing remain hardware validation tasks until run on a physical board.
+
+
+## Discovery-provider input validation
+
+The transport-neutral discovery boundary validates provider records before constructing endpoints. Candidate records must use a non-empty string endpoint ID, a valid HostCapabilities object, a bytes-like or decoded DeviceIdentityFrame identity advertisement, and either no channel map or a mapping with non-empty string channel names. Mutable bytes-like identity frames are normalized to immutable bytes before decoding. Malformed provider records fail with a stable ValueError rather than leaking attribute/type errors into attachment code.
+
+These checks harden the software provider contract; they do not claim that a physical OS/device provider or bus driver is implemented.
