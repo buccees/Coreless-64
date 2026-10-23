@@ -5,6 +5,7 @@ from vigil.blueprint import register_blueprint
 from vigil.object_tracking import ObjectObservation, TrackingModality
 from vigil.positioning import SpatialObservation
 from vigil.spatial_regions import SpatialRegion
+from vigil.spatial_registry_store import SpatialRegistryStore
 from vigil.spatial_snapshot import build_spatial_snapshot
 from vigil.workspace import SensorBatch, SpatialWorkspace
 
@@ -251,3 +252,27 @@ def test_expected_sensor_coverage_ignores_observations_outside_declared_region()
     workspace.poll_sensors()
     result = build_spatial_snapshot(workspace, now_ns=250)["expected_sensor_coverage"][0]
     assert result["state"] == "NO_REPORT_IN_SCOPE" and result["latest_observation_ns"] is None
+
+
+def test_expected_sensor_configuration_survives_workspace_restart():
+    store = SpatialRegistryStore()
+    try:
+        workspace = SpatialWorkspace(registry_store=store)
+        model = workspace.import_blueprint(
+            '{"schema_version":1,"model_id":"persistent-coverage","revision":"r1",'
+            '"frame_id":"persistent-coverage/world","units":"m","features":[]}', activate=True)
+        workspace.register_region(SpatialRegion(
+            "checkout", "Checkout", model.model_id, model.revision, model.frame_id,
+            ((0, 0), (5, 0), (5, 5), (0, 5)), min_z_m=-1, max_z_m=2))
+        workspace.register_expected_sensor("cart-camera", provider_id="camera-provider",
+            region_ids=("checkout",), max_age_ns=750)
+        restarted = SpatialWorkspace(registry_store=store)
+        assert restarted.expected_sensor_coverage == (
+            type(workspace.expected_sensor_coverage[0])(
+                "cart-camera", "camera-provider", ("checkout",), 750),
+        )
+        assert build_spatial_snapshot(restarted, now_ns=100)["expected_sensor_coverage"][0]["state"] == "UNPOLLED"
+        assert restarted.unregister_expected_sensor("cart-camera") is True
+        assert SpatialWorkspace(registry_store=store).expected_sensor_coverage == ()
+    finally:
+        store.close()
