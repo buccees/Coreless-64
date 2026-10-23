@@ -523,3 +523,13 @@ New implemented user-facing path:
 - Stale tracks are kept as last-known markers, not silently removed or treated as gone; stale motion is not reported as current. Stale markers remain out of current-evidence/readiness counts.
 
 The code path and regression tests are in GitHub; check the latest runs for current HEAD before calling this newest snapshot fully green. Software fixture tests do not establish physical range, coverage, or tracking accuracy. Real HTTPS deployment plus actual sensors and calibrated blueprint are still needed to validate end-to-end operation. The complete product remains unfinished until those are proven.
+
+
+## Latest spatial implementation (2026-10-23)
+- Extended the authenticated spatial snapshot with object evidence provenance, observation counts, sensor independence groups, calibration status/IDs, and lineage declaration.
+- Operator display object cards now show those evidence fields alongside location, speed, age, uncertainty, sensors, and modalities.
+- Spatial snapshot exposes the most recent per-provider poll status; the operator summary reports online/error adapter counts.
+- Added regression coverage for spatial evidence fields and retained provider poll status. Added persistence round-trip coverage for object tracks, including motion history and calibration lineage.
+- Commits: `f88f27d`, `50ce232`, `63556fa`, `93e0e44`, `a48b259`, `4b09a1f`, `58699c6`, `d5ab28d`, `1a53d0a`.
+- CI for the first snapshot API change and its test passed. The newest workspace/snapshot/UI changes have CI runs in progress at handoff; do not label those commits verified until their runs finish.
+- Hardware limitation unchanged: software tests do not establish real-world coverage, location accuracy, sensor mounting calibration, or universal object detection.
