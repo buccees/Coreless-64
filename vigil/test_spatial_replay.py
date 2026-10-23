@@ -330,3 +330,32 @@ def test_expected_sensor_coverage_distinguishes_stale_report_from_no_report():
     assert stale["latest_observation_ns"] == "100"
     assert stale["age_ns"] == "100"
     assert stale["max_age_ns"] == "50"
+
+
+def test_sensor_lifecycle_history_records_failure_and_recovery_transitions():
+    class FlakyProvider:
+        def __init__(self):
+            self.fail = False
+        def read(self):
+            if self.fail:
+                raise OSError("sensor cable unavailable")
+            return SensorBatch()
+
+    workspace = SpatialWorkspace()
+    provider = FlakyProvider()
+    workspace.register_sensor_provider("history-camera", provider)
+    workspace.poll_sensors()
+    provider.fail = True
+    workspace.poll_sensors()
+    workspace.poll_sensors()
+    provider.fail = False
+    workspace.poll_sensors()
+    history = [event for event in workspace.sensor_lifecycle_history if event["provider_id"] == "history-camera"]
+    assert [event["state"] for event in history] == ["UNPOLLED", "ONLINE", "ERROR", "ERROR", "ONLINE"]
+    assert history[2]["consecutive_failures"] == 1
+    assert history[2]["error"] == "sensor cable unavailable"
+    assert history[3]["consecutive_failures"] == 2
+    assert history[-1]["consecutive_failures"] == 0
+    snapshot = build_spatial_snapshot(workspace, now_ns=1)
+    assert snapshot["sensor_lifecycle_history"]
+    assert snapshot["sensor_health_alerts"] == []
