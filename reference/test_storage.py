@@ -204,3 +204,77 @@ def test_stale_machine_image_writer_cannot_overwrite_newer_state(tmp_path):
 
     latest = CorelessMachine(8192, storage_path=disk)
     assert latest.cpu.r[6] == 0xA11CE
+
+
+
+def test_startup_worker_cancels_after_boot_when_window_closes(tmp_path, monkeypatch):
+    import importlib
+    import threading
+    from pathlib import Path
+
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    sys.path.insert(0, str(scripts))
+    startup = importlib.import_module("coreless_start")
+
+    class Root:
+        def __init__(self):
+            self.callbacks = []
+
+        def after(self, *args):
+            self.callbacks.append(args)
+
+    class TLSContext:
+        minimum_version = None
+
+        def load_cert_chain(self, *_args):
+            pass
+
+    class FakeMachine:
+        def __init__(self):
+            self.saved = False
+
+        def save_state(self):
+            self.saved = True
+
+    class FakeSystem:
+        def __init__(self, **_kwargs):
+            self.machine = FakeMachine()
+            self.stopped = False
+
+        def boot(self):
+            app._closing.set()
+
+        def shutdown(self):
+            self.stopped = True
+
+    app = startup.StartupWizard.__new__(startup.StartupWizard)
+    app.root = Root()
+    app._closing = threading.Event()
+    app._lifecycle_lock = threading.Lock()
+    app.status = type("Status", (), {"set": lambda *_args: None})()
+    app.start_button = type("Button", (), {"configure": lambda *_args, **_kwargs: None})()
+    app.system = app.server = app.server_thread = None
+
+    cert = tmp_path / "cert.pem"
+    key = tmp_path / "key.pem"
+    cert.write_text("test certificate")
+    key.write_text("test key")
+    systems = []
+
+    def make_system(**kwargs):
+        system = FakeSystem(**kwargs)
+        systems.append(system)
+        return system
+
+    monkeypatch.setattr(startup.ssl, "SSLContext", lambda *_args: TLSContext())
+    monkeypatch.setattr(startup, "CorelessSystem", make_system)
+    monkeypatch.setattr(startup, "make_server", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("listener must not start")))
+
+    app._start_worker(tmp_path / "machine.img", "password-long-enough", "127.0.0.1",
+                      "127.0.0.1", 8443, cert, key)
+
+    assert len(systems) == 1
+    assert systems[0].machine.saved
+    assert systems[0].stopped
+    assert app.server is None
+    assert not app.root.callbacks or all(callback[1] is not app._failed for callback in app.root.callbacks)
