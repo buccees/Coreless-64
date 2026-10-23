@@ -284,6 +284,7 @@ def main() -> int:
     parser.add_argument("--image", type=Path, required=True, help="persistent Coreless machine image path; must not be open by another process")
     parser.add_argument("--spatial-db", type=Path, help="persistent VIGIL spatial registry path; defaults beside the machine image")
     parser.add_argument("--blueprint", type=Path, help="optional versioned VIGIL blueprint JSON manifest to import and activate")
+    parser.add_argument("--level", help="optional floor/level ID to select for the spatial overlay")
     parser.add_argument("--cert", default=os.environ.get("CORELESS_TLS_CERT"), help="TLS certificate PEM path")
     parser.add_argument("--key", default=os.environ.get("CORELESS_TLS_KEY"), help="TLS private key PEM path")
     args = parser.parse_args()
@@ -299,6 +300,14 @@ def main() -> int:
     spatial_workspace = SpatialWorkspace(registry_store=spatial_store)
     if args.blueprint:
         spatial_workspace.import_blueprint(args.blueprint.read_bytes(), activate=True)
+    active_model = spatial_workspace.active_model
+    if args.level:
+        spatial_workspace.select_level(args.level)
+    elif active_model is not None:
+        # Do not silently stack separate floor plans in the same 2-D viewport.
+        levels = sorted({feature.level for feature in active_model.features if feature.level})
+        if levels:
+            spatial_workspace.select_level(levels[0])
     try:
         serve_lan(
             system, host=args.host, port=args.port, cert_path=args.cert, key_path=args.key,
