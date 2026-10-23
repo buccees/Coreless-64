@@ -184,3 +184,23 @@ def test_application_and_shell_state_persist(tmp_path):
     os2 = CorelessOS(second)
     assert os2.init_pid == 1
     assert os2.application_state[app.pid]["path"] == "/app"
+
+
+
+def test_stale_machine_image_writer_cannot_overwrite_newer_state(tmp_path):
+    import pytest
+
+    disk = tmp_path / "shared.img"
+    first = CorelessMachine(8192, storage_path=disk)
+    first.boot()
+    stale = CorelessMachine(8192, storage_path=disk)
+
+    first.cpu.r[6] = 0xA11CE
+    first.save_state()
+
+    stale.cpu.r[6] = 0xBAD
+    with pytest.raises(RuntimeError, match="changed since it was loaded"):
+        stale.save_state()
+
+    latest = CorelessMachine(8192, storage_path=disk)
+    assert latest.cpu.r[6] == 0xA11CE
