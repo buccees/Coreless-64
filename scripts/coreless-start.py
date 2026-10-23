@@ -7,7 +7,6 @@ directly to the HTTPS WSGI server in this same process; the browser is a client.
 from __future__ import annotations
 
 import ipaddress
-import os
 import secrets
 import shutil
 import socket
@@ -120,6 +119,9 @@ class StartupWizard:
         self._section(outer, "02 // WHERE SHOULD THE SCREEN BE AVAILABLE?")
         ttk.Radiobutton(outer, text="This computer only (recommended)", variable=self.access, value="local").pack(anchor="w", pady=2)
         ttk.Radiobutton(outer, text="Other devices on my trusted local network", variable=self.access, value="lan").pack(anchor="w", pady=2)
+        row = ttk.Frame(outer); row.pack(fill="x", pady=(5, 0))
+        ttk.Label(row, text="HTTPS PORT", width=13).pack(side="left")
+        ttk.Entry(row, textvariable=self.port, width=10).pack(side="left")
 
         self._section(outer, "03 // SECURE SIGN-IN")
         ttk.Label(outer, text="Choose a password with at least 16 characters. You will enter it on the browser sign-in screen.").pack(anchor="w", pady=(3, 5))
@@ -213,7 +215,7 @@ class StartupWizard:
             system = CorelessSystem(storage_path=image_path)
             system.boot()
             self._set_status("SERVICE // Starting authenticated operator display…")
-            server = make_server(host, int(self.port.get()), create_lan_app(password=password, system=system),
+            server = make_server(host, port, create_lan_app(password=password, system=system),
                                  server_class=WSGIServer, handler_class=QuietHandler)
             server.socket = context.wrap_socket(server.socket, server_side=True)
             self.system, self.server = system, server
@@ -232,7 +234,7 @@ class StartupWizard:
         self.start_button.configure(text="RUNNING", state="disabled")
         webbrowser.open(url)
         warning = "\n\nThis certificate is self-signed. Your browser may show a certificate warning. For LAN access, install/trust the certificate on each client device before signing in." if lan else "\n\nIf the browser shows a certificate warning, verify that you are using the local address shown here. Trusting a self-signed certificate is a local security decision."
-        messagebox.showinfo("Coreless is running", f"Operator display address:\n\n{url}\n\nSign in with the password shown in the startup window.{warning}")
+        messagebox.showinfo("Coreless is running", f"Operator display address:\n\n{url}\n\nSign in with the password entered in the startup window.{warning}")
 
     def _failed(self, error: str) -> None:
         self.status.set("START FAILED // See the message for the next step.")
