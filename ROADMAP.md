@@ -398,3 +398,14 @@ The VIGIL Eye is an optional, replaceable physical optical module inspired by th
 - [ ] Document limits: one eye sees only its available field of view; broader awareness requires additional evidence sources
 
 This is a side quest. It must not silently displace the current boot/host-I/O/runtime validation priorities. Software tests and simulation are not evidence of physical sensing accuracy.
+
+
+### VIGIL sensor-health acknowledgement milestone — 2026-10-23
+
+- [x] Persist integrity-checked sensor-alert acknowledgements in SQLite.
+- [x] Expose acknowledgement state and UTC/operator metadata in the spatial snapshot.
+- [x] Add an authenticated, same-origin POST endpoint that only acknowledges currently active alerts.
+- [x] Add operator-display acknowledgement controls and explicit failure feedback.
+- [x] Clear acknowledgements when a subsequent snapshot observes that the incident has recovered, allowing a later observed recurrence to require acknowledgement again.
+- [ ] Confirm the full regression and bootable-carrier workflows pass for this milestone.
+- [ ] Validate the acknowledgement workflow on the deployed authenticated HTTPS operator display.
