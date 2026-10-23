@@ -324,3 +324,24 @@ def test_portable_bundle_rejects_corruption_and_size_overflow():
             store.import_portable_bundle(bundle, max_bundle_bytes=256)
     finally:
         store.close()
+
+
+def test_expected_sensor_configuration_round_trips_in_portable_registry_bundle():
+    active = model()
+    source_store = SpatialRegistryStore()
+    target_store = SpatialRegistryStore()
+    try:
+        source_store.save_model(active, activate=True)
+        source_store.save_region(region(active))
+        source_store.save_expected_sensor(active.model_id, active.revision, "camera-west",
+            provider_id="camera-provider", region_ids=("secure-room",), max_age_ns=1234)
+        bundle = source_store.export_portable_bundle()
+        target_store.import_portable_bundle(bundle)
+        assert target_store.load_expected_sensors(active.model_id, active.revision) == ({
+            "model_id": active.model_id, "revision": active.revision, "sensor_id": "camera-west",
+            "provider_id": "camera-provider", "region_ids": ["secure-room"], "max_age_ns": 1234,
+        },)
+        assert target_store.export_portable_bundle() == bundle
+    finally:
+        source_store.close()
+        target_store.close()
