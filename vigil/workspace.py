@@ -17,6 +17,8 @@ from .object_tracking import ObjectObservation, ObjectTrack, ObjectTracker, Trac
 from .terminal import VigilTerminal
 from .infrared_floor_mapping import InfraredFloorMap
 from .spatial_scene import SpatialScene, assemble_spatial_scene
+from .spatial_query import SpatialQueryEngine, SpatialQueryResult
+from .spatial_regions import RegionQueryResult, SpatialRegion, query_region
 
 
 @dataclass(frozen=True)
@@ -70,6 +72,8 @@ class WorkspaceSnapshot:
     floor_transition: FloorTransition | None = None
     object_tracks: tuple[ObjectTrack, ...] = ()
     infrared_maps: tuple[InfraredFloorMap, ...] = ()
+    spatial_query: SpatialQueryResult | None = None
+    region_results: tuple[RegionQueryResult, ...] = ()
 
 
 class BlueprintRegistry:
@@ -148,6 +152,9 @@ class SpatialWorkspace:
         self._object_tracks: tuple[ObjectTrack, ...] = ()
         self._infrared_maps: dict[str, InfraredFloorMap] = {}
         self._sensor_providers: dict[str, SpatialSensorProvider] = {}
+        # Key by model/revision/region so activating an older blueprint cannot
+        # silently reinterpret geometry registered for another revision.
+        self._regions: dict[tuple[str, str, str], SpatialRegion] = {}
 
     @property
     def active_model(self) -> BlueprintModel | None:
@@ -398,9 +405,24 @@ class SpatialWorkspace:
             self._object_tracks = self.object_tracker.update(
                 model, self._object_observations, now_ns=now_ns, max_age_ns=max_age_ns
             )
+        spatial_query_result = (
+            SpatialQueryEngine(model).evaluate(
+                self._pose, now_ns=now_ns, max_age_ns=max_age_ns,
+                max_uncertainty_m=max_uncertainty_m,
+            )
+            if model is not None else None
+        )
+        region_results = tuple(
+            query_region(
+                model, self._pose, region, now_ns=now_ns,
+                max_age_ns=max_age_ns, max_uncertainty_m=max_uncertainty_m,
+            )
+            for region in self.spatial_regions
+        ) if model is not None else ()
         return WorkspaceSnapshot(
             model, self._pose, self._selected_level, len(self._observations),
             self._last_floor_transition, self._object_tracks, self.infrared_maps,
+            spatial_query_result, region_results,
         )
 
     def blueprint_view(
@@ -484,4 +506,6 @@ class SpatialWorkspace:
             selected_level=snapshot.selected_level,
             object_tracks=snapshot.object_tracks,
             spatial_scene=scene,
+            spatial_query=snapshot.spatial_query,
+            region_results=snapshot.region_results,
         )
