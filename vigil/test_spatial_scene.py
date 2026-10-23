@@ -81,6 +81,11 @@ def test_finisher_ignores_stale_and_wrong_frame_object_tracks():
     )
     assert scene.finishing_move_ready
     assert scene.object_count == 0
+    assert scene.stale_track_count == 1
+    assert scene.view is not None
+    assert [(item.object_id, item.presence_state) for item in scene.view.objects] == [
+        ("target-1", "STALE")
+    ]
 
 
 def test_terminal_shows_earned_or_denied_finisher_and_reason_codes():
