@@ -525,11 +525,30 @@ New implemented user-facing path:
 The code path and regression tests are in GitHub; check the latest runs for current HEAD before calling this newest snapshot fully green. Software fixture tests do not establish physical range, coverage, or tracking accuracy. Real HTTPS deployment plus actual sensors and calibrated blueprint are still needed to validate end-to-end operation. The complete product remains unfinished until those are proven.
 
 
-## Latest spatial implementation (2026-10-23)
-- Extended the authenticated spatial snapshot with object evidence provenance, observation counts, sensor independence groups, calibration status/IDs, and lineage declaration.
-- Operator display object cards now show those evidence fields alongside location, speed, age, uncertainty, sensors, and modalities.
-- Spatial snapshot exposes the most recent per-provider poll status; the operator summary reports online/error adapter counts.
-- Added regression coverage for spatial evidence fields and retained provider poll status. Added persistence round-trip coverage for object tracks, including motion history and calibration lineage.
-- Commits: `f88f27d`, `50ce232`, `63556fa`, `93e0e44`, `a48b259`, `4b09a1f`, `58699c6`, `d5ab28d`, `1a53d0a`.
-- CI for the first snapshot API change and its test passed. The newest workspace/snapshot/UI changes have CI runs in progress at handoff; do not label those commits verified until their runs finish.
-- Hardware limitation unchanged: software tests do not establish real-world coverage, location accuracy, sensor mounting calibration, or universal object detection.
+## Current resume checkpoint — VIGIL spatial intelligence — 2026-10-23
+
+**Spatial work is active.** The user's request explicitly unpaused it. Do not revert to the earlier paused status.
+
+### Work now in the branch
+- Confidence-aware model-frame location queries and explicit 3D-frame polygon regions are connected to the workspace and presentation.
+- SQLite stores normalized blueprint revisions, regions, raster calibration metadata, the active model pointer, and bounded last-known object-track records.
+- Authenticated `GET /api/vigil/spatial` supplies the browser map with model/floor features, pose state, object coordinates, speed, trails, stale/conflict state, uncertainty, region membership, and evidence metadata.
+- Object evidence in the snapshot includes provenance, observation count, declared source-independence groups, calibration status/IDs, and whether lineage is declared. Operator object cards show it.
+- Sensor-provider status is retained and exposed as `UNPOLLED`, `ONLINE`, or `ERROR`. Provider failure is shown rather than converted into invented readings.
+- Persisted tracks are restored as `REACQUIRE`. Their coordinates remain last-known; fresh matching observations are needed before current-contact claims resume.
+- Spatial endpoint freshness checks now use monotonic nanoseconds, matching the observation clock domain. The endpoint test fixture was updated too.
+
+### Latest confirmed CI and current branch caution
+- [Full reference suite passed — run 40005690022](https://github.com/buccees/Coreless-64/actions/runs/40005690022), commit `76cff07`.
+- [Spatial documentation/spec test workflow passed — run 40005695887](https://github.com/buccees/Coreless-64/actions/runs/40005695887), commit `a7f9a5b`.
+- [Run 40005685759](https://github.com/buccees/Coreless-64/actions/runs/40005685759) failed because it ran the clock implementation with an old wall-clock test fixture. The subsequent fixture update is green, so the identified test failure is addressed; still check the latest run after paperwork commits before claiming the newest HEAD is green.
+- [Latest published Control Room workflow before this paperwork pass](https://github.com/buccees/Coreless-64/actions/runs/40005525144) succeeded. New documentation commits will trigger new runs.
+
+### Immediate next steps
+1. Check the fresh Actions run for the final paperwork commit and report its actual result.
+2. Run deterministic end-to-end synthetic replay through pose, object tracking, spatial-scene assembly, and region alerts; retain rejected-input reasons and clock alignment.
+3. Connect saved raster calibration to image ingestion and sensor-mount calibration.
+4. Implement supported live sensor adapters incrementally (camera/vision, UWB or other calibrated ranging, IMU, infrared, compatible Wi-Fi CSI). CSI is motion context, not a 3D location by itself.
+5. Validate with a surveyed model and real sensors, then validate the authenticated HTTPS display against the active Coreless lifecycle.
+
+**Do not claim hardware proof.** Passing CI verifies software behavior, not actual object coverage, ranging accuracy, sensor calibration, universal detection, or physical unplug/replug. The desired view keeps stationary and moving targets represented; missing contact becomes stale/last-known, not silently “gone.”
