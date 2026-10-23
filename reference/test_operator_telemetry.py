@@ -4,7 +4,12 @@ sys.path.insert(0, ".")
 import pytest
 
 from operator_display import OperatorViewState
-from operator_telemetry import (\n    CorelessOperatorSnapshotProvider,\n    OperatorTelemetryApp,\n    coreless_view_state,\n    create_coreless_operator_app,\n)
+from operator_telemetry import (
+    CorelessOperatorSnapshotProvider,
+    OperatorTelemetryApp,
+    coreless_view_state,
+    create_coreless_operator_app,
+)
 
 
 def _call(app, path="/api/operator/state", method="GET"):
