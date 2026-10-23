@@ -119,3 +119,42 @@ def test_memory_host_discovery_provider_is_empty_by_default():
     provider = MemoryHostDiscoveryProvider()
     assert provider.enumerate_candidates() == ()
     assert HostDeviceEnumerator().discover_provider(provider) == ()
+
+
+@pytest.mark.parametrize("candidate", [
+    None,
+    object(),
+])
+def test_host_device_enumerator_rejects_non_candidate_records(candidate):
+    with pytest.raises(ValueError, match="discovery candidate has an invalid type"):
+        HostDeviceEnumerator().discover([candidate])
+
+
+def test_host_device_enumerator_accepts_mutable_bytes_like_identity_frame():
+    frame = identity_frame("coreless-bytes").encode()
+    endpoint = HostDeviceEnumerator().discover([
+        HostDiscoveryCandidate("usb-1", bytearray(frame), HostCapabilities())
+    ])[0]
+    assert endpoint.identity.computer_id == "coreless-bytes"
+
+
+def test_host_device_enumerator_rejects_invalid_host_capabilities():
+    with pytest.raises(ValueError, match="invalid host capabilities"):
+        HostDeviceEnumerator().discover([
+            HostDiscoveryCandidate("endpoint", identity_frame(), object())
+        ])
+
+
+@pytest.mark.parametrize("channels", [[], {"": object()}, {1: object()}])
+def test_host_device_enumerator_rejects_malformed_channel_maps(channels):
+    with pytest.raises(ValueError, match="channels must be a mapping|channel names"):
+        HostDeviceEnumerator().discover([
+            HostDiscoveryCandidate("endpoint", identity_frame(), HostCapabilities(), channels)
+        ])
+
+
+def test_host_device_enumerator_rejects_whitespace_endpoint_id():
+    with pytest.raises(ValueError, match="endpoint_id must not be empty"):
+        HostDeviceEnumerator().discover([
+            HostDiscoveryCandidate("  ", identity_frame(), HostCapabilities())
+        ])
