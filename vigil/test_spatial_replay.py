@@ -135,6 +135,9 @@ def test_deterministic_replay_connects_pose_tracks_regions_scene_and_operator_sn
     assert api_object["motion_trail_m"][-1]["sensor_ids"] == ["camera-cart", "uwb-array"]
     assert len(api_object["sensor_observations"]) == 4
     assert {item["sensor_id"] for item in api_object["sensor_observations"]} == {"camera-cart", "uwb-array"}
+    assert all(item["quality_status"] == "FRESH" for item in api_object["sensor_observations"])
+    assert all(item["fusion_disposition"] == "HISTORICAL_ONLY" for item in api_object["sensor_observations"] if item["timestamp_ns"] == "100")
+    assert all(item["fusion_disposition"] == "CONTRIBUTED_TO_FUSION" for item in api_object["sensor_observations"] if item["timestamp_ns"] == "200")
     latest_measurements = [item for item in api_object["sensor_observations"] if item["timestamp_ns"] == "200"]
     assert len(latest_measurements) == 2
     assert {item["modality"] for item in latest_measurements} == {"vision", "uwb"}
