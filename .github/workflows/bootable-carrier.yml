@@ -58,32 +58,8 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE="$RUNNER_TEMP/coreless-uefi-x86_64.img"
-          # Package paths and firmware filenames differ between Ubuntu runner images.
-          OVMF_CODE="$(dpkg -L ovmf | grep -E '/OVMF_CODE[^/]*\.fd
-          set +e
-          timeout 150s qemu-system-x86_64 \
-            -machine q35 -m 2048 -smp 2 -bios "$OVMF_CODE" \
-            -drive "file=$IMAGE,format=raw,if=virtio" \
-            -display none -serial stdio -monitor none -no-reboot \
-            >"$RUNNER_TEMP/qemu-boot.log" 2>&1
-          QEMU_STATUS=$?
-          set -e
-          cat "$RUNNER_TEMP/qemu-boot.log"
-          if [[ $QEMU_STATUS -ne 0 && $QEMU_STATUS -ne 124 ]]; then
-            echo "QEMU exited unexpectedly with status $QEMU_STATUS" >&2; exit "$QEMU_STATUS"
-          fi
-          grep -Eqi "Reached target Multi-User System|Reached target.*Multi-User" "$RUNNER_TEMP/qemu-boot.log" || {
-            echo "UEFI VM did not report reaching multi-user target" >&2; exit 1;
-          }
-      - name: Publish bootable image artifact (manual runs only)
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: coreless-uefi-x86_64
-          path: ${{ runner.temp }}/coreless-uefi-x86_64.img
-          if-no-files-found: error
-          retention-days: 7
- | head -n 1 || true)"
+          # Discover the firmware shipped by this runner's installed OVMF package.
+          OVMF_CODE="$(dpkg -L ovmf | grep -E '/OVMF_CODE[^/]*[.]fd$' | head -n 1 || true)"
           [[ -n "$OVMF_CODE" && -s "$OVMF_CODE" ]] || {
             echo "OVMF_CODE firmware not found in the installed ovmf package" >&2
             dpkg -L ovmf >&2
@@ -99,10 +75,12 @@ jobs:
           set -e
           cat "$RUNNER_TEMP/qemu-boot.log"
           if [[ $QEMU_STATUS -ne 0 && $QEMU_STATUS -ne 124 ]]; then
-            echo "QEMU exited unexpectedly with status $QEMU_STATUS" >&2; exit "$QEMU_STATUS"
+            echo "QEMU exited unexpectedly with status $QEMU_STATUS" >&2
+            exit "$QEMU_STATUS"
           fi
           grep -Eqi "Reached target Multi-User System|Reached target.*Multi-User" "$RUNNER_TEMP/qemu-boot.log" || {
-            echo "UEFI VM did not report reaching multi-user target" >&2; exit 1;
+            echo "UEFI VM did not report reaching multi-user target" >&2
+            exit 1
           }
       - name: Publish bootable image artifact (manual runs only)
         if: github.event_name == 'workflow_dispatch'
