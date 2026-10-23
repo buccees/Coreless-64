@@ -49,7 +49,7 @@ class CorelessSessionAuthorizer:
         context = environ.get(self._environ_key)
         if not isinstance(context, AuthorizationContext):
             return False
-        if not context.session_id.strip():
+        if not isinstance(context.session_id, str) or not context.session_id.strip():
             return False
         return self._authorization.authorize(context, self._required_scope)
 
