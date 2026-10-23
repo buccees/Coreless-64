@@ -48,10 +48,10 @@ jobs:
           [[ -s "$OVMF_CODE" ]] || OVMF_CODE="/usr/share/OVMF/OVMF_CODE.fd"
           [[ -s "$OVMF_CODE" ]] || { echo "OVMF firmware not found" >&2; exit 1; }
           set +e
-          timeout 150s qemu-system-x86_64 \\
-            -machine q35 -m 2048 -smp 2 -bios "$OVMF_CODE" \\
-            -drive "file=$IMAGE,format=raw,if=virtio" \\
-            -display none -serial stdio -monitor none -no-reboot \\
+          timeout 150s qemu-system-x86_64 \
+            -machine q35 -m 2048 -smp 2 -bios "$OVMF_CODE" \
+            -drive "file=$IMAGE,format=raw,if=virtio" \
+            -display none -serial stdio -monitor none -no-reboot \
             >"$RUNNER_TEMP/qemu-boot.log" 2>&1
           QEMU_STATUS=$?
           set -e
