@@ -1,6 +1,11 @@
 name: Coreless bootable carrier image
 run-name: Bootable Coreless carrier / ${{ github.ref_name }}
 
+# Avoid wasting runner time on obsolete image builds after a newer push.
+concurrency:
+  group: coreless-carrier-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
@@ -11,7 +16,8 @@ on:
       - "scripts/validate-bootable-ssd.sh"
       - "scripts/coreless-console.py"
       - "deploy/coreless-machine.service"
-      - "reference/**"
+      - "reference/local_operator_server.py"
+      - "reference/test_local_operator_server.py"
       - "specification/bootable_carrier.md"
       - ".github/workflows/bootable-carrier.yml"
 
