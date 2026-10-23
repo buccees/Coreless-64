@@ -15,7 +15,7 @@ from .building import BuildingBlueprint, FloorTracker, FloorTransition
 from .positioning import PoseEstimator, SpatialObservation
 from .object_tracking import ObjectObservation, ObjectTrack, ObjectTracker, TrackingModality
 from .terminal import VigilTerminal
-from .infrared_floor_mapping import InfraredFloorMap
+from .infrared_floor_mapping import InfraredFloorMap, InfraredFloorMapper, InfraredPixelSample
 from .spatial_scene import SpatialScene, assemble_spatial_scene
 from .spatial_query import SpatialQueryEngine, SpatialQueryResult
 from .spatial_regions import RegionQueryResult, SpatialRegion, query_region
@@ -380,6 +380,43 @@ class SpatialWorkspace:
                 association_id=sample.association_id,
             ))
         return self.ingest_object_observations(converted)
+
+    def ingest_calibrated_infrared_pixels(
+        self, calibration_id: str, *, sensor_id: str, sensor_mount_id: str,
+        image_width: int, image_height: int,
+        samples: Sequence[InfraredPixelSample], timestamp_ns: int,
+        track_labeled_objects: bool = True,
+    ) -> InfraredFloorMap:
+        """Load a persisted raster calibration, map one pixel batch, and ingest it.
+
+        sensor_mount_id is retained as provenance only. It does not imply that a
+        physical mounting transform has been measured or applied; the saved raster
+        calibration itself must already map this image into the model frame.
+        """
+        if self.registry_store is None:
+            raise RuntimeError("a persistent spatial registry is required to load calibration")
+        if not isinstance(calibration_id, str) or not calibration_id.strip():
+            raise ValueError("calibration_id is required")
+        if not isinstance(sensor_mount_id, str) or not sensor_mount_id.strip():
+            raise ValueError("sensor_mount_id is required")
+        model = self.active_model
+        if model is None:
+            raise RuntimeError("activate a blueprint before ingesting infrared pixels")
+        calibration = self.registry_store.load_calibration(calibration_id)
+        if calibration is None:
+            raise KeyError(f"raster calibration is not registered: {calibration_id}")
+        if (calibration.model_id, calibration.model_revision, calibration.frame_id) != (
+            model.model_id, model.revision, model.frame_id
+        ):
+            raise ValueError("raster calibration must match the active model revision and frame")
+        mapper = InfraredFloorMapper(
+            calibration, sensor_id=sensor_id, image_width=image_width,
+            image_height=image_height, calibration_id=calibration_id,
+            sensor_mount_id=sensor_mount_id,
+        )
+        infrared_map = mapper.map_frame(samples, timestamp_ns=timestamp_ns)
+        self.ingest_infrared_map(infrared_map, track_labeled_objects=track_labeled_objects)
+        return infrared_map
 
     @property
     def spatial_regions(self) -> tuple[SpatialRegion, ...]:
