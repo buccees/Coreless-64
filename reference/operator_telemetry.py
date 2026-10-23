@@ -34,7 +34,10 @@ def _is_https_origin(origin: object) -> bool:
             and parsed.path == ""
             and parsed.query == ""
             and parsed.fragment == ""
-            and parsed.port != 0
+            and not parsed.netloc.endswith(":")
+            and not any(char.isspace() for char in parsed.netloc)
+            and "\\" not in parsed.netloc
+            and (parsed.port is None or 1 <= parsed.port <= 65535)
             and origin == f"https://{parsed.netloc}"
         )
     except ValueError:
