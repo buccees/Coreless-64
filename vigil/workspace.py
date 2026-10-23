@@ -172,6 +172,7 @@ class SpatialWorkspace:
                 active_model = self.registry.active_model
                 if active_model is not None:
                     self._restore_regions(active_model)
+                    self._restore_tracks(active_model)
 
     def _restore_regions(self, model: BlueprintModel) -> None:
         """Load persisted regions for this exact model/revision/frame."""
@@ -183,6 +184,13 @@ class SpatialWorkspace:
             ):
                 raise ValueError("persisted spatial region does not match its model frame")
             self._regions[(region.model_id, region.model_revision, region.region_id)] = region
+
+    def _restore_tracks(self, model: BlueprintModel) -> None:
+        """Restore the last-known scene as non-current until fresh sensor input arrives."""
+        if self.registry_store is None:
+            return
+        tracks = self.registry_store.load_object_tracks(model.model_id, model.revision)
+        self._object_tracks = self.object_tracker.restore_tracks(tracks, model=model)
 
     def _persist_model(self, model: BlueprintModel, *, activate: bool) -> None:
         if self.registry_store is not None:
@@ -231,6 +239,7 @@ class SpatialWorkspace:
         self._last_floor_transition = FloorTransition(
             starting_level, None, False, "starting floor established"
         )
+        self._restore_tracks(model)
         return model
 
     def import_blueprint(self, document: str | bytes, *, activate: bool = False,
@@ -251,6 +260,7 @@ class SpatialWorkspace:
             self._floor_views = {}
             self._last_floor_pose_timestamp_ns = None
             self._last_floor_transition = None
+            self._restore_tracks(model)
         return model
 
     def activate_blueprint(self, model_id: str, revision: str | None = None) -> BlueprintModel:
@@ -267,6 +277,7 @@ class SpatialWorkspace:
         self._floor_views = {}
         self._last_floor_pose_timestamp_ns = None
         self._last_floor_transition = None
+        self._restore_tracks(model)
         return model
 
     def select_level(self, level: str) -> str:
@@ -529,6 +540,8 @@ class SpatialWorkspace:
                 model, self._object_observations, now_ns=now_ns,
                 max_age_ns=max_age_ns, retain_stale=True,
             )
+            if self.registry_store is not None:
+                self.registry_store.save_object_tracks(model, self._object_tracks)
         spatial_query_result = (
             SpatialQueryEngine(model).evaluate(
                 self._pose, now_ns=now_ns, max_age_ns=max_age_ns,
