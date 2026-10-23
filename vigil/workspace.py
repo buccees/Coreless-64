@@ -200,9 +200,9 @@ class SpatialWorkspace:
 
     def _restore_expected_sensors(self, model: BlueprintModel) -> None:
         """Restore declarations for the exact active model revision."""
+        self._expected_sensor_coverage.clear()
         if self.registry_store is None:
             return
-        self._expected_sensor_coverage.clear()
         for item in self.registry_store.load_expected_sensors(model.model_id, model.revision):
             expected = ExpectedSensorCoverage(
                 item["sensor_id"], item["provider_id"], tuple(item["region_ids"]), item["max_age_ns"])
