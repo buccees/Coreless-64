@@ -205,6 +205,7 @@ class VigilTerminal:
                 lines.append(f"║ {self._fit(mark + ' ' + check.name + ': ' + check.detail, 60)}║")
             summary = (
                 f"scene objects={spatial_scene.object_count} "
+                f"last-known={spatial_scene.stale_track_count} "
                 f"conflicts={spatial_scene.conflict_count} "
                 f"IR floors={len(spatial_scene.infrared_levels)}"
             )
