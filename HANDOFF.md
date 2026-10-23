@@ -1,10 +1,14 @@
 # Coreless-64 — Project Handoff
 
+## Target host platform — Lubuntu Linux
+
+**User-selected first target OS: Lubuntu.** Treat Lubuntu/Ubuntu Linux as the first platform for concrete host adapters rather than attempting cross-platform support first. For native hot-plug, evaluate a Linux device-event monitor backed by udev/libudev; translate validated device add/remove events into the existing `HostHotplugController`, with explicit transport close/reopen behavior and tests. Keep the provider isolated behind the transport-neutral contract so other OS adapters can be added later.
+
 ## Current blocker — VIGIL cannot use host hot-plug yet
 
 **Do not treat hot-plug as available to VIGIL right now.** The repository has a transport-neutral `HostHotplugController` for validated arrival, removal, and missed-event reconciliation, but native OS/device event monitoring and concrete platform adapters are not implemented or validated. Consequently, VIGIL cannot rely on automatic physical device arrival/removal or reconnect behavior yet.
 
-Next required work: implement a native platform provider that subscribes to device lifecycle events, feeds those events into the controller, safely closes/reopens the relevant transport, and verifies unplug/replug and failure recovery on the target platform. Add an end-to-end VIGIL integration test before marking this usable. Keep the VIGIL spatial-intelligence expansion paused; this note records a blocker, not permission to resume that work.
+Next required work: implement the first native platform provider for Lubuntu/Linux, subscribe to device lifecycle events (likely via udev/libudev), feed validated events into the controller, safely close/reopen the relevant transport, and verify unplug/replug and failure recovery on the target platform. Add an end-to-end VIGIL integration test before marking this usable. Keep the VIGIL spatial-intelligence expansion paused; this note records a blocker, not permission to resume that work.
 
 ## Current state
 
@@ -347,7 +351,7 @@ Perform a final cross-layer audit covering:
 
 ## Resume point
 
-Continue the **deep Qwen3/Coreless tensor execution boundary** and the **autonomous component/hub architecture** in parallel.
+Continue the **deep Qwen3/Coreless tensor execution boundary**, the **autonomous component/hub architecture**, and the **Lubuntu-first host platform adapter** work. VIGIL spatial-intelligence expansion remains paused.
 
 The Qwen3 KV-cache/head-data API boundary is implemented and covered by focused tests. Do not reopen the old “replace nested Python cache/head structures” task. Remaining open work is deeper native Coreless execution/performance validation and official trained Qwen3-0.6B end-to-end validation.
 
@@ -361,7 +365,7 @@ Latest repository head:
 
 This checkpoint includes the latest Qwen3/TensorRuntime transpose integration.
 
-**Next session checkpoint:** resume VIGIL spatial intelligence (blueprint/floor continuity, sensor fusion, IR mapping, object-track association) alongside the already-started Coreless milestones. Qwen3 cache/head API boundary reconciliation is complete; deeper native execution and official trained-model validation remain later checkpoints. Concrete host transport integration also remains open.
+**Next session checkpoint:** prioritize Lubuntu/Linux native host integration and the existing Coreless milestones. VIGIL spatial-intelligence expansion (blueprint/floor continuity, sensor fusion, IR mapping, object-track association) remains paused until explicitly resumed. Qwen3 cache/head API boundary reconciliation is complete; deeper native execution and official trained-model validation remain later checkpoints. Concrete host transport integration also remains open.
 
 Do not restart from the older Qwen3-only handoff. The tensor runtime and Transformer routing work described above is already in `main`.
 
