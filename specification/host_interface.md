@@ -227,3 +227,6 @@ Hardware bring-up checklist:
 The transport-neutral discovery boundary validates provider records before constructing endpoints. Candidate records must use a non-empty string endpoint ID, a valid HostCapabilities object, a bytes-like or decoded DeviceIdentityFrame identity advertisement, and either no channel map or a mapping with non-empty string channel names. Mutable bytes-like identity frames are normalized to immutable bytes before decoding. Malformed provider records fail with a stable ValueError rather than leaking attribute/type errors into attachment code.
 
 These checks harden the software provider contract; they do not claim that a physical OS/device provider or bus driver is implemented.
+
+
+Discovery also snapshots each candidate's channel mapping when it constructs an endpoint. Later mutation of a provider-owned dictionary cannot silently add, remove, or rebind channels on an already-discovered endpoint; endpoint channel lookup remains a copy of that stable snapshot.
