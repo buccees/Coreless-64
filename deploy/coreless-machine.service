@@ -1,0 +1,23 @@
+[Unit]
+Description=Coreless-64 persistent machine console
+After=local-fs.target
+Before=getty@tty1.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/coreless
+ExecStart=/usr/bin/python3 /opt/coreless/scripts/coreless-console.py /var/lib/coreless/coreless.img
+Restart=on-failure
+RestartSec=3
+StandardInput=tty
+StandardOutput=tty
+StandardError=journal
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
