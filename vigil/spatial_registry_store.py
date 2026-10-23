@@ -160,6 +160,11 @@ class SpatialRegistryStore:
                 payload_sha256 TEXT NOT NULL,
                 PRIMARY KEY (model_id, revision, sensor_id)
             );
+            CREATE TABLE IF NOT EXISTS sensor_lifecycle_events (
+                event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                payload_json TEXT NOT NULL,
+                payload_sha256 TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS spatial_store_settings (
                 setting_key TEXT PRIMARY KEY,
                 setting_value TEXT NOT NULL
@@ -884,6 +889,45 @@ class SpatialRegistryStore:
                 raise ValueError("portable active model reference is invalid")
             self.set_active_model(active[0], active[1])
         return len(models), asset_count
+
+    def append_sensor_lifecycle_event(
+        self, event: dict[str, Any], *, max_events: int = 1000
+    ) -> None:
+        """Persist one validated sensor lifecycle event, retaining a bounded tail."""
+        if not isinstance(event, dict):
+            raise TypeError("sensor lifecycle event must be a dictionary")
+        if isinstance(max_events, bool) or not isinstance(max_events, int) or max_events < 1:
+            raise ValueError("max_events must be a positive integer")
+        payload = dict(event)
+        if not isinstance(payload.get("provider_id"), str) or not payload["provider_id"].strip():
+            raise ValueError("sensor lifecycle event requires provider_id")
+        if not isinstance(payload.get("state"), str) or not payload["state"].strip():
+            raise ValueError("sensor lifecycle event requires state")
+        encoded, digest = _encode(payload, max_bytes=self.max_record_bytes)
+        with self._connection:
+            self._connection.execute(
+                "INSERT INTO sensor_lifecycle_events(payload_json,payload_sha256) VALUES(?,?)",
+                (encoded, digest),
+            )
+            self._connection.execute(
+                "DELETE FROM sensor_lifecycle_events WHERE event_id NOT IN "
+                "(SELECT event_id FROM sensor_lifecycle_events ORDER BY event_id DESC LIMIT ?)",
+                (max_events,),
+            )
+
+    def load_sensor_lifecycle_events(self, *, limit: int = 1000) -> tuple[dict[str, Any], ...]:
+        """Load the newest persisted lifecycle events in chronological order."""
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise ValueError("limit must be a positive integer")
+        rows = self._connection.execute(
+            "SELECT payload_json,payload_sha256 FROM sensor_lifecycle_events "
+            "ORDER BY event_id DESC LIMIT ?", (limit,)
+        ).fetchall()
+        events = [
+            _decode(row["payload_json"], row["payload_sha256"], max_bytes=self.max_record_bytes)
+            for row in reversed(rows)
+        ]
+        return tuple(events)
 
     def close(self) -> None:
         self._connection.close()
