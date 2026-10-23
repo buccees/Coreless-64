@@ -142,6 +142,19 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 .legend-dot{width:8px;height:8px;display:inline-block;border-radius:50%}.csi-dot{background:#29f5b2}.ir-dot{background:#62b8ff}.review-dot{background:#e2d86a}
 @media(max-width:600px){.sensor-visual-display{padding:6px}.sensor-display-head{align-items:flex-start;flex-direction:column}.sensor-display-screen svg{min-height:0}.sensor-display-legend{font-size:9px;gap:8px}}
  .archive-appendix{margin-top:10px;border:1px solid var(--line);background:#020907}.archive-appendix>summary{cursor:pointer;color:var(--g);padding:9px 11px;letter-spacing:.5px;font-weight:bold}.archive-appendix[open]>summary{border-bottom:1px solid var(--line)}.archive-appendix .content{padding:9px 11px}.reconciliation-audit{margin:12px 0;padding:10px;border:1px solid var(--line);background:#020907}.reconciliation-audit h3{margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:7px}.reconciliation-audit h4{margin:12px 0 5px;font-size:11px}.reconciliation-audit li{margin:6px 0}.reconciliation-audit a{color:var(--g)}
+/* Tab 4 RF/CSI panel: prevent the detail pane from being trapped in one grid column. */
+@media(min-width:761px){
+ #sensors-panel #rf-evidence-selector{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+ #sensors-panel #rf-evidence-selector>.sensor-console-title,
+ #sensors-panel #rf-evidence-selector>.sensor-console-pane,
+ #sensors-panel #rf-evidence-selector>.sensor-console-note{grid-column:1/-1;min-width:0}
+ #sensors-panel #rf-evidence-selector>.muted{min-width:0;overflow-wrap:normal;word-break:normal}
+ #sensors-panel #rf-evidence-selector .sensor-console-pane h3{white-space:normal;overflow-wrap:break-word;word-break:normal;line-height:1.45}
+ #sensors-panel #rf-evidence-selector .sensor-console-metrics{grid-template-columns:repeat(3,minmax(0,1fr));min-width:0}
+ #sensors-panel #rf-evidence-selector .sensor-console-metric{min-width:0;overflow-wrap:anywhere}
+ #sensors-panel #rf-evidence-selector .sensor-console-metric b{font-size:clamp(12px,1vw,17px);line-height:1.3;overflow-wrap:anywhere;word-break:normal}
+ #sensors-panel #rf-evidence-selector #rf-evidence-description{overflow-wrap:break-word;word-break:normal}
+}
 /* Desktop Control Room: numbered section rail stays on the left; workspace owns the rest. */
 @media(min-width:761px){
  body{padding:16px 22px 22px 258px}
