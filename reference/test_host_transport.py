@@ -594,3 +594,24 @@ def test_host_transport_session_rejects_channel_added_after_open():
 
     with pytest.raises(RuntimeError, match="session channels changed"):
         session.require_channels({"display"})
+
+
+
+def test_memory_adapter_rejects_duplicate_initial_endpoint_ids():
+    endpoint_a = HostEndpoint(
+        "duplicate", CorelessIdentity("coreless-a"), HostCapabilities()
+    )
+    endpoint_b = HostEndpoint(
+        "duplicate", CorelessIdentity("coreless-b"), HostCapabilities()
+    )
+    with pytest.raises(ValueError, match="duplicate host endpoint id: duplicate"):
+        MemoryHostTransportAdapter([endpoint_a, endpoint_b])
+
+
+def test_memory_adapter_rejects_invalid_initial_endpoint_records():
+    with pytest.raises(ValueError, match="invalid type"):
+        MemoryHostTransportAdapter([object()])
+
+    endpoint = HostEndpoint("   ", CorelessIdentity("coreless"), HostCapabilities())
+    with pytest.raises(ValueError, match="endpoint_id must not be empty"):
+        MemoryHostTransportAdapter([endpoint])
