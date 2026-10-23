@@ -39,6 +39,20 @@ jobs:
         run: bash scripts/build-bootable-ssd.sh "$RUNNER_TEMP/coreless-uefi-x86_64.img"
       - name: Validate built image offline
         run: bash scripts/validate-bootable-ssd.sh "$RUNNER_TEMP/coreless-uefi-x86_64.img"
+      - name: Smoke-test Coreless machine console and persistent image
+        env:
+          CORELESS_VIGIL_DB: ${{ runner.temp }}/vigil-smoke.sqlite3
+        run: |
+          set -euo pipefail
+          IMAGE="$RUNNER_TEMP/coreless-machine-smoke.json"
+          printf ':status\n:shutdown\n' | timeout 30s python scripts/coreless-console.py "$IMAGE" >"$RUNNER_TEMP/coreless-console-first.log"
+          grep -q "CORELESS-64 MACHINE CONSOLE" "$RUNNER_TEMP/coreless-console-first.log"
+          grep -q "Coreless machine state persisted" "$RUNNER_TEMP/coreless-console-first.log"
+          test -s "$IMAGE"
+          printf ':status\n:shutdown\n' | timeout 30s python scripts/coreless-console.py "$IMAGE" >"$RUNNER_TEMP/coreless-console-resume.log"
+          grep -q "CORELESS-64 MACHINE CONSOLE" "$RUNNER_TEMP/coreless-console-resume.log"
+          grep -q "Coreless machine state persisted" "$RUNNER_TEMP/coreless-console-resume.log"
+          echo "PASS: Coreless console started, persisted the machine image, and reopened it in a fresh process."
       - name: Boot image under QEMU with UEFI
         shell: bash
         run: |
