@@ -234,6 +234,8 @@
       card.appendChild(textNode('p','','SPEED: '+(object.speed_mps===null?'unknown':Number(object.speed_mps).toFixed(2)+' m/s')+' · UNCERTAINTY: '+Number(object.uncertainty_m).toFixed(2)+' m'));
       card.appendChild(textNode('p','','LAST SEEN: '+object.last_seen_ns+' ns · AGE: '+object.age_ns+' ns'));
       card.appendChild(textNode('p','muted','SENSORS: '+(object.sensor_ids||[]).join(', ')+' · MODALITIES: '+(object.modalities||[]).join(', ')));
+      card.appendChild(textNode('p','muted','EVIDENCE: '+(object.provenance||[]).join(', ')+' · OBSERVATIONS: '+String(object.observation_count===undefined?'unknown':object.observation_count)));
+      card.appendChild(textNode('p','muted','CALIBRATION: '+String(object.calibration_status||'unknown')+' · IDS: '+((object.calibration_ids||[]).join(', ')||'none declared')+' · LINEAGE: '+(object.lineage_declared?'declared':'not declared')));
       if(object.conflict_reasons&&object.conflict_reasons.length)card.appendChild(textNode('p','', 'WARNINGS: '+object.conflict_reasons.join(', ')));
       spatialObjects.appendChild(card);
     });
