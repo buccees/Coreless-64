@@ -42,3 +42,18 @@ def test_browser_display_remains_read_only_and_has_connection_lifecycle_controls
     assert "id=\"disconnect\"" in source
     assert "function stopConnection(message)" in source
     assert "window.addEventListener('pagehide'" in source
+
+
+def test_browser_poll_has_bounded_timeout_and_keeps_retrying():
+    source = PAGE.read_text(encoding="utf-8")
+    assert "REQUEST_TIMEOUT_MS=8000" in source
+    assert "window.setTimeout(function(){timedOut=true;requestController.abort();},REQUEST_TIMEOUT_MS)" in source
+    assert "automatic retry remains enabled" in source
+    assert "window.clearTimeout(requestTimer)" in source
+
+
+def test_browser_maps_disconnected_runtime_state_without_calling_it_degraded():
+    source = PAGE.read_text(encoding="utf-8")
+    assert "data.connection_state==='disconnected'?'disconnected'" in source
+    assert "data.connection_state==='stale'?'stale'" in source
+    assert "data.connection_state==='connected'?'connected'" in source
