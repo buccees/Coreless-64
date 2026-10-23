@@ -217,3 +217,37 @@ def test_conflicting_independent_sensor_positions_degrade_track_without_midpoint
     assert item["position_m"] in ([0.0, 2.0, 0.0], [10.0, 2.0, 0.0])
     assert item["position_m"] not in ([5.0, 2.0, 0.0],)
     assert set(item["conflicting_sensor_ids"]) == {"uwb-left", "camera-right"}
+
+
+def test_expected_sensor_coverage_distinguishes_unpolled_no_report_and_in_scope_report():
+    workspace = SpatialWorkspace()
+    model = workspace.import_blueprint(
+        '{"schema_version":1,"model_id":"coverage-site","revision":"r1",'
+        '"frame_id":"coverage-site/world","units":"m","features":[]}', activate=True)
+    workspace.register_region(SpatialRegion(
+        "checkout", "Checkout", model.model_id, model.revision, model.frame_id,
+        ((0, 0), (5, 0), (5, 5), (0, 5)), min_z_m=-1, max_z_m=2))
+    workspace.register_expected_sensor("cart-camera", provider_id="camera-provider", region_ids=("checkout",), max_age_ns=500)
+    assert build_spatial_snapshot(workspace, now_ns=100)["expected_sensor_coverage"][0]["state"] == "UNPOLLED"
+    workspace.register_sensor_provider("camera-provider", ReplayProvider((SensorBatch(),)))
+    workspace.poll_sensors()
+    assert build_spatial_snapshot(workspace, now_ns=100)["expected_sensor_coverage"][0]["state"] == "NO_REPORT_IN_SCOPE"
+    workspace.ingest_object_observations((_object(model, 200, 2.0, sensor_id="cart-camera", modality=TrackingModality.VISION, independence_group="cart-camera"),))
+    result = build_spatial_snapshot(workspace, now_ns=250)["expected_sensor_coverage"][0]
+    assert result["state"] == "REPORTING_IN_SCOPE" and result["age_ns"] == "50"
+
+
+def test_expected_sensor_coverage_ignores_observations_outside_declared_region():
+    workspace = SpatialWorkspace()
+    model = workspace.import_blueprint(
+        '{"schema_version":1,"model_id":"coverage-outside","revision":"r1",'
+        '"frame_id":"coverage-outside/world","units":"m","features":[]}', activate=True)
+    workspace.register_region(SpatialRegion(
+        "west", "West", model.model_id, model.revision, model.frame_id,
+        ((0, 0), (5, 0), (5, 5), (0, 5)), min_z_m=-1, max_z_m=2))
+    workspace.register_expected_sensor("cart-camera", provider_id="camera-provider", region_ids=("west",))
+    workspace.register_sensor_provider("camera-provider", ReplayProvider((SensorBatch(object_observations=(
+        _object(model, 200, 9.0, sensor_id="cart-camera", modality=TrackingModality.VISION, independence_group="cart-camera"),)),)))
+    workspace.poll_sensors()
+    result = build_spatial_snapshot(workspace, now_ns=250)["expected_sensor_coverage"][0]
+    assert result["state"] == "NO_REPORT_IN_SCOPE" and result["latest_observation_ns"] is None
