@@ -13,11 +13,45 @@ from typing import Callable, Iterable, Mapping, Any, Sequence
 from urllib.parse import urlsplit
 
 from operator_display import OperatorAlert, OperatorSensorStatus, OperatorViewState
+from vigil.security import AuthorizationContext, AuthorizationService
 
 START_RESPONSE = Callable[[str, list[tuple[str, str]]], Any]
 Environ = Mapping[str, Any]
 Authorizer = Callable[[Environ], bool]
 SnapshotProvider = Callable[[], OperatorViewState]
+
+
+class CorelessSessionAuthorizer:
+    """Authorize operator reads from a trusted upstream session context.
+
+    The hosting server's authentication middleware must validate the session and
+    place an AuthorizationContext at the configured WSGI environ key. Request
+    headers, cookies, query parameters, and browser-provided scopes are never
+    interpreted as trusted identity by this adapter.
+    """
+
+    def __init__(
+        self,
+        *,
+        required_scope: str = "operator:read",
+        environ_key: str = "coreless.authorization_context",
+        authorization_service: AuthorizationService | None = None,
+    ) -> None:
+        if not isinstance(required_scope, str) or not required_scope.strip():
+            raise ValueError("required_scope must be a non-empty string")
+        if not isinstance(environ_key, str) or not environ_key.strip():
+            raise ValueError("environ_key must be a non-empty string")
+        self._required_scope = required_scope
+        self._environ_key = environ_key
+        self._authorization = authorization_service or AuthorizationService()
+
+    def __call__(self, environ: Environ) -> bool:
+        context = environ.get(self._environ_key)
+        if not isinstance(context, AuthorizationContext):
+            return False
+        if not context.session_id.strip():
+            return False
+        return self._authorization.authorize(context, self._required_scope)
 
 
 def _is_https_origin(origin: object) -> bool:
