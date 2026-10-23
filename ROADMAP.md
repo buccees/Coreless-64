@@ -1,5 +1,7 @@
 # Coreless Roadmap
 
+**Side quests:** [Open the dedicated Side Quests page](SIDE_QUESTS.md) for optional experiments that should not displace core machine-development priorities.
+
 ## Portability and hardware-identity goals
 
 **The SSD holds the whole Coreless-64 machine, including its execution engine, OS/environment, configuration, and persistent state.** The OS runs on that machine. Lubuntu is the user's preferred OS for initial bring-up, not a host OS that owns Coreless execution. Keep the machine architecture, boot path, device model, and OS/runtime authority distinct from the chosen operating system. The portability goal is to boot and operate the Coreless machine from a broad range of supported SSDs and to expose Coreless's own identity through suitable hardware interfaces. The engineering goal is the complete SSD-carried machine, not a program installed on a host. Validate its execution/boot path and required physical interfaces against that architecture.
