@@ -17,6 +17,7 @@ from .blueprint import BlueprintModel, ModelFeature, _validate_vector
 from .object_tracking import ObjectTrack
 from .raster_calibration import RasterBlueprintCalibration
 from .spatial_regions import SpatialRegion
+from .sensor_mounts import SensorMountTransform
 
 
 def _encode(payload: dict[str, Any], *, max_bytes: int) -> tuple[str, str]:
@@ -97,6 +98,16 @@ class SpatialRegistryStore:
                 payload_json TEXT NOT NULL,
                 payload_sha256 TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS sensor_mount_transforms (
+                mount_id TEXT PRIMARY KEY,
+                model_id TEXT NOT NULL,
+                revision TEXT NOT NULL,
+                sensor_id TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                payload_sha256 TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_sensor_mount_model
+                ON sensor_mount_transforms(model_id, revision, sensor_id, mount_id);
             CREATE INDEX IF NOT EXISTS idx_raster_calibration_model
                 ON raster_calibrations(model_id, revision, calibration_id);
             CREATE TABLE IF NOT EXISTS spatial_object_tracks (
@@ -445,6 +456,64 @@ class SpatialRegistryStore:
             "lineage_declared": track.lineage_declared,
             "presence_state": track.presence_state,
         }
+
+    def save_sensor_mount(self, mount: SensorMountTransform) -> str:
+        """Persist an immutable sensor-local-to-model transform."""
+        if not isinstance(mount, SensorMountTransform):
+            raise TypeError("mount must be a SensorMountTransform")
+        payload = {
+            "mount_id": mount.mount_id, "sensor_id": mount.sensor_id,
+            "model_id": mount.model_id, "model_revision": mount.model_revision,
+            "frame_id": mount.frame_id, "source_frame_id": mount.source_frame_id,
+            "translation_m": list(mount.translation_m),
+            "rotation_matrix": list(mount.rotation_matrix), "verified": mount.verified,
+        }
+        encoded, digest = _encode(payload, max_bytes=self.max_record_bytes)
+        with self._connection:
+            model_exists = self._connection.execute(
+                "SELECT 1 FROM spatial_models WHERE model_id=? AND revision=?",
+                (mount.model_id, mount.model_revision),
+            ).fetchone()
+            if model_exists is None:
+                raise KeyError(f"sensor mount model revision is not registered: {mount.model_id}/{mount.model_revision}")
+            old = self._connection.execute(
+                "SELECT payload_json,payload_sha256 FROM sensor_mount_transforms WHERE mount_id=?",
+                (mount.mount_id,),
+            ).fetchone()
+            if old and (old["payload_json"] != encoded or old["payload_sha256"] != digest):
+                raise ValueError("sensor mount ID is immutable; use a new ID after recalibration")
+            self._connection.execute(
+                "INSERT OR IGNORE INTO sensor_mount_transforms"
+                "(mount_id,model_id,revision,sensor_id,payload_json,payload_sha256) VALUES(?,?,?,?,?,?)",
+                (mount.mount_id, mount.model_id, mount.model_revision, mount.sensor_id, encoded, digest),
+            )
+        return mount.mount_id
+
+    def load_sensor_mount(self, mount_id: str) -> SensorMountTransform | None:
+        row = self._connection.execute(
+            "SELECT payload_json,payload_sha256 FROM sensor_mount_transforms WHERE mount_id=?",
+            (mount_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        payload = _decode(row["payload_json"], row["payload_sha256"], max_bytes=self.max_record_bytes)
+        return SensorMountTransform(
+            mount_id=payload["mount_id"], sensor_id=payload["sensor_id"],
+            model_id=payload["model_id"], model_revision=payload["model_revision"],
+            frame_id=payload["frame_id"], source_frame_id=payload["source_frame_id"],
+            translation_m=tuple(payload["translation_m"]),
+            rotation_matrix=tuple(payload["rotation_matrix"]), verified=payload["verified"],
+        )
+
+    def list_sensor_mounts(self, model_id: str, revision: str) -> tuple[SensorMountTransform, ...]:
+        rows = self._connection.execute(
+            "SELECT mount_id FROM sensor_mount_transforms WHERE model_id=? AND revision=? ORDER BY mount_id",
+            (model_id, revision),
+        ).fetchall()
+        return tuple(
+            mount for row in rows
+            if (mount := self.load_sensor_mount(row["mount_id"])) is not None
+        )
 
     def save_object_tracks(
         self, model: BlueprintModel, tracks: tuple[ObjectTrack, ...] | list[ObjectTrack]
