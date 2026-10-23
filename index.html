@@ -591,6 +591,35 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <p class="muted" style="margin-top:9px">ARCHIVE PLATE // Responsive dossier rendering with dedicated egg and alien specimen illustrations and the full original project information preserved in structured sections.</p>
 </div></details></section>
 </div></div></div></div></div>
+<section id="engineering-handoff" class="report-section" aria-labelledby="engineering-handoff-title" style="margin:18px 0;padding:16px;border:1px solid var(--line);background:rgba(0,20,12,.72)">
+<h2 id="engineering-handoff-title">ENGINEERING HANDOFF // STARTUP RELIABILITY</h2>
+<p class="muted">CONTROL ROOM UPDATE // 2026-10-23</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
+<article style="padding:12px;border:1px solid var(--line)">
+<h3>COMPLETED CODE CHANGES</h3>
+<ul>
+<li>Startup wizard failure handling now attempts to close a partially created listener, preserve machine state, and shut down a machine that booted before HTTPS setup failed.</li>
+<li>Normal startup-window closure requests machine shutdown instead of only saving the image.</li>
+<li>CLI operator settings are validated before opening and booting the persistent machine image, including password length, HTTPS port, and certificate/key file existence.</li>
+<li>The CLI operator-serving path now requests machine shutdown when the HTTPS serving loop exits.</li>
+</ul>
+</article>
+<article style="padding:12px;border:1px solid var(--line)">
+<h3>VERIFICATION STATUS</h3>
+<p>Code changes are committed to <code>vigil-spatial-awareness</code>. These changes have not yet been confirmed by a fresh CI run. They must not be treated as a passing test result.</p>
+<p>Commits: <a href="https://github.com/buccees/Coreless-64/commit/4a01b8d50d0fec1d1cc59c91eaef691b30e72187" target="_blank" rel="noopener noreferrer">startup cleanup</a> · <a href="https://github.com/buccees/Coreless-64/commit/279cfce7872d14dd5e1de6060a066cbca8f8555d" target="_blank" rel="noopener noreferrer">pre-boot CLI validation</a>.</p>
+</article>
+<article style="padding:12px;border:1px solid var(--line)">
+<h3>REMAINING RELIABILITY WORK</h3>
+<ul>
+<li>Add failure-path tests for partial startup, listener bind/TLS errors, and shutdown exceptions.</li>
+<li>Prevent concurrent processes from opening the same persistent machine image for writing.</li>
+<li>Handle startup cancellation and GUI close races without orphaning a server or machine.</li>
+<li>Run the full reference test suite and inspect the newest CI run before marking this handoff verified.</li>
+</ul>
+</article>
+</div>
+</section>
 <footer><span>WEYLAND–YUTANI / XENOBIOLOGY</span><span>VIGIL SPATIAL INTELLIGENCE // CORELESS-64</span><span>DOC-XB-VIG-0917</span><a class="messenger-contact" href="https://m.me/61593167613019" target="_blank" rel="noopener noreferrer" aria-label="Contact VIGIL through Facebook Messenger">CONTACT / CORPORATE LIAISON ↗</a></footer>
 </main><script>
 (function(){
