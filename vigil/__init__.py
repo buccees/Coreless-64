@@ -3,6 +3,7 @@
 from .ai import AnalysisResult, CorelessVigilAI, OptionalAIAnalyzer
 from .attention import AttentionItem, AttentionLifecycle, AttentionManager
 from .blueprint_view import AxisBounds, BlueprintView, FeatureProjection, PoseProjection, build_blueprint_view
+from .spatial_query import SpatialQueryEngine, SpatialQueryResult, SpatialQueryStatus
 from .building import BuildingBlueprint, BuildingBlueprintBuilder, FloorRegistration, FloorTracker, FloorTransition, VerticalConnection
 from .blueprint import (
     BlueprintModel,
@@ -40,7 +41,7 @@ from .fast_touch import FastCameraTouchPath, FastTouchDetector
 from .camera import SharedCameraSource, CameraReader
 
 __all__ = [
-    "AnalysisResult", "AttentionItem", "AttentionLifecycle", "AttentionManager",
+    "AnalysisResult", "AttentionItem", "AttentionLifecycle", "AttentionManager", "SpatialQueryEngine", "SpatialQueryResult", "SpatialQueryStatus",
     "AuthorizationContext", "AuthorizationService", "BlueprintModel", "BlueprintView", "BuildingBlueprint", "BuildingBlueprintBuilder", "FloorRegistration", "FloorTracker", "FloorTransition", "VerticalConnection", "AxisBounds", "CameraFrame",
     "CameraReader", "CoordinateTransform", "CorelessVigilAI", "Detection",
     "DetectionKind", "EntityType", "FeatureProjection", "PoseProjection", "FastCameraTouchPath", "FastTouchDetector",
