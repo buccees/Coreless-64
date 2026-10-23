@@ -308,3 +308,21 @@ def test_provider_lifecycle_retains_last_success_and_counts_failures_then_recove
     disconnected = next(s for s in workspace.sensor_poll_statuses if s.provider_id == "flaky")
     assert disconnected.state == "DISCONNECTED"
     assert disconnected.last_success_ns == recovered.last_success_ns
+
+
+def test_expected_sensor_coverage_distinguishes_stale_report_from_no_report():
+    workspace = SpatialWorkspace()
+    active = model()
+    workspace.registry.register_model(active, activate=True)
+    workspace.register_region(region(active))
+    workspace.register_expected_sensor("cam-1", provider_id="camera-provider",
+                                       region_ids=("west-zone",), max_age_ns=50)
+    workspace.register_sensor_provider("camera-provider", ReplayProvider((SensorBatch(object_observations=(
+        _object(active, "cart-7", 3.0, timestamp_ns=100, sensor_id="cam-1"),
+    )),)))
+    workspace.poll_sensors()
+    stale = build_spatial_snapshot(workspace, now_ns=200)["expected_sensor_coverage"][0]
+    assert stale["state"] == "STALE_REPORT"
+    assert stale["latest_observation_ns"] == "100"
+    assert stale["age_ns"] == "100"
+    assert stale["max_age_ns"] == "50"
