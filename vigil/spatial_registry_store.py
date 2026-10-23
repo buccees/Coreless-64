@@ -152,6 +152,14 @@ class SpatialRegistryStore:
             );
             CREATE INDEX IF NOT EXISTS idx_spatial_tracks_last_seen
                 ON spatial_object_tracks(model_id, revision, last_seen_ns);
+            CREATE TABLE IF NOT EXISTS expected_sensor_coverage (
+                model_id TEXT NOT NULL,
+                revision TEXT NOT NULL,
+                sensor_id TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                payload_sha256 TEXT NOT NULL,
+                PRIMARY KEY (model_id, revision, sensor_id)
+            );
             CREATE TABLE IF NOT EXISTS spatial_store_settings (
                 setting_key TEXT PRIMARY KEY,
                 setting_value TEXT NOT NULL
@@ -402,6 +410,44 @@ class SpatialRegistryStore:
                 "DELETE FROM spatial_regions WHERE model_id=? AND revision=? AND region_id=?",
                 (model_id, revision, region_id),
             )
+        return cursor.rowcount > 0
+
+    def save_expected_sensor(self, model_id: str, revision: str, sensor_id: str, *, provider_id: str, region_ids: tuple[str, ...], max_age_ns: int) -> dict[str, Any]:
+        """Persist an explicit expected-sensor reporting contract for a model revision."""
+        if not all(isinstance(value, str) and value.strip() for value in (model_id, revision, sensor_id, provider_id)):
+            raise ValueError("model, revision, sensor, and provider IDs must not be empty")
+        if isinstance(max_age_ns, bool) or not isinstance(max_age_ns, int) or max_age_ns < 0:
+            raise ValueError("max_age_ns must be a non-negative integer")
+        normalized = tuple(sorted(set(region_ids)))
+        if not normalized or any(not isinstance(value, str) or not value.strip() for value in normalized):
+            raise ValueError("region_ids must contain non-empty region IDs")
+        if self.load_model(model_id, revision) is None:
+            raise KeyError(f"expected sensor model revision is not registered: {model_id}/{revision}")
+        known = {region.region_id for region in self.load_regions(model_id, revision)}
+        if set(normalized) - known:
+            raise KeyError("expected sensor references an unknown region")
+        payload = {"model_id": model_id, "revision": revision, "sensor_id": sensor_id, "provider_id": provider_id, "region_ids": list(normalized), "max_age_ns": max_age_ns}
+        encoded, digest = _encode(payload, max_bytes=self.max_record_bytes)
+        with self._connection:
+            old = self._connection.execute("SELECT payload_json,payload_sha256 FROM expected_sensor_coverage WHERE model_id=? AND revision=? AND sensor_id=?", (model_id, revision, sensor_id)).fetchone()
+            if old and (old["payload_json"] != encoded or old["payload_sha256"] != digest):
+                raise ValueError("expected sensor configuration already exists; remove it before changing")
+            self._connection.execute("INSERT OR IGNORE INTO expected_sensor_coverage(model_id,revision,sensor_id,payload_json,payload_sha256) VALUES(?,?,?,?,?)", (model_id, revision, sensor_id, encoded, digest))
+        return payload
+
+    def load_expected_sensors(self, model_id: str, revision: str) -> tuple[dict[str, Any], ...]:
+        rows = self._connection.execute("SELECT sensor_id,payload_json,payload_sha256 FROM expected_sensor_coverage WHERE model_id=? AND revision=? ORDER BY sensor_id", (model_id, revision)).fetchall()
+        result = []
+        for row in rows:
+            payload = _decode(row["payload_json"], row["payload_sha256"], max_bytes=self.max_record_bytes)
+            if payload.get("sensor_id") != row["sensor_id"] or payload.get("model_id") != model_id or payload.get("revision") != revision:
+                raise ValueError("stored expected sensor key does not match its record")
+            result.append(payload)
+        return tuple(result)
+
+    def delete_expected_sensor(self, model_id: str, revision: str, sensor_id: str) -> bool:
+        with self._connection:
+            cursor = self._connection.execute("DELETE FROM expected_sensor_coverage WHERE model_id=? AND revision=? AND sensor_id=?", (model_id, revision, sensor_id))
         return cursor.rowcount > 0
 
     def save_calibration(
@@ -680,6 +726,7 @@ class SpatialRegistryStore:
             "sensor_mounts": [],
             "source_assets": [],
             "object_tracks": [],
+            "expected_sensors": [],
         }
         for model in models:
             records["models"].append({
@@ -714,6 +761,7 @@ class SpatialRegistryStore:
                 "translation_m": list(mount.translation_m),
                 "rotation_matrix": list(mount.rotation_matrix), "verified": mount.verified,
             } for mount in self.list_sensor_mounts(model.model_id, model.revision))
+            records["expected_sensors"].extend(self.load_expected_sensors(model.model_id, model.revision))
             records["object_tracks"].extend({
                 "model_id": model.model_id, "revision": model.revision,
                 "tracks": [self._track_payload(track) for track in self.load_object_tracks(model.model_id, model.revision)],
@@ -769,6 +817,8 @@ class SpatialRegistryStore:
         required_lists = ("models", "regions", "calibrations", "sensor_mounts", "source_assets", "object_tracks")
         if any(not isinstance(payload.get(key), list) for key in required_lists):
             raise ValueError("portable bundle is missing required record lists")
+        if "expected_sensors" in payload and not isinstance(payload["expected_sensors"], list):
+            raise ValueError("portable expected_sensors must be a list")
         models: dict[tuple[str, str], BlueprintModel] = {}
         for item in payload["models"]:
             model = BlueprintModel(
@@ -820,6 +870,8 @@ class SpatialRegistryStore:
                 content=raw, metadata=item["metadata"],
             )
             asset_count += 1
+        for item in payload.get("expected_sensors", []):
+            self.save_expected_sensor(item["model_id"], item["revision"], item["sensor_id"], provider_id=item["provider_id"], region_ids=tuple(item["region_ids"]), max_age_ns=item["max_age_ns"])
         for item in payload["object_tracks"]:
             key = (item["model_id"], item["revision"])
             if key not in models:
