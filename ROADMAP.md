@@ -1,8 +1,12 @@
 # Coreless Roadmap
 
-## Target host platform
+## Portability and hardware-identity goals
 
-The user has selected **Lubuntu (Ubuntu-based Linux)** as the first intended OS for Coreless-64. Implement and validate Linux-specific host integration first, then keep the transport-neutral interfaces suitable for later platform adapters. For device lifecycle notifications, evaluate a udev/libudev-backed event monitor; do not mark hot-plug available until real unplug/replug, transport teardown/reopen, and end-to-end integration tests pass.
+**Lubuntu is the preferred initial OS, not the compatibility boundary.** Coreless should be designed for broad host-OS and storage compatibility through transport-neutral contracts plus explicit platform adapters. Start practical integration on Lubuntu/Linux, then add and validate other platforms rather than baking Linux assumptions into Coreless itself.
+
+The portability goal includes USB-attached SATA/NVMe SSDs and native SATA/NVMe storage where the host firmware, bus, drivers, and boot path support them. Do not claim universal SSD compatibility without a tested drive/host/interface matrix.
+
+Keep three concepts distinct: storage enclosure/controller identity, persistent Coreless machine identity, and optional hardware-level device identity exposed to another host. A normal external SSD cannot become a separate USB computer solely because Coreless software is stored on it. A distinct device-mode/composite interface requires compatible device-side controller hardware, firmware, transport implementation, and host-side validation; USB gadget/device mode is a hardware-dependent possibility, not a universal feature.
 
 ## Current checkpoint
 
@@ -63,8 +67,8 @@ The current implementation checkpoint includes the reference digital-machine lif
 - [x] Reference host enumeration/transport adapter
 - [x] Provider-backed host transport adapter boundary
 - [x] Transport-neutral host hot-plug lifecycle coordinator (software contract only)
-- [ ] Lubuntu/Linux native device-event subscription (evaluate udev/libudev) and arrival/removal adapter
-- [ ] Physical unplug/replug and reconnect validation on Lubuntu target hardware
+- [ ] First native host adapter on Lubuntu/Linux: device-event subscription (evaluate udev/libudev) and arrival/removal handling
+- [ ] Physical unplug/replug and reconnect validation on the first Lubuntu test host
 - [ ] End-to-end VIGIL integration with native hot-plug lifecycle
 - [ ] Application environment
 
@@ -82,6 +86,11 @@ The current implementation checkpoint includes the reference digital-machine lif
 - [x] Hub multi-vCPU scheduling
 
 ## Phase 5 — Portable Coreless machine
+
+- [ ] Define a storage compatibility matrix (USB-attached SATA SSD, USB-attached NVMe SSD, native SATA, native NVMe; include boot firmware/driver constraints)
+- [ ] Test persistent Coreless machine portability across multiple SSDs and host computers without assuming storage identity equals Coreless machine identity
+- [ ] Specify hardware-level Coreless device identity separately from storage/enclosure identity
+- [ ] Evaluate distinct USB/device-mode enumeration on compatible hardware; document required controller/firmware and test host interoperability before claiming support
 
 - [x] Reproducible digital/reference test environment
 - [x] Complete reference machine lifecycle
@@ -177,9 +186,9 @@ The current implementation checkpoint includes the reference digital-machine lif
 - [x] Component/hub composition boundary documented
 - [x] CorelessHostInterface software contract
 - [x] Reference host enumeration/transport adapter
-- [ ] Lubuntu/Linux physical host enumeration first; cross-platform physical host enumeration later
+- [ ] Validate physical host enumeration on Lubuntu/Linux, then add tested providers for other supported host OSes
 - [x] Reference display/input/network transport adapters
-- [ ] Lubuntu/Linux display/input/network transport adapters first; other OS adapters later
+- [ ] Validate display/input/network transport adapters on Lubuntu/Linux, then add other OS adapters
 - [x] User-designated pointing-device discovery and persistent assignment
 - [x] Coreless touch/pointing event transport contract
 - [x] VIGIL-aware input interpretation boundary
