@@ -6,6 +6,7 @@ import pytest
 from operator_display import OperatorViewState
 from operator_telemetry import (
     CorelessOperatorSnapshotProvider,
+    CorelessSessionAuthorizer,
     OperatorTelemetryApp,
     coreless_view_state,
     create_coreless_operator_app,
@@ -13,6 +14,7 @@ from operator_telemetry import (
     VigilSensorEventSnapshotProvider,
 )
 from vigil.sensor_event import SensorEventLedger, SensorEventRecord, SensorEventStatus
+from vigil.security import AuthorizationContext, AuthorizationService
 
 
 def _call(app, path="/api/operator/state", method="GET", origin=None,
@@ -343,3 +345,46 @@ def test_vigil_operator_factory_keeps_endpoint_authorization_in_front_of_ledger_
     response, body = _call(app)
     assert response["status"] == "401 Unauthorized"
     assert json.loads(body)["error"] == "unauthorized"
+
+
+def test_coreless_session_authorizer_requires_trusted_context_and_read_scope():
+    authorizer = CorelessSessionAuthorizer()
+    assert authorizer({}) is False
+    assert authorizer({"HTTP_X_SCOPE": "operator:read", "HTTP_X_SESSION_ID": "forged"}) is False
+    assert authorizer({
+        "coreless.authorization_context": AuthorizationContext("session-1", frozenset({"operator:write"})),
+    }) is False
+    assert authorizer({
+        "coreless.authorization_context": AuthorizationContext("session-1", frozenset({"operator:read"})),
+    }) is True
+
+
+def test_coreless_session_authorizer_uses_injected_coreless_policy_service():
+    class DenyAll:
+        def authorize(self, context, required_scope):
+            return False
+    authorizer = CorelessSessionAuthorizer(authorization_service=DenyAll())
+    context = AuthorizationContext("session-2", frozenset({"operator:read"}))
+    assert authorizer({"coreless.authorization_context": context}) is False
+
+
+def test_session_authorizer_denial_prevents_telemetry_reads():
+    calls = []
+    authorizer = CorelessSessionAuthorizer()
+    app = OperatorTelemetryApp(
+        lambda: calls.append("snapshot") or _state(), authorize=authorizer,
+    )
+    response, body = _call(app)
+    assert response["status"] == "401 Unauthorized"
+    assert json.loads(body)["error"] == "unauthorized"
+    assert calls == []
+
+
+def test_session_authorizer_rejects_malformed_context():
+    authorizer = CorelessSessionAuthorizer()
+    assert authorizer({
+        "coreless.authorization_context": AuthorizationContext("", frozenset({"operator:read"})),
+    }) is False
+    assert authorizer({
+        "coreless.authorization_context": AuthorizationContext(None, frozenset({"operator:read"})),
+    }) is False
