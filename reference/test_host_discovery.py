@@ -158,3 +158,24 @@ def test_host_device_enumerator_rejects_whitespace_endpoint_id():
         HostDeviceEnumerator().discover([
             HostDiscoveryCandidate("  ", identity_frame(), HostCapabilities())
         ])
+
+
+def test_discovered_endpoint_snapshots_provider_channel_mapping():
+    original_channel = object()
+    replacement_channel = object()
+    channels = {"display": original_channel}
+    endpoint = HostDeviceEnumerator().discover([
+        HostDiscoveryCandidate(
+            "snapshot-endpoint",
+            identity_frame("snapshot-endpoint", ("display",)),
+            HostCapabilities(display=True),
+            channels,
+        )
+    ])[0]
+
+    channels["display"] = replacement_channel
+    channels["input"] = object()
+
+    assert endpoint.channel_map() == {"display": original_channel}
+    with pytest.raises(TypeError):
+        endpoint.channels["input"] = object()
