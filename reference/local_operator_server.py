@@ -218,7 +218,9 @@ def create_lan_app(
                     "detail": "No VIGIL spatial workspace was attached to this operator session.",
                 })
             try:
-                payload = build_spatial_snapshot(spatial_workspace, now_ns=time.time_ns())
+                # Spatial observations use monotonic nanoseconds; wall-clock epoch time would
+                # make otherwise fresh sensor readings appear ancient or future-dated.
+                payload = build_spatial_snapshot(spatial_workspace, now_ns=time.monotonic_ns())
             except Exception:
                 # Keep exception internals and local paths out of the authenticated API.
                 return _json(start_response, "503 Service Unavailable", {
