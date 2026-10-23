@@ -545,10 +545,14 @@ The code path and regression tests are in GitHub; check the latest runs for curr
 - [Latest published Control Room workflow before this paperwork pass](https://github.com/buccees/Coreless-64/actions/runs/40005525144) succeeded. New documentation commits will trigger new runs.
 
 ### Immediate next steps
-1. Check the fresh Actions run for the final paperwork commit and report its actual result.
-2. Run deterministic end-to-end synthetic replay through pose, object tracking, spatial-scene assembly, and region alerts; retain rejected-input reasons and clock alignment.
-3. Connect saved raster calibration to image ingestion and sensor-mount calibration.
+1. Check the newest Actions run after source-asset persistence and regression-test commits; report the actual result.
+2. Connect saved raster calibration to image ingestion and sensor-mount calibration, preserving frame/revision and calibration provenance.
+3. Bind the SQLite registry file and its source assets into the final portable-machine snapshot/copy contract; arbitrary image/CAD import adapters remain future work.
 4. Implement supported live sensor adapters incrementally (camera/vision, UWB or other calibrated ranging, IMU, infrared, compatible Wi-Fi CSI). CSI is motion context, not a 3D location by itself.
 5. Validate with a surveyed model and real sensors, then validate the authenticated HTTPS display against the active Coreless lifecycle.
+
+### Newly completed since this checkpoint was first written
+- Deterministic synthetic replay tests now exercise pose updates, object tracking, region entry/exit, spatial-scene readiness, operator snapshots, evidence metadata, and repeatability. Run `40010789673` passed at commit `1840ca8`.
+- `SpatialRegistryStore` now stores source assets as immutable, size-bounded byte records tied to a model revision, with media type, name, metadata, and SHA-256 checksums. Workspace blueprint import automatically preserves the exact original JSON manifest; tests cover checksum round-trip, immutability, size limits, and restart persistence. Newest source-asset CI runs are pending at the time of this checkpoint.
 
 **Do not claim hardware proof.** Passing CI verifies software behavior, not actual object coverage, ranging accuracy, sensor calibration, universal detection, or physical unplug/replug. The desired view keeps stationary and moving targets represented; missing contact becomes stale/last-known, not silently “gone.”
