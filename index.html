@@ -1313,6 +1313,10 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       highContrast:document.getElementById('setting-high-contrast'),
       noMotion:document.getElementById('setting-no-motion'),
       pauseFlow:document.getElementById('setting-pause-flow'),
+      showTracks:document.getElementById('setting-show-tracks'),
+      showInfrared:document.getElementById('setting-show-infrared'),
+      showStreams:document.getElementById('setting-show-streams'),
+      showSensorInputs:document.getElementById('setting-show-sensor-inputs'),
       startOverview:document.getElementById('setting-start-overview')
     };
     var defaults={largeText:false,highContrast:false,noMotion:false,pauseFlow:false,showTracks:true,showInfrared:true,showStreams:true,showSensorInputs:true,startOverview:false};
@@ -1325,7 +1329,8 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       document.body.classList.toggle('settings-no-motion',prefs.noMotion);
       Object.keys(controls).forEach(function(k){controls[k].checked=!!prefs[k];});
       var stage=document.getElementById('spatial-stage');
-      if(stage)stage.classList.toggle('paused',prefs.pauseFlow||prefs.noMotion);
+      if(stage){stage.classList.toggle('paused',prefs.pauseFlow||prefs.noMotion);stage.classList.toggle('hide-tracks',!prefs.showTracks);stage.classList.toggle('hide-infrared',!prefs.showInfrared);stage.classList.toggle('hide-streams',!prefs.showStreams);}
+      document.body.classList.toggle('settings-hide-sensor-inputs',!prefs.showSensorInputs);
       if(prefs.startOverview && window.location.hash && window.location.hash!=='#overview-panel'){
         if(window.history&&window.history.replaceState)window.history.replaceState(null,'',window.location.pathname+window.location.search);
       }
