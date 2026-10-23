@@ -58,6 +58,10 @@ The current implementation checkpoint includes the reference digital-machine lif
 - [x] Host capability negotiation and attach/detach software contract
 - [x] Reference host enumeration/transport adapter
 - [x] Provider-backed host transport adapter boundary
+- [x] Transport-neutral host hot-plug lifecycle coordinator (software contract only)
+- [ ] Native OS/device hot-plug event subscriptions and platform-specific arrival/removal handling
+- [ ] Physical unplug/replug and reconnect validation on target platform
+- [ ] End-to-end VIGIL integration with native hot-plug lifecycle
 - [ ] Application environment
 
 ## Phase 4 — Complete digital machine
@@ -196,6 +200,10 @@ The Coreless input architecture uses VIGIL as an optional interpretation layer. 
 - [ ] Implement camera-based pointing
 - [ ] Implement spatial gesture recognition
 - [ ] Implement VIGIL spatial/world-model services inside Coreless
+
+## Current blocker — VIGIL hot-plug unavailable
+
+VIGIL **cannot use hot-plug yet**. The transport-neutral `HostHotplugController` exists and has software lifecycle tests, but it does not detect physical device events by itself. Native OS/device event subscriptions, concrete platform transport teardown/reopen, real unplug/replug validation, and an end-to-end VIGIL integration test remain incomplete. Do not describe VIGIL hot-plug as available until those checkpoints pass. This is a recorded blocker only; VIGIL spatial-intelligence expansion remains paused.
 
 ## Resume point
 
