@@ -1,7 +1,7 @@
 # Coreless Plug-and-Play Host Interface
 
 **Architecture:** Coreless-64  
-**Status:** Software contract and reference host I/O integration implemented; physical transport adapters remain
+**Status:** Transport-neutral software contract and Linux udev/controller integration implemented; concrete physical transports and hardware validation remain
 
 ## Purpose
 
