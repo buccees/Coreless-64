@@ -54,6 +54,13 @@ def build_spatial_snapshot(
         model, snapshot.pose, selected_level=snapshot.selected_level,
         object_tracks=snapshot.object_tracks,
     )
+    # The renderer projection intentionally stays compact. Preserve the richer
+    # evidence-quality metadata from the authoritative tracks in the API so an
+    # operator can tell *why* a location is trusted, not just where it appears.
+    tracks_by_identity = {
+        (track.object_id, track.association_id): track
+        for track in snapshot.object_tracks
+    }
     base.update({
         "model": {
             "model_id": model.model_id,
@@ -106,6 +113,22 @@ def build_spatial_snapshot(
             "uncertainty_m": item.uncertainty_m,
             "sensor_ids": list(item.sensor_ids),
             "modalities": list(item.modalities),
+            "provenance": list(item.provenance),
+            "observation_count": tracks_by_identity[
+                (item.object_id, item.association_id)
+            ].observation_count,
+            "independence_groups": list(tracks_by_identity[
+                (item.object_id, item.association_id)
+            ].independence_groups),
+            "calibration_status": tracks_by_identity[
+                (item.object_id, item.association_id)
+            ].calibration_status,
+            "calibration_ids": list(tracks_by_identity[
+                (item.object_id, item.association_id)
+            ].calibration_ids),
+            "lineage_declared": tracks_by_identity[
+                (item.object_id, item.association_id)
+            ].lineage_declared,
             "conflict": item.conflict,
             "conflict_reasons": list(item.conflict_reasons),
             "presence_state": item.presence_state,
