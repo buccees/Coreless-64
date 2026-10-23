@@ -80,6 +80,7 @@ sudo chroot "$WORK/root" /usr/bin/env DEBIAN_FRONTEND=noninteractive /bin/bash -
   printf "GRUB_TIMEOUT=3
 GRUB_DISTRIBUTOR=Coreless-64
 GRUB_DISABLE_OS_PROBER=true
+GRUB_CMDLINE_LINUX="console=tty0 console=ttyS0,115200n8"
 " >/etc/default/grub
   grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=CORELESS --removable --no-nvram
   update-grub
