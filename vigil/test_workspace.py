@@ -329,3 +329,71 @@ def test_workspace_blueprint_view_includes_current_object_markers():
     assert len(view.objects) == 1
     assert view.objects[0].object_id == "cart-9"
     assert view.objects[0].modalities == ("vision",)
+
+def test_workspace_exposes_spatial_query_and_registered_region_membership():
+    from vigil.spatial_regions import SpatialRegion
+
+    workspace = SpatialWorkspace(terminal=VigilTerminal(color=False))
+    model = workspace.import_blueprint(manifest(), activate=True)
+    workspace.select_level("L1")
+    region = SpatialRegion(
+        "north-zone", "North zone", model.model_id, model.revision, model.frame_id,
+        ((-1, -1), (2, -1), (2, 1), (-1, 1)),
+        min_z_m=-1, max_z_m=1, level="L1", zone="north",
+    )
+    workspace.register_region(region)
+    assert workspace.spatial_regions == (region,)
+    workspace.ingest([
+        observation(model, "uwb", x=0.2),
+        observation(model, "vision", x=0.25),
+    ])
+
+    snapshot = workspace.refresh(now_ns=110)
+    assert snapshot.spatial_query is not None
+    assert snapshot.spatial_query.status.value == "OK"
+    assert snapshot.spatial_query.nearest_feature_id == "anchor"
+    assert len(snapshot.region_results) == 1
+    assert snapshot.region_results[0].region_id == "north-zone"
+    assert snapshot.region_results[0].inside is True
+    assert workspace.query_spatial(now_ns=110).status.value == "OK"
+    assert workspace.query_region("north-zone", now_ns=110).inside is True
+
+    rendered = workspace.render(now_ns=110)
+    assert "SPATIAL QUERY" in rendered
+    assert "SPATIAL REGIONS" in rendered
+    assert "north-zone: INSIDE [OK]" in rendered
+
+
+def test_workspace_does_not_reinterpret_regions_for_another_revision():
+    from vigil.spatial_regions import SpatialRegion
+
+    workspace = SpatialWorkspace()
+    model = workspace.import_blueprint(manifest(), activate=True)
+    region = SpatialRegion(
+        "north-zone", "North zone", model.model_id, model.revision, model.frame_id,
+        ((0, 0), (1, 0), (1, 1), (0, 1)), min_z_m=0, max_z_m=1,
+    )
+    workspace.register_region(region)
+    other = workspace.import_blueprint(manifest(model_id="site-b", revision="r2"), activate=True)
+    assert workspace.spatial_regions == ()
+    assert workspace.refresh(now_ns=100).region_results == ()
+    with pytest.raises(KeyError, match="not registered"):
+        workspace.query_region("north-zone", now_ns=100)
+    assert other.model_id == "site-b"
+
+
+def test_workspace_keeps_region_membership_unknown_without_a_valid_pose():
+    from vigil.spatial_regions import SpatialRegion
+
+    workspace = SpatialWorkspace()
+    model = workspace.import_blueprint(manifest(), activate=True)
+    workspace.register_region(SpatialRegion(
+        "north-zone", "North zone", model.model_id, model.revision, model.frame_id,
+        ((-1, -1), (2, -1), (2, 1), (-1, 1)),
+        min_z_m=-1, max_z_m=1,
+    ))
+    snapshot = workspace.refresh(now_ns=100)
+    assert snapshot.spatial_query is not None
+    assert snapshot.spatial_query.status.value == "NO_FIX"
+    assert snapshot.region_results[0].inside is None
+
