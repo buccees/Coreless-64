@@ -154,3 +154,41 @@ The host-interface contract is specified in `specification/host_interface.md`.
 The autonomous component/hub architecture is exposed to external equipment through the separate host transport boundary. A composed Hub may therefore be discovered and attached through a transport-neutral identity and command session while component execution remains inside Coreless.
 
 Transport sessions carry negotiated host services and correlated command frames; they do not turn autonomous components into host peripherals or move CPU, VM, AI, memory, or architectural authority into the host.
+
+## VIGIL operator display architecture
+
+### Target deployment
+
+The intended operator display is a **remote browser session**. A user opens a browser on a separate screen and connects to a VIGIL operator interface served by the Coreless-64 host or its explicitly configured gateway. Do not assume a directly attached HDMI monitor, touchscreen, or local desktop is required.
+
+The Control Room website remains a development, documentation, and configuration surface. It is not, by itself, the production operator display and its browser-local settings must not be described as controlling runtime hardware.
+
+### Responsibility boundaries
+
+- **Coreless/VIGIL runtime:** owns sensor ingestion, event timestamps, track state, fusion results, confidence/uncertainty, provenance, health, and authorization decisions.
+- **Operator-display service:** exposes a versioned, typed view of runtime state and accepts only explicitly authorized operator commands. It must not become a second sensor/fusion engine or a separate AI authority.
+- **Remote browser client:** renders the server-provided state, supports accessible/responsive layouts, and submits user intent. The client is untrusted: it cannot grant itself permissions or be the source of truth for track, sensor, or authorization state.
+- **Existing Coreless AI boundary:** VIGIL analysis continues through the existing Coreless AI registry/controller and Qwen3 integration; display transport does not introduce another AI runtime.
+
+### Session and transport requirements
+
+1. Use HTTPS for browser sessions. Use an authenticated session and server-side authorization for any non-read-only action; never put secrets or long-lived credentials in browser code or URLs.
+2. Separate read-only telemetry/view state from commands that change runtime behavior. Validate command schema, capability, scope, freshness, and authorization on the Coreless side.
+3. Prefer a push channel such as WebSocket or Server-Sent Events for live state, with a bounded polling fallback where needed. Include sequence/cursor information and source timestamps so reconnects can detect gaps and stale state.
+4. Expose explicit connection, last-update, stale/disconnected, and degraded states. A reachable endpoint is not proof that physical sensors are connected or that measurements are valid.
+5. Keep provenance, units, calibration status, uncertainty, and modality identity attached to evidence as it crosses the display boundary. Wi-Fi CSI/RF evidence, calibrated ranging, infrared, and acoustic sonar remain distinct modalities.
+6. Support responsive desktop and mobile browser layouts, keyboard operation, accessible focus/status announcements, reduced motion, and reconnect without silently resetting operator context.
+7. Treat display preferences (layout, visible layers, text size, motion, startup view) as client presentation preferences unless a separately authorized runtime command is explicitly defined. Never label a browser-only preference as a hardware/runtime setting.
+
+### Implementation sequence and acceptance criteria
+
+1. Define the operator view-state and command schemas, including versioning, event sequence, timestamps, freshness, provenance, and authorization outcomes.
+2. Implement an authenticated session boundary and read-only telemetry endpoint before enabling runtime-changing commands.
+3. Implement the browser renderer and connection lifecycle against deterministic fixtures; then connect it to the actual Coreless/VIGIL runtime.
+4. Add authorized commands individually, with server-side policy checks and auditable outcomes.
+5. Verify tests for stale/out-of-order events, reconnect and sequence gaps, revoked/expired sessions, unauthorized commands, malformed payloads, and sensor-degraded states.
+
+Acceptance requires that the browser can render actual runtime state over a remote session, clearly reports stale/disconnected feeds, and cannot bypass Coreless authorization. Static mockups or a successful HTTP connection alone do not satisfy this requirement. Physical sensor integration and real-world localization must be verified separately.
+
+This section records the deployment target and architectural constraints; it does not claim that the remote operator display service or live runtime connection has been implemented.
+
