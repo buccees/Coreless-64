@@ -54,7 +54,7 @@ grep -Fqx "UUID=$STATE_UUID /var/lib/coreless ext4 defaults,noatime 0 2" "$WORK/
 compgen -G "$WORK/root/boot/vmlinuz-*" >/dev/null || {
   echo "No Linux kernel image found under /boot" >&2; exit 1;
 }
-[[ -s "$WORK/root/etc/systemd/system/multi-user.target.wants/coreless-machine.service" ]] || {
+[[ -L "$WORK/root/etc/systemd/system/multi-user.target.wants/coreless-machine.service" && -f "$WORK/root/etc/systemd/system/coreless-machine.service" ]] || {
   echo "Coreless machine service is not enabled for multi-user.target" >&2; exit 1;
 }
 [[ -f "$WORK/root/opt/coreless/scripts/coreless-console.py" ]] || {
