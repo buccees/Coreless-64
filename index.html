@@ -449,6 +449,8 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <li><strong>Added:</strong> <code>reference/operator_display.py</code> defines a versioned, transport-neutral snapshot for remote browser rendering, including monotonic sequence metadata, generated/source timestamps, runtime and connection states, sensor modality/calibration/freshness fields, and alert provenance.</li>
 <li><strong>Added tests:</strong> <code>reference/test_operator_display.py</code> covers deterministic JSON encoding, protocol-version rejection, duplicate sensor/alert IDs, unavailable sensor metadata, invalid timestamps, and invalid sensor states.</li>
 <li><strong>Read-only endpoint added:</strong> <code>reference/operator_telemetry.py</code> exposes a GET-only WSGI JSON endpoint at <code>/api/operator/state</code>. It requires an injected server-side authorization callback, fails closed on authorization errors, disables caching, and never accepts commands.</li>
+<li><strong>Remote browser client added:</strong> <code>operator-display.html</code> provides a separate terminal-style operator screen with an HTTPS endpoint field, protocol/schema validation, monotonic-sequence checks, 3-second polling, stale/disconnected states, reconnect/retry, sensor health and alert rendering. It is read-only and sends no commands.</li>
+<li><strong>Deployment boundary:</strong> GitHub Pages can host the client but not the runtime endpoint. The Coreless server still needs to mount the WSGI app behind its real authentication/session middleware; a cross-origin deployment must configure credentialed CORS correctly.</li>
 <li><strong>Runtime adapter limitation:</strong> the CorelessSystem adapter reports only the runtime lifecycle state available today. It deliberately emits no sensor readings or alerts until real source adapters provide them; no physical telemetry is fabricated.</li>
 <li><strong>Endpoint tests added:</strong> <code>reference/test_operator_telemetry.py</code> checks authorization-before-read, fail-closed behavior, GET-only routing, no-store headers, provider failure handling, and honest runtime lifecycle snapshots.</li>
 </ul>
@@ -456,7 +458,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <ol>
 <li>Define versioned view-state and command schemas.</li>
 <li>Integrate the read-only endpoint with the deployment’s real session/authentication middleware, then connect the browser renderer.</li>
-<li>Build the remote browser renderer against deterministic fixtures, then connect it to the real runtime.</li>
+<li>Mount the read-only endpoint behind production session/auth middleware and configure HTTPS/CORS; then verify the hosted browser client against a running Coreless service.</li>
 <li>Add runtime-changing commands one at a time with server-side policy checks and auditable outcomes.</li>
 <li>Test stale/out-of-order events, reconnect gaps, expired/revoked sessions, unauthorized commands, malformed payloads, and sensor-degraded states.</li>
 </ol>
