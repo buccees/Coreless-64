@@ -2,7 +2,7 @@
 
 ## Portability and hardware-identity goals
 
-**Coreless-64 is the machine; the operating system runs on Coreless-64.** Lubuntu is the user's preferred OS for the machine's initial bring-up, not a host OS that owns Coreless execution. Keep the machine architecture, boot path, device model, and OS/runtime authority distinct from the chosen operating system. The portability goal is to boot and operate the Coreless machine from a broad range of supported SSDs and to expose Coreless's own identity through suitable hardware interfaces. The repository's digital/reference model is not, by itself, proof that a complete physical machine exists.
+**The SSD holds the whole Coreless-64 machine, including its execution engine, OS/environment, configuration, and persistent state.** The OS runs on that machine. Lubuntu is the user's preferred OS for initial bring-up, not a host OS that owns Coreless execution. Keep the machine architecture, boot path, device model, and OS/runtime authority distinct from the chosen operating system. The portability goal is to boot and operate the Coreless machine from a broad range of supported SSDs and to expose Coreless's own identity through suitable hardware interfaces. The engineering goal is the complete SSD-carried machine, not a program installed on a host. Validate its execution/boot path and required physical interfaces against that architecture.
 
 The portability goal includes USB-attached SATA/NVMe SSDs and native SATA/NVMe storage where the host firmware, bus, drivers, and boot path support them. Do not claim universal SSD compatibility without a tested drive/host/interface matrix.
 
