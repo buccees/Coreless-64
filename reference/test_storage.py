@@ -208,13 +208,15 @@ def test_stale_machine_image_writer_cannot_overwrite_newer_state(tmp_path):
 
 
 def test_startup_worker_cancels_after_boot_when_window_closes(tmp_path, monkeypatch):
-    import importlib
+    import importlib.util
     import threading
     from pathlib import Path
 
     scripts = Path(__file__).resolve().parents[1] / "scripts"
     sys.path.insert(0, str(scripts))
-    startup = importlib.import_module("coreless_start")
+    spec = importlib.util.spec_from_file_location("coreless_start", scripts / "coreless-start.py")
+    startup = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(startup)
 
     class Root:
         def __init__(self):
