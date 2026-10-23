@@ -206,6 +206,51 @@ def create_lan_app(
                 "expires_in": SESSION_TTL_SECONDS if context is not None else 0,
             })
 
+        if path == "/api/vigil/alerts/acknowledge":
+            if method != "POST":
+                return _json(start_response, "405 Method Not Allowed",
+                             {"error": "method_not_allowed"}, [("Allow", "POST")])
+            if context is None:
+                return _json(start_response, "401 Unauthorized", {"error": "unauthorized"})
+            origin = environ.get("HTTP_ORIGIN")
+            expected_origin = "https://" + environ.get("HTTP_HOST", "")
+            if not origin or origin != expected_origin:
+                return _json(start_response, "403 Forbidden", {"error": "origin_not_allowed"})
+            if spatial_workspace is None or spatial_workspace.registry_store is None:
+                return _json(start_response, "503 Service Unavailable", {
+                    "error": "persistent_spatial_workspace_required",
+                    "detail": "Persistent alert acknowledgements require a configured spatial registry.",
+                })
+            try:
+                length = int(environ.get("CONTENT_LENGTH") or "0")
+                if length < 1 or length > 4096:
+                    raise ValueError("invalid body size")
+                payload = json.loads(environ["wsgi.input"].read(length).decode("utf-8"))
+                alert_id = payload.get("alert_id") if isinstance(payload, dict) else None
+                acknowledged = payload.get("acknowledged", True) if isinstance(payload, dict) else True
+                if not isinstance(alert_id, str) or not alert_id.strip() or not isinstance(acknowledged, bool):
+                    raise ValueError("invalid acknowledgement payload")
+                current = build_spatial_snapshot(spatial_workspace, now_ns=time.monotonic_ns())
+                active_ids = {item["alert_id"] for item in current["sensor_health_alerts"]}
+                if alert_id not in active_ids:
+                    return _json(start_response, "409 Conflict", {
+                        "error": "alert_not_active",
+                        "detail": "The alert is no longer active; refresh the spatial snapshot.",
+                    })
+                spatial_workspace.set_sensor_alert_acknowledgement(
+                    alert_id, acknowledged=acknowledged, acknowledged_by="authenticated_operator"
+                )
+            except ValueError as exc:
+                return _json(start_response, "400 Bad Request", {"error": "invalid_payload", "detail": str(exc)})
+            except Exception:
+                return _json(start_response, "503 Service Unavailable", {
+                    "error": "acknowledgement_unavailable",
+                    "detail": "The alert acknowledgement could not be saved.",
+                })
+            return _json(start_response, "200 OK", {
+                "alert_id": alert_id, "acknowledged": acknowledged,
+            })
+
         if path == "/api/vigil/spatial":
             if method != "GET":
                 return _json(start_response, "405 Method Not Allowed",
