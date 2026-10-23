@@ -184,6 +184,7 @@ class SpatialWorkspace:
                 active_model = self.registry.active_model
                 if active_model is not None:
                     self._restore_regions(active_model)
+                    self._restore_expected_sensors(active_model)
                     self._restore_tracks(active_model)
 
     def _restore_regions(self, model: BlueprintModel) -> None:
@@ -196,6 +197,16 @@ class SpatialWorkspace:
             ):
                 raise ValueError("persisted spatial region does not match its model frame")
             self._regions[(region.model_id, region.model_revision, region.region_id)] = region
+
+    def _restore_expected_sensors(self, model: BlueprintModel) -> None:
+        """Restore declarations for the exact active model revision."""
+        if self.registry_store is None:
+            return
+        self._expected_sensor_coverage.clear()
+        for item in self.registry_store.load_expected_sensors(model.model_id, model.revision):
+            expected = ExpectedSensorCoverage(
+                item["sensor_id"], item["provider_id"], tuple(item["region_ids"]), item["max_age_ns"])
+            self._expected_sensor_coverage[expected.sensor_id] = expected
 
     def _restore_tracks(self, model: BlueprintModel) -> None:
         """Restore the last-known scene as non-current until fresh sensor input arrives."""
@@ -212,6 +223,7 @@ class SpatialWorkspace:
         if self.registry_store is not None and activate:
             self.registry_store.set_active_model(model.model_id, model.revision)
             self._restore_regions(model)
+            self._restore_expected_sensors(model)
 
     @property
     def active_model(self) -> BlueprintModel | None:
@@ -280,6 +292,7 @@ class SpatialWorkspace:
             self._floor_views = {}
             self._last_floor_pose_timestamp_ns = None
             self._last_floor_transition = None
+            self._restore_expected_sensors(model)
             self._restore_tracks(model)
         return model
 
@@ -297,6 +310,7 @@ class SpatialWorkspace:
         self._floor_views = {}
         self._last_floor_pose_timestamp_ns = None
         self._last_floor_transition = None
+        self._restore_expected_sensors(model)
         self._restore_tracks(model)
         return model
 
@@ -587,11 +601,18 @@ class SpatialWorkspace:
         if sensor_id in self._expected_sensor_coverage:
             raise ValueError(f"expected sensor already registered: {sensor_id!r}")
         expected = ExpectedSensorCoverage(sensor_id, provider_id, normalized, max_age_ns)
+        if self.registry_store is not None:
+            self.registry_store.save_expected_sensor(self.active_model.model_id, self.active_model.revision, sensor_id,
+                provider_id=provider_id, region_ids=normalized, max_age_ns=max_age_ns)
         self._expected_sensor_coverage[sensor_id] = expected
         return expected
 
     def unregister_expected_sensor(self, sensor_id: str) -> bool:
-        return self._expected_sensor_coverage.pop(sensor_id, None) is not None
+        model = self.active_model
+        existed = self._expected_sensor_coverage.pop(sensor_id, None) is not None
+        if model is not None and self.registry_store is not None:
+            existed = self.registry_store.delete_expected_sensor(model.model_id, model.revision, sensor_id) or existed
+        return existed
 
     def register_sensor_provider(self, provider_id: str, provider: SpatialSensorProvider) -> None:
         """Register an optional adapter. Duplicate IDs are rejected, not overwritten."""
