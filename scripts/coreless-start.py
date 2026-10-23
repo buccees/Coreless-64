@@ -268,16 +268,31 @@ class StartupWizard:
         messagebox.showerror("Coreless could not start", f"{error}\n\nNothing has been reported as running. Correct the setup shown on screen and try again.")
 
     def close(self) -> None:
-        if self.server:
-            self.server.shutdown()
-            self.server.server_close()
-        if self.system:
+        # Mark cancellation before taking ownership of published resources. A
+        # worker that has not published its server/system will observe this and
+        # tear down its local resources instead of starting a detached service.
+        self._closing.set()
+        with self._lifecycle_lock:
+            server, server_thread, system = self.server, self.server_thread, self.system
+            self.server = self.server_thread = self.system = None
+
+        if server is not None:
+            if server_thread is not None and server_thread.is_alive():
+                try:
+                    server.shutdown()
+                except Exception as exc:
+                    messagebox.showerror("Server shutdown warning", f"The operator server did not stop cleanly:\n{exc}")
             try:
-                self.system.shutdown()
+                server.server_close()
+            except Exception as exc:
+                messagebox.showerror("Server close warning", f"The operator listener could not be closed cleanly:\n{exc}")
+        if system is not None:
+            try:
+                system.shutdown()
             except Exception as exc:
                 messagebox.showerror("Shutdown warning", f"The operator server stopped, but machine shutdown reported:\n{exc}")
                 try:
-                    self.system.machine.save_state()
+                    system.machine.save_state()
                 except Exception as save_exc:
                     messagebox.showerror("Save warning", f"Machine-state save also failed:\n{save_exc}")
         self.root.destroy()
