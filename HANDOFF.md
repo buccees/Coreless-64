@@ -1,14 +1,18 @@
 # Coreless-64 — Project Handoff
 
-## Target host platform — Lubuntu Linux
+## Portability and hardware-identity goals
 
-**User-selected first target OS: Lubuntu.** Treat Lubuntu/Ubuntu Linux as the first platform for concrete host adapters rather than attempting cross-platform support first. For native hot-plug, evaluate a Linux device-event monitor backed by udev/libudev; translate validated device add/remove events into the existing `HostHotplugController`, with explicit transport close/reopen behavior and tests. Keep the provider isolated behind the transport-neutral contract so other OS adapters can be added later.
+**Lubuntu is the user's preferred OS to run/develop Coreless with, not a platform compatibility ceiling.** Design Coreless to be storage- and host-platform-agnostic through explicit adapters, with Lubuntu/Linux as the first practical integration target. Target broad SSD compatibility (USB-attached SATA/NVMe and native SATA/NVMe where firmware and drivers permit), but do not promise every drive/host combination without a compatibility matrix and tests.
+
+The user also wants Coreless to register as a distinct piece of hardware, not merely be seen as files on an SSD. Keep three identities separate: (1) the storage device/enclosure identity exposed by its controller, (2) the Coreless machine identity carried by persistent state/protocol, and (3) any optional physical device-mode identity exposed to another host. Software on an ordinary SSD cannot make its enclosure enumerate as a separate computer by itself; that requires compatible device-side hardware/firmware and an implemented transport. Treat USB gadget/device mode as a hardware-dependent option, not a universal assumption.
+
+For native hot-plug, implement Linux/udev monitoring first as one platform provider, translating validated events into the existing `HostHotplugController`, with explicit transport close/reopen behavior and tests. Keep this provider behind the transport-neutral contract so other host OS adapters can follow.
 
 ## Current blocker — VIGIL cannot use host hot-plug yet
 
 **Do not treat hot-plug as available to VIGIL right now.** The repository has a transport-neutral `HostHotplugController` for validated arrival, removal, and missed-event reconciliation, but native OS/device event monitoring and concrete platform adapters are not implemented or validated. Consequently, VIGIL cannot rely on automatic physical device arrival/removal or reconnect behavior yet.
 
-Next required work: implement the first native platform provider for Lubuntu/Linux, subscribe to device lifecycle events (likely via udev/libudev), feed validated events into the controller, safely close/reopen the relevant transport, and verify unplug/replug and failure recovery on the target platform. Add an end-to-end VIGIL integration test before marking this usable. Keep the VIGIL spatial-intelligence expansion paused; this note records a blocker, not permission to resume that work.
+Next required hot-plug work: implement the first native platform provider for Lubuntu/Linux, subscribe to device lifecycle events (likely via udev/libudev), feed validated events into the controller, safely close/reopen the relevant transport, and verify unplug/replug and failure recovery. Separately, define and test a storage/host compatibility matrix and specify what physical interface can expose Coreless as a distinct device. Add an end-to-end VIGIL integration test before marking this usable. Keep the VIGIL spatial-intelligence expansion paused; this note records a blocker, not permission to resume that work.
 
 ## Current state
 
