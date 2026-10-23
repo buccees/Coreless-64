@@ -1,0 +1,39 @@
+name: Coreless bootable carrier image
+run-name: Bootable Coreless carrier / ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - vigil-spatial-awareness
+    paths:
+      - "scripts/build-bootable-ssd.sh"
+      - "scripts/coreless-console.py"
+      - "deploy/coreless-machine.service"
+      - "reference/**"
+      - "specification/bootable_carrier.md"
+      - ".github/workflows/bootable-carrier.yml"
+
+jobs:
+  build-uefi-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install image build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debootstrap parted dosfstools e2fsprogs rsync util-linux
+      - name: Validate build entrypoints
+        run: |
+          bash -n scripts/build-bootable-ssd.sh
+          python -m py_compile scripts/coreless-console.py
+      - name: Build UEFI x86_64 disk image
+        run: bash scripts/build-bootable-ssd.sh "$RUNNER_TEMP/coreless-uefi-x86_64.img"
+      - name: Publish bootable image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coreless-uefi-x86_64
+          path: ${{ runner.temp }}/coreless-uefi-x86_64.img
+          if-no-files-found: error
+          retention-days: 7
