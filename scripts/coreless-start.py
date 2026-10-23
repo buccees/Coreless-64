@@ -208,6 +208,8 @@ class StartupWizard:
 
     def _start_worker(self, image_path: Path, password: str, host: str, connect_host: str,
                       port: int, cert_path: Path, key_path: Path) -> None:
+        system = None
+        server = None
         try:
             if not cert_path.is_file() or not key_path.is_file():
                 self._set_status("SETUP // Creating a local HTTPS certificate…")
@@ -228,7 +230,27 @@ class StartupWizard:
             url = f"https://{connect_host}:{port}/"
             self.root.after(0, self._started, url, host != "127.0.0.1")
         except Exception as exc:
-            self.root.after(0, self._failed, str(exc))
+            # Startup is transactional: if the machine booted but the HTTPS
+            # listener failed, release the listener and persist a clean state.
+            if server is not None:
+                try:
+                    server.server_close()
+                except Exception:
+                    pass
+            if system is not None:
+                try:
+                    system.machine.save_state()
+                except Exception as save_exc:
+                    exc = RuntimeError(f"{exc}; machine-state save also failed: {save_exc}")
+                try:
+                    system.shutdown()
+                except Exception as shutdown_exc:
+                    exc = RuntimeError(f"{exc}; machine shutdown also failed: {shutdown_exc}")
+            try:
+                self.root.after(0, self._failed, str(exc))
+            except RuntimeError:
+                # The UI may already have closed while startup was running.
+                pass
 
     def _set_status(self, value: str) -> None:
         self.root.after(0, self.status.set, value)
@@ -251,9 +273,13 @@ class StartupWizard:
             self.server.server_close()
         if self.system:
             try:
-                self.system.machine.save_state()
+                self.system.shutdown()
             except Exception as exc:
-                messagebox.showerror("Save warning", f"The operator server stopped, but saving machine state reported:\n{exc}")
+                messagebox.showerror("Shutdown warning", f"The operator server stopped, but machine shutdown reported:\n{exc}")
+                try:
+                    self.system.machine.save_state()
+                except Exception as save_exc:
+                    messagebox.showerror("Save warning", f"Machine-state save also failed:\n{save_exc}")
         self.root.destroy()
 
 
