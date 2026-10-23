@@ -33,6 +33,32 @@ def test_tracker_fuses_rf_and_acoustic_sonar_positions_without_conflating_modali
     assert track.uncertainty_m > 0
 
 
+def test_correlated_sensor_feeds_do_not_increase_fusion_confidence():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    track = ObjectTracker().update(model, [
+        observation(
+            model, timestamp=100, position=(1.0, 0.0, 0.0), sensor="receiver-primary",
+            uncertainty=0.2, independence_group="same-physical-receiver",
+        ),
+        observation(
+            model, timestamp=100, position=(1.1, 0.0, 0.0), sensor="receiver-derived-feed",
+            uncertainty=0.1, independence_group="same-physical-receiver",
+        ),
+    ], now_ns=110)[0]
+
+    # Both detections remain inspectable, but a shared lineage contributes only
+    # its lowest-uncertainty representative to the fused estimate.
+    assert track.sensor_ids == ("receiver-derived-feed", "receiver-primary")
+    assert track.observation_count == 2
+    assert track.raw_observations and len(track.raw_observations) == 2
+    assert track.position_m == pytest.approx((1.1, 0.0, 0.0))
+    assert track.uncertainty_m == pytest.approx(0.1)
+    assert track.conflict is False
+
+
 def test_tracker_estimates_velocity_and_expires_stale_or_wrong_frame_detections():
     model = register_blueprint(
         "site", "r1", frame_id="site/building", units="m",
