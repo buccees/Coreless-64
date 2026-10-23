@@ -141,3 +141,72 @@ def test_lan_host_requires_long_password_and_page_exists(tmp_path):
         assert "at least 16 characters" in str(exc)
     else:
         raise AssertionError("short operator password should be rejected")
+
+def test_spatial_endpoint_requires_login_and_returns_live_workspace_snapshot(tmp_path):
+    from vigil.object_tracking import ObjectObservation, TrackingModality
+    from vigil.workspace import SpatialWorkspace
+    import json as json_module
+
+    page = tmp_path / "operator-display.html"
+    page.write_text("spatial display", encoding="utf-8")
+    workspace = SpatialWorkspace()
+    manifest = json_module.dumps({
+        "schema_version": 1, "model_id": "lab", "revision": "r1",
+        "frame_id": "lab/world", "units": "m",
+        "features": [
+            {"feature_id": "entry", "label": "Entry", "position": [0, 0, 0], "level": "L1"},
+            {"feature_id": "bench", "label": "Bench", "position": [8, 4, 0], "level": "L1"},
+        ],
+    })
+    model = workspace.import_blueprint(manifest, activate=True)
+    workspace.ingest_object_observations([ObjectObservation(
+        "cart-1", "uwb-array", model.model_id, model.revision, model.frame_id,
+        __import__("time").time_ns(), (2.0, 1.0, 0.0), 0.2,
+        TrackingModality.UWB, "test-calibrated-adapter",
+    )])
+    app = create_lan_app(
+        password="a-strong-test-password-123", page_path=page,
+        system=CorelessSystem(storage_path=tmp_path / "owned-machine.img"),
+        spatial_workspace=workspace,
+    )
+
+    response, body = _request(app, "/api/vigil/spatial")
+    assert response["status"] == "401 Unauthorized"
+    assert json.loads(body)["error"] == "unauthorized"
+
+    response, body = _request(
+        app, "/api/operator/login", method="POST",
+        body=json.dumps({"password": "a-strong-test-password-123"}).encode(),
+        origin="https://127.0.0.1:8443",
+    )
+    assert response["status"] == "200 OK"
+    token = response["headers"]["Set-Cookie"].split(";", 1)[0]
+
+    response, body = _request(app, "/api/vigil/spatial", cookie=token)
+    assert response["status"] == "200 OK"
+    spatial = json.loads(body)
+    assert spatial["available"] is True
+    assert spatial["model"]["model_id"] == "lab"
+    assert spatial["objects"][0]["object_id"] == "cart-1"
+    assert spatial["objects"][0]["presence_state"] == "TRACKING"
+    assert response["headers"]["Cache-Control"] == "no-store"
+
+    response, body = _request(app, "/api/vigil/spatial", method="POST", cookie=token)
+    assert response["status"] == "405 Method Not Allowed"
+    assert response["headers"]["Allow"] == "GET"
+
+
+def test_spatial_endpoint_returns_explicit_unconfigured_status(tmp_path):
+    page = tmp_path / "operator-display.html"
+    page.write_text("spatial display", encoding="utf-8")
+    app = _app("a-strong-test-password-123", page, tmp_path)
+    response, body = _request(
+        app, "/api/operator/login", method="POST",
+        body=json.dumps({"password": "a-strong-test-password-123"}).encode(),
+        origin="https://127.0.0.1:8443",
+    )
+    token = response["headers"]["Set-Cookie"].split(";", 1)[0]
+    response, body = _request(app, "/api/vigil/spatial", cookie=token)
+    assert response["status"] == "503 Service Unavailable"
+    assert json.loads(body)["error"] == "spatial_not_configured"
+
