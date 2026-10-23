@@ -120,12 +120,11 @@ class OperatorViewState:
             raise ValueError("alert IDs must be unique within a view state")
 
     def as_dict(self) -> dict[str, Any]:
-        """Return a JSON-safe protocol object; timestamps are decimal strings.
+        """Return JSON-safe data with exact decimal-string nanosecond timestamps.
 
-Nanosecond Unix timestamps exceed JavaScript safe-integer precision, so the
-wire representation uses decimal strings to preserve exact source times.
-No hidden runtime objects escape.
-"""
+        Nanosecond Unix timestamps exceed JavaScript safe-integer precision, so
+        decimal strings preserve exact source times without leaking runtime objects.
+        """
         return {
             "protocol_version": self.protocol_version,
             "sequence": self.sequence,
