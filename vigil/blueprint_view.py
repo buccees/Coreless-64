@@ -87,6 +87,7 @@ class ObjectProjection:
     visible_on_selected_level: bool | None
     motion_state: str
     speed_mps: float | None
+    presence_state: str
     floor_transitions: tuple[FloorTransitionProjection, ...] = ()
 
 
@@ -311,6 +312,7 @@ def build_blueprint_view(
             visible_on_selected_level=visible_on_level,
             motion_state=motion_state,
             speed_mps=speed_mps if has_motion_baseline else None,
+            presence_state=track.presence_state,
             floor_transitions=_candidate_floor_transitions(
                 track.position_history_m, elevations, floor_elevation_tolerance_m,
                 track.position_history_sensor_ids,
