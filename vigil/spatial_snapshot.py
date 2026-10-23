@@ -121,6 +121,29 @@ def build_spatial_snapshot(
     for item in coverage:
         if item["state"] in ("STALE_REPORT", "NO_REPORT_IN_SCOPE", "TIME_UNCERTAIN", "PROVIDER_ERROR", "PROVIDER_DISCONNECTED"):
             alerts.append({"source": "expected_sensor", "sensor_id": item["sensor_id"], "provider_id": item["provider_id"], "state": item["state"], "severity": "warning" if item["state"] in ("STALE_REPORT", "NO_REPORT_IN_SCOPE") else "critical", "message": item["state"].lower().replace("_", " ")})
+    # An acknowledgement belongs to one visible incident, not permanently to a
+    # provider/state pair. Once recovery is observed, its acknowledgement is cleared;
+    # a later recurrence therefore requires a fresh operator acknowledgement.
+    for alert in alerts:
+        identity = ":".join((
+            str(alert.get("source", "")),
+            str(alert.get("provider_id", "")),
+            str(alert.get("sensor_id", "")),
+            str(alert.get("state", "")),
+        ))
+        alert["alert_id"] = identity
+    store = workspace.registry_store
+    if store is not None:
+        active_ids = {alert["alert_id"] for alert in alerts}
+        store.clear_inactive_sensor_alert_acknowledgements(active_ids)
+        acknowledgements = store.load_sensor_alert_acknowledgements()
+    else:
+        acknowledgements = {}
+    for alert in alerts:
+        record = acknowledgements.get(alert["alert_id"])
+        alert["acknowledged"] = record is not None
+        alert["acknowledged_at_utc"] = record.get("acknowledged_at_utc") if record else None
+        alert["acknowledged_by"] = record.get("acknowledged_by") if record else None
     base["sensor_health_alerts"] = alerts
 
     view = build_blueprint_view(
