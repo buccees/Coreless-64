@@ -414,8 +414,10 @@ This is a side quest. It must not silently displace the current boot/host-I/O/ru
 ### Carrier startup ↔ VIGIL persistence integration — 2026-10-23
 
 - [x] Initialize the VIGIL spatial registry from the carrier's persistent state directory during machine-console startup.
+- [x] Add a dedicated `CORELESS_STATE` GPT/ext4 partition mounted at `/var/lib/coreless`, keeping the machine image and VIGIL registry independent from the bootstrap root filesystem.
 - [x] Restore active model/revision, regions, expected sensor coverage, last-known tracks, lifecycle history, and alert acknowledgements through the existing workspace/store restoration paths.
 - [x] Add the `:spatial` console command to inspect restored model and persisted sensor/alert history counts.
-- [x] Add a restart integration test for active model, sensor lifecycle history, and alert acknowledgement restoration.
+- [x] Add a restart integration test for active model, sensor lifecycle history, alert acknowledgement restoration, and last-known object-track evidence restored as `REACQUIRE`.
 - [ ] Verify the new commit's complete CI suite and bootable-carrier image workflow.
+- [ ] Validate state-partition formatting/mounting by building and booting the revised three-partition image.
 - [ ] Exercise a physical SSD reboot and confirm the registry survives power-off/reconnect on the target host.
