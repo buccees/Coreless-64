@@ -150,3 +150,23 @@ def test_replay_is_repeatable_without_wall_clock_or_synthetic_fallbacks():
     second = _run_replay()
     assert first[3] == second[3]
     assert first[7] == second[7]
+
+
+def test_snapshot_degrades_track_validity_without_erasing_last_known_position():
+    workspace = SpatialWorkspace()
+    model = workspace.import_blueprint(
+        '{"schema_version":1,"model_id":"validity-site","revision":"r1",'
+        '"frame_id":"validity-site/world","units":"m","features":[]}',
+        activate=True,
+    )
+    workspace.ingest_object_observations((_object(model, 100, 3.0),))
+    workspace.refresh(now_ns=100)
+    current = build_spatial_snapshot(workspace, now_ns=100)
+    assert current["objects"][0]["track_validity"] == "CURRENT"
+    assert current["objects"][0]["position_m"] == [3.0, 2.0, 0.0]
+
+    stale = build_spatial_snapshot(workspace, now_ns=2_000_000_000, max_age_ns=1_000)
+    assert stale["objects"][0]["track_validity"] == "STALE_LAST_KNOWN"
+    assert "measurement_age_exceeds_max_age" in stale["objects"][0]["track_validity_reasons"]
+    assert stale["objects"][0]["position_m"] == [3.0, 2.0, 0.0]
+    assert len(stale["objects"][0]["sensor_observations"]) == 1
