@@ -6,7 +6,6 @@ sensor data or turns stale/unknown evidence into a current position.
 """
 from __future__ import annotations
 
-from math import isfinite
 from typing import Any
 
 from .blueprint_view import build_blueprint_view
@@ -67,11 +66,26 @@ def build_spatial_snapshot(
                 for bound in view.bounds_m
             ],
         },
-        "pose": None if view.pose is None else {
-            "state": view.pose.state,
-            "position_m": _point(view.pose.position_m),
-            "uncertainty_m": view.pose.uncertainty_m,
-            "provenance": list(view.pose.provenance),
+        "pose": None if snapshot.pose is None else {
+            "state": snapshot.pose.state.value,
+            "presence_state": (
+                "UNKNOWN" if snapshot.pose.observation_timestamp_ns is None else
+                "TIME_UNCERTAIN" if snapshot.pose.observation_timestamp_ns > now_ns else
+                "STALE" if now_ns - snapshot.pose.observation_timestamp_ns > max_age_ns else
+                "CURRENT"
+            ),
+            "position_m": _point(snapshot.pose.position_m) if snapshot.pose.position_m is not None else None,
+            "uncertainty_m": snapshot.pose.uncertainty_m,
+            "observation_timestamp_ns": (
+                str(snapshot.pose.observation_timestamp_ns)
+                if snapshot.pose.observation_timestamp_ns is not None else None
+            ),
+            "age_ns": (
+                str(now_ns - snapshot.pose.observation_timestamp_ns)
+                if snapshot.pose.observation_timestamp_ns is not None else None
+            ),
+            "reason": snapshot.pose.reason,
+            "provenance": list(snapshot.pose.provenance),
         },
         "features": [{
             "feature_id": feature.feature_id,
