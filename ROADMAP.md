@@ -379,3 +379,20 @@ This completes the first deterministic spatial-query API slice; it does not clai
 - [ ] Validate live drivers, coverage/false positives, ranging quality, and reacquisition on actual hardware.
 
 Spatial development remains active. Software CI is not field-validation evidence.
+
+
+## Side quest — VIGIL Eye: modular optical sensor head
+
+Tracking issue: [#22 — Side quest: VIGIL Eye — modular optical sensor head](https://github.com/buccees/Coreless-64/issues/22)
+
+The VIGIL Eye is an optional, replaceable physical optical module inspired by the single-eye silhouette in *Alien: Earth*. It should feed real sensor evidence into VIGIL's existing spatial-awareness pipeline; it is not a substitute for the Coreless-64 machine, its execution engine, or spatial intelligence.
+
+- [ ] Define a practical first-prototype camera and power/data interface
+- [ ] Compare camera-only, stereo, and depth-camera approaches for object localization
+- [ ] Specify mount, field of view, lighting, calibration, timestamps, coordinate frame, provenance, and provider-health reporting
+- [ ] Integrate a simulated sensor provider before hardware selection
+- [ ] Prototype with real hardware and measure latency, coverage, range accuracy, blind spots, and reacquisition
+- [ ] Design the eye-like enclosure around validated sensor, power, and thermal requirements
+- [ ] Document limits: one eye sees only its available field of view; broader awareness requires additional evidence sources
+
+This is a side quest. It must not silently displace the current boot/host-I/O/runtime validation priorities. Software tests and simulation are not evidence of physical sensing accuracy.
