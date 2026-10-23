@@ -15,3 +15,8 @@ env/
 
 # Local model/runtime state
 .ai-local/
+
+# Portable machine image and local operator credentials (keep out of Git)
+coreless.img
+*.img
+.coreless-operator/
