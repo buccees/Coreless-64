@@ -32,16 +32,21 @@ OUT="$(mkdir -p "$(dirname "$OUT")" && cd "$(dirname "$OUT")" && pwd)/$(basename
 mkdir -p "$WORK/root"
 sudo truncate -s "$SIZE" "$OUT"
 sudo parted -s "$OUT" mklabel gpt
-sudo parted -s "$OUT" mkpart ESP fat32 1MiB 513MiB
+sudo parted -s "$OUT" mkpart primary fat32 1MiB 513MiB
+sudo parted -s "$OUT" name 1 EFI_SYSTEM
 sudo parted -s "$OUT" set 1 esp on
-sudo parted -s "$OUT" mkpart CORELESS ext4 513MiB 70%\nsudo parted -s "$OUT" mkpart CORELESS_STATE ext4 70% 100%
+sudo parted -s "$OUT" mkpart primary ext4 513MiB 70%
+sudo parted -s "$OUT" name 2 CORELESS
+sudo parted -s "$OUT" mkpart primary ext4 70% 100%
+sudo parted -s "$OUT" name 3 CORELESS_STATE
 LOOP="$(sudo losetup --find --show --partscan "$OUT")"
 sudo partprobe "$LOOP" 2>/dev/null || true
 for _ in $(seq 1 20); do [[ -b "${LOOP}p2" ]] && break; sleep 0.25; done
 [[ -b "${LOOP}p1" && -b "${LOOP}p2" && -b "${LOOP}p3" ]] || { echo "Partition devices were not created for $LOOP" >&2; exit 1; }
 
 sudo mkfs.vfat -F 32 -n CORELESSEFI "${LOOP}p1"
-sudo mkfs.ext4 -F -L CORELESS_ROOT "${LOOP}p2"\nsudo mkfs.ext4 -F -L CORELESS_STATE "${LOOP}p3"
+sudo mkfs.ext4 -F -L CORELESS_ROOT "${LOOP}p2"
+sudo mkfs.ext4 -F -L CORELESS_STATE "${LOOP}p3"
 sudo mount "${LOOP}p2" "$WORK/root"; MOUNTED+=("$WORK/root")
 sudo mkdir -p "$WORK/root/boot/efi"
 sudo mount "${LOOP}p1" "$WORK/root/boot/efi"; MOUNTED+=("$WORK/root/boot/efi")
@@ -58,23 +63,30 @@ sudo tee "$WORK/root/etc/hosts" >/dev/null <<'EOF'
 ::1 localhost ip6-localhost ip6-loopback
 EOF
 ROOT_UUID="$(sudo blkid -s UUID -o value "${LOOP}p2")"
-EFI_UUID="$(sudo blkid -s UUID -o value "${LOOP}p1")"\nSTATE_UUID="$(sudo blkid -s UUID -o value "${LOOP}p3")"
+EFI_UUID="$(sudo blkid -s UUID -o value "${LOOP}p1")"
+STATE_UUID="$(sudo blkid -s UUID -o value "${LOOP}p3")"
 sudo tee "$WORK/root/etc/fstab" >/dev/null <<EOF
 UUID=$ROOT_UUID / ext4 defaults,noatime 0 1
 UUID=$EFI_UUID /boot/efi vfat umask=0077 0 1
+UUID=$STATE_UUID /var/lib/coreless ext4 defaults,noatime 0 2
 EOF
 
 sudo chroot "$WORK/root" /usr/bin/env DEBIAN_FRONTEND=noninteractive /bin/bash -euxc '
   apt-get update
   apt-get install -y --no-install-recommends linux-image-amd64 grub-efi-amd64 systemd-sysv python3 openssl ca-certificates iproute2 network-manager sudo
   ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
-  printf "LANG=C.UTF-8\n" >/etc/default/locale
-  printf "GRUB_TIMEOUT=3\nGRUB_DISTRIBUTOR=Coreless-64\nGRUB_DISABLE_OS_PROBER=true\n" >/etc/default/grub
+  printf "LANG=C.UTF-8
+" >/etc/default/locale
+  printf "GRUB_TIMEOUT=3
+GRUB_DISTRIBUTOR=Coreless-64
+GRUB_DISABLE_OS_PROBER=true
+" >/etc/default/grub
   grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=CORELESS --removable --no-nvram
   update-grub
 '
 
-sudo mkdir -p "$WORK/root/opt/coreless" "$WORK/root/var/lib/coreless"\nsudo mount "${LOOP}p3" "$WORK/root/var/lib/coreless"; MOUNTED+=("$WORK/root/var/lib/coreless")
+sudo mkdir -p "$WORK/root/opt/coreless" "$WORK/root/var/lib/coreless"
+sudo mount "${LOOP}p3" "$WORK/root/var/lib/coreless"; MOUNTED+=("$WORK/root/var/lib/coreless")
 sudo rsync -a --delete   --exclude=.git --exclude=dist --exclude='*.img' --exclude='*.lock'   --exclude='__pycache__' --exclude='.pytest_cache'   "$ROOT/" "$WORK/root/opt/coreless/"
 sudo install -m 0644 "$ROOT/deploy/coreless-machine.service" "$WORK/root/etc/systemd/system/coreless-machine.service"
 sudo systemctl --root="$WORK/root" disable getty@tty1.service
