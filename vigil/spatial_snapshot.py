@@ -95,6 +95,8 @@ def build_spatial_snapshot(
             state = "TIME_UNCERTAIN"
         elif age is not None and age <= expected.max_age_ns:
             state = "REPORTING_IN_SCOPE"
+        elif latest is not None:
+            state = "STALE_REPORT"
         else:
             state = "NO_REPORT_IN_SCOPE"
         coverage.append({
