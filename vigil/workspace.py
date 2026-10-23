@@ -66,6 +66,15 @@ class SensorPollStatus:
 
 
 @dataclass(frozen=True)
+class ExpectedSensorCoverage:
+    """Declared sensor expectation for explicit model regions."""
+    sensor_id: str
+    provider_id: str
+    region_ids: tuple[str, ...]
+    max_age_ns: int = 2_000_000_000
+
+
+@dataclass(frozen=True)
 class WorkspaceSnapshot:
     model: BlueprintModel | None
     pose: PoseEstimate | None
@@ -157,6 +166,7 @@ class SpatialWorkspace:
         self._infrared_maps: dict[str, InfraredFloorMap] = {}
         self._sensor_providers: dict[str, SpatialSensorProvider] = {}
         self._sensor_poll_statuses: tuple[SensorPollStatus, ...] = ()
+        self._expected_sensor_coverage: dict[str, ExpectedSensorCoverage] = {}
         # Key by model/revision/region so activating an older blueprint cannot
         # silently reinterpret geometry registered for another revision.
         self._regions: dict[tuple[str, str, str], SpatialRegion] = {}
@@ -555,6 +565,33 @@ class SpatialWorkspace:
     def sensor_poll_statuses(self) -> tuple[SensorPollStatus, ...]:
         """Most recent poll result for each provider; empty until the first poll."""
         return self._sensor_poll_statuses
+
+    @property
+    def expected_sensor_coverage(self) -> tuple[ExpectedSensorCoverage, ...]:
+        return tuple(self._expected_sensor_coverage[key] for key in sorted(self._expected_sensor_coverage))
+
+    def register_expected_sensor(self, sensor_id: str, *, provider_id: str, region_ids: Sequence[str], max_age_ns: int = 2_000_000_000) -> ExpectedSensorCoverage:
+        """Declare where a sensor is expected to report; does not claim physical coverage."""
+        if self.active_model is None:
+            raise RuntimeError("activate a blueprint before declaring expected sensor coverage")
+        if not isinstance(sensor_id, str) or not sensor_id.strip() or not isinstance(provider_id, str) or not provider_id.strip():
+            raise ValueError("sensor_id and provider_id must not be empty")
+        if isinstance(max_age_ns, bool) or not isinstance(max_age_ns, int) or max_age_ns < 0:
+            raise ValueError("max_age_ns must be a non-negative integer")
+        normalized = tuple(sorted(set(region_ids)))
+        if not normalized:
+            raise ValueError("at least one explicit region_id is required")
+        unknown = set(normalized) - {region.region_id for region in self.spatial_regions}
+        if unknown:
+            raise KeyError(f"expected sensor references unknown regions: {sorted(unknown)!r}")
+        if sensor_id in self._expected_sensor_coverage:
+            raise ValueError(f"expected sensor already registered: {sensor_id!r}")
+        expected = ExpectedSensorCoverage(sensor_id, provider_id, normalized, max_age_ns)
+        self._expected_sensor_coverage[sensor_id] = expected
+        return expected
+
+    def unregister_expected_sensor(self, sensor_id: str) -> bool:
+        return self._expected_sensor_coverage.pop(sensor_id, None) is not None
 
     def register_sensor_provider(self, provider_id: str, provider: SpatialSensorProvider) -> None:
         """Register an optional adapter. Duplicate IDs are rejected, not overwritten."""
