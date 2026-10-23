@@ -448,12 +448,14 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <ul>
 <li><strong>Added:</strong> <code>reference/operator_display.py</code> defines a versioned, transport-neutral snapshot for remote browser rendering, including monotonic sequence metadata, generated/source timestamps, runtime and connection states, sensor modality/calibration/freshness fields, and alert provenance.</li>
 <li><strong>Added tests:</strong> <code>reference/test_operator_display.py</code> covers deterministic JSON encoding, protocol-version rejection, duplicate sensor/alert IDs, unavailable sensor metadata, invalid timestamps, and invalid sensor states.</li>
-<li><strong>Boundary remains explicit:</strong> this is a validated data contract, not yet an HTTP/WebSocket server, authentication/session implementation, live runtime feed, or physical sensor integration.</li>
+<li><strong>Read-only endpoint added:</strong> <code>reference/operator_telemetry.py</code> exposes a GET-only WSGI JSON endpoint at <code>/api/operator/state</code>. It requires an injected server-side authorization callback, fails closed on authorization errors, disables caching, and never accepts commands.</li>
+<li><strong>Runtime adapter limitation:</strong> the CorelessSystem adapter reports only the runtime lifecycle state available today. It deliberately emits no sensor readings or alerts until real source adapters provide them; no physical telemetry is fabricated.</li>
+<li><strong>Endpoint tests added:</strong> <code>reference/test_operator_telemetry.py</code> checks authorization-before-read, fail-closed behavior, GET-only routing, no-store headers, provider failure handling, and honest runtime lifecycle snapshots.</li>
 </ul>
 <h4 class="green">3 // IMPLEMENTATION CHECKPOINTS</h4>
 <ol>
 <li>Define versioned view-state and command schemas.</li>
-<li>Implement authenticated sessions and read-only telemetry first.</li>
+<li>Integrate the read-only endpoint with the deployment’s real session/authentication middleware, then connect the browser renderer.</li>
 <li>Build the remote browser renderer against deterministic fixtures, then connect it to the real runtime.</li>
 <li>Add runtime-changing commands one at a time with server-side policy checks and auditable outcomes.</li>
 <li>Test stale/out-of-order events, reconnect gaps, expired/revoked sessions, unauthorized commands, malformed payloads, and sensor-degraded states.</li>
