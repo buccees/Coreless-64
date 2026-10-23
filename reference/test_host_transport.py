@@ -684,3 +684,64 @@ def test_provider_adapter_rejects_stale_endpoint_metadata():
     with pytest.raises(ValueError, match="not present in current discovery snapshot"):
         adapter.connect(stale_endpoint, interface)
     assert not interface.attached
+
+
+
+def test_hotplug_controller_attaches_on_arrival_and_detaches_on_removal():
+    from host_transport import HostHotplugController
+
+    endpoint = HostEndpoint(
+        "hotplug-display",
+        CorelessIdentity("hotplug-display"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    controller = HostHotplugController(adapter)
+    interface = CorelessHostInterface(CorelessIdentity("hotplug-display"))
+
+    assert controller.device_arrived(endpoint.endpoint_id, interface) == frozenset({"display"})
+    assert interface.attached
+    assert controller.attached_endpoint_ids == ("hotplug-display",)
+    assert controller.device_removed(endpoint.endpoint_id)
+    assert not interface.attached
+    assert controller.attached_endpoint_ids == ()
+    assert not controller.device_removed(endpoint.endpoint_id)
+
+
+def test_hotplug_reconcile_detaches_removed_or_changed_endpoint():
+    from host_transport import HostHotplugController
+
+    endpoint = HostEndpoint(
+        "hotplug-refresh",
+        CorelessIdentity("hotplug-refresh"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+    adapter = MemoryHostTransportAdapter([endpoint])
+    controller = HostHotplugController(adapter)
+    interface = CorelessHostInterface(CorelessIdentity("hotplug-refresh"))
+    controller.device_arrived(endpoint.endpoint_id, interface)
+
+    adapter.unregister(endpoint.endpoint_id)
+    assert controller.reconcile() == ("hotplug-refresh",)
+    assert not interface.attached
+    assert controller.reconcile() == ()
+
+    replacement = HostEndpoint(
+        "hotplug-refresh",
+        CorelessIdentity("hotplug-refresh"),
+        HostCapabilities(network=True),
+        device_capabilities={"network"},
+    )
+    adapter.register(replacement)
+    refreshed_interface = CorelessHostInterface(CorelessIdentity("hotplug-refresh"))
+    controller.device_arrived(replacement.endpoint_id, refreshed_interface)
+    adapter.register(HostEndpoint(
+        "hotplug-refresh",
+        CorelessIdentity("hotplug-refresh"),
+        HostCapabilities(display=True, network=True),
+        device_capabilities={"display", "network"},
+    ))
+    assert controller.reconcile() == ("hotplug-refresh",)
+    assert not refreshed_interface.attached
