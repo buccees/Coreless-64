@@ -49,6 +49,7 @@ def build_spatial_snapshot(
         "features": [],
         "objects": [],
         "regions": [],
+        "expected_sensor_coverage": [],
         "sensor_providers": [{
             "provider_id": provider_id,
             "accepted": poll_status_by_id[provider_id].accepted if provider_id in poll_status_by_id else 0,
@@ -58,6 +59,53 @@ def build_spatial_snapshot(
     }
     if model is None:
         return base
+
+    def inside_region(point, region) -> bool:
+        x, y, z = point
+        if z < region.min_z_m or z > region.max_z_m:
+            return False
+        inside = False
+        vertices = region.polygon_xy_m
+        j = len(vertices) - 1
+        for i, (xi, yi) in enumerate(vertices):
+            xj, yj = vertices[j]
+            if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+                inside = not inside
+            j = i
+        return inside
+
+    poll_by_id = {item.provider_id: item for item in workspace.sensor_poll_statuses}
+    coverage = []
+    for expected in workspace.expected_sensor_coverage:
+        provider = poll_by_id.get(expected.provider_id)
+        measurements = []
+        measurements.extend((o.timestamp_ns, o.position_m) for o in workspace._observations if o.source_id == expected.sensor_id)
+        measurements.extend((o.timestamp_ns, o.position_m) for o in workspace._object_observations if o.sensor_id == expected.sensor_id)
+        regions = [r for r in workspace.spatial_regions if r.region_id in expected.region_ids]
+        scoped = [ts for ts, point in measurements if any(inside_region(point, r) for r in regions)]
+        latest = max(scoped) if scoped else None
+        age = now_ns - latest if latest is not None else None
+        if provider is None:
+            state = "UNPOLLED"
+        elif provider.state == "ERROR":
+            state = "PROVIDER_ERROR"
+        elif latest is not None and latest > now_ns:
+            state = "TIME_UNCERTAIN"
+        elif age is not None and age <= expected.max_age_ns:
+            state = "REPORTING_IN_SCOPE"
+        else:
+            state = "NO_REPORT_IN_SCOPE"
+        coverage.append({
+            "sensor_id": expected.sensor_id, "provider_id": expected.provider_id,
+            "region_ids": list(expected.region_ids), "state": state,
+            "latest_observation_ns": str(latest) if latest is not None else None,
+            "age_ns": str(age) if age is not None else None,
+            "max_age_ns": str(expected.max_age_ns),
+            "provider_state": provider.state if provider is not None else "UNPOLLED",
+            "provider_error": provider.error if provider is not None else None,
+            "scope_semantics": "No report is reported only for explicitly configured sensor/region expectations; this is not proof of physical sensor visibility or object absence.",
+        })
+    base["expected_sensor_coverage"] = coverage
 
     view = build_blueprint_view(
         model, snapshot.pose, selected_level=snapshot.selected_level,
