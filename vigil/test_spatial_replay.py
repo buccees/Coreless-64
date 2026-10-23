@@ -359,3 +359,41 @@ def test_sensor_lifecycle_history_records_failure_and_recovery_transitions():
     snapshot = build_spatial_snapshot(workspace, now_ns=1)
     assert snapshot["sensor_lifecycle_history"]
     assert snapshot["sensor_health_alerts"] == []
+
+
+def test_sensor_lifecycle_history_survives_workspace_restart():
+    store = SpatialRegistryStore()
+    try:
+        class FlakyProvider:
+            def __init__(self):
+                self.fail = False
+            def read(self):
+                if self.fail:
+                    raise OSError("sensor cable unavailable")
+                return SensorBatch()
+
+        workspace = SpatialWorkspace(registry_store=store)
+        provider = FlakyProvider()
+        workspace.register_sensor_provider("persistent-camera", provider)
+        workspace.poll_sensors()
+        provider.fail = True
+        workspace.poll_sensors()
+        before_restart = [event for event in workspace.sensor_lifecycle_history
+                          if event["provider_id"] == "persistent-camera"]
+        assert [event["state"] for event in before_restart] == ["UNPOLLED", "ONLINE", "ERROR"]
+        assert all(event["recorded_at_utc"].endswith("+00:00") for event in before_restart)
+
+        restarted = SpatialWorkspace(registry_store=store)
+        restored = [event for event in restarted.sensor_lifecycle_history
+                    if event["provider_id"] == "persistent-camera"]
+        assert restored == before_restart
+        provider.fail = False
+        restarted.register_sensor_provider("persistent-camera", provider)
+        restarted.poll_sensors()
+        after_recovery = [event for event in restarted.sensor_lifecycle_history
+                          if event["provider_id"] == "persistent-camera"]
+        assert after_recovery[-1]["state"] == "ONLINE"
+        assert after_recovery[-1]["recorded_at_utc"] >= after_recovery[-2]["recorded_at_utc"]
+        assert len(store.load_sensor_lifecycle_events()) == len(after_recovery)
+    finally:
+        store.close()
