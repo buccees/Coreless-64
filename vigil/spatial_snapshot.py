@@ -46,6 +46,12 @@ def build_spatial_snapshot(
         "features": [],
         "objects": [],
         "regions": [],
+        "sensor_providers": [{
+            "provider_id": item.provider_id,
+            "accepted": item.accepted,
+            "state": item.state,
+            "error": item.error,
+        } for item in workspace.sensor_poll_statuses],
     }
     if model is None:
         return base
