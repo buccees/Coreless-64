@@ -335,7 +335,8 @@ This completes the first deterministic spatial-query API slice; it does not clai
 - [x] Reject self-intersecting/degenerate polygons and canonicalize closed polygon rings
 - [ ] Add a reviewed region-import/editor workflow for user-drawn or imported regions
 - [x] Persist normalized model revisions, regions, calibration metadata, and active-model pointer in the SQLite spatial registry
-- [ ] Bind registry file and source blueprint assets into the final portable-machine snapshot/copy contract
+- [x] Persist exact imported JSON source-manifest bytes as checksummed immutable assets tied to the normalized model revision
+- [ ] Bind the spatial registry database and all source blueprint assets into the final portable-machine snapshot/copy contract
 - [ ] Add end-to-end deterministic sensor replay across pose, object tracks, scene assembly, and region alerts
 - [ ] Implement and validate concrete sensor drivers; do not claim field accuracy from simulation/CI
 
