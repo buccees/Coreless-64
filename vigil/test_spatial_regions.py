@@ -81,3 +81,33 @@ def test_region_rejects_invalid_geometry_and_query_thresholds():
         SpatialRegion("bad", "Bad", active.model_id, active.revision, active.frame_id, ((0, 0), (1, 1), (2, 2)), 0, 1)
     with pytest.raises(ValueError):
         query_region(active, None, region(active), now_ns=1, max_age_ns=-1)
+
+def test_region_normalizes_closed_polygon_rings_and_rejects_self_intersections():
+    active = model()
+    closed = SpatialRegion(
+        "closed-ring", "Closed ring", active.model_id, active.revision, active.frame_id,
+        ((0, 0), (4, 0), (4, 4), (0, 4), (0, 0)), 0, 2,
+    )
+    assert len(closed.polygon_xy_m) == 4
+    assert closed.contains((2, 2, 1))
+
+    with pytest.raises(ValueError, match="self-intersect"):
+        SpatialRegion(
+            "bow-tie", "Bow tie", active.model_id, active.revision, active.frame_id,
+            ((0, 0), (4, 4), (0, 4), (4, 0)), 0, 2,
+        )
+
+
+def test_region_rejects_repeated_vertices_and_invalid_level_zone():
+    active = model()
+    with pytest.raises(ValueError, match="repeat vertices"):
+        SpatialRegion(
+            "repeated", "Repeated", active.model_id, active.revision, active.frame_id,
+            ((0, 0), (4, 0), (4, 4), (0, 4), (4, 0)), 0, 2,
+        )
+    with pytest.raises(ValueError, match="level"):
+        SpatialRegion(
+            "invalid-level", "Invalid", active.model_id, active.revision, active.frame_id,
+            ((0, 0), (1, 0), (1, 1)), 0, 2, level="   ",
+        )
+
