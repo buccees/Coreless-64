@@ -72,12 +72,21 @@ def test_machine_image_reopens_with_executed_cpu_and_ram_state(tmp_path):
     assert machine.cpu.read_reg(7) == 37
     assert machine.cpu.halted
 
-    # Simulate power-off/reconnect: create a fresh runtime from the same image.
-    resumed = CorelessMachine(memory_size=4096, storage_path=image_path)
-    assert resumed.booted
-    assert resumed.power_state == "on"
-    assert resumed.cpu.read_reg(7) == 37
-    assert resumed.cpu.halted
-    assert resumed.cpu.pc == machine.cpu.pc
-    assert bytes(resumed.cpu.memory[:len(program)]) == program
+    # Perform a clean power-off, then reconnect to the same machine image.
+    machine.shutdown()
+    powered_off = CorelessMachine(memory_size=4096, storage_path=image_path)
+    assert not powered_off.booted
+    assert powered_off.power_state == "off"
+    assert powered_off.cpu.read_reg(7) == 37
+    assert powered_off.cpu.halted
+    assert powered_off.cpu.pc == machine.cpu.pc
+    assert bytes(powered_off.cpu.memory[:len(program)]) == program
+
+    # Power the existing machine back on without replacing its program or state.
+    powered_off.boot()
+    assert powered_off.booted
+    assert powered_off.power_state == "on"
+    assert powered_off.cpu.read_reg(7) == 37
+    assert powered_off.cpu.halted
+    assert bytes(powered_off.cpu.memory[:len(program)]) == program
 
