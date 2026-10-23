@@ -286,7 +286,8 @@ def build_blueprint_view(
         speed_mps = sum(component * component for component in track.velocity_mps) ** 0.5
         history = track.position_history_m
         has_motion_baseline = (
-            len(history) >= 2 and history[-1][0] > history[-2][0]
+            track.presence_state == "TRACKING"
+            and len(history) >= 2 and history[-1][0] > history[-2][0]
         )
         motion_state = (
             "UNKNOWN" if not has_motion_baseline
