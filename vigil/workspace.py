@@ -7,6 +7,7 @@ It does not parse raw CAD/PDF files or own hardware sensor drivers.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from time import monotonic_ns
 from typing import Protocol, Sequence
 
@@ -171,6 +172,8 @@ class SpatialWorkspace:
         self._sensor_poll_statuses: tuple[SensorPollStatus, ...] = ()
         self._sensor_lifecycle: dict[str, SensorPollStatus] = {}
         self._sensor_lifecycle_history: list[dict[str, object]] = []
+        if self.registry_store is not None:
+            self._sensor_lifecycle_history.extend(self.registry_store.load_sensor_lifecycle_events(limit=1000))
         self._expected_sensor_coverage: dict[str, ExpectedSensorCoverage] = {}
         # Key by model/revision/region so activating an older blueprint cannot
         # silently reinterpret geometry registered for another revision.
@@ -595,13 +598,18 @@ class SpatialWorkspace:
         changed = previous is None or (previous.state, previous.consecutive_failures, previous.error) != (status.state, status.consecutive_failures, status.error)
         self._sensor_lifecycle[status.provider_id] = status
         if changed:
-            self._sensor_lifecycle_history.append({
-                "timestamp_ns": monotonic_ns(), "provider_id": status.provider_id,
+            event = {
+                "timestamp_ns": monotonic_ns(),
+                "recorded_at_utc": datetime.now(timezone.utc).isoformat(timespec="microseconds"),
+                "provider_id": status.provider_id,
                 "state": status.state, "consecutive_failures": status.consecutive_failures,
                 "error": status.error, "last_success_ns": status.last_success_ns,
-            })
+            }
+            self._sensor_lifecycle_history.append(event)
             if len(self._sensor_lifecycle_history) > 1000:
                 del self._sensor_lifecycle_history[:-1000]
+            if self.registry_store is not None:
+                self.registry_store.append_sensor_lifecycle_event(event, max_events=1000)
 
     @property
     def expected_sensor_coverage(self) -> tuple[ExpectedSensorCoverage, ...]:
