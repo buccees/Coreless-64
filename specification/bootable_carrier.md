@@ -2,7 +2,7 @@
 
 ## First boot target
 
-The first bootable carrier target is a **UEFI x86_64 SSD image**. It uses a small Debian bootstrap environment to initialize physical hardware and launch the Coreless digital execution engine already stored on the SSD. The Coreless persistent machine image lives separately at `/var/lib/coreless/coreless.img`, and the boot-time console sends commands to the Coreless OS shell rather than to the Linux shell.
+The first bootable carrier target is a **UEFI x86_64 SSD image**. It uses a small Debian bootstrap environment to initialize physical hardware and launch the Coreless digital execution engine already stored on the SSD. The Coreless persistent machine image lives separately at `/var/lib/coreless/coreless.img`. The boot-time console sends commands to the Coreless OS shell rather than to the Linux shell. At startup it also opens the carrier-owned VIGIL registry at `/var/lib/coreless/vigil-spatial.sqlite3` and restores the active spatial model, regions, expected-sensor coverage, last-known tracks, sensor lifecycle history, and alert acknowledgements when present. This database is separate from the machine checkpoint image so machine-image upgrades do not inherently overwrite spatial registry state.
 
 This is an initial bootable carrier and integration milestone, not a claim that the current Python reference engine is already a native bare-metal Coreless kernel or that every PC/SSD combination has been validated. The Coreless machine, OS model, execution engine, and persistent state remain Coreless-owned; the Linux kernel is currently the bootstrap and physical-device driver substrate for this first hardware bring-up. Replacing that substrate with a native Coreless boot chain remains future work.
 
@@ -32,7 +32,7 @@ The default output is `dist/coreless-uefi-x86_64.img`, a sparse 16 GiB disk imag
 
 Console commands:
 
-- `:status` — show the Coreless machine and boot status.
+- `:status` — show the Coreless machine and boot status.\n- `:spatial` — show the active VIGIL model, restored last-known track count, persisted sensor lifecycle event count, and alert acknowledgement count.
 - `:checkpoint [name]` — persist a named machine checkpoint.
 - `:help` — show console commands.
 - `:shutdown` — persist state and shut down the console cleanly.
@@ -41,4 +41,4 @@ The first image targets UEFI x86_64. Legacy BIOS, ARM64, Secure Boot signing, br
 
 ## Validation status
 
-CI can check script syntax and the Python console, but only building the full image and booting it on real hardware or a representative UEFI virtual machine can validate the end-to-end carrier. Do not describe the image as field-tested until that test has passed.
+The carrier startup wiring has a deterministic restart test for restoration of the active VIGIL model, sensor lifecycle history, and alert acknowledgements. Last-known tracks are restored as reacquisition-required evidence rather than asserted live contact. CI can check script syntax and Python-level restoration, but only building the full image and booting it on real hardware or a representative UEFI virtual machine can validate the end-to-end carrier. Do not describe the image as field-tested until that test has passed.
