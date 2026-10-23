@@ -363,12 +363,40 @@ class ObjectTracker:
             if age_ns < 0:
                 updated[tracking_key] = replace(track, presence_state="TIME_UNCERTAIN")
             elif age_ns <= max_age_ns:
-                updated[tracking_key] = replace(track, presence_state="TRACKING")
+                state = "REACQUIRE" if track.presence_state == "REACQUIRE" else "TRACKING"
+                updated[tracking_key] = replace(track, presence_state=state)
             elif retain_stale:
                 updated[tracking_key] = replace(track, presence_state="STALE")
         ordered = sorted(updated.items(), key=lambda pair: pair[1].last_seen_ns, reverse=True)
         self._tracks = dict(ordered[:self.max_tracks])
         return tuple(sorted(self._tracks.values(), key=lambda track: (track.object_id, track.association_id or "")))
+
+    def restore_tracks(
+        self, tracks: Iterable[ObjectTrack], *, model: BlueprintModel
+    ) -> tuple[ObjectTrack, ...]:
+        """Restore last-known track records without claiming current sensor contact.
+
+        Every restored item enters REACQUIRE until a new compatible observation
+        arrives. It can remain visible on the map, but must not count as a current
+        position or be used as motion evidence.
+        """
+        if not isinstance(model, BlueprintModel):
+            raise TypeError("model must be a validated BlueprintModel")
+        restored: dict[str, ObjectTrack] = {}
+        for track in tracks:
+            if not isinstance(track, ObjectTrack):
+                raise TypeError("tracks must contain ObjectTrack values")
+            if (track.model_id, track.model_revision, track.frame_id) != (
+                model.model_id, model.revision, model.frame_id
+            ):
+                raise ValueError("restored track must match active model/revision/frame")
+            key = f"association:{track.association_id}" if track.association_id else f"object:{track.object_id}"
+            if key in restored:
+                raise ValueError(f"duplicate restored tracking key: {key!r}")
+            restored[key] = replace(track, presence_state="REACQUIRE")
+        ordered = sorted(restored.items(), key=lambda pair: pair[1].last_seen_ns, reverse=True)
+        self._tracks = dict(ordered[:self.max_tracks])
+        return tuple(self._tracks.values())
 
     def clear(self) -> None:
         self._tracks.clear()
