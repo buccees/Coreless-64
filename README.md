@@ -77,7 +77,7 @@ The following priorities reflect the current implementation rather than the orig
 5. **Model-part execution binding:** connect validated CPU/GPU/communication model roles to actual Coreless instruction, graphics/device, and user-session execution.
 6. **Conformance:** complete the final ISA, persistence, capability, AI-control, host-interface, and end-to-end audit.
 
-The VIGIL spatial-intelligence expansion is currently paused. Preserve its research notes and existing implementation; do not treat planned blueprint continuity, sensor fusion, IR registration, or persistent object association as completed.
+VIGIL spatial intelligence is active development. The current implementation includes blueprint/revision-aware queries and regions, persistent registry and last-known object tracks, calibrated IR mapping primitives, multimodal provider contracts, evidence-aware object tracking, and an authenticated operator snapshot. Deterministic end-to-end sensor replay, image/mount calibration integration, concrete sensor drivers, and real field accuracy remain open; passing CI does not establish physical sensing coverage or accuracy.
 
 ## 314DNest
 
