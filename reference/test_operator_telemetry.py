@@ -12,13 +12,17 @@ from operator_telemetry import (
 )
 
 
-def _call(app, path="/api/operator/state", method="GET"):
+def _call(app, path="/api/operator/state", method="GET", origin=None, requested_method=None):
     captured = {}
     environ = {
         "PATH_INFO": path,
         "REQUEST_METHOD": method,
         "HTTP_COOKIE": "session=opaque",
     }
+    if origin is not None:
+        environ["HTTP_ORIGIN"] = origin
+    if requested_method is not None:
+        environ["HTTP_ACCESS_CONTROL_REQUEST_METHOD"] = requested_method
     def start_response(status, headers):
         captured["status"] = status
         captured["headers"] = dict(headers)
@@ -160,3 +164,65 @@ def test_real_coreless_system_can_back_read_only_operator_endpoint(tmp_path):
     decoded = json.loads(body)
     assert decoded["runtime_state"] == "ready"
     assert decoded["sequence"] == 1
+
+
+
+def test_cors_allows_only_explicit_https_origin_with_credentials():
+    app = OperatorTelemetryApp(
+        lambda: _state(),
+        authorize=lambda env: True,
+        allowed_origins=("https://buccees.github.io",),
+    )
+    response, body = _call(app, origin="https://buccees.github.io")
+    assert response["status"] == "200 OK"
+    assert response["headers"]["Access-Control-Allow-Origin"] == "https://buccees.github.io"
+    assert response["headers"]["Access-Control-Allow-Credentials"] == "true"
+    assert response["headers"]["Vary"] == "Cookie, Authorization, Origin"
+
+
+def test_cors_rejects_unlisted_origin_before_authorization_or_snapshot():
+    calls = []
+    app = OperatorTelemetryApp(
+        lambda: calls.append("snapshot") or _state(),
+        authorize=lambda env: calls.append("authorize") or True,
+        allowed_origins=("https://buccees.github.io",),
+    )
+    response, body = _call(app, origin="https://attacker.example")
+    assert response["status"] == "403 Forbidden"
+    assert json.loads(body)["error"] == "origin_not_allowed"
+    assert calls == []
+
+
+def test_cors_preflight_is_allowlisted_and_read_only():
+    app = OperatorTelemetryApp(
+        lambda: _state(),
+        authorize=lambda env: True,
+        allowed_origins=("https://buccees.github.io",),
+    )
+    response, body = _call(
+        app, method="OPTIONS", origin="https://buccees.github.io",
+        requested_method="GET",
+    )
+    assert response["status"] == "204 No Content"
+    assert response["headers"]["Access-Control-Allow-Methods"] == "GET, OPTIONS"
+    assert body == b""
+
+
+def test_cors_rejects_non_https_allowlist_configuration():
+    with pytest.raises(ValueError, match="HTTPS origins"):
+        OperatorTelemetryApp(
+            lambda: _state(), authorize=lambda env: True,
+            allowed_origins=("http://buccees.github.io",),
+        )
+
+
+def test_cors_rejects_unlisted_origin_for_options():
+    app = OperatorTelemetryApp(
+        lambda: _state(), authorize=lambda env: True,
+        allowed_origins=("https://buccees.github.io",),
+    )
+    response, _ = _call(
+        app, method="OPTIONS", origin="https://attacker.example",
+        requested_method="GET",
+    )
+    assert response["status"] == "403 Forbidden"
