@@ -360,12 +360,12 @@ class ObjectTracker:
             if not same_model or tracking_key in updated:
                 continue
             age_ns = now_ns - track.last_seen_ns
-            if age_ns <= max_age_ns:
+            if age_ns < 0:
+                updated[tracking_key] = replace(track, presence_state="TIME_UNCERTAIN")
+            elif age_ns <= max_age_ns:
                 updated[tracking_key] = replace(track, presence_state="TRACKING")
             elif retain_stale:
-                updated[tracking_key] = replace(
-                    track, presence_state="TIME_UNCERTAIN" if age_ns < 0 else "STALE"
-                )
+                updated[tracking_key] = replace(track, presence_state="STALE")
         ordered = sorted(updated.items(), key=lambda pair: pair[1].last_seen_ns, reverse=True)
         self._tracks = dict(ordered[:self.max_tracks])
         return tuple(sorted(self._tracks.values(), key=lambda track: (track.object_id, track.association_id or "")))
