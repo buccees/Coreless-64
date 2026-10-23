@@ -89,6 +89,11 @@ The current implementation checkpoint includes the reference digital-machine lif
 ## Phase 5 — Portable Coreless machine
 
 - [ ] Validate the Coreless execution engine → machine boot → operating-system startup path as one integrated lifecycle
+- [ ] Prepare a dedicated, disposable portable SSD for the first physical bring-up; record SSD/controller, connection type, firmware/boot settings, and target-computer details before writing anything
+- [ ] Install the complete Coreless machine image on that SSD and verify the actual boot chain rather than treating a repository checkout or file copy as an installed machine
+- [ ] Run a first-host boot/OS/runtime acceptance test and confirm the OS executes within the Coreless machine boundary
+- [ ] Power down, disconnect/reconnect the SSD, and verify machine identity and persistent state survive; then repeat on a second compatible host
+- [ ] Record a tested SSD/controller/host/firmware compatibility matrix; do not claim broad portability from a single successful setup
 - [ ] Define and validate the boot contract so the OS runs on the Coreless execution engine and retains machine-level authority
 
 - [ ] Define a storage compatibility matrix (USB-attached SATA SSD, USB-attached NVMe SSD, native SATA, native NVMe; include boot firmware/driver constraints)
