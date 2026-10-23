@@ -14,6 +14,7 @@ import sqlite3
 from typing import Any
 
 from .blueprint import BlueprintModel, ModelFeature, _validate_vector
+from .object_tracking import ObjectTrack
 from .raster_calibration import RasterBlueprintCalibration
 from .spatial_regions import SpatialRegion
 
@@ -84,6 +85,17 @@ class SpatialRegistryStore:
             );
             CREATE INDEX IF NOT EXISTS idx_raster_calibration_model
                 ON raster_calibrations(model_id, revision, calibration_id);
+            CREATE TABLE IF NOT EXISTS spatial_object_tracks (
+                model_id TEXT NOT NULL,
+                revision TEXT NOT NULL,
+                tracking_key TEXT NOT NULL,
+                last_seen_ns INTEGER NOT NULL,
+                payload_json TEXT NOT NULL,
+                payload_sha256 TEXT NOT NULL,
+                PRIMARY KEY (model_id, revision, tracking_key)
+            );
+            CREATE INDEX IF NOT EXISTS idx_spatial_tracks_last_seen
+                ON spatial_object_tracks(model_id, revision, last_seen_ns);
             CREATE TABLE IF NOT EXISTS spatial_store_settings (
                 setting_key TEXT PRIMARY KEY,
                 setting_value TEXT NOT NULL
@@ -296,6 +308,136 @@ class SpatialRegistryStore:
             rms_residual_m=payload["rms_residual_m"],
             control_labels=tuple(payload["control_labels"]),
         )
+
+    @staticmethod
+    def _track_payload(track: ObjectTrack) -> dict[str, Any]:
+        return {
+            "object_id": track.object_id,
+            "model_id": track.model_id,
+            "model_revision": track.model_revision,
+            "frame_id": track.frame_id,
+            "position_m": list(track.position_m),
+            "velocity_mps": list(track.velocity_mps),
+            "uncertainty_m": track.uncertainty_m,
+            "last_seen_ns": track.last_seen_ns,
+            "sensor_ids": list(track.sensor_ids),
+            "modalities": list(track.modalities),
+            "observation_count": track.observation_count,
+            "association_id": track.association_id,
+            "provenance": list(track.provenance),
+            "conflict": track.conflict,
+            "conflict_reasons": list(track.conflict_reasons),
+            "conflicting_sensor_ids": list(track.conflicting_sensor_ids),
+            "independence_groups": list(track.independence_groups),
+            "position_history_m": [
+                [timestamp, list(position)]
+                for timestamp, position in track.position_history_m
+            ],
+            "position_history_sensor_ids": [
+                [timestamp, list(sensor_ids)]
+                for timestamp, sensor_ids in track.position_history_sensor_ids
+            ],
+            "calibration_status": track.calibration_status,
+            "calibration_ids": list(track.calibration_ids),
+            "lineage_declared": track.lineage_declared,
+            "presence_state": track.presence_state,
+        }
+
+    def save_object_tracks(
+        self, model: BlueprintModel, tracks: tuple[ObjectTrack, ...] | list[ObjectTrack]
+    ) -> int:
+        """Atomically replace the persisted last-known track set for one model revision."""
+        if not isinstance(model, BlueprintModel):
+            raise TypeError("model must be a validated BlueprintModel")
+        rows = []
+        seen: set[str] = set()
+        for track in tracks:
+            if not isinstance(track, ObjectTrack):
+                raise TypeError("tracks must contain ObjectTrack values")
+            if (track.model_id, track.model_revision, track.frame_id) != (
+                model.model_id, model.revision, model.frame_id
+            ):
+                raise ValueError("track must match model/revision/frame")
+            tracking_key = (
+                f"association:{track.association_id}"
+                if track.association_id else f"object:{track.object_id}"
+            )
+            if tracking_key in seen:
+                raise ValueError(f"duplicate track identity: {tracking_key!r}")
+            seen.add(tracking_key)
+            payload = self._track_payload(track)
+            encoded, digest = _encode(payload, max_bytes=self.max_record_bytes)
+            rows.append((
+                model.model_id, model.revision, tracking_key, track.last_seen_ns,
+                encoded, digest,
+            ))
+        with self._connection:
+            self._connection.execute(
+                "DELETE FROM spatial_object_tracks WHERE model_id=? AND revision=?",
+                (model.model_id, model.revision),
+            )
+            self._connection.executemany(
+                "INSERT INTO spatial_object_tracks"
+                "(model_id,revision,tracking_key,last_seen_ns,payload_json,payload_sha256) "
+                "VALUES(?,?,?,?,?,?)",
+                rows,
+            )
+        return len(rows)
+
+    def load_object_tracks(self, model_id: str, revision: str) -> tuple[ObjectTrack, ...]:
+        """Load checksummed track records for one exact model revision."""
+        rows = self._connection.execute(
+            "SELECT tracking_key,payload_json,payload_sha256 FROM spatial_object_tracks "
+            "WHERE model_id=? AND revision=? ORDER BY last_seen_ns DESC, tracking_key",
+            (model_id, revision),
+        ).fetchall()
+        result: list[ObjectTrack] = []
+        for row in rows:
+            payload = _decode(
+                row["payload_json"], row["payload_sha256"],
+                max_bytes=self.max_record_bytes,
+            )
+            track = ObjectTrack(
+                object_id=payload["object_id"],
+                model_id=payload["model_id"],
+                model_revision=payload["model_revision"],
+                frame_id=payload["frame_id"],
+                position_m=tuple(payload["position_m"]),
+                velocity_mps=tuple(payload["velocity_mps"]),
+                uncertainty_m=payload["uncertainty_m"],
+                last_seen_ns=payload["last_seen_ns"],
+                sensor_ids=tuple(payload["sensor_ids"]),
+                modalities=tuple(payload["modalities"]),
+                observation_count=payload["observation_count"],
+                association_id=payload.get("association_id"),
+                provenance=tuple(payload.get("provenance", ())),
+                conflict=payload.get("conflict", False),
+                conflict_reasons=tuple(payload.get("conflict_reasons", ())),
+                conflicting_sensor_ids=tuple(payload.get("conflicting_sensor_ids", ())),
+                independence_groups=tuple(payload.get("independence_groups", ())),
+                position_history_m=tuple(
+                    (item[0], tuple(item[1]))
+                    for item in payload.get("position_history_m", ())
+                ),
+                position_history_sensor_ids=tuple(
+                    (item[0], tuple(item[1]))
+                    for item in payload.get("position_history_sensor_ids", ())
+                ),
+                calibration_status=payload.get("calibration_status", "unverified"),
+                calibration_ids=tuple(payload.get("calibration_ids", ())),
+                lineage_declared=payload.get("lineage_declared", False),
+                presence_state=payload.get("presence_state", "STALE"),
+            )
+            key = (
+                f"association:{track.association_id}"
+                if track.association_id else f"object:{track.object_id}"
+            )
+            if key != row["tracking_key"]:
+                raise ValueError("stored track key does not match its record")
+            if (track.model_id, track.model_revision) != (model_id, revision):
+                raise ValueError("stored track belongs to another model revision")
+            result.append(track)
+        return tuple(result)
 
     def close(self) -> None:
         self._connection.close()
