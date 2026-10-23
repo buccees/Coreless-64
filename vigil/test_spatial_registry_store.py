@@ -345,3 +345,27 @@ def test_expected_sensor_configuration_round_trips_in_portable_registry_bundle()
     finally:
         source_store.close()
         target_store.close()
+
+
+
+def test_sensor_alert_acknowledgements_round_trip_and_clear_recovered_incidents():
+    store = SpatialRegistryStore()
+    try:
+        store.set_sensor_alert_acknowledgement(
+            "provider:cam-1:ERROR", acknowledged=True,
+            acknowledged_at_utc="2026-10-23T22:00:00+00:00",
+            acknowledged_by="authenticated_operator",
+        )
+        loaded = store.load_sensor_alert_acknowledgements()
+        assert loaded["provider:cam-1:ERROR"] == {
+            "alert_id": "provider:cam-1:ERROR",
+            "acknowledged": True,
+            "acknowledged_at_utc": "2026-10-23T22:00:00+00:00",
+            "acknowledged_by": "authenticated_operator",
+        }
+        store.clear_inactive_sensor_alert_acknowledgements({"provider:cam-1:ERROR"})
+        assert "provider:cam-1:ERROR" in store.load_sensor_alert_acknowledgements()
+        store.clear_inactive_sensor_alert_acknowledgements(set())
+        assert store.load_sensor_alert_acknowledgements() == {}
+    finally:
+        store.close()
