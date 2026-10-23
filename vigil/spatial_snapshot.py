@@ -140,6 +140,22 @@ def build_spatial_snapshot(
             ].lineage_declared,
             "conflict": item.conflict,
             "conflict_reasons": list(item.conflict_reasons),
+            "conflicting_sensor_ids": list(item.conflicting_sensor_ids),
+            "sensor_observations": [{
+                "sensor_id": observation.sensor_id,
+                "timestamp_ns": str(observation.timestamp_ns),
+                "age_ns": str(max(0, now_ns - observation.timestamp_ns)),
+                "position_m": _point(observation.position_m),
+                "uncertainty_m": observation.uncertainty_m,
+                "modality": observation.modality.value,
+                "provenance": observation.provenance,
+                "independence_group": observation.evidence_independence_group,
+                "calibration_status": observation.calibration_status,
+                "calibration_ids": list(observation.calibration_ids),
+                "lineage_declared": observation.lineage_declared,
+            } for observation in tracks_by_identity[
+                (item.object_id, item.association_id)
+            ].raw_observations],
             "presence_state": item.presence_state,
             "motion_state": item.motion_state,
             "visible_on_selected_level": item.visible_on_selected_level,
