@@ -177,6 +177,22 @@ class VigilSensorEventSnapshotProvider:
             alerts=tuple(alerts),
         )
 
+def create_coreless_vigil_operator_app(
+    system: Any, ledger: Any, *, authorize: Authorizer,
+    path: str = "/api/operator/state",
+    allowed_origins: Sequence[str] = (),
+    stale_after_ns: int = 5_000_000_000,
+) -> "OperatorTelemetryApp":
+    """Bind Coreless lifecycle and observed VIGIL events to the authorized endpoint."""
+    provider = VigilSensorEventSnapshotProvider(
+        system, ledger, stale_after_ns=stale_after_ns,
+    )
+    return OperatorTelemetryApp(
+        provider, authorize=authorize, path=path,
+        allowed_origins=allowed_origins,
+    )
+
+
 class OperatorTelemetryApp:
     """Authenticated, read-only WSGI endpoint with optional strict CORS allowlist."""
 
