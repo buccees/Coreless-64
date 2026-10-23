@@ -57,3 +57,24 @@ def test_browser_maps_disconnected_runtime_state_without_calling_it_degraded():
     assert "data.connection_state==='disconnected'?'disconnected'" in source
     assert "data.connection_state==='stale'?'stale'" in source
     assert "data.connection_state==='connected'?'connected'" in source
+
+def test_browser_includes_spatial_map_and_polling_for_authenticated_vigil_snapshot():
+    source = PAGE.read_text(encoding="utf-8")
+    assert 'id="spatial-map"' in source
+    assert 'id="spatial-objects"' in source
+    assert "fetch('/api/vigil/spatial'" in source
+    assert "function renderSpatial(data)" in source
+    assert "function stopSpatialPolling()" in source
+    assert "presence_state==='STALE'?'LAST KNOWN'" in source
+    assert "No sensor readings or object locations are synthesized" in source
+    assert "innerHTML" not in source
+
+
+def test_spatial_overlay_refuses_bad_bounds_and_only_uses_trusted_numeric_coordinates():
+    source = PAGE.read_text(encoding="utf-8")
+    assert "Spatial model has invalid coordinate bounds." in source
+    assert "Number.isFinite(p[0])" in source
+    assert "credentials:'same-origin'" in source
+    assert "cache:'no-store'" in source
+    assert "redirect:'error'" in source
+
