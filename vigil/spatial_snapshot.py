@@ -35,6 +35,9 @@ def build_spatial_snapshot(
 
     snapshot = workspace.refresh(now_ns=now_ns, max_age_ns=max_age_ns)
     model = snapshot.model
+    poll_status_by_id = {
+        item.provider_id: item for item in workspace.sensor_poll_statuses
+    }
     base: dict[str, Any] = {
         "protocol_version": SPATIAL_PROTOCOL_VERSION,
         "generated_at_ns": str(now_ns),
@@ -47,11 +50,11 @@ def build_spatial_snapshot(
         "objects": [],
         "regions": [],
         "sensor_providers": [{
-            "provider_id": item.provider_id,
-            "accepted": item.accepted,
-            "state": item.state,
-            "error": item.error,
-        } for item in workspace.sensor_poll_statuses],
+            "provider_id": provider_id,
+            "accepted": poll_status_by_id[provider_id].accepted if provider_id in poll_status_by_id else 0,
+            "state": poll_status_by_id[provider_id].state if provider_id in poll_status_by_id else "UNPOLLED",
+            "error": poll_status_by_id[provider_id].error if provider_id in poll_status_by_id else None,
+        } for provider_id in workspace.sensor_provider_ids],
     }
     if model is None:
         return base
