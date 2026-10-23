@@ -235,3 +235,8 @@ Discovery also snapshots each candidate's channel mapping when it constructs an 
 ## In-memory endpoint registry validation
 
 `MemoryHostTransportAdapter` validates initial endpoint records and rejects duplicate endpoint IDs instead of silently replacing an earlier endpoint during dictionary construction. This matches the discovery layer's duplicate-ID policy and keeps the test/reference registry deterministic. The explicit `register()` operation still permits intentional replacement of an existing endpoint ID for refresh/rebind tests. This is software-level validation only; it does not imply physical platform enumeration.
+
+
+## Provider attachment freshness
+
+The provider-backed adapter re-enumerates and validates the provider before a new attachment. It rejects endpoints that have disappeared or whose advertised endpoint record no longer matches the current discovery snapshot, before mutating the target interface. An already-open session remains bound to its established attachment; this freshness check governs new connections, not session continuity. This is a software lifecycle contract, not physical hot-plug validation.
