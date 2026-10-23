@@ -76,6 +76,9 @@
 <span><i class="spatial-key"></i>Modeled feature</span><span><i class="spatial-key pose"></i>Current pose</span><span><i class="spatial-key"></i>Tracked object</span><span><i class="spatial-key stale"></i>Last known / stale</span><span><i class="spatial-key conflict"></i>Conflicting evidence</span>
 </div>
 <div id="spatial-objects" class="spatial-objects"><div class="empty">No object tracks reported.</div></div>
+<h3>EXPECTED SENSOR COVERAGE</h3>
+<p class="muted">Only explicitly configured sensor/region expectations appear here. “No report in scope” is not proof that an object is absent or that a physical sensor can see the entire region.</p>
+<div id="expected-sensor-coverage" class="list"><div class="empty">No expected sensor coverage declarations.</div></div>
 <div id="track-inspector" class="track-inspector" aria-live="polite"><h3>OBJECT INSPECTOR / NO SELECTION</h3><p class="muted">Select a track marker or object card to inspect its combined sensor evidence, status, and recorded motion history.</p></div>
 </section>
 <footer class="foot">VIEW ONLY · No sensor readings or object locations are synthesized by this page. A stale marker means last known, not confirmed present or gone. <a href="./index.html">Return to Control Room / Lab Report</a></footer>
@@ -313,6 +316,19 @@
     spatialModel.textContent=model.model_id+' / '+model.revision+' / '+(selected||'all levels');
     var providers=data.sensor_providers||[], onlineProviders=providers.filter(function(p){return p.state==='ONLINE';}).length, failedProviders=providers.filter(function(p){return p.state==='ERROR';}).length, unpolledProviders=providers.filter(function(p){return p.state==='UNPOLLED';}).length;
     spatialDetail.textContent='FRAME '+model.frame_id+' · '+data.features.length+' modeled feature(s) · '+visibleObjects.length+' visible track(s) · '+(data.regions||[]).length+' region(s) · SENSOR ADAPTERS '+onlineProviders+' online / '+failedProviders+' errors / '+unpolledProviders+' unpolled. Coordinates in meters; view is a projection of modeled geometry, not a claim of sensor coverage.';
+    clear(expectedSensorCoverage);
+    var coverageRows=data.expected_sensor_coverage||[];
+    if(!coverageRows.length){showEmpty(expectedSensorCoverage,'No expected sensor coverage declarations.');}
+    coverageRows.forEach(function(item){
+      var state=String(item.state||'UNKNOWN');
+      var klass=state==='REPORTING_IN_SCOPE'?'sensor-ok':(['NO_REPORT_IN_SCOPE','PROVIDER_ERROR','TIME_UNCERTAIN'].indexOf(state)>=0)?'sensor-conflict':'muted';
+      var row=textNode('article','sensor-row '+klass,'');
+      row.appendChild(textNode('strong','',String(item.sensor_id)+' / '+state));
+      row.appendChild(textNode('p','muted','PROVIDER: '+String(item.provider_id)+' / '+String(item.provider_state||'UNKNOWN')));
+      row.appendChild(textNode('p','muted','EXPECTED REGIONS: '+((item.region_ids||[]).join(', ')||'none')+' · AGE: '+(item.age_ns===null?'no scoped reading':String(item.age_ns)+' ns')+' / MAX '+String(item.max_age_ns)+' ns'));
+      if(item.provider_error)row.appendChild(textNode('p','sensor-conflict','PROVIDER ERROR: '+String(item.provider_error)));
+      expectedSensorCoverage.appendChild(row);
+    });
     clear(spatialObjects);
     visibleObjects.forEach(function(object){
       var statusText=String(object.track_validity|| (object.conflict?'DEGRADED':object.presence_state==='STALE'?'STALE_LAST_KNOWN':object.motion_state||'MOTION UNKNOWN'))+' / '+String(object.motion_state||'MOTION UNKNOWN');
