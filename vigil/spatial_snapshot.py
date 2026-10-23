@@ -87,6 +87,8 @@ def build_spatial_snapshot(
         age = now_ns - latest if latest is not None else None
         if provider is None:
             state = "UNPOLLED"
+        elif provider.state == "DISCONNECTED":
+            state = "PROVIDER_DISCONNECTED"
         elif provider.state == "ERROR":
             state = "PROVIDER_ERROR"
         elif latest is not None and latest > now_ns:
@@ -103,6 +105,8 @@ def build_spatial_snapshot(
             "max_age_ns": str(expected.max_age_ns),
             "provider_state": provider.state if provider is not None else "UNPOLLED",
             "provider_error": provider.error if provider is not None else None,
+            "provider_consecutive_failures": provider.consecutive_failures if provider is not None else 0,
+            "provider_last_success_ns": str(provider.last_success_ns) if provider is not None and provider.last_success_ns is not None else None,
             "scope_semantics": "No report is reported only for explicitly configured sensor/region expectations; this is not proof of physical sensor visibility or object absence.",
         })
     base["expected_sensor_coverage"] = coverage
