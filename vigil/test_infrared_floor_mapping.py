@@ -61,3 +61,13 @@ def test_infrared_mapper_validates_sensor_and_image_dimensions():
         InfraredFloorMapper(calibration(), sensor_id="", image_width=10, image_height=10)
     with pytest.raises(ValueError, match="image_width"):
         InfraredFloorMapper(calibration(), sensor_id="ir", image_width=0, image_height=10)
+
+
+def test_mapper_retains_calibration_and_mount_provenance():
+    mapper = InfraredFloorMapper(
+        calibration(), sensor_id="thermal-cam-1", image_width=200, image_height=150,
+        calibration_id="raster-L1-v1", sensor_mount_id="ceiling-mount-west",
+    )
+    result = mapper.map_frame([InfraredPixelSample(25, 40, 0.8)], timestamp_ns=1234)
+    assert result.calibration_id == "raster-L1-v1"
+    assert result.sensor_mount_id == "ceiling-mount-west"
