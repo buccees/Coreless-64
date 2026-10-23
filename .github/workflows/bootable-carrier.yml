@@ -8,6 +8,7 @@ on:
       - vigil-spatial-awareness
     paths:
       - "scripts/build-bootable-ssd.sh"
+      - "scripts/validate-bootable-ssd.sh"
       - "scripts/coreless-console.py"
       - "deploy/coreless-machine.service"
       - "reference/**"
@@ -32,7 +33,8 @@ jobs:
         run: bash scripts/build-bootable-ssd.sh "$RUNNER_TEMP/coreless-uefi-x86_64.img"
       - name: Validate built image offline
         run: bash scripts/validate-bootable-ssd.sh "$RUNNER_TEMP/coreless-uefi-x86_64.img"
-      - name: Publish bootable image artifact
+      - name: Publish bootable image artifact (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: coreless-uefi-x86_64
