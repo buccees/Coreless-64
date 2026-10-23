@@ -607,16 +607,13 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 </article>
 <article style="padding:12px;border:1px solid var(--line)">
 <h3>VERIFICATION STATUS</h3>
-<p>Code changes are committed to <code>vigil-spatial-awareness</code>. These changes have not yet been confirmed by a fresh CI run. They must not be treated as a passing test result.</p>
-<p>Commits: <a href="https://github.com/buccees/Coreless-64/commit/4a01b8d50d0fec1d1cc59c91eaef691b30e72187" target="_blank" rel="noopener noreferrer">startup cleanup</a> · <a href="https://github.com/buccees/Coreless-64/commit/279cfce7872d14dd5e1de6060a066cbca8f8555d" target="_blank" rel="noopener noreferrer">pre-boot CLI validation</a>.</p>
-</article>
+<p>Fresh GitHub Actions run passed on 2026-10-23, including the complete reference suite and the VIGIL spatial/shared-Qwen3 suite. The startup-cancellation regression test is included in this passing run.</p>
+<p>Commits: <a href="https://github.com/buccees/Coreless-64/commit/4a01b8d50d0fec1d1cc59c91eaef691b30e72187" target="_blank" rel="noopener noreferrer">startup cleanup</a> · <a href="https://github.com/buccees/Coreless-64/commit/279cfce7872d14dd5de1de6060a066cbca8f8555d" target="_blank" rel="noopener noreferrer">pre-boot CLI validation</a> · <a href="https://github.com/buccees/Coreless-64/commit/9eb944cc0b23c4cbb1a93550e195d7ae2ad08522" target="_blank" rel="noopener noreferrer">startup lifecycle guard</a> · <a href="https://github.com/buccees/Coreless-64/commit/45f37a9febbd8db8b2c343ccee8faf8da7064240" target="_blank" rel="noopener noreferrer">regression test import fix</a> · <a href="https://github.com/buccees/Coreless-64/actions/runs/39993161074" target="_blank" rel="noopener noreferrer">passing CI run</a>.</p></article>
 <article style="padding:12px;border:1px solid var(--line)">
 <h3>REMAINING RELIABILITY WORK</h3>
 <ul>
-<li>Add failure-path tests for partial startup, listener bind/TLS errors, and shutdown exceptions.</li>
 <li>Persistent-image writes now use a cross-process commit lock and compare the on-disk digest with the loaded version before replacing the image; stale writers are rejected instead of silently overwriting newer state. A regression test covers stale-writer rejection.</li>
 <li>Add explicit regression tests for listener bind/TLS setup failures and shutdown exceptions.</li>
-<li>Run the full reference test suite and inspect the newest CI run before marking this handoff verified.</li>
 </ul>
 </article>
 </div>
