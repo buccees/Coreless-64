@@ -62,17 +62,18 @@ Coreless now treats the host connection as a narrow external interface: power/st
 
 The target plug-and-play lifecycle is: **connect → discover → verify Coreless identity → advertise capabilities → negotiate interfaces → attach → boot/resume → operate → detach**.
 
-The normative target is documented in `specification/host_interface.md`. The reference host transport adapter and channel-binding contract are implemented; physical cross-platform enumeration and concrete display/input/network transports remain open.
+The normative target is documented in `specification/host_interface.md`. Lubuntu is the preferred initial working OS, not the compatibility ceiling: the architecture is intended to support multiple host platforms and a broad range of SSD interfaces through explicit adapters. Storage/enclosure identity is distinct from persistent Coreless machine identity and from any optional physical device-mode identity. An ordinary SSD cannot present itself as a separate USB computer without compatible device-side hardware/firmware. The reference host transport adapter and channel-binding contract are implemented; physical platform enumeration and concrete display/input/network transports remain open.
 
 ## Next engineering checkpoint
 
 The following priorities reflect the current implementation rather than the original milestone order:
 
-1. **Plug-and-play host interface:** implement platform-specific host enumeration and concrete display/input/network transports. The transport-neutral contract and reference adapters are implemented; physical platform providers remain open.
-2. **Remote Operator Display:** validate and extend the authenticated, read-only browser display against the active Coreless lifecycle and explicitly observed event sources. Never infer physical sensor connectivity from an available endpoint.
-3. **Native execution and trained-model validation:** deepen native Coreless execution/performance validation, then run the official trained Qwen3-0.6B artifact end-to-end and validate live inference on Coreless resources.
-4. **Model-part execution binding:** connect validated CPU/GPU/communication model roles to actual Coreless instruction, graphics/device, and user-session execution.
-5. **Conformance:** complete the final ISA, persistence, capability, AI-control, host-interface, and end-to-end audit.
+1. **Portable host/storage compatibility:** implement and validate the first Lubuntu/Linux host adapter without making Linux a design limit; define a tested SSD/host compatibility matrix and keep storage identity distinct from Coreless machine identity. The transport-neutral contract exists; physical platform providers remain open.
+2. **Hardware-level device identity:** specify and evaluate the physical interface needed for Coreless to enumerate as a distinct device to another host. Do not assume a standard SSD enclosure supports USB device mode; this requires compatible hardware/firmware and end-to-end validation.
+3. **Remote Operator Display:** validate and extend the authenticated, read-only browser display against the active Coreless lifecycle and explicitly observed event sources. Never infer physical sensor connectivity from an available endpoint.
+4. **Native execution and trained-model validation:** deepen native Coreless execution/performance validation, then run the official trained Qwen3-0.6B artifact end-to-end and validate live inference on Coreless resources.
+5. **Model-part execution binding:** connect validated CPU/GPU/communication model roles to actual Coreless instruction, graphics/device, and user-session execution.
+6. **Conformance:** complete the final ISA, persistence, capability, AI-control, host-interface, and end-to-end audit.
 
 The VIGIL spatial-intelligence expansion is currently paused. Preserve its research notes and existing implementation; do not treat planned blueprint continuity, sensor fusion, IR registration, or persistent object association as completed.
 
