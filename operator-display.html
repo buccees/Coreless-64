@@ -198,10 +198,12 @@
     var trail=Array.isArray(object.motion_trail_m)?object.motion_trail_m:[];
     if(trail.length){
       var table=document.createElement('table');table.className='track-history';var thead=document.createElement('thead'),hr=document.createElement('tr');
-      ['SOURCE TIME (ns)','X (m)','Y (m)','Z (m)'].forEach(function(label){hr.appendChild(textNode('th','',label));});thead.appendChild(hr);table.appendChild(thead);
+      ['SOURCE TIME (ns)','X (m)','Y (m)','Z (m)','SENSORS CONTRIBUTING TO EPOCH'].forEach(function(label){hr.appendChild(textNode('th','',label));});thead.appendChild(hr);table.appendChild(thead);
       var tbody=document.createElement('tbody');trail.slice(-12).forEach(function(point){var row=document.createElement('tr');row.appendChild(textNode('td','',String(point.timestamp_ns||'unknown')));
         (Array.isArray(point.position_m)?point.position_m:[]).slice(0,3).forEach(function(value){row.appendChild(textNode('td','',Number(value).toFixed(3)));});
-        while(row.children.length<4)row.appendChild(textNode('td','','—'));tbody.appendChild(row);});table.appendChild(tbody);history.appendChild(table);
+        while(row.children.length<4)row.appendChild(textNode('td','','—'));
+        row.appendChild(textNode('td','',((point.sensor_ids||[]).join(', ')||'not attributed')));
+        tbody.appendChild(row);});table.appendChild(tbody);history.appendChild(table);
       history.appendChild(textNode('p','muted','Latest '+Math.min(12,trail.length)+' recorded position(s); not raw per-sensor measurements.'));
     }else history.appendChild(textNode('p','muted','No motion-history points supplied by the runtime.'));
     grid.appendChild(history);trackInspector.appendChild(grid);
