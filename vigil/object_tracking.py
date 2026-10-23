@@ -112,6 +112,30 @@ class ObjectTrack:
     # Tracking health is separate from object existence. STALE means last-known
     # location only; it is not evidence that the object has left the area.
     presence_state: str = "TRACKING"
+    # Bounded, deduplicated raw detections supporting the fused estimate.
+    raw_observations: tuple[ObjectObservation, ...] = ()
+
+
+def _merge_raw_observations(
+    previous: tuple[ObjectObservation, ...],
+    incoming: Iterable[ObjectObservation],
+    *,
+    limit: int,
+) -> tuple[ObjectObservation, ...]:
+    """Merge repeat-polled evidence without duplicating identical detections."""
+    merged: dict[tuple[object, ...], ObjectObservation] = {}
+    for item in (*previous, *tuple(incoming)):
+        key = (
+            item.timestamp_ns, item.sensor_id, item.object_id, item.association_id,
+            item.position_m, item.uncertainty_m, item.modality.value, item.provenance,
+            item.independence_group, item.calibration_status, item.calibration_ids,
+            item.lineage_declared,
+        )
+        merged[key] = item
+    ordered = sorted(merged.values(), key=lambda item: (
+        item.timestamp_ns, item.sensor_id, item.object_id, item.provenance,
+    ))
+    return tuple(ordered[-limit:])
 
 
 class ObjectTracker:
@@ -283,6 +307,10 @@ class ObjectTracker:
                                 if effective_conflict_reasons else set()
                             )
                         )),
+                        raw_observations=_merge_raw_observations(
+                            previous.raw_observations, observations_for_object,
+                            limit=self.max_history_points * 8,
+                        ),
                         position_history_sensor_ids=(
                             previous.position_history_sensor_ids[:-1] + ((
                                 previous.position_history_sensor_ids[-1][0],
@@ -340,6 +368,11 @@ class ObjectTracker:
                 position_history_m=(
                     ((timestamp, position),) if previous is None else
                     (previous.position_history_m + ((timestamp, position),))[-self.max_history_points:]
+                ),
+                raw_observations=_merge_raw_observations(
+                    previous.raw_observations if previous is not None else (),
+                    observations_for_object,
+                    limit=self.max_history_points * 8,
                 ),
                 position_history_sensor_ids=(
                     ((timestamp, tuple(sorted({item.sensor_id for item in group}))),)
