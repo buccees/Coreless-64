@@ -128,3 +128,9 @@ Infrared overlays are reported when available but are not required for readiness
 The result status explicitly distinguishes `OK`, `DEGRADED`, `NO_FIX`, `STALE`, `FUTURE_TIMESTAMP`, and `MODEL_MISMATCH`. A stale or mismatched pose cannot produce a misleading nearest-feature result. A degraded but fresh pose may return its best estimate while clearly labeling the result degraded. A missing fix is distinct from a valid position at the origin.
 
 This API is deterministic software over registered feature points. It does not infer polygonal room boundaries, parse raw CAD/PDF/mesh files, discover sensors, or prove physical tracking accuracy. Region-intersection queries require an explicitly modeled region representation and remain separate work.
+
+## Explicit spatial regions and membership queries
+
+`vigil/spatial_regions.py` adds `SpatialRegion`, a versioned polygon in model-frame XY coordinates with an explicit vertical interval, plus optional level/zone labels. `query_region()` checks model/revision/frame alignment and pose freshness/quality before reporting membership. Boundary points are treated as inside within a small explicit numerical tolerance. When pose is absent, stale, future-dated, or frame-mismatched, `inside` is `None` rather than a guessed true/false result.
+
+Regions must be explicitly supplied in calibrated meter coordinates; they are not inferred from a feature label, raster image, or AI text. The current polygon contract checks vertex validity and non-zero area; full CAD topology repair and arbitrary polygon self-intersection validation remain future geometry-import work.
