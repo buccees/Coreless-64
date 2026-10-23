@@ -526,7 +526,8 @@ class SpatialWorkspace:
             self._object_tracks = ()
         else:
             self._object_tracks = self.object_tracker.update(
-                model, self._object_observations, now_ns=now_ns, max_age_ns=max_age_ns
+                model, self._object_observations, now_ns=now_ns,
+                max_age_ns=max_age_ns, retain_stale=True,
             )
         spatial_query_result = (
             SpatialQueryEngine(model).evaluate(
