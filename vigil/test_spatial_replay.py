@@ -133,6 +133,12 @@ def test_deterministic_replay_connects_pose_tracks_regions_scene_and_operator_sn
     assert api_object["calibration_ids"] == ["survey-replay-v1"]
     assert len(api_object["motion_trail_m"]) >= 2
     assert api_object["motion_trail_m"][-1]["sensor_ids"] == ["camera-cart", "uwb-array"]
+    assert len(api_object["sensor_observations"]) == 4
+    assert {item["sensor_id"] for item in api_object["sensor_observations"]} == {"camera-cart", "uwb-array"}
+    latest_measurements = [item for item in api_object["sensor_observations"] if item["timestamp_ns"] == "200"]
+    assert len(latest_measurements) == 2
+    assert {item["modality"] for item in latest_measurements} == {"vision", "uwb"}
+    assert all(item["position_m"] == [2.0, 2.0, 0.0] for item in latest_measurements)
     assert second_api["regions"][0]["inside"] is False
 
 
