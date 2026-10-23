@@ -174,3 +174,10 @@ A sensor is not called MISSING merely because it has no row in an object track. 
 ### Correlated-feed-aware object fusion
 
 For a single measurement epoch, the object tracker now groups readings by their declared evidence-independence lineage. All raw detections remain in the bounded evidence ledger, but only the lowest-uncertainty reading from each lineage group contributes to the position estimate and its inverse-variance uncertainty. Conflict checks likewise compare representatives from distinct lineage groups, so two derived feeds from one physical source cannot independently manufacture a disagreement or extra confidence. Equal-uncertainty ties are resolved deterministically by sensor ID and object ID. If adapters omit lineage, the existing sensor-ID fallback remains a compatibility convention—not proof of physical independence. This change does not prove that different declared groups are truly independent; that remains the responsibility of sensor adapters and deployment configuration.
+
+
+### Health-aware track validity
+
+The operator snapshot exposes `track_validity` separately from object presence and raw measurement quality. `CURRENT` means the last measurement is within the configured age limit, calibration is verified, and no unresolved conflict is recorded. `DEGRADED` means the estimate is recent but has an unresolved sensor conflict or non-verified calibration. `STALE_LAST_KNOWN` means the last measurement exceeds the age limit; its last-known coordinates and evidence history remain available and must not be interpreted as proof the object departed. `REACQUIRE` marks restored tracks awaiting new compatible sensor contact, and `TIME_UNCERTAIN` marks a future-dated track timestamp.
+
+`track_validity_reasons` explains every applicable caveat, including calibration failure versus unverified calibration. This is a display/interpretation contract, not a claim that failed-calibration observations were automatically excluded from fusion. Sensor absence is not inferred from a missing observation row; confirmed offline/missing status still requires explicit expected-sensor and coverage configuration.
