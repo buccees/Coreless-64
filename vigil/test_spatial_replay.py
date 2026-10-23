@@ -312,13 +312,17 @@ def test_provider_lifecycle_retains_last_success_and_counts_failures_then_recove
 
 def test_expected_sensor_coverage_distinguishes_stale_report_from_no_report():
     workspace = SpatialWorkspace()
-    active = model()
-    workspace.registry.register_model(active, activate=True)
-    workspace.register_region(region(active))
+    model = workspace.import_blueprint(
+        '{"schema_version":1,"model_id":"stale-coverage","revision":"r1",'
+        '"frame_id":"stale-coverage/world","units":"m","features":[]}', activate=True)
+    workspace.register_region(SpatialRegion(
+        "checkout", "Checkout", model.model_id, model.revision, model.frame_id,
+        ((0, 0), (5, 0), (5, 5), (0, 5)), min_z_m=-1, max_z_m=2))
     workspace.register_expected_sensor("cam-1", provider_id="camera-provider",
-                                       region_ids=("west-zone",), max_age_ns=50)
+                                       region_ids=("checkout",), max_age_ns=50)
     workspace.register_sensor_provider("camera-provider", ReplayProvider((SensorBatch(object_observations=(
-        _object(active, 100, 3.0, sensor_id="cam-1"),
+        _object(model, 100, 3.0, sensor_id="cam-1", modality=TrackingModality.VISION,
+                independence_group="cam-1"),
     )),)))
     workspace.poll_sensors()
     stale = build_spatial_snapshot(workspace, now_ns=200)["expected_sensor_coverage"][0]
