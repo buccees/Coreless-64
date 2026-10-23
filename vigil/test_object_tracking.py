@@ -472,3 +472,32 @@ def test_retained_track_marks_clock_reversal_as_time_uncertain():
     assert len(result) == 1
     assert result[0].presence_state == "TIME_UNCERTAIN"
 
+def test_raw_sensor_observations_are_retained_and_repeat_polls_are_deduplicated():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    tracker = ObjectTracker()
+    camera = observation(
+        model, timestamp=100, position=(1.0, 2.0, 0.0), sensor="camera-cart",
+        modality=TrackingModality.VISION,
+    )
+    uwb = observation(
+        model, timestamp=100, position=(1.1, 2.0, 0.0), sensor="uwb-array",
+        modality=TrackingModality.UWB,
+    )
+    first = tracker.update(model, [camera], now_ns=100)
+    assert first[0].raw_observations == (camera,)
+
+    repeated = tracker.update(model, [camera], now_ns=100)
+    assert repeated[0].raw_observations == (camera,)
+
+    combined = tracker.update(model, [camera, uwb], now_ns=100)
+    assert len(combined[0].raw_observations) == 2
+    assert {item.sensor_id for item in combined[0].raw_observations} == {
+        "camera-cart", "uwb-array",
+    }
+    assert {item.modality.value for item in combined[0].raw_observations} == {
+        "vision", "uwb",
+    }
+
