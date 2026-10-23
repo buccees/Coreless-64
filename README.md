@@ -2,15 +2,15 @@
 
 [**Coreless-64 album cover artwork — Claude**](./Coreless-64%20album%20cover%20artwork%20-%20Claude.html)
 
-**Coreless-64 is intended to be an independent computer: its own execution architecture, memory model, persistent machine state, device interfaces, and operating environment. The operating system runs on Coreless-64; Coreless-64 does not run as an application owned by Lubuntu or another host OS.**
+**The SSD is the Coreless-64 machine. It carries the complete machine—not merely files or saved state—including its execution engine, operating environment, configuration, and persistent state. The operating system runs on that machine. Lubuntu is the preferred OS, not the host that owns or runs Coreless as an application.**
 
-> **Coreless-64 is the machine. Its operating system runs on it. Its execution engine runs the machine and its operating system; persistent storage carries machine state, and external equipment supplies only the power and interfaces the machine is designed to use.**
+> **The SSD holds the whole Coreless-64 machine. The execution engine and OS are part of that machine. External hardware provides the physical interfaces needed to power, connect, and operate it; it does not redefine the machine as a program running on the host.**
 
 ## Coreless-64
 
 Coreless-64 is the 64-bit Coreless architecture. The repository contains its digital reference execution engine, persistent machine model, operating-environment foundation, virtualization, devices, vector/matrix execution, and 314DNest local-intelligence layer.
 
-Persistent storage is the authoritative carrier of machine state. The external environment is an I/O boundary, not the computational owner of Coreless.
+The SSD is the authoritative carrier of the complete machine. Do not reduce it to a boot disk, passive data drive, or state-only container.
 
 ## Autonomous component architecture
 
