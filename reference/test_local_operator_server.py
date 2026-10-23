@@ -2,10 +2,14 @@ import io
 import json
 from pathlib import Path
 
-from local_operator_server import SESSION_COOKIE, create_lan_app
+from local_operator_server import SESSION_COOKIE, create_lan_app\nfrom system import CorelessSystem
 
 
-def _request(app, path="/", method="GET", body=b"", cookie=None, origin=None):
+def _app(password, page, tmp_path):
+    system = CorelessSystem(storage_path=tmp_path / "coreless.img")
+    system.boot()
+    return create_lan_app(password=password, page_path=page, system=system)
+\n\ndef _request(app, path="/", method="GET", body=b"", cookie=None, origin=None):
     environ = {
         "PATH_INFO": path,
         "REQUEST_METHOD": method,
@@ -30,7 +34,7 @@ def _request(app, path="/", method="GET", body=b"", cookie=None, origin=None):
 def test_lan_host_serves_display_and_requires_session_for_state(tmp_path):
     page = tmp_path / "operator-display.html"
     page.write_text("<!doctype html><title>LAN operator</title>", encoding="utf-8")
-    app = create_lan_app(password="a-strong-test-password-123", page_path=page)
+    app = _app("a-strong-test-password-123", page, tmp_path)
 
     response, body = _request(app)
     assert response["status"] == "200 OK"
@@ -95,7 +99,7 @@ def test_lan_login_rejects_wrong_password_and_cross_origin(tmp_path):
 
 def test_lan_host_requires_long_password_and_page_exists(tmp_path):
     try:
-        create_lan_app(password="too-short", page_path=tmp_path / "missing.html")
+        create_lan_app(password="too-short", system=CorelessSystem(), page_path=tmp_path / "missing.html")
     except ValueError as exc:
         assert "at least 16 characters" in str(exc)
     else:
