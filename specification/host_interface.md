@@ -106,6 +106,12 @@ Connected components continue to:
 - participate in hub workload routing
 - remain capable of standalone operation after detachment
 
+## Initial native platform target: Lubuntu/Linux
+
+The first intended host OS is **Lubuntu**, an Ubuntu-based Linux distribution. The initial native provider should use Linux device-discovery and lifecycle facilities (evaluate udev/libudev for add/remove monitoring), then translate platform events into the existing transport-neutral discovery and `HostHotplugController` contracts. Keep OS-specific monitoring, endpoint identity mapping, permissions, and transport teardown/reopen logic inside the Linux adapter rather than the generic controller. Do not assume every udev event is a usable Coreless endpoint: validate the discovered identity and capabilities before attachment.
+
+Lubuntu is the first implementation target, not a claim that the Linux adapter or physical hot-plug path already exists. Physical unplug/replug, reconnect, permissions, and end-to-end VIGIL behavior must be tested on the target machine before marking hot-plug usable.
+
 ## Current implementation status
 
 The repository implements the CorelessHostInterface software contract plus a reference HostTransportAdapter. Implemented coverage includes identity discovery/verification, capability negotiation, attach/detach, Hub binding, lifecycle coordination, channel binding, enumeration, and transport-readiness checks.
