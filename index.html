@@ -444,6 +444,12 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <li>Preserve modality, units, calibration, uncertainty, and provenance. Wi-Fi CSI, calibrated ranging, infrared, and acoustic sonar remain distinct evidence types.</li>
 <li>Support responsive browser layouts, keyboard/accessibility, reduced motion, and reconnect without silently losing operator context.</li>
 </ul>
+<h4 class="green">IMPLEMENTATION PROGRESS // VERSIONED VIEW-STATE CONTRACT</h4>
+<ul>
+<li><strong>Added:</strong> <code>reference/operator_display.py</code> defines a versioned, transport-neutral snapshot for remote browser rendering, including monotonic sequence metadata, generated/source timestamps, runtime and connection states, sensor modality/calibration/freshness fields, and alert provenance.</li>
+<li><strong>Added tests:</strong> <code>reference/test_operator_display.py</code> covers deterministic JSON encoding, protocol-version rejection, duplicate sensor/alert IDs, unavailable sensor metadata, invalid timestamps, and invalid sensor states.</li>
+<li><strong>Boundary remains explicit:</strong> this is a validated data contract, not yet an HTTP/WebSocket server, authentication/session implementation, live runtime feed, or physical sensor integration.</li>
+</ul>
 <h4 class="green">3 // IMPLEMENTATION CHECKPOINTS</h4>
 <ol>
 <li>Define versioned view-state and command schemas.</li>
