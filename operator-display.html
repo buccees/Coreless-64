@@ -18,13 +18,22 @@
 <p class="sub">Read-only runtime status for an authenticated browser session. This screen renders server-provided state; it does not control sensors, create tracks, or run a second AI system.</p>
 <div class="row"><span class="dot" id="status-dot"></span><span class="status" id="connection-status" role="status" aria-live="polite">DISCONNECTED</span><span class="muted" id="connection-detail">No telemetry source configured.</span></div>
 </header>
+<section class="panel wide" aria-labelledby="login-title" id="login-panel">
+<h2 id="login-title">00 / LOCAL OPERATOR SESSION</h2>
+<form id="login-form" class="row">
+<label class="endpoint"><span class="muted" style="align-self:center">OPERATOR PASSWORD</span><input id="operator-password" type="password" autocomplete="current-password" minlength="16" required aria-label="Local operator password"></label>
+<button id="login" type="submit">SIGN IN</button>
+<button id="logout" type="button" disabled>SIGN OUT</button>
+</form>
+<p class="muted" id="login-detail" role="status" aria-live="polite">Sign in to enable read-only telemetry. Local sessions expire after 30 minutes and are revoked when you sign out or restart the host.</p>
+</section>
 <section class="panel wide" aria-labelledby="connect-title">
 <h2 id="connect-title">01 / CONNECTION</h2>
 <div class="row">
 <label class="endpoint"><span class="muted" style="align-self:center">STATE ENDPOINT</span><input id="endpoint" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://runtime.example/api/operator/state" aria-label="Operator state endpoint"></label>
 <button id="connect" type="button">CONNECT</button><button id="disconnect" type="button" disabled>DISCONNECT</button>
 </div>
-<p class="muted">Use an HTTPS endpoint. Authentication must be handled by the server’s normal session middleware; do not put tokens or passwords in this URL. Cross-origin deployments must explicitly permit this site and credentialed requests in their CORS policy. GitHub Pages hosts this interface only; it does not itself run the Coreless telemetry service.</p>
+<p class="muted">For the local LAN host, use this same site’s <code>/api/operator/state</code> endpoint. Sign in above first. Remote endpoints must use HTTPS and trusted server-side sessions; never put credentials in the URL.</p>
 </section>
 <div class="grid" style="margin-top:1rem">
 <section class="panel" aria-labelledby="runtime-title">
@@ -61,6 +70,8 @@
 (function(){
   'use strict';
   var endpoint=document.getElementById('endpoint'), connect=document.getElementById('connect'), disconnectButton=document.getElementById('disconnect');
+  var loginForm=document.getElementById('login-form'), passwordInput=document.getElementById('operator-password'), loginButton=document.getElementById('login'), logoutButton=document.getElementById('logout'), loginDetail=document.getElementById('login-detail');
+  var sessionAuthenticated=false;
   var status=document.getElementById('connection-status'), dot=document.getElementById('status-dot'), detail=document.getElementById('connection-detail');
   var runtime=document.getElementById('runtime-state'), protocol=document.getElementById('protocol-version'), sequence=document.getElementById('sequence');
   var snapshotTime=document.getElementById('snapshot-time'), sourceTime=document.getElementById('source-time');
@@ -134,7 +145,12 @@
       .catch(function(err){if(g!==generation||!activeUrl)return;if(err.name==='AbortError'&&!timedOut)return;failures++;var reason=timedOut?'Request timed out after '+Math.round(REQUEST_TIMEOUT_MS/1000)+' seconds.':err.message;setState(lastSuccess&&Date.now()-lastSuccess>STALE_MS?'stale':'disconnected',failures>1?'FEED STALE · RETRYING':'REQUEST FAILED',reason+' · automatic retry remains enabled.');})
       .finally(function(){window.clearTimeout(requestTimer);if(g===generation){inFlight=false;if(controller===requestController)controller=null;}});
   }
+  function setSession(authenticated,message){sessionAuthenticated=authenticated;connect.disabled=!authenticated;loginButton.disabled=authenticated;passwordInput.disabled=authenticated;logoutButton.disabled=!authenticated;loginDetail.textContent=message; if(!authenticated&&activeUrl)stopConnection('Operator session ended.');}
+  function checkSession(){fetch('/api/operator/session',{method:'GET',credentials:'same-origin',cache:'no-store',redirect:'error',headers:{'Accept':'application/json'}}).then(function(r){if(!r.ok)throw new Error('Session check failed.');return r.json();}).then(function(d){setSession(d.authenticated===true,d.authenticated?'Signed in. Session expires after 30 minutes of host lifetime.':'Sign in to enable read-only telemetry.');}).catch(function(){setSession(false,'Local session service unavailable. Start the authenticated LAN host to sign in.');});}
+  loginForm.addEventListener('submit',function(event){event.preventDefault();if(!window.location.protocol.startsWith('https:')){loginDetail.textContent='Secure HTTPS is required for LAN sign-in.';return;}loginButton.disabled=true;fetch('/api/operator/login',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json','Content-Type':'application/json'},body:JSON.stringify({password:passwordInput.value})}).then(function(r){if(!r.ok)throw new Error(r.status===429?'Too many attempts. Wait before trying again.':'Sign-in failed. Check the password.');return r.json();}).then(function(){passwordInput.value='';setSession(true,'Signed in. Session expires in 30 minutes; sign out to revoke it immediately.');endpoint.value=window.location.origin+'/api/operator/state';setState('stale','SIGNED IN','Connect to the local Coreless runtime snapshot.');}).catch(function(e){setSession(false,e.message);}).finally(function(){loginButton.disabled=sessionAuthenticated;});});
+  logoutButton.addEventListener('click',function(){stopConnection('Signing out.');fetch('/api/operator/logout',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}}).catch(function(){}).finally(function(){setSession(false,'Signed out. The previous session has been revoked.');});});
   connect.addEventListener('click',function(){
+    if(!sessionAuthenticated){setState('disconnected','SIGN IN REQUIRED','Authenticate before opening the telemetry feed.');return;}
     var raw=endpoint.value.trim(),url;try{url=new URL(raw,window.location.href);}catch(e){setState('disconnected','INVALID URL','Enter a valid HTTPS state endpoint.');return;}
     if(url.protocol!=='https:'||url.username||url.password||url.hash||url.search){setState('disconnected','INVALID URL','Use an HTTPS endpoint without embedded credentials, query parameters, or a fragment.');return;}
     stopTimer();generation++;if(controller)controller.abort();inFlight=false;activeUrl=url.href;lastSuccess=0;lastSequence=-1;failures=0;connect.disabled=true;disconnectButton.disabled=false;
@@ -142,6 +158,7 @@
   });
   disconnectButton.addEventListener('click',function(){stopConnection('Connection stopped by operator.');});
   window.addEventListener('pagehide',function(){stopTimer();if(controller)controller.abort();});
+  connect.disabled=true;endpoint.value=window.location.origin+'/api/operator/state';checkSession();
 })();
 </script>
 </body>
