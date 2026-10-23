@@ -123,7 +123,7 @@ def test_deterministic_replay_connects_pose_tracks_regions_scene_and_operator_sn
     assert track.observation_count == 2
     assert track.calibration_status == "verified"
     assert track.calibration_ids == ("survey-replay-v1",)
-    assert len(track.history) >= 2
+    assert len(track.position_history_m) >= 2
 
     api_object = second_api["objects"][0]
     assert api_object["position_m"] == [2.0, 2.0, 0.0]
