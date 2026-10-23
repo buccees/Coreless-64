@@ -370,7 +370,8 @@ This completes the first deterministic spatial-query API slice; it does not clai
 - [x] Confirmed green endpoint-fixture workflow: [40005690022](https://github.com/buccees/Coreless-64/actions/runs/40005690022). The implementation-only run [40005685759](https://github.com/buccees/Coreless-64/actions/runs/40005685759) failed on its then-old fixture; the subsequent fixture commit is green.
 - [ ] Verify CI after the current documentation updates.
 - [ ] Add deterministic sensor replay for pose, object tracks, scene assembly, and region alerts.
-- [ ] Connect saved raster calibrations to blueprint ingestion and physical sensor mounting.
+- [x] Connect saved raster calibrations to timestamped IR pixel-batch ingestion with active model/revision/frame checks
+- [ ] Measure and apply physical sensor-mount transforms; the current mount ID is provenance only
 - [ ] Validate live drivers, coverage/false positives, ranging quality, and reacquisition on actual hardware.
 
 Spatial development remains active. Software CI is not field-validation evidence.
