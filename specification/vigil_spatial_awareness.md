@@ -120,3 +120,11 @@ Optional sensor providers may return a `SensorBatch` containing calibrated pose 
 `vigil/spatial_scene.py` assembles a render-ready scene from the active model, compatible pose, current object tracks, and calibrated infrared overlays. Its `SpatialScene` report exposes individual deterministic checks and a final readiness result. The green terminal can display **FATALITY // SPATIAL SCENE LOCKED** only when the blueprint view builds, pose model/revision/frame match, the pose is fresh and sufficiently certain in a usable tracking state, and active tracks have no unresolved conflicts. Otherwise it displays **FATALITY DENIED // VALIDATION INCOMPLETE** with explicit failed checks.
 
 Infrared overlays are reported when available but are not required for readiness, since a missing optional sensor must not fabricate data or disable the rest of VIGIL. Stale or frame-mismatched tracks are excluded from the assembled scene. This is a visualization/diagnostic gate only: the finishing banner does not authorize movement, unlocks, alarms, or any protected Coreless action. It is a named dramatic terminal state earned by validation, not a substitute for Coreless policy.
+
+## Implemented confidence-aware spatial query API
+
+`vigil/spatial_query.py` provides `SpatialQueryEngine` bound to one validated immutable blueprint revision. It evaluates a `PoseEstimate` against model identity, revision, coordinate frame, observation time, freshness, tracking state, and a configurable uncertainty threshold. Valid results report model-frame position, nearest feature and distance, that feature's level/zone, and optionally feature IDs within a caller-supplied radius.
+
+The result status explicitly distinguishes `OK`, `DEGRADED`, `NO_FIX`, `STALE`, `FUTURE_TIMESTAMP`, and `MODEL_MISMATCH`. A stale or mismatched pose cannot produce a misleading nearest-feature result. A degraded but fresh pose may return its best estimate while clearly labeling the result degraded. A missing fix is distinct from a valid position at the origin.
+
+This API is deterministic software over registered feature points. It does not infer polygonal room boundaries, parse raw CAD/PDF/mesh files, discover sensors, or prove physical tracking accuracy. Region-intersection queries require an explicitly modeled region representation and remain separate work.
