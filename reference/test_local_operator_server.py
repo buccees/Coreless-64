@@ -161,7 +161,7 @@ def test_spatial_endpoint_requires_login_and_returns_live_workspace_snapshot(tmp
     model = workspace.import_blueprint(manifest, activate=True)
     workspace.ingest_object_observations([ObjectObservation(
         "cart-1", "uwb-array", model.model_id, model.revision, model.frame_id,
-        __import__("time").time_ns(), (2.0, 1.0, 0.0), 0.2,
+        __import__("time").monotonic_ns(), (2.0, 1.0, 0.0), 0.2,
         TrackingModality.UWB, "test-calibrated-adapter",
     )])
     app = create_lan_app(
