@@ -5,6 +5,7 @@ import json
 import os
 import re
 import tempfile
+from contextlib import contextmanager
 
 PAGE_SIZE = 4096
 
@@ -16,8 +17,54 @@ class PersistentMachineImage:
         self.path = os.fspath(path) if path is not None else None
         self.objects = {}
         self.metadata = {"format": self.FORMAT}
+        self._disk_digest = None
         if self.path and os.path.exists(self.path):
             self._load()
+            self._disk_digest = self._file_digest()
+
+    def _file_digest(self):
+        if not self.path or not os.path.exists(self.path):
+            return None
+        digest = hashlib.sha256()
+        with open(self.path, "rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    @contextmanager
+    def _image_write_lock(self, directory):
+        """Serialize image commits across processes on Windows and POSIX."""
+        lock_file = open(self.path + ".lock", "a+b")
+        try:
+            if os.name == "nt":
+                import msvcrt
+                lock_file.seek(0)
+                if not lock_file.read(1):
+                    lock_file.seek(0)
+                    lock_file.write(b"0")
+                    lock_file.flush()
+                lock_file.seek(0)
+                try:
+                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                except OSError as exc:
+                    raise RuntimeError("Coreless image is being written by another process") from exc
+                try:
+                    yield
+                finally:
+                    lock_file.seek(0)
+                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                try:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except OSError as exc:
+                    raise RuntimeError("Coreless image is being written by another process") from exc
+                try:
+                    yield
+                finally:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        finally:
+            lock_file.close()
 
     def put(self, name, data, sync=True):
         self.objects[name] = data.encode() if isinstance(data, str) else bytes(data)
@@ -144,7 +191,20 @@ class PersistentMachineImage:
                 json.dump(payload, f, sort_keys=True, separators=(",", ":"))
                 f.flush()
                 os.fsync(f.fileno())
-            os.replace(tmp, self.path)
+            with self._image_write_lock(directory):
+                if self._file_digest() != self._disk_digest:
+                    raise RuntimeError(
+                        "Coreless image changed since it was loaded; refusing to overwrite "
+                        "a newer machine state. Close this instance and reopen the image."
+                    )
+                os.replace(tmp, self.path)
+                self._disk_digest = self._file_digest()
+                if os.name != "nt":
+                    dir_fd = os.open(directory, os.O_RDONLY)
+                    try:
+                        os.fsync(dir_fd)
+                    finally:
+                        os.close(dir_fd)
         finally:
             if os.path.exists(tmp):
                 os.unlink(tmp)
