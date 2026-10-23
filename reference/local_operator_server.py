@@ -208,6 +208,37 @@ def create_lan_app(*, password: str, system: CorelessSystem, page_path: Path | N
     return app
 
 
+def serve_lan(
+    system: CorelessSystem,
+    *,
+    host: str,
+    port: int,
+    cert_path: str | Path,
+    key_path: str | Path,
+    password: str,
+) -> None:
+    """Serve the operator display against the caller's already-running machine."""
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.load_cert_chain(str(cert_path), str(key_path))
+    server = make_server(
+        host,
+        port,
+        create_lan_app(password=password, system=system),
+        server_class=WSGIServer,
+        handler_class=QuietHandler,
+    )
+    server.socket = context.wrap_socket(server.socket, server_side=True)
+    print(f"Coreless operator display listening at https://{host}:{port}/")
+    print("The browser is a remote terminal; this process retains machine ownership.")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+
+
 class QuietHandler(WSGIRequestHandler):
     def log_message(self, fmt, *args):
         # Avoid logging cookies, request bodies, or other potentially sensitive data.
@@ -215,10 +246,10 @@ class QuietHandler(WSGIRequestHandler):
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run the Coreless read-only operator display on a trusted LAN.")
+    parser = argparse.ArgumentParser(description="Run the Coreless operator display with its persistent machine.")
     parser.add_argument("--host", default="127.0.0.1", help="bind address; use 0.0.0.0 to allow LAN clients")
     parser.add_argument("--port", type=int, default=8443)
-    parser.add_argument("--image", type=Path, required=True, help="persistent Coreless machine image path")
+    parser.add_argument("--image", type=Path, required=True, help="persistent Coreless machine image path; must not be open by another process")
     parser.add_argument("--cert", default=os.environ.get("CORELESS_TLS_CERT"), help="TLS certificate PEM path")
     parser.add_argument("--key", default=os.environ.get("CORELESS_TLS_KEY"), help="TLS private key PEM path")
     args = parser.parse_args()
@@ -227,22 +258,11 @@ def main() -> int:
         parser.error("set CORELESS_OPERATOR_PASSWORD to a unique password of at least 16 characters")
     if not args.cert or not args.key:
         parser.error("TLS is required: provide --cert/--key or CORELESS_TLS_CERT/CORELESS_TLS_KEY")
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.minimum_version = ssl.TLSVersion.TLSv1_2
-    context.load_cert_chain(args.cert, args.key)
-    # The service and telemetry share this exact machine instance; the browser never owns runtime state.
     system = CorelessSystem(storage_path=args.image)
     system.boot()
-    server = make_server(args.host, args.port, create_lan_app(password=password, system=system), server_class=WSGIServer, handler_class=QuietHandler)
-    server.socket = context.wrap_socket(server.socket, server_side=True)
-    print(f"Coreless operator display listening at https://{args.host}:{args.port}/")
-    print("LAN access requires a trusted TLS certificate on every client; this server is read-only.")
     try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        pass
+        serve_lan(system, host=args.host, port=args.port, cert_path=args.cert, key_path=args.key, password=password)
     finally:
-        server.server_close()
         system.machine.save_state()
     return 0
 
