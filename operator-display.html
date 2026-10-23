@@ -178,8 +178,8 @@
     summary.appendChild(textNode('h4','','TRACK ESTIMATE'));
     summary.appendChild(textNode('p','','POSITION: '+(Array.isArray(object.position_m)?object.position_m.map(function(v){return Number(v).toFixed(3);}).join(', ')+' m':'unavailable')));
     summary.appendChild(textNode('p','','SPEED: '+(object.speed_mps===null||object.speed_mps===undefined?'unknown':Number(object.speed_mps).toFixed(3)+' m/s')));
-    summary.appendChild(textNode('p','','UNCERTAINTY: '+(Number.isFinite(Number(object.uncertainty_m))?Number(object.uncertainty_m).toFixed(3)+' m':'unknown')));
-    summary.appendChild(textNode('p','','LAST SEEN: '+String(object.last_seen_ns||'unknown')+' ns · AGE: '+String(object.age_ns||'unknown')+' ns'));
+    summary.appendChild(textNode('p','','UNCERTAINTY: '+(object.uncertainty_m!==null&&object.uncertainty_m!==undefined&&Number.isFinite(Number(object.uncertainty_m))?Number(object.uncertainty_m).toFixed(3)+' m':'unknown')));
+    summary.appendChild(textNode('p','','LAST SEEN: '+String(object.last_seen_ns===null||object.last_seen_ns===undefined?'unknown':object.last_seen_ns)+' ns · AGE: '+String(object.age_ns===null||object.age_ns===undefined?'unknown':object.age_ns)+' ns'));
     summary.appendChild(textNode('p','','ASSOCIATION: '+String(object.association_id||'none declared')));grid.appendChild(summary);
     var evidence=textNode('section','track-inspector-block','');evidence.appendChild(textNode('h4','','CONTRIBUTING SENSOR SOURCES'));
     var sensors=Array.isArray(object.sensor_ids)?object.sensor_ids:[];
