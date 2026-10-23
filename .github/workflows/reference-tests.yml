@@ -19,7 +19,8 @@ jobs:
       - name: Check bootable carrier entrypoints
         run: |
           bash -n scripts/build-bootable-ssd.sh
-          python -m py_compile scripts/coreless-console.py\n      - name: Run reference tests
+          python -m py_compile scripts/coreless-console.py
+      - name: Run reference tests
         working-directory: reference
         env:
           PYTHONPATH: ${{ github.workspace }}
