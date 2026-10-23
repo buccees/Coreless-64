@@ -615,3 +615,71 @@ def test_memory_adapter_rejects_invalid_initial_endpoint_records():
     endpoint = HostEndpoint("   ", CorelessIdentity("coreless"), HostCapabilities())
     with pytest.raises(ValueError, match="endpoint_id must not be empty"):
         MemoryHostTransportAdapter([endpoint])
+
+
+def test_provider_adapter_connect_requires_current_discovery_snapshot():
+    from host_discovery import HostDiscoveryCandidate
+    from host_transport import ProviderHostTransportAdapter
+
+    endpoint = HostEndpoint(
+        "provider-live",
+        CorelessIdentity("provider-live"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+
+    class Provider:
+        candidates = [HostDiscoveryCandidate(
+            endpoint.endpoint_id,
+            endpoint.identity_frame(),
+            endpoint.capabilities,
+            endpoint.channel_map(),
+        )]
+
+        def enumerate_candidates(self):
+            return tuple(self.candidates)
+
+    provider = Provider()
+    adapter = ProviderHostTransportAdapter(provider)
+    interface = CorelessHostInterface(CorelessIdentity("provider-live"))
+    adapter.connect(endpoint, interface)
+    assert interface.attached
+
+    provider.candidates = []
+    other_interface = CorelessHostInterface(CorelessIdentity("provider-live"))
+    with pytest.raises(ValueError, match="not present in current discovery snapshot"):
+        adapter.connect(endpoint, other_interface)
+    assert not other_interface.attached
+
+
+def test_provider_adapter_rejects_stale_endpoint_metadata():
+    from host_discovery import HostDiscoveryCandidate
+    from host_transport import ProviderHostTransportAdapter
+
+    live_endpoint = HostEndpoint(
+        "provider-refresh",
+        CorelessIdentity("provider-refresh"),
+        HostCapabilities(display=True),
+        device_capabilities={"display"},
+    )
+
+    class Provider:
+        def enumerate_candidates(self):
+            return [HostDiscoveryCandidate(
+                live_endpoint.endpoint_id,
+                live_endpoint.identity_frame(),
+                live_endpoint.capabilities,
+                live_endpoint.channel_map(),
+            )]
+
+    adapter = ProviderHostTransportAdapter(Provider())
+    stale_endpoint = HostEndpoint(
+        "provider-refresh",
+        CorelessIdentity("provider-refresh"),
+        HostCapabilities(network=True),
+        device_capabilities={"network"},
+    )
+    interface = CorelessHostInterface(CorelessIdentity("provider-refresh"))
+    with pytest.raises(ValueError, match="not present in current discovery snapshot"):
+        adapter.connect(stale_endpoint, interface)
+    assert not interface.attached
