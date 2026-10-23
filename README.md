@@ -8,6 +8,8 @@
 
 ## Coreless-64
 
+**Permanent interface rule:** the SSD carries the complete machine, including its execution engine and OS. The machine should need only a monitor/display and I/O connections to be used. External equipment provides display and I/O—not the computer's execution engine or architectural authority.
+
 Coreless-64 is the 64-bit Coreless architecture. The repository contains its digital reference execution engine, persistent machine model, operating-environment foundation, virtualization, devices, vector/matrix execution, and 314DNest local-intelligence layer.
 
 The SSD is the authoritative carrier of the complete machine. Do not reduce it to a boot disk, passive data drive, or state-only container.
