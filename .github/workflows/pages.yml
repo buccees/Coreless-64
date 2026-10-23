@@ -6,6 +6,7 @@ on:
       - vigil-spatial-awareness
     paths:
       - "index.html"
+      - "operator-display.html"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -31,7 +32,9 @@ jobs:
           set -eux
           mkdir -p site
           cp index.html site/index.html
+          cp operator-display.html site/operator-display.html
           test -s site/index.html
+          test -s site/operator-display.html
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
