@@ -102,13 +102,22 @@ class AISession:
             raise ValueError("AI session state has invalid lifecycle fields")
         session = cls(session_id, authority=authority)
         restored = []
+        seen_event_ids: set[str] = set()
         for item in events:
             if not isinstance(item, Mapping):
                 raise ValueError("AI session state contains an invalid event")
             event_id, kind, payload = item.get("event_id"), item.get("kind"), item.get("payload", {})
-            if not isinstance(event_id, str) or not isinstance(kind, str) or not isinstance(payload, Mapping):
-                raise ValueError("AI session state contains malformed event fields")
+            if (
+                not isinstance(event_id, str) or not event_id
+                or event_id in seen_event_ids
+                or not isinstance(kind, str) or not kind
+                or not isinstance(payload, Mapping)
+            ):
+                raise ValueError("AI session state contains malformed or duplicate event fields")
+            seen_event_ids.add(event_id)
             restored.append(SessionEvent(event_id, kind, dict(payload)))
+        if counter != len(restored):
+            raise ValueError("AI session state counter does not match event history")
         session._events, session._counter, session._active = restored, counter, active
         return session
 

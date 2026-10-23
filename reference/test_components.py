@@ -250,6 +250,32 @@ def test_hub_negotiates_capabilities_and_opens_ipc():
         hub.send_ipc("cpu-0", "vision-0", b"again")
 
 
+def test_reopening_ipc_channel_reuses_capability_and_closes_cleanly():
+    from virtualization import Hypervisor
+
+    hypervisor = Hypervisor(2)
+    source_vm = hypervisor.create_vm(1 << 20, 1)
+    target_vm = hypervisor.create_vm(1 << 20, 1)
+    hub = CorelessHub(hypervisor=hypervisor)
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("source-0", "cpu", frozenset({"ipc"})),
+        vm=source_vm,
+    ))
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("target-0", "vision", frozenset({"ipc"})),
+        vm=target_vm,
+    ))
+
+    first = hub.open_ipc("source-0", "target-0", {"ipc"})
+    second = hub.open_ipc("source-0", "target-0", {"ipc"})
+
+    assert second == first
+    assert len(hub._ipc_channels) == 1
+    hub.close_ipc("source-0", "target-0")
+    with pytest.raises(PermissionError, match="not been negotiated"):
+        hub.send_ipc("source-0", "target-0", b"closed")
+
+
 def test_hub_fault_isolates_component_and_revokes_ipc():
     from virtualization import Hypervisor
 
@@ -277,6 +303,44 @@ def test_hub_fault_isolates_component_and_revokes_ipc():
     assert "vision-0" not in {c.component_id for c in hub.components()}
     with pytest.raises(PermissionError, match="not been negotiated"):
         hub.send_ipc("cpu-0", "vision-0", b"blocked")
+
+
+def test_fault_isolation_attempts_all_cleanup_even_when_stops_fail():
+    calls = []
+
+    class FailingVM:
+        running = True
+
+        def stop(self):
+            calls.append("vm")
+            raise ValueError("vm stop failed")
+
+    class FailingAI:
+        running = True
+
+        def stop(self):
+            calls.append("ai")
+            raise RuntimeError("ai stop failed")
+
+    class FakeSystem:
+        def shutdown(self):
+            calls.append("system")
+
+    component = CorelessComponent(
+        ComponentDescriptor("faulty-0", "ai", frozenset({"inference"})),
+        system=FakeSystem(),
+        vm=FailingVM(),
+        ai_runtime=FailingAI(),
+    )
+    hub = CorelessHub()
+    hub.connect(component)
+
+    hub.isolate("faulty-0", "runtime fault")
+
+    assert calls == ["ai", "vm", "system"]
+    assert component.healthy is False
+    assert component.fault == "runtime fault"
+    assert component.standalone
 
 
 def test_faulted_component_can_recover_and_rejoin():
@@ -426,6 +490,73 @@ def test_hub_coordinates_boot_and_shutdown_without_breaking_standalone_component
     assert hub.shutdown() == ("cpu-0",)
     assert system_component.system.machine.booted is False
     assert hub.components() == (system_component, standalone)
+
+
+def test_hub_boot_rolls_back_component_whose_service_start_fails():
+    class FakeSystem:
+        def __init__(self):
+            self.machine = type("Machine", (), {"booted": False})()
+            self.boot_manifest = None
+        def boot(self, init_path="/init"):
+            self.machine.booted = True
+            self.boot_manifest = {"init": init_path}
+        def shutdown(self):
+            self.machine.booted = False
+            return self
+
+    class FailingAI:
+        running = False
+        def start(self):
+            raise RuntimeError("AI runtime failed to start")
+        def stop(self):
+            self.running = False
+
+    system = FakeSystem()
+    component = CorelessComponent(
+        ComponentDescriptor("ai-0", "ai", frozenset({"inference"})),
+        system=system,
+        ai_runtime=FailingAI(),
+    )
+    hub = CorelessHub()
+    hub.connect(component)
+
+    with pytest.raises(RuntimeError, match="AI runtime failed to start"):
+        hub.boot()
+
+    assert system.machine.booted is False
+    assert hub.lifecycle_status()["booted_components"] == ()
+
+
+def test_component_service_start_rolls_back_vm_when_ai_start_fails():
+    class FakeVM:
+        running = False
+        def run(self):
+            self.running = True
+        def stop(self):
+            self.running = False
+
+    class FailingAI:
+        running = True
+
+        def start(self):
+            raise RuntimeError("AI startup failed")
+
+        def stop(self):
+            self.running = False
+
+    vm = FakeVM()
+    ai = FailingAI()
+    component = CorelessComponent(
+        ComponentDescriptor("ai-1", "ai", frozenset({"inference"})),
+        vm=vm,
+        ai_runtime=ai,
+    )
+
+    with pytest.raises(RuntimeError, match="AI startup failed"):
+        component.start_services()
+
+    assert vm.running is False
+    assert ai.running is False
 
 
 def test_hub_coordinates_checkpoint_and_restore_across_component_machines():
@@ -1271,3 +1402,322 @@ def test_hub_dispatch_does_not_release_load_into_rejoined_component():
     replacement_result = hub.dispatch(Workload("w2", "compute", "replacement"))
     assert replacement_result.component_id == "cpu-0"
     assert replacement_result.result == "replacement"
+
+
+
+def test_hub_shutdown_continues_after_one_component_fails():
+    calls = []
+
+    class FakeSystem:
+        def __init__(self, component_id, fail=False):
+            self.component_id = component_id
+            self.fail = fail
+
+        def shutdown(self):
+            calls.append(self.component_id)
+            if self.fail:
+                raise RuntimeError("shutdown failed")
+
+    hub = CorelessHub("hub-shutdown-resilience")
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("healthy-0", "cpu", frozenset({"compute"})),
+        system=FakeSystem("healthy-0"),
+    ))
+    hub.connect(CorelessComponent(
+        ComponentDescriptor("faulty-0", "ai", frozenset({"inference"})),
+        system=FakeSystem("faulty-0", fail=True),
+    ))
+
+    assert hub.shutdown() == ("healthy-0",)
+    assert calls == ["faulty-0", "healthy-0"]
+
+
+
+def test_faulted_component_cannot_rejoin_when_runtime_refuses_to_stop():
+    class FailingAI:
+        running = True
+
+        def stop(self):
+            raise RuntimeError("runtime still active")
+
+    hub = CorelessHub()
+    component = CorelessComponent(
+        ComponentDescriptor("stuck-ai-0", "ai", frozenset({"inference"})),
+        ai_runtime=FailingAI(),
+    )
+    hub.connect(component)
+    hub.isolate("stuck-ai-0", "runtime fault")
+
+    with pytest.raises(RuntimeError, match="cannot recover component"):
+        hub.rejoin(component)
+
+    assert component.healthy is False
+    assert component.fault == "runtime fault"
+    assert component.standalone
+    assert hub.components() == ()
+
+
+def test_faulted_component_cannot_recover_if_stop_returns_but_runtime_stays_running():
+    class StuckVM:
+        running = True
+
+        def stop(self):
+            # Broken runtime acknowledges stop but fails to change state.
+            return None
+
+    component = CorelessComponent(
+        ComponentDescriptor("stuck-vm-0", "cpu", frozenset({"compute"})),
+        vm=StuckVM(),
+    )
+    component.isolate("vm fault")
+
+    with pytest.raises(RuntimeError, match="VM remains running"):
+        component.recover()
+
+    assert component.healthy is False
+    assert component.fault == "vm fault"
+
+
+
+def test_ipc_channel_regrants_capability_when_component_vm_is_replaced():
+    from virtualization import Hypervisor
+
+    hypervisor = Hypervisor(2)
+    source_vm = hypervisor.create_vm(1 << 20, 1)
+    target_vm = hypervisor.create_vm(1 << 20, 1)
+    hub = CorelessHub(hypervisor=hypervisor)
+    source = CorelessComponent(
+        ComponentDescriptor("source-0", "cpu", frozenset({"ipc"})),
+        vm=source_vm,
+    )
+    target = CorelessComponent(
+        ComponentDescriptor("target-0", "vision", frozenset({"ipc"})),
+        vm=target_vm,
+    )
+    hub.connect(source)
+    hub.connect(target)
+
+    first = hub.open_ipc("source-0", "target-0", {"ipc"})
+    hypervisor.destroy_vm(source_vm.vmid)
+    replacement_vm = hypervisor.create_vm(1 << 20, 1)
+    source.vm = replacement_vm
+
+    second = hub.open_ipc("source-0", "target-0", {"ipc"})
+
+    assert second != first
+    assert hub._ipc_bindings[("source-0", "target-0")] == (
+        replacement_vm.vmid, target_vm.vmid
+    )
+    hub.send_ipc("source-0", "target-0", b"after-rebind")
+    assert hypervisor.recv_message(target_vm.vmid, 0) == b"after-rebind"
+
+
+
+def test_component_rejects_ai_runtime_whose_model_identity_does_not_match():
+    class FakeAI:
+        model_id = "deepseek"
+        running = False
+
+        def start(self):
+            self.running = True
+
+        def stop(self):
+            self.running = False
+
+    component = CorelessComponent(
+        ComponentDescriptor(
+            "cpu-0", "cpu-intelligence", frozenset({"inference"}),
+            ai_model_id="qwen3",
+        ),
+        ai_runtime=FakeAI(),
+    )
+
+    with pytest.raises(ValueError, match="does not match component descriptor"):
+        component.start_ai()
+
+    assert component.ai_status()["model_id"] == "deepseek"
+    assert component.ai_status()["identity_match"] is False
+    assert component.ai_status()["running"] is False
+
+
+def test_component_reports_matching_runtime_model_identity():
+    class FakeAI:
+        model_id = "qwen3"
+        running = False
+
+        def start(self):
+            self.running = True
+
+        def stop(self):
+            self.running = False
+
+    component = CorelessComponent(
+        ComponentDescriptor(
+            "cpu-0", "cpu-intelligence", frozenset({"inference"}),
+            ai_model_id="qwen3",
+        ),
+        ai_runtime=FakeAI(),
+    )
+    component.start_ai()
+
+    status = component.ai_status()
+    assert status["model_id"] == "qwen3"
+    assert status["runtime_model_id"] == "qwen3"
+    assert status["identity_match"] is True
+
+
+
+def test_component_restore_identity_reapplies_persisted_descriptor():
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+
+        def put(self, key, value, sync=False):
+            self.objects[key] = value
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = FakeStorage()
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = FakeMachine()
+
+    system = FakeSystem()
+    original = ComponentDescriptor(
+        "ai-0", "general", frozenset({"inference"}),
+        ai_model_id="qwen3", version=1, capacity=1,
+    )
+    component = CorelessComponent(original, system=system)
+    component.persist_identity()
+
+    # Simulate the live descriptor having drifted from the saved machine image.
+    component.descriptor = ComponentDescriptor(
+        "ai-0", "temporary", frozenset({"debug"}),
+        ai_model_id="qwen3", version=1, capacity=1,
+    )
+    restored = component.restore_identity()
+
+    assert restored == original
+    assert component.descriptor == original
+    assert component.status()["component"]["capabilities"] == ["inference"]
+
+
+def test_component_restore_identity_rejects_invalid_descriptor_atomically():
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+
+        def put(self, key, value, sync=False):
+            self.objects[key] = value
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = FakeStorage()
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = FakeMachine()
+
+    original = ComponentDescriptor(
+        "ai-0", "general", frozenset({"inference"}),
+        ai_model_id="qwen3",
+    )
+    system = FakeSystem()
+    component = CorelessComponent(original, system=system)
+    system.machine.storage.objects[component.persistence_key] = json.dumps({
+        "version": component.VERSION,
+        "descriptor": {
+            "component_id": "ai-0",
+            "role": "corrupt",
+            "capabilities": ["inference", "inference"],
+            "ai_model_id": "qwen3",
+            "vm_id": None,
+            "version": 1,
+            "capacity": 1,
+        },
+    }).encode("utf-8")
+
+    with pytest.raises(ValueError, match="persisted component capabilities"):
+        component.restore_identity()
+
+    assert component.descriptor == original
+
+
+def test_component_restore_identity_rejects_persisted_model_runtime_mismatch():
+    class FakeStorage:
+        def __init__(self):
+            self.objects = {}
+
+        def put(self, key, value, sync=False):
+            self.objects[key] = value
+
+    class FakeMachine:
+        def __init__(self):
+            self.storage = FakeStorage()
+
+    class FakeSystem:
+        def __init__(self):
+            self.machine = FakeMachine()
+
+    class FakeAI:
+        model_id = "deepseek"
+
+    system = FakeSystem()
+    component = CorelessComponent(
+        ComponentDescriptor(
+            "ai-0", "general", frozenset({"inference"}), ai_model_id="deepseek"
+        ),
+        system=system,
+        ai_runtime=FakeAI(),
+    )
+    component.persist_identity()
+    # A validly shaped restored descriptor can still conflict with the bound AI.
+    system.machine.storage.objects[component.persistence_key] = json.dumps({
+        "version": component.VERSION,
+        "descriptor": {
+            "component_id": "ai-0",
+            "role": "general",
+            "capabilities": ["inference"],
+            "ai_model_id": "qwen3",
+            "vm_id": None,
+            "version": 1,
+            "capacity": 1,
+        },
+    }).encode("utf-8")
+
+    with pytest.raises(ValueError, match="does not match bound runtime"):
+        component.restore_identity()
+
+    assert component.descriptor.ai_model_id == "deepseek"
+
+
+
+def test_send_ipc_rejects_stale_binding_until_channel_is_reopened():
+    from virtualization import Hypervisor
+
+    hypervisor = Hypervisor(2)
+    source_vm = hypervisor.create_vm(1 << 20, 1)
+    target_vm = hypervisor.create_vm(1 << 20, 1)
+    replacement_vm = hypervisor.create_vm(1 << 20, 1)
+    hub = CorelessHub(hypervisor=hypervisor)
+    source = CorelessComponent(
+        ComponentDescriptor("source-0", "cpu", frozenset({"ipc"})),
+        vm=source_vm,
+    )
+    target = CorelessComponent(
+        ComponentDescriptor("target-0", "vision", frozenset({"ipc"})),
+        vm=target_vm,
+    )
+    hub.connect(source)
+    hub.connect(target)
+    first = hub.open_ipc("source-0", "target-0", {"ipc"})
+
+    source.vm = replacement_vm
+    with pytest.raises(PermissionError, match="binding is stale"):
+        hub.send_ipc("source-0", "target-0", b"stale")
+
+    second = hub.open_ipc("source-0", "target-0", {"ipc"})
+    assert second != first
+    hub.send_ipc("source-0", "target-0", b"rebound")
+    assert hypervisor.recv_message(target_vm.vmid, 0) == b"rebound"
