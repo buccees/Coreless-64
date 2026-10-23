@@ -207,14 +207,27 @@ class ObjectTracker:
             # Fuse only the newest measurement epoch to avoid smearing motion.
             timestamp = max(item.timestamp_ns for item in observations_for_object)
             group = [item for item in observations_for_object if item.timestamp_ns == timestamp]
+            # Multiple feeds can share one physical receiver or upstream estimate.
+            # Preserve every row as evidence, but let only the best reported reading
+            # from each declared lineage group influence this epoch's estimate.
+            # This prevents correlated feeds from manufacturing confidence.
+            representatives: dict[str, ObjectObservation] = {}
+            for item in group:
+                lineage = item.evidence_independence_group
+                current = representatives.get(lineage)
+                if current is None or (item.uncertainty_m, item.sensor_id, item.object_id) < (
+                    current.uncertainty_m, current.sensor_id, current.object_id
+                ):
+                    representatives[lineage] = item
+            fusion_group = list(representatives.values())
             conflict_reasons: set[str] = set()
             if max(item.timestamp_ns for item in observations_for_object) - min(
                 item.timestamp_ns for item in observations_for_object
             ) > self.max_fusion_skew_ns:
                 conflict_reasons.add("timestamp_skew")
             conflicting_sensors: set[str] = set()
-            for index, left in enumerate(group):
-                for right in group[index + 1:]:
+            for index, left in enumerate(fusion_group):
+                for right in fusion_group[index + 1:]:
                     separation = sqrt(sum(
                         (left.position_m[axis] - right.position_m[axis]) ** 2
                         for axis in range(3)
@@ -228,16 +241,16 @@ class ObjectTracker:
             if conflict_reasons:
                 # Keep the most precise newest observation as the display estimate;
                 # never average contradictory measurements into a misleading midpoint.
-                selected = min(group, key=lambda item: item.uncertainty_m)
+                selected = min(fusion_group, key=lambda item: (item.uncertainty_m, item.sensor_id, item.object_id))
                 measured = selected.position_m
                 measurement_uncertainty = selected.uncertainty_m
                 if not conflicting_sensors:
                     conflicting_sensors.update(item.sensor_id for item in observations_for_object)
             else:
-                weights = [1.0 / (item.uncertainty_m ** 2) for item in group]
+                weights = [1.0 / (item.uncertainty_m ** 2) for item in fusion_group]
                 total = sum(weights)
                 measured = tuple(
-                    sum(w * item.position_m[axis] for w, item in zip(weights, group)) / total
+                    sum(w * item.position_m[axis] for w, item in zip(weights, fusion_group)) / total
                     for axis in range(3)
                 )
                 measurement_uncertainty = sqrt(1.0 / total)
