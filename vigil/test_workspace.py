@@ -471,3 +471,32 @@ def test_workspace_keeps_stale_object_as_last_known_without_claiming_motion_or_d
     assert marker.presence_state == "STALE"
     assert marker.motion_state == "UNKNOWN"
 
+
+
+def test_workspace_restores_persisted_object_as_reacquire_not_live():
+    from vigil.object_tracking import ObjectObservation, TrackingModality
+    from vigil.spatial_registry_store import SpatialRegistryStore
+
+    store = SpatialRegistryStore()
+    try:
+        first = SpatialWorkspace(registry_store=store)
+        active = first.import_blueprint(manifest(), activate=True)
+        first.ingest_object_observations([ObjectObservation(
+            "cart-7", "uwb-array", active.model_id, active.revision,
+            active.frame_id, 100, (2.0, 3.0, 0.0), 0.2,
+            TrackingModality.UWB, "calibrated-ranging",
+            calibration_status="verified", calibration_ids=("survey-1",),
+            lineage_declared=True,
+        )])
+        first.refresh(now_ns=100)
+
+        restarted = SpatialWorkspace(registry_store=store)
+        assert restarted.active_model == active
+        assert len(restarted.object_tracks) == 1
+        assert restarted.object_tracks[0].presence_state == "REACQUIRE"
+        refreshed = restarted.refresh(now_ns=110)
+        assert refreshed.object_tracks[0].presence_state == "REACQUIRE"
+        assert refreshed.object_tracks[0].position_m == (2.0, 3.0, 0.0)
+        assert refreshed.object_tracks[0].calibration_ids == ("survey-1",)
+    finally:
+        store.close()
