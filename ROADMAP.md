@@ -1,5 +1,9 @@
 # Coreless Roadmap
 
+## Target host platform
+
+The user has selected **Lubuntu (Ubuntu-based Linux)** as the first intended OS for Coreless-64. Implement and validate Linux-specific host integration first, then keep the transport-neutral interfaces suitable for later platform adapters. For device lifecycle notifications, evaluate a udev/libudev-backed event monitor; do not mark hot-plug available until real unplug/replug, transport teardown/reopen, and end-to-end integration tests pass.
+
 ## Current checkpoint
 
 The current implementation checkpoint includes the reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, Transformer → TensorRuntime routing, autonomous Coreless components, Hub composition, coordinated persistence, native CPU/VM component execution, Hub scheduling, a reference plug-and-play host transport layer, and an authenticated read-only Remote Operator Display endpoint backed by the active CorelessSystem. This operator surface reports runtime lifecycle and only those sensor events explicitly supplied to its telemetry provider; it does not imply physical sensor connectivity or a complete in-machine GUI.
@@ -59,8 +63,8 @@ The current implementation checkpoint includes the reference digital-machine lif
 - [x] Reference host enumeration/transport adapter
 - [x] Provider-backed host transport adapter boundary
 - [x] Transport-neutral host hot-plug lifecycle coordinator (software contract only)
-- [ ] Native OS/device hot-plug event subscriptions and platform-specific arrival/removal handling
-- [ ] Physical unplug/replug and reconnect validation on target platform
+- [ ] Lubuntu/Linux native device-event subscription (evaluate udev/libudev) and arrival/removal adapter
+- [ ] Physical unplug/replug and reconnect validation on Lubuntu target hardware
 - [ ] End-to-end VIGIL integration with native hot-plug lifecycle
 - [ ] Application environment
 
@@ -173,9 +177,9 @@ The current implementation checkpoint includes the reference digital-machine lif
 - [x] Component/hub composition boundary documented
 - [x] CorelessHostInterface software contract
 - [x] Reference host enumeration/transport adapter
-- [ ] Cross-platform physical host enumeration
+- [ ] Lubuntu/Linux physical host enumeration first; cross-platform physical host enumeration later
 - [x] Reference display/input/network transport adapters
-- [ ] Platform display/input/network transport adapters
+- [ ] Lubuntu/Linux display/input/network transport adapters first; other OS adapters later
 - [x] User-designated pointing-device discovery and persistent assignment
 - [x] Coreless touch/pointing event transport contract
 - [x] VIGIL-aware input interpretation boundary
