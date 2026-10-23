@@ -21,6 +21,8 @@ Keep the subsystem behind explicit interfaces so it can be tested without GPS ha
 
 Use named, explicit frames; never mix raw GPS coordinates with model-local coordinates implicitly.
 
+Use one monotonic clock domain for all live observation timestamps, freshness checks, and snapshot generation. The operator endpoint uses `time.monotonic_ns()` to match the sensor-observation contract; wall-clock epoch timestamps must not be compared directly to monotonic sensor times. Persisted tracks restored after a reboot remain `REACQUIRE` until fresh observations establish a new live timeline.
+
 1. **Geodetic frame** — GNSS/GPS observations in a documented datum.
 2. **Facility frame** — a site-wide metric coordinate system, if a surveyed/georeferenced transform exists.
 3. **Model frame** — the blueprint's normalized local coordinates and units.
