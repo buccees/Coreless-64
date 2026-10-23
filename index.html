@@ -613,7 +613,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <h3>REMAINING RELIABILITY WORK</h3>
 <ul>
 <li>Add failure-path tests for partial startup, listener bind/TLS errors, and shutdown exceptions.</li>
-<li>Prevent concurrent processes from opening the same persistent machine image for writing.</li>
+<li>Persistent-image writes now use a cross-process commit lock and compare the on-disk digest with the loaded version before replacing the image; stale writers are rejected instead of silently overwriting newer state. A regression test covers stale-writer rejection.</li>
 <li>Handle startup cancellation and GUI close races without orphaning a server or machine.</li>
 <li>Run the full reference test suite and inspect the newest CI run before marking this handoff verified.</li>
 </ul>
