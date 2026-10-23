@@ -1,5 +1,11 @@
 # Coreless-64 — Project Handoff
 
+## Current blocker — VIGIL cannot use host hot-plug yet
+
+**Do not treat hot-plug as available to VIGIL right now.** The repository has a transport-neutral `HostHotplugController` for validated arrival, removal, and missed-event reconciliation, but native OS/device event monitoring and concrete platform adapters are not implemented or validated. Consequently, VIGIL cannot rely on automatic physical device arrival/removal or reconnect behavior yet.
+
+Next required work: implement a native platform provider that subscribes to device lifecycle events, feeds those events into the controller, safely closes/reopens the relevant transport, and verifies unplug/replug and failure recovery on the target platform. Add an end-to-end VIGIL integration test before marking this usable. Keep the VIGIL spatial-intelligence expansion paused; this note records a blocker, not permission to resume that work.
+
 ## Current state
 
 **Status: green.** The repository is at a stable checkpoint with the Coreless-64 digital machine foundation, 314DNest control plane, persistent tensor runtime, Transformer integration, autonomous component execution, Hub scheduling, and reference host transport layer all passing CI.
