@@ -320,11 +320,11 @@ The host transport layer now validates the transport-neutral HostIO bundle befor
 
 The reference test suite is green at this checkpoint. Next implementation work should proceed toward concrete platform host providers/adapters while preserving the transport-neutral boundary.
 
-## Documentation checkpoint — 2026-10-23: VIGIL spatial work resumed
+## Documentation checkpoint — 2026-10-23: VIGIL spatial work active
 
 Spatial-intelligence development is active again. Added `vigil/spatial_query.py` and focused regression tests. The query engine reports nearest modeled feature, distance, level/zone labels, and optional nearby features only after checking model/revision/frame identity, pose timestamp, freshness, tracking state, and uncertainty. It distinguishes missing fix, stale data, future timestamps, mismatched model/frame, and degraded-but-usable estimates.
 
-This completes the first deterministic spatial-query API slice; it does not claim polygon-region semantics, raw CAD/PDF import, live sensor discovery, or physical tracking accuracy. Continue toward a complete spatial workflow by integrating query results into workspace/operator presentation, adding explicit modeled-region queries, and improving persistent calibration/model storage and real sensor adapters. Keep hardware accuracy claims separate from software CI.
+This completes the first deterministic spatial-query API slice; it does not claim polygon-region semantics, raw CAD/PDF import, live sensor discovery, or physical tracking accuracy. Query results, explicit model-frame regions, persistent blueprint/region/calibration metadata, and the authenticated operator overlay are implemented. Continue toward a complete spatial workflow with deterministic sensor replay, connected raster/sensor-mount calibration, concrete live adapters, and physical field validation. Keep hardware accuracy claims separate from software CI.
 
 ### VIGIL spatial query and region milestone — 2026-10-23
 
@@ -344,6 +344,7 @@ This completes the first deterministic spatial-query API slice; it does not clai
 - [x] SQLite spatial registry for immutable model revisions, explicit regions, and raster calibration metadata
 - [x] Canonical JSON integrity checks and per-record size limits
 - [x] Restore active model and regions into a fresh `SpatialWorkspace`
+- [x] Persist bounded last-known object-track evidence/history and restore tracks as `REACQUIRE` after restart
 - [x] End-to-end restart coverage for model/region persistence and explicit revision activation
 - [ ] Persist and manage source blueprint assets and transform/calibration provenance through the full Coreless storage service
 - [ ] Connect saved raster calibrations to image-ingest and sensor-mount workflows
@@ -357,3 +358,18 @@ This completes the first deterministic spatial-query API slice; it does not clai
 - [x] CLI integration supports a persistent spatial registry beside the machine image and optional versioned JSON blueprint import (`--spatial-db`, `--blueprint`)
 - [ ] End-to-end validation on a real hosted HTTPS instance and actual calibrated sensor feeds
 - [ ] Physical sensing accuracy, coverage limits, false-positive rates, and device-loss/reacquisition validation
+
+
+### Current spatial engineering checkpoint — 2026-10-23
+
+- [x] Object evidence/provenance, sensor independence groups, calibration IDs/status, and lineage declaration visible in the authenticated snapshot and operator cards.
+- [x] Provider health exposed as `UNPOLLED`, `ONLINE`, or `ERROR`; failing providers do not block healthy providers.
+- [x] Persist bounded track history/evidence and restore as `REACQUIRE`, never as live contact.
+- [x] Align live spatial snapshot and test-fixture timestamps to monotonic nanoseconds.
+- [x] Confirmed green endpoint-fixture workflow: [40005690022](https://github.com/buccees/Coreless-64/actions/runs/40005690022). The implementation-only run [40005685759](https://github.com/buccees/Coreless-64/actions/runs/40005685759) failed on its then-old fixture; the subsequent fixture commit is green.
+- [ ] Verify CI after the current documentation updates.
+- [ ] Add deterministic sensor replay for pose, object tracks, scene assembly, and region alerts.
+- [ ] Connect saved raster calibrations to blueprint ingestion and physical sensor mounting.
+- [ ] Validate live drivers, coverage/false positives, ranging quality, and reacquisition on actual hardware.
+
+Spatial development remains active. Software CI is not field-validation evidence.
