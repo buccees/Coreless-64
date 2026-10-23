@@ -139,3 +139,24 @@ def test_factory_binds_existing_coreless_system_to_authorized_endpoint():
 def test_provider_requires_coreless_status_api():
     with pytest.raises(TypeError, match="CorelessSystem.status"):
         CorelessOperatorSnapshotProvider(object())
+
+
+
+def test_real_coreless_system_can_back_read_only_operator_endpoint(tmp_path):
+    from system import CorelessSystem
+
+    system = CorelessSystem(storage_path=tmp_path / "operator-display.json")
+    app = create_coreless_operator_app(system, authorize=lambda env: True)
+    response, body = _call(app)
+    assert response["status"] == "200 OK"
+    decoded = json.loads(body)
+    assert decoded["protocol_version"] == 1
+    assert decoded["runtime_state"] == "starting"
+    assert decoded["sensors"] == []
+    assert decoded["alerts"] == []
+    system.boot()
+    response, body = _call(app)
+    assert response["status"] == "200 OK"
+    decoded = json.loads(body)
+    assert decoded["runtime_state"] == "ready"
+    assert decoded["sequence"] == 1
