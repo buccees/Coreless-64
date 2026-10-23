@@ -40,7 +40,7 @@ sudo partprobe "$LOOP" 2>/dev/null || true
 for _ in $(seq 1 20); do [[ -b "${LOOP}p2" ]] && break; sleep 0.25; done
 [[ -b "${LOOP}p1" && -b "${LOOP}p2" ]] || { echo "Partition devices were not created for $LOOP" >&2; exit 1; }
 
-sudo mkfs.vfat -F 32 -n CORELESS_EFI "${LOOP}p1"
+sudo mkfs.vfat -F 32 -n CORELESSEFI "${LOOP}p1"
 sudo mkfs.ext4 -F -L CORELESS_ROOT "${LOOP}p2"
 sudo mount "${LOOP}p2" "$WORK/root"; MOUNTED+=("$WORK/root")
 sudo mkdir -p "$WORK/root/boot/efi"
