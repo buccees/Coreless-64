@@ -7,7 +7,7 @@
 
 The Coreless host interface defines the narrow boundary between a Coreless computer and external equipment.
 
-The host is an interface provider, not the Coreless computer. Coreless carries its own architectural state, execution, memory/storage, operating environment, AI, component identity, and system composition.
+Coreless-64 is the computer. Its operating system runs on the Coreless machine; it is not an application whose execution authority belongs to a host OS. This interface specification describes how the machine connects to external equipment. An external computer may provide selected I/O services or a compatible execution substrate only where explicitly specified, but it must not be silently treated as the owner of Coreless. The machine's physical execution, memory, boot path, persistent state, and device interfaces must be specified and validated separately from this host-interface contract.
 
 The target is a plug-and-play experience in which a host can discover a Coreless computer, verify its identity, negotiate supported interfaces, attach it, and provide only the external services required for operation.
 
@@ -106,9 +106,9 @@ Connected components continue to:
 - participate in hub workload routing
 - remain capable of standalone operation after detachment
 
-## Portability goal and initial implementation platform
+## Portability goal and initial bring-up OS
 
-The user prefers **Lubuntu** as the OS to run/develop Coreless with. This is the first practical implementation platform, not a restriction on the architecture or long-term compatibility target. Keep the protocol and lifecycle contracts transport-neutral; implement Linux-specific monitoring in a separate provider and add other OS providers through the same contracts.
+The user prefers **Lubuntu as the operating system to run on Coreless-64** during initial bring-up. Lubuntu is not the host OS that owns Coreless execution and does not define the architecture. This is the first OS target for validation, not a restriction on the machine or its long-term compatibility target. Keep the protocol and lifecycle contracts transport-neutral; implement Linux-specific monitoring in a separate provider and add other OS providers through the same contracts.
 
 For the first native hot-plug provider, evaluate Linux device-discovery and lifecycle facilities such as udev/libudev, then translate validated events into `HostHotplugController` calls. Keep OS-specific monitoring, endpoint identity mapping, permissions, and transport teardown/reopen logic inside the Linux adapter rather than the generic controller. Do not assume every OS device event represents a valid Coreless endpoint: validate identity and capabilities before attachment. Linux implementation and physical hot-plug remain unimplemented/unvalidated until tested.
 
