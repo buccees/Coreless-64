@@ -9,7 +9,10 @@ from operator_telemetry import (
     OperatorTelemetryApp,
     coreless_view_state,
     create_coreless_operator_app,
+    create_coreless_vigil_operator_app,
+    VigilSensorEventSnapshotProvider,
 )
+from vigil.sensor_event import SensorEventLedger, SensorEventRecord, SensorEventStatus
 
 
 def _call(app, path="/api/operator/state", method="GET", origin=None,
@@ -254,3 +257,89 @@ def test_cors_preflight_rejects_unapproved_request_headers():
     )
     assert response["status"] == "400 Bad Request"
     assert json.loads(body)["error"] == "headers_not_allowed"
+
+
+
+def test_vigil_event_provider_maps_latest_observed_events_without_fabrication():
+    class Machine:
+        booted = True
+    class System:
+        machine = Machine()
+        def status(self):
+            return {"runtime": "reference"}
+
+    now_ns = __import__("time").time_ns()
+    ledger = SensorEventLedger()
+    ledger.append(SensorEventRecord(
+        event_id="event-rejected-1",
+        sensor_id="wifi-csi-1",
+        timestamp_ns=now_ns,
+        modality="wifi_csi",
+        event_kind="csi_quality_gate",
+        status=SensorEventStatus.REJECTED,
+        reason="sample failed quality gate",
+        calibration_status="environment_calibration_required",
+    ))
+    provider = VigilSensorEventSnapshotProvider(
+        System(), ledger, stale_after_ns=60_000_000_000,
+    )
+    state = provider()
+    assert state.runtime_state == "ready"
+    assert len(state.sensors) == 1
+    assert state.sensors[0].sensor_id == "wifi-csi-1"
+    assert state.sensors[0].state == "degraded"
+    assert state.sensors[0].calibration == "environment_calibration_required"
+    assert len(state.alerts) == 1
+    assert state.alerts[0].alert_id == "event-rejected-1"
+    assert state.alerts[0].severity == "warning"
+
+
+def test_vigil_event_provider_marks_old_events_stale_and_keeps_empty_ledger_empty():
+    class Machine:
+        booted = True
+    class System:
+        machine = Machine()
+        def status(self):
+            return {"runtime": "reference"}
+
+    empty_state = VigilSensorEventSnapshotProvider(System(), SensorEventLedger())()
+    assert empty_state.sensors == ()
+    assert empty_state.alerts == ()
+
+    ledger = SensorEventLedger()
+    ledger.append(SensorEventRecord(
+        event_id="old-event",
+        sensor_id="infrared-1",
+        timestamp_ns=1,
+        modality="infrared",
+        event_kind="thermal_sample",
+        status=SensorEventStatus.ACCEPTED,
+        reason="sample accepted",
+    ))
+    state = VigilSensorEventSnapshotProvider(
+        System(), ledger, stale_after_ns=0,
+    )()
+    assert state.sensors[0].state == "stale"
+    assert state.alerts == ()
+
+
+def test_vigil_operator_factory_keeps_endpoint_authorization_in_front_of_ledger_reads():
+    class Machine:
+        booted = True
+    class System:
+        machine = Machine()
+        def status(self):
+            return {"runtime": "reference"}
+
+    class Ledger:
+        def snapshot(self, **kwargs):
+            raise AssertionError("ledger must not be read for unauthorized requests")
+        def alignment_for(self, event_id):
+            raise AssertionError("ledger must not be read for unauthorized requests")
+
+    app = create_coreless_vigil_operator_app(
+        System(), Ledger(), authorize=lambda env: False,
+    )
+    response, body = _call(app)
+    assert response["status"] == "401 Unauthorized"
+    assert json.loads(body)["error"] == "unauthorized"
