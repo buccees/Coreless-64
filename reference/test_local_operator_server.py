@@ -136,7 +136,7 @@ def test_operator_telemetry_reads_the_injected_machine_instance(tmp_path):
 
 def test_lan_host_requires_long_password_and_page_exists(tmp_path):
     try:
-        create_lan_app(password="too-short", system=CorelessSystem(), page_path=tmp_path / "missing.html")
+        create_lan_app(password="too-short", system=None, page_path=tmp_path / "missing.html")
     except ValueError as exc:
         assert "at least 16 characters" in str(exc)
     else:
