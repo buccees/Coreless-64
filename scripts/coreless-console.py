@@ -7,6 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = ROOT / "reference"
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(REFERENCE))
 
 from system import CorelessSystem
