@@ -202,13 +202,14 @@
     if(rawObservations.length){
       var scroll=textNode('div','measurement-scroll',''), rawTable=document.createElement('table');rawTable.className='track-history measurement-table';
       var rawHead=document.createElement('thead'),rawHeadRow=document.createElement('tr');
-      ['TIME (ns)','SENSOR / MODALITY','REPORTED POSITION (m)','UNCERTAINTY','RESIDUAL TO TRACK','CALIBRATION','SOURCE / LINEAGE'].forEach(function(label){rawHeadRow.appendChild(textNode('th','',label));});
+      ['TIME (ns)','AGE (ns)','SENSOR / MODALITY','REPORTED POSITION (m)','UNCERTAINTY','RESIDUAL TO TRACK','CALIBRATION','SOURCE / LINEAGE'].forEach(function(label){rawHeadRow.appendChild(textNode('th','',label));});
       rawHead.appendChild(rawHeadRow);rawTable.appendChild(rawHead);
       var rawBody=document.createElement('tbody'),fused=Array.isArray(object.position_m)?object.position_m:null;
       rawObservations.slice(-64).forEach(function(obs){
         var row=document.createElement('tr'),isConflict=(object.conflicting_sensor_ids||[]).indexOf(obs.sensor_id)>=0;
         if(isConflict)row.className='conflict-row';
         row.appendChild(textNode('td','',String(obs.timestamp_ns||'unknown')));
+        row.appendChild(textNode('td','',String(obs.age_ns===null||obs.age_ns===undefined?'unknown':obs.age_ns)));
         row.appendChild(textNode('td','',(obs.sensor_id||'unknown')+' / '+(obs.modality||'unknown')+(isConflict?' / CONFLICT':'')));
         row.appendChild(textNode('td','',Array.isArray(obs.position_m)?obs.position_m.map(function(v){return Number(v).toFixed(3);}).join(', '):'unavailable'));
         row.appendChild(textNode('td','',obs.uncertainty_m===null||obs.uncertainty_m===undefined?'unknown':Number(obs.uncertainty_m).toFixed(3)+' m'));
