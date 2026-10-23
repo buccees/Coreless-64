@@ -12,7 +12,8 @@ from operator_telemetry import (
 )
 
 
-def _call(app, path="/api/operator/state", method="GET", origin=None, requested_method=None):
+def _call(app, path="/api/operator/state", method="GET", origin=None,
+          requested_method=None, requested_headers=None):
     captured = {}
     environ = {
         "PATH_INFO": path,
@@ -23,6 +24,8 @@ def _call(app, path="/api/operator/state", method="GET", origin=None, requested_
         environ["HTTP_ORIGIN"] = origin
     if requested_method is not None:
         environ["HTTP_ACCESS_CONTROL_REQUEST_METHOD"] = requested_method
+    if requested_headers is not None:
+        environ["HTTP_ACCESS_CONTROL_REQUEST_HEADERS"] = requested_headers
     def start_response(status, headers):
         captured["status"] = status
         captured["headers"] = dict(headers)
@@ -107,7 +110,6 @@ def test_runtime_adapter_requires_existing_system_status():
         coreless_view_state(object())
 
 
-
 def test_coreless_provider_sequences_snapshots_without_fabricating_sensor_data():
     class Machine:
         booted = True
@@ -145,7 +147,6 @@ def test_provider_requires_coreless_status_api():
         CorelessOperatorSnapshotProvider(object())
 
 
-
 def test_real_coreless_system_can_back_read_only_operator_endpoint(tmp_path):
     from system import CorelessSystem
 
@@ -164,7 +165,6 @@ def test_real_coreless_system_can_back_read_only_operator_endpoint(tmp_path):
     decoded = json.loads(body)
     assert decoded["runtime_state"] == "ready"
     assert decoded["sequence"] == 1
-
 
 
 def test_cors_allows_only_explicit_https_origin_with_credentials():
@@ -201,18 +201,28 @@ def test_cors_preflight_is_allowlisted_and_read_only():
     )
     response, body = _call(
         app, method="OPTIONS", origin="https://buccees.github.io",
-        requested_method="GET",
+        requested_method="GET", requested_headers="Accept",
     )
     assert response["status"] == "204 No Content"
     assert response["headers"]["Access-Control-Allow-Methods"] == "GET, OPTIONS"
     assert body == b""
 
 
-def test_cors_rejects_non_https_allowlist_configuration():
-    with pytest.raises(ValueError, match="HTTPS origins"):
+@pytest.mark.parametrize("origin", [
+    "http://buccees.github.io",
+    "https://buccees.github.io/",
+    "https://buccees.github.io/path",
+    "https://user@buccees.github.io",
+    "https://buccees.github.io?x=1",
+    "https://buccees.github.io#fragment",
+    "https://",
+    "https://buccees.github.io:invalid",
+])
+def test_cors_rejects_malformed_or_non_https_allowlist_configuration(origin):
+    with pytest.raises(ValueError, match="valid HTTPS origins"):
         OperatorTelemetryApp(
             lambda: _state(), authorize=lambda env: True,
-            allowed_origins=("http://buccees.github.io",),
+            allowed_origins=(origin,),
         )
 
 
@@ -226,3 +236,16 @@ def test_cors_rejects_unlisted_origin_for_options():
         requested_method="GET",
     )
     assert response["status"] == "403 Forbidden"
+
+
+def test_cors_preflight_rejects_unapproved_request_headers():
+    app = OperatorTelemetryApp(
+        lambda: _state(), authorize=lambda env: True,
+        allowed_origins=("https://buccees.github.io",),
+    )
+    response, body = _call(
+        app, method="OPTIONS", origin="https://buccees.github.io",
+        requested_method="GET", requested_headers="Authorization, X-Custom",
+    )
+    assert response["status"] == "400 Bad Request"
+    assert json.loads(body)["error"] == "headers_not_allowed"
