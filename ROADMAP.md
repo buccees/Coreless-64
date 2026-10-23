@@ -225,11 +225,11 @@ The Coreless input architecture uses VIGIL as an optional interpretation layer. 
 
 ## Current blocker — VIGIL hot-plug unavailable
 
-VIGIL **cannot use hot-plug yet**. The transport-neutral `HostHotplugController` has software lifecycle tests, and `reference/linux_udev_events.py` now provides an optional pyudev event source with unit-tested snapshot and observer lifecycle behavior. That source only reports OS device events: it does not verify Coreless identity, attach endpoints, close/reopen transports, or prove physical unplug/replug. Those integration and hardware checks, plus an end-to-end VIGIL test, remain incomplete. Do not describe VIGIL hot-plug as available until those checkpoints pass. VIGIL spatial-intelligence expansion remains paused.
+VIGIL **cannot use hot-plug yet**. The transport-neutral `HostHotplugController` has software lifecycle tests, and `reference/linux_udev_events.py` now provides an optional pyudev event source with unit-tested snapshot and observer lifecycle behavior. That source only reports OS device events: it does not verify Coreless identity, attach endpoints, close/reopen transports, or prove physical unplug/replug. Those integration and hardware checks, plus an end-to-end VIGIL test, remain incomplete. Do not describe VIGIL hot-plug as available until those checkpoints pass. VIGIL spatial-intelligence work is active again.
 
 ## Resume point
 
-**Current next priorities:** implement and validate concrete platform host enumeration and display/input/network transport adapters; validate the existing authenticated Remote Operator Display against the active machine lifecycle and observed VIGIL event ledger without fabricating sensor state; then continue deeper native Coreless execution and official trained Qwen3-0.6B end-to-end validation. The VIGIL spatial-intelligence expansion is paused; its existing research notes and historical decisions remain preserved.
+**Current next priorities:** implement and validate concrete platform host enumeration and display/input/network transport adapters; validate the existing authenticated Remote Operator Display against the active machine lifecycle and observed VIGIL event ledger without fabricating sensor state; then continue deeper native Coreless execution and official trained Qwen3-0.6B end-to-end validation. The VIGIL spatial-intelligence work is active again; preserve the existing research notes and historical decisions.
 
 
 ## Latest transport milestone
@@ -319,3 +319,9 @@ The host transport layer now validates the transport-neutral HostIO bundle befor
 - [x] Preserve no-partial-attachment behavior on HostIO validation failure
 
 The reference test suite is green at this checkpoint. Next implementation work should proceed toward concrete platform host providers/adapters while preserving the transport-neutral boundary.
+
+## Documentation checkpoint — 2026-10-23: VIGIL spatial work resumed
+
+Spatial-intelligence development is active again. Added `vigil/spatial_query.py` and focused regression tests. The query engine reports nearest modeled feature, distance, level/zone labels, and optional nearby features only after checking model/revision/frame identity, pose timestamp, freshness, tracking state, and uncertainty. It distinguishes missing fix, stale data, future timestamps, mismatched model/frame, and degraded-but-usable estimates.
+
+This completes the first deterministic spatial-query API slice; it does not claim polygon-region semantics, raw CAD/PDF import, live sensor discovery, or physical tracking accuracy. Continue toward a complete spatial workflow by integrating query results into workspace/operator presentation, adding explicit modeled-region queries, and improving persistent calibration/model storage and real sensor adapters. Keep hardware accuracy claims separate from software CI.
