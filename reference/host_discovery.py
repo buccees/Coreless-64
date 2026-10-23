@@ -7,6 +7,7 @@ this module.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Iterable, Mapping, Protocol
 
 from device_protocol import DeviceIdentityFrame
@@ -104,6 +105,6 @@ class HostDeviceEnumerator:
                 protocol_version=frame.protocol_version,
             ),
             capabilities=candidate.host_capabilities,
-            channels=candidate.channels,
+            channels=MappingProxyType(dict(candidate.channels or {})),
             device_capabilities=frame.capability_names(),
         )
