@@ -321,6 +321,81 @@ class SpatialWorkspace:
         return self.ingest_object_observations(converted)
 
     @property
+    def spatial_regions(self) -> tuple[SpatialRegion, ...]:
+        """Regions registered for the active model revision, sorted by ID."""
+        model = self.active_model
+        if model is None:
+            return ()
+        return tuple(sorted(
+            (region for key, region in self._regions.items()
+             if key[:2] == (model.model_id, model.revision)),
+            key=lambda region: region.region_id,
+        ))
+
+    def register_region(self, region: SpatialRegion) -> SpatialRegion:
+        """Register explicit calibrated geometry for the current model revision."""
+        if not isinstance(region, SpatialRegion):
+            raise TypeError("region must be a SpatialRegion")
+        model = self.active_model
+        if model is None:
+            raise RuntimeError("activate a blueprint before registering spatial regions")
+        if (region.model_id, region.model_revision, region.frame_id) != (
+            model.model_id, model.revision, model.frame_id
+        ):
+            raise ValueError("region must match the active blueprint model, revision, and frame")
+        key = (region.model_id, region.model_revision, region.region_id)
+        if key in self._regions:
+            raise ValueError(f"spatial region already registered: {region.region_id!r}")
+        self._regions[key] = region
+        return region
+
+    def unregister_region(self, region_id: str) -> bool:
+        """Remove a region from the active revision without touching other revisions."""
+        model = self.active_model
+        if model is None:
+            return False
+        key = (model.model_id, model.revision, region_id)
+        return self._regions.pop(key, None) is not None
+
+    def query_region(
+        self, region_id: str, *, now_ns: int,
+        max_age_ns: int = 2_000_000_000, max_uncertainty_m: float = 5.0,
+    ) -> RegionQueryResult:
+        """Refresh the latest pose, then query one registered region safely."""
+        model = self.active_model
+        if model is None:
+            raise RuntimeError("activate a blueprint before querying spatial regions")
+        key = (model.model_id, model.revision, region_id)
+        region = self._regions.get(key)
+        if region is None:
+            raise KeyError(f"spatial region not registered for active model: {region_id!r}")
+        snapshot = self.refresh(
+            now_ns=now_ns, max_age_ns=max_age_ns,
+            max_uncertainty_m=max_uncertainty_m,
+        )
+        return query_region(
+            model, snapshot.pose, region, now_ns=now_ns,
+            max_age_ns=max_age_ns, max_uncertainty_m=max_uncertainty_m,
+        )
+
+    def query_spatial(
+        self, *, now_ns: int, max_age_ns: int = 2_000_000_000,
+        max_uncertainty_m: float = 5.0, nearby_radius_m: float | None = None,
+    ) -> SpatialQueryResult | None:
+        """Refresh and query model-relative nearest feature/zone status."""
+        snapshot = self.refresh(
+            now_ns=now_ns, max_age_ns=max_age_ns,
+            max_uncertainty_m=max_uncertainty_m,
+        )
+        if snapshot.model is None:
+            return None
+        return SpatialQueryEngine(snapshot.model).evaluate(
+            snapshot.pose, now_ns=now_ns, max_age_ns=max_age_ns,
+            max_uncertainty_m=max_uncertainty_m,
+            nearby_radius_m=nearby_radius_m,
+        )
+
+    @property
     def sensor_provider_ids(self) -> tuple[str, ...]:
         """Registered optional providers in deterministic order."""
         return tuple(sorted(self._sensor_providers))
