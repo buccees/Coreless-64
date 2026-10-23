@@ -37,7 +37,30 @@
  .status{grid-template-columns:1fr}
  .terminal-code{font-size:11px}
 }
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}body{margin:0;background:#010604;color:var(--text);font:13px/1.4 "Courier New",monospace;padding:66px 16px 16px;letter-spacing:.2px}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+/* Definitive Control Room settings */
+body.settings-large-text{font-size:15px}
+body.settings-high-contrast{--bg:#000;--panel:#000;--g:#65ffd0;--dim:#b7ffe9;--line:#65ffd0;--text:#e4fff7;--muted:#a5d8ca}
+body.settings-no-motion *,body.settings-no-motion *:before,body.settings-no-motion *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+.settings-launch{position:fixed;right:10px;bottom:12px;z-index:1200;background:#03120e;color:var(--g);border:2px solid var(--g);padding:12px 16px;font: bold 12px "Courier New",monospace;letter-spacing:1px;box-shadow:0 0 16px #29f5b240;cursor:pointer}
+.settings-launch:focus-visible,.settings-panel button:focus-visible,.settings-panel input:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.settings-backdrop[hidden]{display:none}
+.settings-backdrop{position:fixed;inset:0;z-index:1300;background:#000c;display:flex;align-items:flex-start;justify-content:flex-end;padding:12px;overflow:auto}
+.settings-panel{width:min(100%,460px);max-height:calc(100dvh - 24px);overflow:auto;border:2px solid var(--g);background:#020907;color:var(--text);box-shadow:0 0 30px #29f5b240;padding:14px}
+.settings-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px}
+.settings-head h2{margin:0;color:var(--g);font-size:16px}
+.settings-head p{margin:4px 0 0;color:var(--dim);font-size:11px}
+.settings-panel button{background:#031b13;color:var(--g);border:1px solid var(--line);padding:8px 10px;font:inherit;cursor:pointer}
+.settings-group{border:1px solid #17634d;padding:10px;margin:9px 0}
+.settings-group h3{margin:0 0 8px;color:var(--g);font-size:12px;letter-spacing:1px}
+.settings-choice{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px dotted #17634d;font-size:12px}
+.settings-choice:last-child{border-bottom:0}
+.settings-choice small{display:block;color:var(--dim);font-size:10px;margin-top:3px}
+.settings-choice input{accent-color:#29f5b2;width:18px;height:18px;flex:0 0 auto}
+.settings-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.settings-state{color:var(--dim);font-size:10px;margin-top:10px}
+@media(max-width:760px){.settings-launch{right:8px;bottom:8px;padding:11px 12px}.settings-backdrop{padding:7px}.settings-panel{max-height:calc(100dvh - 14px);padding:11px}}
+body{margin:0;background:#010604;color:var(--text);font:13px/1.4 "Courier New",monospace;padding:66px 16px 16px;letter-spacing:.2px}
 body:before{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,#1affb0 4px,transparent 5px);opacity:.05}
 .sheet{max-width:1240px;margin:auto;border:1px solid var(--g);padding:9px;box-shadow:0 0 24px #00ff9d1c}
 header,.panel,footer{border:1px solid var(--line);background:linear-gradient(120deg,#041710ef,#020907f5)}
@@ -119,7 +142,7 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 .legend-dot{width:8px;height:8px;display:inline-block;border-radius:50%}.csi-dot{background:#29f5b2}.ir-dot{background:#62b8ff}.review-dot{background:#e2d86a}
 @media(max-width:600px){.sensor-visual-display{padding:6px}.sensor-display-head{align-items:flex-start;flex-direction:column}.sensor-display-screen svg{min-height:0}.sensor-display-legend{font-size:9px;gap:8px}}
  .archive-appendix{margin-top:10px;border:1px solid var(--line);background:#020907}.archive-appendix>summary{cursor:pointer;color:var(--g);padding:9px 11px;letter-spacing:.5px;font-weight:bold}.archive-appendix[open]>summary{border-bottom:1px solid var(--line)}.archive-appendix .content{padding:9px 11px}.reconciliation-audit{margin:12px 0;padding:10px;border:1px solid var(--line);background:#020907}.reconciliation-audit h3{margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:7px}.reconciliation-audit h4{margin:12px 0 5px;font-size:11px}.reconciliation-audit li{margin:6px 0}.reconciliation-audit a{color:var(--g)}</style></head>
-<body><nav class="nav-panel" aria-label="VIGIL control room sections"><a class="nav-button" href="#overview-panel" data-view="overview" aria-pressed="true">01 // OVERVIEW</a><a class="nav-button" href="#architecture-panel" data-view="architecture" aria-pressed="false">02 // ARCHITECTURE</a><a class="nav-button" href="#spatial-panel" data-view="spatial" aria-pressed="false">03 // SPATIAL INTELLIGENCE</a><a class="nav-button" href="#sensors-panel" data-view="sensors" aria-pressed="false">04 // SENSOR INPUTS</a><a class="nav-button" href="#specimen-panel" data-view="specimen" aria-pressed="false">05 // SPECIMEN PLATE</a><a class="nav-button" href="#notes-panel" data-view="notes" aria-pressed="false">06 // RESEARCH NOTES</a><a class="nav-button" href="#lab-report-panel" data-view="lab-report" aria-pressed="false">07 // LAB REPORT</a><a class="nav-button" href="#roadmap-panel" data-view="roadmap" aria-pressed="false">08 // ROADMAP</a><a class="nav-button" href="#ci-panel" data-view="ci" aria-pressed="false">09 // CI &amp; TESTS</a><a class="nav-button" href="#environment-panel" data-view="environment" aria-pressed="false">10 // ENVIRONMENT</a><a class="nav-button" href="#changelog-panel" data-view="changelog" aria-pressed="false">11 // CHANGELOG</a><a class="nav-button" href="#hardware-panel" data-view="hardware" aria-pressed="false">12 // VIRTUAL HARDWARE</a><a class="nav-button" href="#biology-panel" data-view="biology" aria-pressed="false">13 // BIO-SIMULATION</a></nav><main class="sheet">
+<body><nav class="nav-panel" aria-label="VIGIL control room sections"><a class="nav-button" href="#overview-panel" data-view="overview" aria-pressed="true">01 // OVERVIEW</a><a class="nav-button" href="#architecture-panel" data-view="architecture" aria-pressed="false">02 // ARCHITECTURE</a><a class="nav-button" href="#spatial-panel" data-view="spatial" aria-pressed="false">03 // SPATIAL INTELLIGENCE</a><a class="nav-button" href="#sensors-panel" data-view="sensors" aria-pressed="false">04 // SENSOR INPUTS</a><a class="nav-button" href="#specimen-panel" data-view="specimen" aria-pressed="false">05 // SPECIMEN PLATE</a><a class="nav-button" href="#notes-panel" data-view="notes" aria-pressed="false">06 // RESEARCH NOTES</a><a class="nav-button" href="#lab-report-panel" data-view="lab-report" aria-pressed="false">07 // LAB REPORT</a><a class="nav-button" href="#roadmap-panel" data-view="roadmap" aria-pressed="false">08 // ROADMAP</a><a class="nav-button" href="#ci-panel" data-view="ci" aria-pressed="false">09 // CI &amp; TESTS</a><a class="nav-button" href="#environment-panel" data-view="environment" aria-pressed="false">10 // ENVIRONMENT</a><a class="nav-button" href="#changelog-panel" data-view="changelog" aria-pressed="false">11 // CHANGELOG</a><a class="nav-button" href="#hardware-panel" data-view="hardware" aria-pressed="false">12 // VIRTUAL HARDWARE</a><a class="nav-button" href="#biology-panel" data-view="biology" aria-pressed="false">13 // BIO-SIMULATION</a></nav><button type="button" class="settings-launch" id="site-settings-open" aria-haspopup="dialog" aria-controls="site-settings-panel">⚙ SETTINGS</button><div class="settings-backdrop" id="site-settings-backdrop" hidden><section class="settings-panel" id="site-settings-panel" role="dialog" aria-modal="true" aria-labelledby="site-settings-title" tabindex="-1"><div class="settings-head"><div><h2 id="site-settings-title">CONTROL ROOM SETTINGS</h2><p>Display, accessibility, and interface behavior</p></div><button type="button" id="site-settings-close" aria-label="Close settings">CLOSE ✕</button></div><div class="settings-group"><h3>DISPLAY</h3><label class="settings-choice"><span>Large text<small>Increase general reading size</small></span><input type="checkbox" id="setting-large-text"></label><label class="settings-choice"><span>High contrast<small>Strengthen terminal text and borders</small></span><input type="checkbox" id="setting-high-contrast"></label></div><div class="settings-group"><h3>MOTION</h3><label class="settings-choice"><span>Reduce motion<small>Disable animated effects and scrolling</small></span><input type="checkbox" id="setting-no-motion"></label><label class="settings-choice"><span>Pause spatial display flow<small>Stops decorative stream animation only</small></span><input type="checkbox" id="setting-pause-flow"></label></div><div class="settings-group"><h3>INTERFACE</h3><label class="settings-choice"><span>Start on Overview<small>Open the main screen instead of a bookmarked section</small></span><input type="checkbox" id="setting-start-overview"></label></div><div class="settings-actions"><button type="button" id="settings-reset">RESET SETTINGS</button><button type="button" id="settings-done">APPLY &amp; CLOSE</button></div><p class="settings-state" id="settings-state" role="status" aria-live="polite">Preferences are stored in this browser on this device.</p></section></div><main class="sheet">
 <div id="intro-blocks" data-intro="true">
 <header>
 <div><div class="brand">WY // WEYLAND–YUTANI<small>BUILDING BETTER WORLDS</small></div></div>
@@ -1275,5 +1298,48 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       });
     });
   }
+
+  // Persistent site-wide Control Room preferences; no external service or account data.
+  (function(){
+    var backdrop=document.getElementById('site-settings-backdrop');
+    var panel=document.getElementById('site-settings-panel');
+    var openButton=document.getElementById('site-settings-open');
+    var closeButton=document.getElementById('site-settings-close');
+    var doneButton=document.getElementById('settings-done');
+    var resetButton=document.getElementById('settings-reset');
+    var state=document.getElementById('settings-state');
+    var controls={
+      largeText:document.getElementById('setting-large-text'),
+      highContrast:document.getElementById('setting-high-contrast'),
+      noMotion:document.getElementById('setting-no-motion'),
+      pauseFlow:document.getElementById('setting-pause-flow'),
+      startOverview:document.getElementById('setting-start-overview')
+    };
+    var defaults={largeText:false,highContrast:false,noMotion:false,pauseFlow:false,startOverview:false};
+    var prefs=Object.assign({},defaults);
+    try { var saved=JSON.parse(window.localStorage.getItem('coreless64-control-room-settings')||'null'); if(saved&&typeof saved==='object') Object.keys(defaults).forEach(function(k){if(typeof saved[k]==='boolean')prefs[k]=saved[k];}); } catch(e) {}
+    function persist(){try{window.localStorage.setItem('coreless64-control-room-settings',JSON.stringify(prefs));state.textContent='Settings applied and saved in this browser on this device.';}catch(e){state.textContent='Settings applied for this session; browser storage is unavailable.';}}
+    function apply(){
+      document.body.classList.toggle('settings-large-text',prefs.largeText);
+      document.body.classList.toggle('settings-high-contrast',prefs.highContrast);
+      document.body.classList.toggle('settings-no-motion',prefs.noMotion);
+      Object.keys(controls).forEach(function(k){controls[k].checked=!!prefs[k];});
+      var stage=document.getElementById('spatial-stage');
+      if(stage)stage.classList.toggle('paused',prefs.pauseFlow||prefs.noMotion);
+      if(prefs.startOverview && window.location.hash && window.location.hash!=='#overview-panel'){
+        if(window.history&&window.history.replaceState)window.history.replaceState(null,'',window.location.pathname+window.location.search);
+      }
+    }
+    function close(){backdrop.hidden=true;openButton.focus();}
+    function show(){backdrop.hidden=false;panel.focus();}
+    openButton.addEventListener('click',show);
+    closeButton.addEventListener('click',close);
+    doneButton.addEventListener('click',function(){Object.keys(controls).forEach(function(k){prefs[k]=controls[k].checked;});apply();persist();close();});
+    resetButton.addEventListener('click',function(){prefs=Object.assign({},defaults);apply();persist();state.textContent='Defaults restored and saved.';});
+    backdrop.addEventListener('click',function(e){if(e.target===backdrop)close();});
+    document.addEventListener('keydown',function(e){if(!backdrop.hidden&&e.key==='Escape')close();});
+    Object.keys(controls).forEach(function(k){controls[k].addEventListener('change',function(){prefs[k]=controls[k].checked;apply();persist();});});
+    apply();
+  })();
 </script></body></html>
 <!-- GitHub Pages retry after confirmed settings; report content unchanged. -->
