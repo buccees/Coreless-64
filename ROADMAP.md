@@ -331,9 +331,11 @@ This completes the first deterministic spatial-query API slice; it does not clai
 - [x] Confidence-aware nearest-feature query API with freshness, frame/revision, and uncertainty gates (`vigil/spatial_query.py`)
 - [x] Explicit model-frame polygon regions with vertical bounds and safe membership results (`vigil/spatial_regions.py`)
 - [x] Regression coverage for missing/stale/future/mismatched poses, degraded estimates, region boundaries, and invalid geometry
-- [ ] Connect query/region results to workspace snapshots and operator-facing status/overlay
-- [ ] Add reviewed blueprint region import and robust polygon topology validation
-- [ ] Persist model revisions, calibration transforms, regions, and audit metadata through the Coreless storage boundary
+- [x] Connect query/region results to workspace snapshots, terminal status, and authenticated browser spatial overlay
+- [x] Reject self-intersecting/degenerate polygons and canonicalize closed polygon rings
+- [ ] Add a reviewed region-import/editor workflow for user-drawn or imported regions
+- [x] Persist normalized model revisions, regions, calibration metadata, and active-model pointer in the SQLite spatial registry
+- [ ] Bind registry file and source blueprint assets into the final portable-machine snapshot/copy contract
 - [ ] Add end-to-end deterministic sensor replay across pose, object tracks, scene assembly, and region alerts
 - [ ] Implement and validate concrete sensor drivers; do not claim field accuracy from simulation/CI
 
@@ -345,3 +347,13 @@ This completes the first deterministic spatial-query API slice; it does not clai
 - [x] End-to-end restart coverage for model/region persistence and explicit revision activation
 - [ ] Persist and manage source blueprint assets and transform/calibration provenance through the full Coreless storage service
 - [ ] Connect saved raster calibrations to image-ingest and sensor-mount workflows
+
+### VIGIL authenticated spatial operator overlay — 2026-10-23
+
+- [x] Versioned JSON spatial snapshot contract with model bounds, selected level, pose freshness, features, tracks/trails, region results, uncertainty, and provenance
+- [x] Authenticated read-only `GET /api/vigil/spatial` endpoint; no browser-supplied model state or commands
+- [x] Live SVG plan overlay in `operator-display.html`: modeled features, region polygons/membership, pose, object locations/trails, state and sensor details
+- [x] Explicit current / stale-last-known / conflict / no-fix displays, with stale objects excluded from current-evidence readiness
+- [x] CLI integration supports a persistent spatial registry beside the machine image and optional versioned JSON blueprint import (`--spatial-db`, `--blueprint`)
+- [ ] End-to-end validation on a real hosted HTTPS instance and actual calibrated sensor feeds
+- [ ] Physical sensing accuracy, coverage limits, false-positive rates, and device-loss/reacquisition validation
