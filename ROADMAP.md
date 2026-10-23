@@ -348,7 +348,8 @@ This completes the first deterministic spatial-query API slice; it does not clai
 - [x] Persist bounded last-known object-track evidence/history and restore tracks as `REACQUIRE` after restart
 - [x] End-to-end restart coverage for model/region persistence and explicit revision activation
 - [ ] Persist and manage source blueprint assets and transform/calibration provenance through the full Coreless storage service
-- [ ] Connect saved raster calibrations to image-ingest and sensor-mount workflows
+- [x] Connect saved raster calibrations to timestamped IR pixel ingestion and saved sensor-mount transform application
+- [ ] Complete raw image decoding adapters and survey-driven sensor-mount calibration
 
 ### VIGIL authenticated spatial operator overlay — 2026-10-23
 
@@ -371,7 +372,8 @@ This completes the first deterministic spatial-query API slice; it does not clai
 - [ ] Verify CI after the current documentation updates.
 - [ ] Add deterministic sensor replay for pose, object tracks, scene assembly, and region alerts.
 - [x] Connect saved raster calibrations to timestamped IR pixel-batch ingestion with active model/revision/frame checks
-- [ ] Measure and apply physical sensor-mount transforms; the current mount ID is provenance only
+- [x] Add persisted rigid sensor-mount transforms and an explicit sensor-local observation ingestion path with frame/sensor/revision checks
+- [ ] Measure/validate transform values against actual mounted hardware; software validation does not establish physical accuracy
 - [ ] Validate live drivers, coverage/false positives, ranging quality, and reacquisition on actual hardware.
 
 Spatial development remains active. Software CI is not field-validation evidence.
