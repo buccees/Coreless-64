@@ -7,6 +7,7 @@ identities. Revisions must change when geometry changes.
 """
 from __future__ import annotations
 
+from base64 import b64decode, b64encode
 from dataclasses import asdict
 from hashlib import sha256
 import json
@@ -515,6 +516,27 @@ class SpatialRegistryStore:
             if (mount := self.load_sensor_mount(row["mount_id"])) is not None
         )
 
+    @staticmethod
+    def _track_from_payload(payload: dict[str, Any]) -> ObjectTrack:
+        return ObjectTrack(
+            object_id=payload["object_id"], model_id=payload["model_id"],
+            model_revision=payload["model_revision"], frame_id=payload["frame_id"],
+            position_m=tuple(payload["position_m"]), velocity_mps=tuple(payload["velocity_mps"]),
+            uncertainty_m=payload["uncertainty_m"], last_seen_ns=payload["last_seen_ns"],
+            sensor_ids=tuple(payload["sensor_ids"]), modalities=tuple(payload["modalities"]),
+            observation_count=payload["observation_count"], association_id=payload.get("association_id"),
+            provenance=tuple(payload.get("provenance", ())), conflict=payload.get("conflict", False),
+            conflict_reasons=tuple(payload.get("conflict_reasons", ())),
+            conflicting_sensor_ids=tuple(payload.get("conflicting_sensor_ids", ())),
+            independence_groups=tuple(payload.get("independence_groups", ())),
+            position_history_m=tuple((entry[0], tuple(entry[1])) for entry in payload.get("position_history_m", ())),
+            position_history_sensor_ids=tuple((entry[0], tuple(entry[1])) for entry in payload.get("position_history_sensor_ids", ())),
+            calibration_status=payload.get("calibration_status", "unverified"),
+            calibration_ids=tuple(payload.get("calibration_ids", ())),
+            lineage_declared=payload.get("lineage_declared", False),
+            presence_state=payload.get("presence_state", "TRACKING"),
+        )
+
     def save_object_tracks(
         self, model: BlueprintModel, tracks: tuple[ObjectTrack, ...] | list[ObjectTrack]
     ) -> int:
@@ -610,6 +632,173 @@ class SpatialRegistryStore:
                 raise ValueError("stored track belongs to another model revision")
             result.append(track)
         return tuple(result)
+
+    def export_portable_bundle(self, *, max_bundle_bytes: int = 100_000_000) -> bytes:
+        """Export all persistent spatial state and source bytes as a checksummed bundle."""
+        if isinstance(max_bundle_bytes, bool) or not isinstance(max_bundle_bytes, int) or max_bundle_bytes < 256:
+            raise ValueError("max_bundle_bytes must be an integer of at least 256")
+        models = self.list_models()
+        records: dict[str, Any] = {
+            "schema_version": 1,
+            "active_model": list(self.active_model_ref()) if self.active_model_ref() else None,
+            "models": [],
+            "regions": [],
+            "calibrations": [],
+            "sensor_mounts": [],
+            "source_assets": [],
+            "object_tracks": [],
+        }
+        for model in models:
+            records["models"].append({
+                "model_id": model.model_id, "revision": model.revision,
+                "frame_id": model.frame_id, "source_units": model.source_units,
+                "source_sha256": model.source_sha256,
+                "features": [{
+                    "feature_id": item.feature_id, "label": item.label,
+                    "position_m": list(item.position_m), "feature_type": item.feature_type,
+                    "level": item.level, "zone": item.zone,
+                } for item in model.features],
+                "metadata": dict(model.metadata),
+            })
+            records["regions"].extend({
+                "model_id": model.model_id, "revision": model.revision,
+                "region_id": region.region_id, "label": region.label,
+                "frame_id": region.frame_id, "polygon_xy_m": [list(point) for point in region.polygon_xy_m],
+                "min_z_m": region.min_z_m, "max_z_m": region.max_z_m,
+                "level_id": region.level_id, "zone": region.zone,
+            } for region in self.load_regions(model.model_id, model.revision))
+            records["source_assets"].extend({
+                **{key: asset[key] for key in (
+                    "model_id", "revision", "asset_id", "asset_name", "media_type",
+                    "content_sha256", "metadata",
+                )},
+                "content_base64": b64encode(asset["content"]).decode("ascii"),
+            } for asset in self.list_source_assets(model.model_id, model.revision))
+            records["sensor_mounts"].extend({
+                "mount_id": mount.mount_id, "sensor_id": mount.sensor_id,
+                "model_id": mount.model_id, "model_revision": mount.model_revision,
+                "frame_id": mount.frame_id, "source_frame_id": mount.source_frame_id,
+                "translation_m": list(mount.translation_m),
+                "rotation_matrix": list(mount.rotation_matrix), "verified": mount.verified,
+            } for mount in self.list_sensor_mounts(model.model_id, model.revision))
+            records["object_tracks"].extend({
+                "model_id": model.model_id, "revision": model.revision,
+                "tracks": [self._track_payload(track) for track in self.load_object_tracks(model.model_id, model.revision)],
+            })
+            rows = self._connection.execute(
+                "SELECT calibration_id FROM raster_calibrations WHERE model_id=? AND revision=? ORDER BY calibration_id",
+                (model.model_id, model.revision),
+            ).fetchall()
+            for row in rows:
+                calibration = self.load_calibration(row["calibration_id"])
+                if calibration is not None:
+                    records["calibrations"].append({
+                        "calibration_id": row["calibration_id"],
+                        "model_id": calibration.model_id, "model_revision": calibration.model_revision,
+                        "frame_id": calibration.frame_id, "level_id": calibration.level_id,
+                        "elevation_m": calibration.elevation_m,
+                        "x_coefficients": list(calibration.x_coefficients),
+                        "y_coefficients": list(calibration.y_coefficients),
+                        "control_point_count": calibration.control_point_count,
+                        "rms_residual_m": calibration.rms_residual_m,
+                        "control_labels": list(calibration.control_labels),
+                    })
+        payload, _ = _encode(records, max_bytes=max_bundle_bytes)
+        digest = sha256(payload.encode("utf-8")).hexdigest()
+        envelope = json.dumps(
+            {"payload": payload, "sha256": digest}, sort_keys=True,
+            separators=(",", ":"), ensure_ascii=False, allow_nan=False,
+        ).encode("utf-8")
+        if len(envelope) > max_bundle_bytes:
+            raise ValueError(f"portable bundle exceeds {max_bundle_bytes} byte limit")
+        return envelope
+
+    def import_portable_bundle(
+        self, bundle: bytes, *, activate: bool = True, max_bundle_bytes: int = 100_000_000,
+    ) -> tuple[int, int]:
+        """Verify and restore a portable bundle; returns (model count, asset count)."""
+        if not isinstance(bundle, bytes):
+            raise TypeError("portable bundle must be bytes")
+        if len(bundle) > max_bundle_bytes:
+            raise ValueError(f"portable bundle exceeds {max_bundle_bytes} byte limit")
+        try:
+            envelope = json.loads(bundle.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("portable bundle must be valid UTF-8 JSON") from exc
+        if not isinstance(envelope, dict) or not isinstance(envelope.get("payload"), str):
+            raise ValueError("portable bundle envelope is invalid")
+        payload_text = envelope["payload"]
+        if sha256(payload_text.encode("utf-8")).hexdigest() != envelope.get("sha256"):
+            raise ValueError("portable bundle checksum mismatch")
+        payload = _decode(payload_text, envelope["sha256"], max_bytes=max_bundle_bytes)
+        if payload.get("schema_version") != 1:
+            raise ValueError("unsupported portable bundle schema version")
+        required_lists = ("models", "regions", "calibrations", "sensor_mounts", "source_assets", "object_tracks")
+        if any(not isinstance(payload.get(key), list) for key in required_lists):
+            raise ValueError("portable bundle is missing required record lists")
+        models: dict[tuple[str, str], BlueprintModel] = {}
+        for item in payload["models"]:
+            model = BlueprintModel(
+                model_id=item["model_id"], revision=item["revision"], frame_id=item["frame_id"],
+                source_units=item["source_units"], source_sha256=item["source_sha256"],
+                features=tuple(ModelFeature(
+                    feature_id=feature["feature_id"], label=feature["label"],
+                    position_m=tuple(feature["position_m"]), feature_type=feature["feature_type"],
+                    level=feature.get("level"), zone=feature.get("zone"),
+                ) for feature in item["features"]),
+                metadata=item.get("metadata", {}),
+            )
+            self.save_model(model)
+            models[(model.model_id, model.revision)] = model
+        for item in payload["regions"]:
+            self.save_region(SpatialRegion(
+                item["region_id"], item["label"], item["model_id"], item["revision"],
+                item["frame_id"], tuple(tuple(point) for point in item["polygon_xy_m"]),
+                item["min_z_m"], item["max_z_m"], item.get("level_id"), item.get("zone"),
+            ))
+        for item in payload["calibrations"]:
+            self.save_calibration(item["calibration_id"], RasterBlueprintCalibration(
+                model_id=item["model_id"], model_revision=item["model_revision"],
+                frame_id=item["frame_id"], level_id=item["level_id"],
+                elevation_m=item["elevation_m"], x_coefficients=tuple(item["x_coefficients"]),
+                y_coefficients=tuple(item["y_coefficients"]),
+                control_point_count=item["control_point_count"],
+                rms_residual_m=item["rms_residual_m"], control_labels=tuple(item["control_labels"]),
+            ))
+        for item in payload["sensor_mounts"]:
+            self.save_sensor_mount(SensorMountTransform(
+                mount_id=item["mount_id"], sensor_id=item["sensor_id"],
+                model_id=item["model_id"], model_revision=item["model_revision"],
+                frame_id=item["frame_id"], source_frame_id=item["source_frame_id"],
+                translation_m=tuple(item["translation_m"]),
+                rotation_matrix=tuple(item["rotation_matrix"]), verified=item["verified"],
+            ))
+        asset_count = 0
+        for item in payload["source_assets"]:
+            try:
+                raw = b64decode(item["content_base64"], validate=True)
+            except (ValueError, TypeError) as exc:
+                raise ValueError("portable source asset has invalid base64 content") from exc
+            if sha256(raw).hexdigest() != item["content_sha256"]:
+                raise ValueError("portable source asset checksum mismatch")
+            self.save_source_asset(
+                item["model_id"], item["revision"], item["asset_id"],
+                asset_name=item["asset_name"], media_type=item["media_type"],
+                content=raw, metadata=item["metadata"],
+            )
+            asset_count += 1
+        for item in payload["object_tracks"]:
+            key = (item["model_id"], item["revision"])
+            if key not in models:
+                raise ValueError("portable track set references an unknown model revision")
+            tracks = tuple(self._track_from_payload(track) for track in item["tracks"])
+            self.save_object_tracks(models[key], tracks)
+        active = payload.get("active_model")
+        if activate and active is not None:
+            if not isinstance(active, list) or len(active) != 2 or tuple(active) not in models:
+                raise ValueError("portable active model reference is invalid")
+            self.set_active_model(active[0], active[1])
+        return len(models), asset_count
 
     def close(self) -> None:
         self._connection.close()
