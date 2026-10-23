@@ -641,6 +641,7 @@ def test_provider_adapter_connect_requires_current_discovery_snapshot():
 
     provider = Provider()
     adapter = ProviderHostTransportAdapter(provider)
+    endpoint = adapter.enumerate()[0]
     interface = CorelessHostInterface(CorelessIdentity("provider-live"))
     adapter.connect(endpoint, interface)
     assert interface.attached
