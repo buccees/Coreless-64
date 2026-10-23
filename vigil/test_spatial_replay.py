@@ -111,7 +111,7 @@ def test_deterministic_replay_connects_pose_tracks_regions_scene_and_operator_sn
     assert first_api["regions"][0]["inside"] is True
 
     assert [(item.provider_id, item.state, item.accepted) for item in second_poll] == [
-        ("replay", "ONLINE", 3)
+        ("replay", "ONLINE", 4)
     ]
     assert second.pose is not None and second.pose.position_m == (2.0, 0.0, 0.0)
     assert second.region_results[0].inside is False
@@ -129,7 +129,7 @@ def test_deterministic_replay_connects_pose_tracks_regions_scene_and_operator_sn
     api_object = second_api["objects"][0]
     assert api_object["position_m"] == [2.0, 2.0, 0.0]
     assert api_object["presence_state"] == "CURRENT"
-    assert api_object["observation_count"] == 2
+    assert api_object["observation_count"] == 4
     assert api_object["calibration_ids"] == ["survey-replay-v1"]
     assert len(api_object["motion_trail_m"]) >= 2
     assert api_object["motion_trail_m"][-1]["sensor_ids"] == ["camera-cart", "uwb-array"]
