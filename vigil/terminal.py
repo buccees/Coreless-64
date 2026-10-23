@@ -153,14 +153,22 @@ class VigilTerminal:
                 history = track.position_history_m
                 has_motion_baseline = len(history) >= 2 and history[-1][0] > history[-2][0]
                 speed_mps = sum(component * component for component in track.velocity_mps) ** 0.5
-                motion = (
-                    "MOTION UNKNOWN" if not has_motion_baseline
-                    else "MOVING" if speed_mps >= 0.05
-                    else "STATIONARY"
-                )
+                if track.presence_state != "TRACKING":
+                    motion = (
+                        "STALE / LAST KNOWN" if track.presence_state == "STALE"
+                        else "TIME UNCERTAIN / LAST KNOWN"
+                    )
+                    has_motion_baseline = False
+                else:
+                    motion = (
+                        "MOTION UNKNOWN" if not has_motion_baseline
+                        else "MOVING" if speed_mps >= 0.05
+                        else "STATIONARY"
+                    )
                 status = "CONFLICT " + ",".join(track.conflict_reasons) if track.conflict else motion
                 speed_text = f" {speed_mps:.2f}m/s" if has_motion_baseline else ""
-                detail = f"{track.object_id}: {status}{speed_text} σ={track.uncertainty_m:.2f}m"
+                age_ms = max(0, now_ns - track.last_seen_ns) // 1_000_000
+                detail = f"{track.object_id}: {status}{speed_text} age={age_ms}ms σ={track.uncertainty_m:.2f}m"
                 lines.append(f"║ {self._fit(detail, 60)}║")
                 if track.conflict:
                     sensors = "conflicting sensors: " + ", ".join(track.conflicting_sensor_ids)
