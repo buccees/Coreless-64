@@ -14,6 +14,8 @@ from .blueprint import BlueprintModel, PoseEstimate, PoseState, nearest_feature
 from .positioning import SpatialObservation
 from .object_tracking import ObjectTrack
 from .spatial_scene import SpatialScene
+from .spatial_query import SpatialQueryResult
+from .spatial_regions import RegionQueryResult
 
 
 _GREEN = "\\033[92m"
@@ -73,6 +75,8 @@ class VigilTerminal:
         selected_level: str | None = None,
         object_tracks: Sequence[ObjectTrack] = (),
         spatial_scene: SpatialScene | None = None,
+        spatial_query: SpatialQueryResult | None = None,
+        region_results: Sequence[RegionQueryResult] = (),
     ) -> str:
         """Return terminal text; missing/stale data is shown explicitly as unknown."""
         if now_ns < 0:
@@ -146,14 +150,45 @@ class VigilTerminal:
             lines.append("║ No object tracks available                                    ║")
         else:
             for track in sorted(object_tracks, key=lambda item: (not item.conflict, item.object_id))[:4]:
-                status = "CONFLICT " + ",".join(track.conflict_reasons) if track.conflict else "TRACKING"
-                detail = f"{track.object_id}: {status} σ={track.uncertainty_m:.2f}m"
+                history = track.position_history_m
+                has_motion_baseline = len(history) >= 2 and history[-1][0] > history[-2][0]
+                speed_mps = sum(component * component for component in track.velocity_mps) ** 0.5
+                motion = (
+                    "MOTION UNKNOWN" if not has_motion_baseline
+                    else "MOVING" if speed_mps >= 0.05
+                    else "STATIONARY"
+                )
+                status = "CONFLICT " + ",".join(track.conflict_reasons) if track.conflict else motion
+                speed_text = f" {speed_mps:.2f}m/s" if has_motion_baseline else ""
+                detail = f"{track.object_id}: {status}{speed_text} σ={track.uncertainty_m:.2f}m"
                 lines.append(f"║ {self._fit(detail, 60)}║")
                 if track.conflict:
                     sensors = "conflicting sensors: " + ", ".join(track.conflicting_sensor_ids)
                     lines.append(f"║ {self._fit(sensors, 60)}║")
             if len(object_tracks) > 4:
                 lines.append(f"║ + {len(object_tracks) - 4} additional object tracks                          ║")
+        if spatial_query is not None:
+            lines.append("╟────────────────── SPATIAL QUERY ──────────────────────────────╢")
+            nearest = (
+                "NO FEATURE FIX"
+                if spatial_query.nearest_feature_label is None
+                else f"{spatial_query.nearest_feature_label}: {spatial_query.nearest_feature_distance_m:.2f}m"
+            )
+            lines.append(f"║ {self._fit(spatial_query.status.value + ' // ' + nearest, 60)}║")
+            if spatial_query.level or spatial_query.zone:
+                lines.append(f"║ {self._fit('LEVEL/ZONE: ' + (spatial_query.level or '?') + ' / ' + (spatial_query.zone or '?'), 60)}║")
+            if spatial_query.reason:
+                lines.append(f"║ {self._fit('REASON: ' + spatial_query.reason, 60)}║")
+        if region_results:
+            lines.append("╟───────────────── SPATIAL REGIONS ─────────────────────────────╢")
+            for region in region_results[:5]:
+                membership = "UNKNOWN" if region.inside is None else ("INSIDE" if region.inside else "OUTSIDE")
+                detail = f"{region.region_id}: {membership} [{region.status.value}]"
+                if region.reason:
+                    detail += " — " + region.reason
+                lines.append(f"║ {self._fit(detail, 60)}║")
+            if len(region_results) > 5:
+                lines.append(f"║ + {len(region_results) - 5} additional regions                              ║")
         if spatial_scene is not None:
             lines.append("╟────────────── SPATIAL INTELLIGENCE FINISHER ───────────────────╢")
             lines.append(f"║ {self._fit(spatial_scene.banner, 60)}║")
