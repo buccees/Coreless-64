@@ -546,12 +546,13 @@ The code path and regression tests are in GitHub; check the latest runs for curr
 
 ### Immediate next steps
 1. Check the newest Actions run after source-asset persistence and regression-test commits; report the actual result.
-2. Complete physical sensor-mount calibration: the saved-raster-to-IR-pixel ingestion path is now connected with active model/revision/frame checks, but the supplied mount ID is provenance only and no physical mounting transform is applied.
+2. Measure and validate the sensor-mount transforms on actual hardware; the software now stores and applies explicitly selected rigid transforms, but their physical values must come from survey/calibration and be tested against real sensors.
 3. Bind the SQLite registry file and its source assets into the final portable-machine snapshot/copy contract; arbitrary image/CAD import adapters remain future work.
 4. Implement supported live sensor adapters incrementally (camera/vision, UWB or other calibrated ranging, IMU, infrared, compatible Wi-Fi CSI). CSI is motion context, not a 3D location by itself.
 5. Validate with a surveyed model and real sensors, then validate the authenticated HTTPS display against the active Coreless lifecycle.
 
 ### Newly completed since this checkpoint was first written
+- `SensorMountTransform` now validates a proper rigid 3D transform (orthonormal rotation with determinant +1 and metric translation), is stored immutably by model revision with checksum protection, and is applied through the explicit `ingest_sensor_local_object_observations(...)` path. Tests cover persistence/immutability, invalid rotations, translated/rotated point conversion, and rejection of mismatched sensor/frame/revision. These are software checks, not hardware calibration evidence.
 - Saved raster calibration now connects to `SpatialWorkspace.ingest_calibrated_infrared_pixels(...)`. The method validates the active model frame/revision, maps timestamped pixel samples, records calibration and mount IDs as provenance, and passes the map into the existing workspace ingestion path. It deliberately does not claim to calculate/apply a physical sensor-mount transform.
 - Deterministic synthetic replay tests now exercise pose updates, object tracking, region entry/exit, spatial-scene readiness, operator snapshots, evidence metadata, and repeatability. Run `40010789673` passed at commit `1840ca8`.
 - `SpatialRegistryStore` now stores source assets as immutable, size-bounded byte records tied to a model revision, with media type, name, metadata, and SHA-256 checksums. Workspace blueprint import automatically preserves the exact original JSON manifest; tests cover checksum round-trip, immutability, size limits, and restart persistence. Newest source-asset CI runs are pending at the time of this checkpoint.
