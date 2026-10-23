@@ -336,3 +336,12 @@ This completes the first deterministic spatial-query API slice; it does not clai
 - [ ] Persist model revisions, calibration transforms, regions, and audit metadata through the Coreless storage boundary
 - [ ] Add end-to-end deterministic sensor replay across pose, object tracks, scene assembly, and region alerts
 - [ ] Implement and validate concrete sensor drivers; do not claim field accuracy from simulation/CI
+
+### VIGIL spatial persistence — 2026-10-23
+
+- [x] SQLite spatial registry for immutable model revisions, explicit regions, and raster calibration metadata
+- [x] Canonical JSON integrity checks and per-record size limits
+- [x] Restore active model and regions into a fresh `SpatialWorkspace`
+- [x] End-to-end restart coverage for model/region persistence and explicit revision activation
+- [ ] Persist and manage source blueprint assets and transform/calibration provenance through the full Coreless storage service
+- [ ] Connect saved raster calibrations to image-ingest and sensor-mount workflows
