@@ -1,6 +1,7 @@
 import pytest
 
 from vigil.blueprint import register_blueprint
+from vigil.object_tracking import ObjectTrack
 from vigil.raster_calibration import RasterBlueprintCalibration, RasterControlPoint
 from vigil.spatial_regions import SpatialRegion
 from vigil.spatial_registry_store import SpatialRegistryStore
@@ -119,5 +120,29 @@ def test_active_model_set_requires_registered_revision_and_sql_like_ids_are_data
         store.set_active_model(m.model_id, m.revision)
         assert store.active_model_ref == (m.model_id, m.revision)
         assert store.load_model(m.model_id, m.revision) == m
+    finally:
+        store.close()
+
+
+def test_object_tracks_round_trip_with_evidence_and_history_intact():
+    active = model()
+    track = ObjectTrack(
+        object_id="cart-7", model_id=active.model_id,
+        model_revision=active.revision, frame_id=active.frame_id,
+        position_m=(2.0, 3.0, 0.0), velocity_mps=(0.0, 0.0, 0.0),
+        uncertainty_m=0.2, last_seen_ns=100,
+        sensor_ids=("uwb-array",), modalities=("uwb",), observation_count=2,
+        provenance=("calibrated-ranging",), independence_groups=("uwb-array",),
+        position_history_m=((50, (2.0, 3.0, 0.0)), (100, (2.0, 3.0, 0.0))),
+        position_history_sensor_ids=((50, ("uwb-array",)), (100, ("uwb-array",))),
+        calibration_status="verified", calibration_ids=("survey-1",),
+        lineage_declared=True, presence_state="STALE",
+    )
+    store = SpatialRegistryStore()
+    try:
+        store.save_model(active, activate=True)
+        assert store.save_object_tracks(active, (track,)) == 1
+        restored = store.load_object_tracks(active.model_id, active.revision)
+        assert restored == (track,)
     finally:
         store.close()
