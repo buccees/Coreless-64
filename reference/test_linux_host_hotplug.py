@@ -172,3 +172,35 @@ def test_error_callback_failure_does_not_escape_event_handler():
     adapter.handle_event(event("add"))
 
     assert controller.attached_endpoint_ids == ()
+
+def test_reused_syspath_retires_old_endpoint_before_attaching_replacement():
+    first = endpoint("coreless-1", "machine-1")
+    second = endpoint("coreless-2", "machine-2")
+    transport = MemoryHostTransportAdapter([first, second])
+    controller = HostHotplugController(transport)
+    errors = []
+    source = FakeEventSource(lambda item: None)
+
+    def make_interface(endpoint_id):
+        machine_id = {"coreless-1": "machine-1", "coreless-2": "machine-2"}[endpoint_id]
+        return CorelessHostInterface(CorelessIdentity(machine_id))
+
+    def resolve(item):
+        serial = item.property_map().get("ID_SERIAL")
+        return {"CORELESS-1": "coreless-1", "CORELESS-2": "coreless-2"}.get(serial)
+
+    adapter = LinuxHostHotplugAdapter(
+        controller, make_interface, resolve, event_source=source, on_error=errors.append
+    )
+    source.callback = adapter.handle_event
+
+    source.emit(event("add", serial="CORELESS-1"))
+    assert controller.attached_endpoint_ids == ("coreless-1",)
+
+    # The physical device at the same sysfs path has been replaced.
+    source.emit(event("add", serial="CORELESS-2"))
+
+    assert controller.attached_endpoint_ids == ("coreless-2",)
+    assert adapter.observed_endpoints == (("/sys/devices/test/1-1", "coreless-2"),)
+    assert errors == []
+
