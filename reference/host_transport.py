@@ -363,3 +363,74 @@ class MemoryHostTransportAdapter(HostTransportAdapter):
         return super().connect(
             current, interface, system=system, host_io=host_io, input_router=input_router
         )
+
+
+class HostHotplugController:
+    """Coordinate endpoint arrival/removal around a transport adapter.
+
+    Platform adapters call device_arrived/device_removed from their native
+    hot-plug notifications. reconcile() is a recovery sweep for missed events;
+    it does not poll or detect physical devices on its own.
+    """
+
+    def __init__(self, adapter: HostTransportAdapter) -> None:
+        if not isinstance(adapter, HostTransportAdapter):
+            raise TypeError("adapter must implement HostTransportAdapter")
+        self._adapter = adapter
+        self._attachments: dict[str, tuple[HostEndpoint, CorelessHostInterface]] = {}
+
+    @property
+    def attached_endpoint_ids(self) -> tuple[str, ...]:
+        """Return currently managed attachment IDs in deterministic order."""
+        return tuple(sorted(self._attachments))
+
+    def device_arrived(
+        self,
+        endpoint_id: str,
+        interface: CorelessHostInterface,
+        *,
+        system=None,
+        host_io: HostIO | None = None,
+        input_router=None,
+    ) -> frozenset[str]:
+        """Attach a newly present endpoint using a fresh validated snapshot."""
+        endpoint = next(
+            (item for item in self._adapter.enumerate() if item.endpoint_id == endpoint_id),
+            None,
+        )
+        if endpoint is None:
+            raise ValueError("host endpoint is not present in current discovery snapshot")
+
+        previous = self._attachments.pop(endpoint_id, None)
+        if previous is not None:
+            self._adapter.disconnect(previous[1])
+        try:
+            negotiated = self._adapter.connect(
+                endpoint, interface, system=system, host_io=host_io,
+                input_router=input_router,
+            )
+        except Exception:
+            if interface.attached:
+                self._adapter.disconnect(interface)
+            raise
+        self._attachments[endpoint_id] = (endpoint, interface)
+        return negotiated
+
+    def device_removed(self, endpoint_id: str) -> bool:
+        """Detach a removed endpoint; repeated removal notifications are safe."""
+        attachment = self._attachments.pop(endpoint_id, None)
+        if attachment is None:
+            return False
+        self._adapter.disconnect(attachment[1])
+        return True
+
+    def reconcile(self) -> tuple[str, ...]:
+        """Detach missing or changed endpoints after a native event was missed."""
+        current = {item.endpoint_id: item for item in self._adapter.enumerate()}
+        detached = []
+        for endpoint_id, (endpoint, interface) in tuple(self._attachments.items()):
+            if current.get(endpoint_id) != endpoint or not interface.attached:
+                self._attachments.pop(endpoint_id, None)
+                self._adapter.disconnect(interface)
+                detached.append(endpoint_id)
+        return tuple(sorted(detached))
