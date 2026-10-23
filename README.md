@@ -4,7 +4,7 @@
 
 **Coreless-64 is intended to be an independent computer: its own execution architecture, memory model, persistent machine state, device interfaces, and operating environment. The operating system runs on Coreless-64; Coreless-64 does not run as an application owned by Lubuntu or another host OS.**
 
-> **Coreless-64 is the machine. Its operating system runs on it. Persistent storage carries its state; physical execution hardware and memory make it operational; external equipment supplies only the power and interfaces the machine is designed to use.**
+> **Coreless-64 is the machine. Its operating system runs on it. Its execution engine runs the machine and its operating system; persistent storage carries machine state, and external equipment supplies only the power and interfaces the machine is designed to use.**
 
 ## Coreless-64
 
