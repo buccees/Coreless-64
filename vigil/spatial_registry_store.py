@@ -15,10 +15,40 @@ import sqlite3
 from typing import Any
 
 from .blueprint import BlueprintModel, ModelFeature, _validate_vector
-from .object_tracking import ObjectTrack
+from .object_tracking import ObjectObservation, ObjectTrack, TrackingModality
 from .raster_calibration import RasterBlueprintCalibration
 from .spatial_regions import SpatialRegion
 from .sensor_mounts import SensorMountTransform
+
+
+def _observation_payload(item: ObjectObservation) -> dict[str, Any]:
+    return {
+        "object_id": item.object_id, "sensor_id": item.sensor_id,
+        "model_id": item.model_id, "model_revision": item.model_revision,
+        "frame_id": item.frame_id, "timestamp_ns": item.timestamp_ns,
+        "position_m": list(item.position_m), "uncertainty_m": item.uncertainty_m,
+        "modality": item.modality.value, "provenance": item.provenance,
+        "association_id": item.association_id,
+        "independence_group": item.independence_group,
+        "calibration_status": item.calibration_status,
+        "calibration_ids": list(item.calibration_ids),
+        "lineage_declared": item.lineage_declared,
+    }
+
+
+def _observation_from_payload(payload: dict[str, Any]) -> ObjectObservation:
+    return ObjectObservation(
+        object_id=payload["object_id"], sensor_id=payload["sensor_id"],
+        model_id=payload["model_id"], model_revision=payload["model_revision"],
+        frame_id=payload["frame_id"], timestamp_ns=payload["timestamp_ns"],
+        position_m=tuple(payload["position_m"]), uncertainty_m=payload["uncertainty_m"],
+        modality=TrackingModality(payload["modality"]), provenance=payload["provenance"],
+        association_id=payload.get("association_id"),
+        independence_group=payload.get("independence_group"),
+        calibration_status=payload.get("calibration_status", "unverified"),
+        calibration_ids=tuple(payload.get("calibration_ids", ())),
+        lineage_declared=payload.get("lineage_declared", False),
+    )
 
 
 def _encode(payload: dict[str, Any], *, max_bytes: int) -> tuple[str, str]:
@@ -456,6 +486,7 @@ class SpatialRegistryStore:
             "calibration_ids": list(track.calibration_ids),
             "lineage_declared": track.lineage_declared,
             "presence_state": track.presence_state,
+            "raw_observations": [_observation_payload(item) for item in track.raw_observations],
         }
 
     def save_sensor_mount(self, mount: SensorMountTransform) -> str:
@@ -535,6 +566,7 @@ class SpatialRegistryStore:
             calibration_ids=tuple(payload.get("calibration_ids", ())),
             lineage_declared=payload.get("lineage_declared", False),
             presence_state=payload.get("presence_state", "TRACKING"),
+            raw_observations=tuple(_observation_from_payload(item) for item in payload.get("raw_observations", ())),
         )
 
     def save_object_tracks(
@@ -621,6 +653,7 @@ class SpatialRegistryStore:
                 calibration_ids=tuple(payload.get("calibration_ids", ())),
                 lineage_declared=payload.get("lineage_declared", False),
                 presence_state=payload.get("presence_state", "STALE"),
+                raw_observations=tuple(_observation_from_payload(item) for item in payload.get("raw_observations", ())),
             )
             key = (
                 f"association:{track.association_id}"
