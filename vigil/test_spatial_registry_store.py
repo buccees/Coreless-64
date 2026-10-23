@@ -246,3 +246,68 @@ def test_sensor_mount_rejects_non_rigid_rotation_and_unregistered_model():
             store.save_sensor_mount(mount)
     finally:
         store.close()
+
+
+def test_portable_bundle_round_trips_complete_spatial_registry_state():
+    from vigil.sensor_mounts import SensorMountTransform
+
+    active = model()
+    track = ObjectTrack(
+        object_id="cart-portable", model_id=active.model_id,
+        model_revision=active.revision, frame_id=active.frame_id,
+        position_m=(2.0, 3.0, 0.0), velocity_mps=(0.1, 0.0, 0.0),
+        uncertainty_m=0.2, last_seen_ns=100, sensor_ids=("uwb-east",),
+        modalities=("uwb",), observation_count=1, provenance=("mount-calibrated",),
+        independence_groups=("uwb-east",), position_history_m=((100, (2.0, 3.0, 0.0)),),
+        position_history_sensor_ids=((100, ("uwb-east",)),), calibration_status="verified",
+        calibration_ids=("survey-1", "uwb-east-v1"), lineage_declared=True,
+    )
+    source = b'{"schema_version":1,"model_id":"building-a","revision":"r1"}'
+    source_store = SpatialRegistryStore()
+    target_store = SpatialRegistryStore()
+    try:
+        source_store.save_model(active, activate=True)
+        source_store.save_region(region(active))
+        source_store.save_calibration("raster-v1", calibration(active))
+        source_store.save_sensor_mount(SensorMountTransform(
+            mount_id="uwb-east-v1", sensor_id="uwb-east",
+            model_id=active.model_id, model_revision=active.revision,
+            frame_id=active.frame_id, source_frame_id="uwb-east/local",
+            translation_m=(1.0, 2.0, 0.0),
+            rotation_matrix=(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+            verified=True,
+        ))
+        source_store.save_source_asset(
+            active.model_id, active.revision, "source-manifest",
+            asset_name="source.json", media_type="application/json", content=source,
+            metadata={"source_format": "test"},
+        )
+        source_store.save_object_tracks(active, (track,))
+        bundle = source_store.export_portable_bundle()
+
+        counts = target_store.import_portable_bundle(bundle)
+        assert counts == (1, 1)
+        assert target_store.active_model_ref() == (active.model_id, active.revision)
+        assert target_store.load_model(active.model_id, active.revision) == active
+        assert target_store.load_regions(active.model_id, active.revision) == (region(active),)
+        assert target_store.load_calibration("raster-v1") == calibration(active)
+        assert target_store.load_sensor_mount("uwb-east-v1").sensor_id == "uwb-east"
+        assert target_store.load_source_asset(active.model_id, active.revision, "source-manifest")["content"] == source
+        assert target_store.load_object_tracks(active.model_id, active.revision) == (track,)
+        assert target_store.export_portable_bundle() == bundle
+    finally:
+        source_store.close()
+        target_store.close()
+
+
+def test_portable_bundle_rejects_corruption_and_size_overflow():
+    store = SpatialRegistryStore()
+    try:
+        store.save_model(model(), activate=True)
+        bundle = store.export_portable_bundle()
+        with pytest.raises(ValueError, match="checksum"):
+            store.import_portable_bundle(bundle.replace(b'"schema_version":1', b'"schema_version":2'))
+        with pytest.raises(ValueError, match="exceeds"):
+            store.import_portable_bundle(bundle, max_bundle_bytes=256)
+    finally:
+        store.close()
