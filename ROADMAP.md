@@ -68,8 +68,8 @@ The current implementation checkpoint includes the reference digital-machine lif
 - [x] Provider-backed host transport adapter boundary
 - [x] Transport-neutral host hot-plug lifecycle coordinator (software contract only)
 - [x] Optional Linux udev event source with immutable, allowlisted OS-event snapshots and injected lifecycle tests (`reference/linux_udev_events.py`)
-- [ ] Integrate Linux udev events with Coreless identity probing, `HostHotplugController`, and concrete transport close/reopen handling
-- [ ] Physical unplug/replug and reconnect validation on the first Lubuntu test host
+- [x] Integrate Linux udev lifecycle events with `HostHotplugController` through a resolver boundary and fresh-snapshot identity validation (`reference/linux_host_hotplug.py`; physical transport close/reopen remains open)
+- [ ] Implement concrete Linux transport close/reopen and validate physical unplug/replug and reconnect on the first Lubuntu test host
 - [ ] End-to-end VIGIL integration with native hot-plug lifecycle
 - [ ] Application environment
 
