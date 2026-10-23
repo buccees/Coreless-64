@@ -119,3 +119,31 @@ def test_operator_view_state_rejects_invalid_timestamps(timestamp):
 def test_operator_view_state_rejects_unknown_sensor_modality_state():
     with pytest.raises(ValueError, match="sensor state"):
         OperatorSensorStatus("rf-0", "wifi_csi", "probably_ready")
+
+
+
+def test_nanosecond_timestamps_are_decimal_strings_on_wire():
+    exact = 1_799_999_999_123_456_789
+    state = OperatorViewState(
+        sequence=1,
+        generated_at_ns=exact,
+        source_timestamp_ns=exact - 1,
+        connection_state="connected",
+        runtime_state="ready",
+        sensors=(
+            OperatorSensorStatus(
+                sensor_id="ir-0",
+                modality="infrared",
+                state="ready",
+                source_timestamp_ns=exact - 2,
+            ),
+        ),
+        alerts=(
+            OperatorAlert("a-1", "info", "check", "runtime", exact - 3),
+        ),
+    )
+    decoded = json.loads(state.encode())
+    assert decoded["generated_at_ns"] == str(exact)
+    assert decoded["source_timestamp_ns"] == str(exact - 1)
+    assert decoded["sensors"][0]["source_timestamp_ns"] == str(exact - 2)
+    assert decoded["alerts"][0]["source_timestamp_ns"] == str(exact - 3)
