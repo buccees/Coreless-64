@@ -76,6 +76,20 @@ class SpatialRegistryStore:
                 payload_sha256 TEXT NOT NULL,
                 PRIMARY KEY (model_id, revision, region_id)
             );
+            CREATE TABLE IF NOT EXISTS spatial_source_assets (
+                model_id TEXT NOT NULL,
+                revision TEXT NOT NULL,
+                asset_id TEXT NOT NULL,
+                asset_name TEXT NOT NULL,
+                media_type TEXT NOT NULL,
+                content BLOB NOT NULL,
+                content_sha256 TEXT NOT NULL,
+                metadata_json TEXT NOT NULL,
+                metadata_sha256 TEXT NOT NULL,
+                PRIMARY KEY (model_id, revision, asset_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_spatial_assets_model
+                ON spatial_source_assets(model_id, revision, asset_id);
             CREATE TABLE IF NOT EXISTS raster_calibrations (
                 calibration_id TEXT PRIMARY KEY,
                 model_id TEXT NOT NULL,
@@ -204,6 +218,95 @@ class SpatialRegistryStore:
         return tuple(model for key in keys if (
             model := self.load_model(key["model_id"], key["revision"])
         ) is not None)
+
+    def save_source_asset(
+        self, model_id: str, revision: str, asset_id: str, *,
+        asset_name: str, media_type: str, content: bytes,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Persist an immutable original source asset tied to one model revision.
+
+        The normalized model is kept separately. Original bytes are checksummed
+        so a portable machine can carry the exact source manifest or drawing.
+        """
+        identity = (model_id, revision, asset_id, asset_name, media_type)
+        if not all(isinstance(value, str) and value.strip() for value in identity):
+            raise ValueError("model/revision/asset identity, name, and media type are required")
+        if not isinstance(content, bytes):
+            raise TypeError("source asset content must be bytes")
+        if len(content) > self.max_record_bytes:
+            raise ValueError(f"source asset exceeds {self.max_record_bytes} byte limit")
+        if metadata is None:
+            metadata = {}
+        if not isinstance(metadata, dict):
+            raise TypeError("source asset metadata must be a dictionary")
+        encoded_metadata, metadata_digest = _encode(metadata, max_bytes=self.max_record_bytes)
+        content_digest = sha256(content).hexdigest()
+        with self._connection:
+            model_exists = self._connection.execute(
+                "SELECT 1 FROM spatial_models WHERE model_id=? AND revision=?",
+                (model_id, revision),
+            ).fetchone()
+            if model_exists is None:
+                raise KeyError(f"source asset model revision is not registered: {model_id}/{revision}")
+            old = self._connection.execute(
+                "SELECT asset_name,media_type,content,content_sha256,metadata_json,metadata_sha256 "
+                "FROM spatial_source_assets WHERE model_id=? AND revision=? AND asset_id=?",
+                (model_id, revision, asset_id),
+            ).fetchone()
+            if old is not None and (
+                old["asset_name"] != asset_name or old["media_type"] != media_type
+                or bytes(old["content"]) != content or old["content_sha256"] != content_digest
+                or old["metadata_json"] != encoded_metadata
+                or old["metadata_sha256"] != metadata_digest
+            ):
+                raise ValueError("source asset ID is immutable within a model revision")
+            self._connection.execute(
+                "INSERT OR IGNORE INTO spatial_source_assets"
+                "(model_id,revision,asset_id,asset_name,media_type,content,content_sha256,metadata_json,metadata_sha256) "
+                "VALUES(?,?,?,?,?,?,?,?,?)",
+                (model_id, revision, asset_id, asset_name, media_type, sqlite3.Binary(content),
+                 content_digest, encoded_metadata, metadata_digest),
+            )
+        return {
+            "model_id": model_id, "revision": revision, "asset_id": asset_id,
+            "asset_name": asset_name, "media_type": media_type,
+            "content": content, "content_sha256": content_digest, "metadata": metadata,
+        }
+
+    def load_source_asset(
+        self, model_id: str, revision: str, asset_id: str,
+    ) -> dict[str, Any] | None:
+        row = self._connection.execute(
+            "SELECT asset_name,media_type,content,content_sha256,metadata_json,metadata_sha256 "
+            "FROM spatial_source_assets WHERE model_id=? AND revision=? AND asset_id=?",
+            (model_id, revision, asset_id),
+        ).fetchone()
+        if row is None:
+            return None
+        content = bytes(row["content"])
+        if len(content) > self.max_record_bytes:
+            raise ValueError("stored source asset exceeds configured size limit")
+        if sha256(content).hexdigest() != row["content_sha256"]:
+            raise ValueError("stored source asset checksum mismatch")
+        metadata = _decode(
+            row["metadata_json"], row["metadata_sha256"], max_bytes=self.max_record_bytes,
+        )
+        return {
+            "model_id": model_id, "revision": revision, "asset_id": asset_id,
+            "asset_name": row["asset_name"], "media_type": row["media_type"],
+            "content": content, "content_sha256": row["content_sha256"], "metadata": metadata,
+        }
+
+    def list_source_assets(self, model_id: str, revision: str) -> tuple[dict[str, Any], ...]:
+        rows = self._connection.execute(
+            "SELECT asset_id FROM spatial_source_assets WHERE model_id=? AND revision=? "
+            "ORDER BY asset_id", (model_id, revision),
+        ).fetchall()
+        return tuple(
+            asset for row in rows
+            if (asset := self.load_source_asset(model_id, revision, row["asset_id"])) is not None
+        )
 
     def save_region(self, region: SpatialRegion) -> SpatialRegion:
         if not isinstance(region, SpatialRegion):
