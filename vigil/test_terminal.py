@@ -120,3 +120,22 @@ def test_terminal_displays_motion_only_when_track_has_a_timestamped_baseline():
     assert "moving-cart: MOVING 0.20m/s" in output
     assert "stationary-box: STATIONARY 0.01m/s" in output
 
+def test_terminal_labels_last_known_position_and_never_claims_stale_motion():
+    model = fixture_model()
+    stale = ObjectTrack(
+        object_id="stationary-crate", model_id=model.model_id,
+        model_revision=model.revision, frame_id=model.frame_id,
+        position_m=(1.0, 2.0, 0.0), velocity_mps=(0.0, 0.0, 0.0),
+        uncertainty_m=0.2, last_seen_ns=10, sensor_ids=("uwb-1",),
+        modalities=("uwb",), observation_count=2,
+        position_history_m=((0, (1.0, 2.0, 0.0)), (10, (1.0, 2.0, 0.0))),
+        presence_state="STALE",
+    )
+    output = VigilTerminal(color=False).render(
+        model, fixture_pose(model), now_ns=5_000_000_000,
+        object_tracks=(stale,),
+    )
+    assert "stationary-crate: STALE / LAST KNOWN" in output
+    assert "stationary-crate: STATIONARY" not in output
+    assert "age=4999ms" in output
+
