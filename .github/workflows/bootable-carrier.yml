@@ -24,7 +24,7 @@ jobs:
       - name: Install image build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y debootstrap parted dosfstools e2fsprogs rsync util-linux
+          sudo apt-get install -y debootstrap parted dosfstools e2fsprogs rsync util-linux qemu-system-x86 ovmf
       - name: Validate build entrypoints
         run: |
           bash -n scripts/build-bootable-ssd.sh
@@ -33,6 +33,29 @@ jobs:
         run: bash scripts/build-bootable-ssd.sh "$RUNNER_TEMP/coreless-uefi-x86_64.img"
       - name: Validate built image offline
         run: bash scripts/validate-bootable-ssd.sh "$RUNNER_TEMP/coreless-uefi-x86_64.img"
+      - name: Boot image under QEMU with UEFI
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE="$RUNNER_TEMP/coreless-uefi-x86_64.img"
+          OVMF_CODE="/usr/share/OVMF/OVMF_CODE_4M.fd"
+          [[ -s "$OVMF_CODE" ]] || OVMF_CODE="/usr/share/OVMF/OVMF_CODE.fd"
+          [[ -s "$OVMF_CODE" ]] || { echo "OVMF firmware not found" >&2; exit 1; }
+          set +e
+          timeout 150s qemu-system-x86_64 \\
+            -machine q35 -m 2048 -smp 2 -bios "$OVMF_CODE" \\
+            -drive "file=$IMAGE,format=raw,if=virtio" \\
+            -display none -serial stdio -monitor none -no-reboot \\
+            >"$RUNNER_TEMP/qemu-boot.log" 2>&1
+          QEMU_STATUS=$?
+          set -e
+          cat "$RUNNER_TEMP/qemu-boot.log"
+          if [[ $QEMU_STATUS -ne 0 && $QEMU_STATUS -ne 124 ]]; then
+            echo "QEMU exited unexpectedly with status $QEMU_STATUS" >&2; exit "$QEMU_STATUS"
+          fi
+          grep -Eqi "Reached target Multi-User System|Reached target.*Multi-User" "$RUNNER_TEMP/qemu-boot.log" || {
+            echo "UEFI VM did not report reaching multi-user target" >&2; exit 1;
+          }
       - name: Publish bootable image artifact (manual runs only)
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
