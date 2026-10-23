@@ -593,3 +593,76 @@ def test_workspace_rejects_saved_calibration_from_another_model_revision():
             )
     finally:
         store.close()
+
+
+
+def test_sensor_mount_transform_is_applied_only_through_explicit_local_frame_ingestion():
+    from vigil.object_tracking import ObjectObservation, TrackingModality
+    from vigil.sensor_mounts import SensorMountTransform
+    from vigil.spatial_registry_store import SpatialRegistryStore
+
+    store = SpatialRegistryStore()
+    try:
+        workspace = SpatialWorkspace(registry_store=store)
+        model = workspace.import_blueprint(manifest(model_id="mount-site", revision="r1"), activate=True)
+        mount = SensorMountTransform(
+            mount_id="ceiling-west-v1", sensor_id="uwb-1",
+            model_id=model.model_id, model_revision=model.revision,
+            frame_id=model.frame_id, source_frame_id="uwb-1/local",
+            translation_m=(10.0, 2.0, 1.0),
+            rotation_matrix=(0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0),
+            verified=True,
+        )
+        store.save_sensor_mount(mount)
+        local = ObjectObservation(
+            object_id="cart-1", sensor_id="uwb-1", model_id=model.model_id,
+            model_revision=model.revision, frame_id="uwb-1/local",
+            timestamp_ns=10, position_m=(2.0, 3.0, 0.0), uncertainty_m=0.1,
+            modality=TrackingModality.UWB, provenance="uwb-local-detection",
+        )
+        assert workspace.ingest_sensor_local_object_observations(mount.mount_id, (local,)) == 1
+        converted = workspace._object_observations[-1]
+        assert converted.position_m == pytest.approx((7.0, 4.0, 1.0))
+        assert converted.frame_id == model.frame_id
+        assert converted.calibration_status == "verified"
+        assert converted.calibration_ids == (mount.mount_id,)
+        assert "sensor-mount:ceiling-west-v1" in converted.provenance
+    finally:
+        store.close()
+
+
+def test_sensor_mount_ingestion_rejects_wrong_sensor_and_model_revision():
+    from vigil.object_tracking import ObjectObservation, TrackingModality
+    from vigil.sensor_mounts import SensorMountTransform
+    from vigil.spatial_registry_store import SpatialRegistryStore
+
+    store = SpatialRegistryStore()
+    try:
+        workspace = SpatialWorkspace(registry_store=store)
+        model = workspace.import_blueprint(manifest(model_id="mount-check", revision="r2"), activate=True)
+        mount = SensorMountTransform(
+            mount_id="mount-check-v1", sensor_id="camera-1",
+            model_id=model.model_id, model_revision=model.revision,
+            frame_id=model.frame_id, source_frame_id="camera-1/local",
+            translation_m=(0.0, 0.0, 0.0),
+            rotation_matrix=(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+        )
+        store.save_sensor_mount(mount)
+        wrong_sensor = ObjectObservation(
+            object_id="person-1", sensor_id="camera-2", model_id=model.model_id,
+            model_revision=model.revision, frame_id="camera-1/local", timestamp_ns=1,
+            position_m=(0.0, 0.0, 1.0), uncertainty_m=0.2,
+            modality=TrackingModality.VISION, provenance="camera-local",
+        )
+        with pytest.raises(ValueError, match="sensor_id"):
+            workspace.ingest_sensor_local_object_observations(mount.mount_id, (wrong_sensor,))
+        wrong_revision = ObjectObservation(
+            object_id="person-1", sensor_id="camera-1", model_id=model.model_id,
+            model_revision="r1", frame_id="camera-1/local", timestamp_ns=1,
+            position_m=(0.0, 0.0, 1.0), uncertainty_m=0.2,
+            modality=TrackingModality.VISION, provenance="camera-local",
+        )
+        with pytest.raises(ValueError, match="active model revision"):
+            workspace.ingest_sensor_local_object_observations(mount.mount_id, (wrong_revision,))
+    finally:
+        store.close()
