@@ -153,6 +153,39 @@ def build_spatial_snapshot(
                 "calibration_status": observation.calibration_status,
                 "calibration_ids": list(observation.calibration_ids),
                 "lineage_declared": observation.lineage_declared,
+                "quality_status": (
+                    "CONFLICTING" if observation.sensor_id in item.conflicting_sensor_ids else
+                    "UNCALIBRATED" if observation.calibration_status != "verified" else
+                    "STALE" if now_ns - observation.timestamp_ns > max_age_ns else
+                    "FRESH"
+                ),
+                "quality_flags": [
+                    flag for flag, condition in (
+                        ("conflicting", observation.sensor_id in item.conflicting_sensor_ids),
+                        ("uncalibrated", observation.calibration_status != "verified"),
+                        ("stale", now_ns - observation.timestamp_ns > max_age_ns),
+                        ("future_timestamp", observation.timestamp_ns > now_ns),
+                    ) if condition
+                ],
+                "fusion_disposition": (
+                    "HISTORICAL_ONLY" if observation.timestamp_ns !=
+                    tracks_by_identity[(item.object_id, item.association_id)].last_seen_ns else
+                    "CONFLICT_WINNER" if item.conflict and observation.sensor_id in item.conflicting_sensor_ids
+                    and observation.uncertainty_m == min(
+                        candidate.uncertainty_m for candidate in
+                        tracks_by_identity[(item.object_id, item.association_id)].raw_observations
+                        if candidate.timestamp_ns == tracks_by_identity[(item.object_id, item.association_id)].last_seen_ns
+                    ) else
+                    "CONFLICT_NOT_SELECTED" if item.conflict and observation.sensor_id in item.conflicting_sensor_ids else
+                    "CONTRIBUTED_TO_FUSION"
+                ),
+                "fusion_note": (
+                    "Historical evidence; not part of the current measurement epoch."
+                    if observation.timestamp_ns != tracks_by_identity[(item.object_id, item.association_id)].last_seen_ns else
+                    "The tracker selected the lowest-uncertainty conflicting measurement as its display estimate."
+                    if item.conflict and observation.sensor_id in item.conflicting_sensor_ids else
+                    "The tracker fused this current-epoch observation; quality flags describe caveats, not an automatic rejection."
+                ),
             } for observation in tracks_by_identity[
                 (item.object_id, item.association_id)
             ].raw_observations],
