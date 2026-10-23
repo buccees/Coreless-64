@@ -55,14 +55,6 @@ class SpatialRegion:
             nxt = points[(index + 1) % len(points)]
             if (point[0] - nxt[0]) ** 2 + (point[1] - nxt[1]) ** 2 <= edge_epsilon ** 2:
                 raise ValueError("region polygon must not contain zero-length edges")
-        area_twice = sum(
-            points[i][0] * points[(i + 1) % len(points)][1]
-            - points[(i + 1) % len(points)][0] * points[i][1]
-            for i in range(len(points))
-        )
-        if abs(area_twice) <= 1e-9:
-            raise ValueError("region polygon must have non-zero area")
-
         def orientation(a, b, c):
             return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
 
@@ -96,6 +88,13 @@ class SpatialRegion:
                 d, e = points[j], points[(j + 1) % count]
                 if intersects(a, b, d, e):
                     raise ValueError("region polygon must not self-intersect")
+        area_twice = sum(
+            points[i][0] * points[(i + 1) % len(points)][1]
+            - points[(i + 1) % len(points)][0] * points[i][1]
+            for i in range(len(points))
+        )
+        if abs(area_twice) <= 1e-9:
+            raise ValueError("region polygon must have non-zero area")
         object.__setattr__(self, "polygon_xy_m", tuple(points))
         if not isfinite(self.min_z_m) or not isfinite(self.max_z_m) or self.min_z_m > self.max_z_m:
             raise ValueError("region Z bounds must be finite and min_z_m <= max_z_m")
