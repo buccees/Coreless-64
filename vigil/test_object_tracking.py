@@ -413,3 +413,62 @@ def test_tracker_exposes_bounded_timestamped_motion_trail_in_model_frame():
         (2_000_000_000, (2.0, 0.0, 0.0)),
         (3_000_000_000, (5.0, 0.0, 0.0)),
     )
+
+def test_workspace_retention_marks_last_known_objects_stale_without_calling_them_gone():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    tracker = ObjectTracker(alpha=1.0)
+    first = tracker.update(
+        model, [observation(model, timestamp=100, position=(2, 3, 0))],
+        now_ns=100, max_age_ns=50, retain_stale=True,
+    )
+    assert first[0].presence_state == "TRACKING"
+
+    stale = tracker.update(
+        model, [], now_ns=200, max_age_ns=50, retain_stale=True,
+    )
+    assert len(stale) == 1
+    assert stale[0].presence_state == "STALE"
+    assert stale[0].position_m == (2.0, 3.0, 0.0)
+    assert stale[0].last_seen_ns == 100
+    assert stale[0].observation_count == 1
+
+    # Compatibility mode continues to expire stale tracks by default.
+    expired = ObjectTracker(alpha=1.0)
+    expired.update(model, [observation(model, timestamp=100, position=(2, 3, 0))], now_ns=100)
+    assert expired.update(model, [], now_ns=200, max_age_ns=50) == ()
+
+
+def test_retained_track_is_not_carried_into_a_different_model_frame():
+    first_model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    second_model = register_blueprint(
+        "site", "r2", frame_id="site/revised-building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    tracker = ObjectTracker()
+    tracker.update(
+        first_model, [observation(first_model, timestamp=100, position=(2, 3, 0))],
+        now_ns=100, retain_stale=True,
+    )
+    assert tracker.update(second_model, [], now_ns=200, retain_stale=True) == ()
+
+
+def test_retained_track_marks_clock_reversal_as_time_uncertain():
+    model = register_blueprint(
+        "site", "r1", frame_id="site/building", units="m",
+        features=[{"feature_id": "anchor", "label": "Anchor", "position": [0, 0, 0]}],
+    )
+    tracker = ObjectTracker()
+    tracker.update(
+        model, [observation(model, timestamp=200, position=(1, 0, 0))],
+        now_ns=200, retain_stale=True,
+    )
+    result = tracker.update(model, [], now_ns=100, retain_stale=True)
+    assert len(result) == 1
+    assert result[0].presence_state == "TIME_UNCERTAIN"
+
