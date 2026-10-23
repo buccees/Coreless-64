@@ -4,7 +4,7 @@ sys.path.insert(0, ".")
 import pytest
 
 from operator_display import OperatorViewState
-from operator_telemetry import OperatorTelemetryApp, coreless_view_state
+from operator_telemetry import (\n    CorelessOperatorSnapshotProvider,\n    OperatorTelemetryApp,\n    coreless_view_state,\n    create_coreless_operator_app,\n)
 
 
 def _call(app, path="/api/operator/state", method="GET"):
@@ -96,3 +96,41 @@ def test_runtime_adapter_reports_lifecycle_without_fabricating_sensors():
 def test_runtime_adapter_requires_existing_system_status():
     with pytest.raises(TypeError, match="CorelessSystem.status"):
         coreless_view_state(object())
+
+
+
+def test_coreless_provider_sequences_snapshots_without_fabricating_sensor_data():
+    class Machine:
+        booted = True
+    class System:
+        machine = Machine()
+        def status(self):
+            return {"runtime": "reference"}
+    provider = CorelessOperatorSnapshotProvider(System())
+    first = provider()
+    second = provider()
+    assert first.sequence == 0
+    assert second.sequence == 1
+    assert first.runtime_state == "ready"
+    assert first.sensors == ()
+    assert first.alerts == ()
+
+
+def test_factory_binds_existing_coreless_system_to_authorized_endpoint():
+    class Machine:
+        booted = True
+    class System:
+        machine = Machine()
+        def status(self):
+            return {"runtime": "reference"}
+    app = create_coreless_operator_app(System(), authorize=lambda env: True)
+    response, body = _call(app)
+    assert response["status"] == "200 OK"
+    decoded = json.loads(body)
+    assert decoded["runtime_state"] == "ready"
+    assert decoded["sequence"] == 0
+
+
+def test_provider_requires_coreless_status_api():
+    with pytest.raises(TypeError, match="CorelessSystem.status"):
+        CorelessOperatorSnapshotProvider(object())
