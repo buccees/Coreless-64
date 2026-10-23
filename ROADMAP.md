@@ -87,8 +87,8 @@ The current implementation checkpoint includes the reference digital-machine lif
 
 ## Phase 5 — Portable Coreless machine
 
-- [ ] Specify the physical execution substrate and minimum hardware needed for Coreless-64 to operate as an independent machine (execution, memory, boot, storage, power, device interfaces)
-- [ ] Define the Coreless boot contract so the operating system runs on the machine rather than being treated as a host-owned application
+- [ ] Validate the Coreless execution engine → machine boot → operating-system startup path as one integrated lifecycle
+- [ ] Define and validate the boot contract so the OS runs on the Coreless execution engine and retains machine-level authority
 
 - [ ] Define a storage compatibility matrix (USB-attached SATA SSD, USB-attached NVMe SSD, native SATA, native NVMe; include boot firmware/driver constraints)
 - [ ] Test persistent Coreless machine portability across multiple SSDs and host computers without assuming storage identity equals Coreless machine identity
