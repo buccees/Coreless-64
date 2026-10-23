@@ -106,11 +106,23 @@ Connected components continue to:
 - participate in hub workload routing
 - remain capable of standalone operation after detachment
 
-## Initial native platform target: Lubuntu/Linux
+## Portability goal and initial implementation platform
 
-The first intended host OS is **Lubuntu**, an Ubuntu-based Linux distribution. The initial native provider should use Linux device-discovery and lifecycle facilities (evaluate udev/libudev for add/remove monitoring), then translate platform events into the existing transport-neutral discovery and `HostHotplugController` contracts. Keep OS-specific monitoring, endpoint identity mapping, permissions, and transport teardown/reopen logic inside the Linux adapter rather than the generic controller. Do not assume every udev event is a usable Coreless endpoint: validate the discovered identity and capabilities before attachment.
+The user prefers **Lubuntu** as the OS to run/develop Coreless with. This is the first practical implementation platform, not a restriction on the architecture or long-term compatibility target. Keep the protocol and lifecycle contracts transport-neutral; implement Linux-specific monitoring in a separate provider and add other OS providers through the same contracts.
 
-Lubuntu is the first implementation target, not a claim that the Linux adapter or physical hot-plug path already exists. Physical unplug/replug, reconnect, permissions, and end-to-end VIGIL behavior must be tested on the target machine before marking hot-plug usable.
+For the first native hot-plug provider, evaluate Linux device-discovery and lifecycle facilities such as udev/libudev, then translate validated events into `HostHotplugController` calls. Keep OS-specific monitoring, endpoint identity mapping, permissions, and transport teardown/reopen logic inside the Linux adapter rather than the generic controller. Do not assume every OS device event represents a valid Coreless endpoint: validate identity and capabilities before attachment. Linux implementation and physical hot-plug remain unimplemented/unvalidated until tested.
+
+## Storage portability and hardware identity
+
+Target broad storage compatibility, including USB-attached SATA/NVMe SSDs and native SATA/NVMe devices when supported by the host's firmware, physical bus, drivers, and boot configuration. This is a compatibility goal, not a claim that every SSD boots on every host. Track a tested storage/host/interface matrix and validate persistence/resume when moving the Coreless machine state between supported drives/hosts.
+
+Do not conflate three identities:
+
+1. **Storage/enclosure identity** — what the drive's USB/SATA/NVMe controller reports to the host.
+2. **Coreless machine identity** — stable identity and protocol state belonging to Coreless, carried by its persistent machine state and exposed through the Coreless protocol.
+3. **Physical device-mode identity** — an optional hardware interface through which Coreless can enumerate to another host as a distinct device.
+
+An ordinary SSD/enclosure does not become a separate USB computer simply because Coreless is stored on it. Distinct device-mode enumeration requires compatible device-side controller hardware, firmware, and a concrete transport implementation; USB gadget/device mode is one hardware-dependent option, not a universal capability. Advertise only the hardware identity and interfaces actually implemented and validated.
 
 ## Current implementation status
 
