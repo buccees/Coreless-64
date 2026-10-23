@@ -5,7 +5,7 @@ pass. This module does not authorize physical actions or replace Coreless policy
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from math import isfinite
 from typing import Sequence
 
@@ -31,6 +31,7 @@ class SpatialScene:
     view: BlueprintView | None
     infrared_levels: tuple[str, ...]
     object_count: int
+    stale_track_count: int
     conflict_count: int
     usable_track_count: int
     uncertain_track_count: int
@@ -69,6 +70,8 @@ def assemble_spatial_scene(
     pose_precise = False
     pose_state_usable = False
     valid_tracks: list[ObjectTrack] = []
+    display_tracks: list[ObjectTrack] = []
+    stale_track_count = 0
     valid_ir_levels: set[str] = set()
     aligned_ir_count = 0
     stale_ir_count = 0
@@ -79,12 +82,21 @@ def assemble_spatial_scene(
     checks.append(SceneCheck("blueprint_registered", model is not None,
                              "active blueprint available" if model else "no active blueprint"))
     if model is not None:
-        valid_tracks = [
-            track for track in object_tracks
-            if (track.model_id, track.model_revision, track.frame_id) ==
-               (model.model_id, model.revision, model.frame_id)
-            and 0 <= now_ns - track.last_seen_ns <= max_object_age_ns
-        ]
+        for track in object_tracks:
+            if (track.model_id, track.model_revision, track.frame_id) != (
+                model.model_id, model.revision, model.frame_id
+            ) or track.last_seen_ns > now_ns:
+                continue
+            age_ns = now_ns - track.last_seen_ns
+            if age_ns <= max_object_age_ns:
+                current = replace(track, presence_state="TRACKING")
+                valid_tracks.append(current)
+                display_tracks.append(current)
+            else:
+                # Preserve the last known map marker, but keep it out of all
+                # current-evidence counts and readiness checks.
+                display_tracks.append(replace(track, presence_state="STALE"))
+                stale_track_count += 1
         for item in infrared_maps:
             if (item.model_id, item.model_revision, item.frame_id) != (
                 model.model_id, model.revision, model.frame_id
@@ -105,7 +117,7 @@ def assemble_spatial_scene(
             aligned_ir_count += 1
         try:
             view = build_blueprint_view(
-                model, pose, selected_level=selected_level, object_tracks=valid_tracks
+                model, pose, selected_level=selected_level, object_tracks=display_tracks
             )
         except (ValueError, TypeError):
             view = None
@@ -232,6 +244,7 @@ def assemble_spatial_scene(
         view=view,
         infrared_levels=tuple(sorted(valid_ir_levels)),
         object_count=len(valid_tracks),
+        stale_track_count=stale_track_count,
         conflict_count=conflict_count,
         usable_track_count=usable_track_count,
         uncertain_track_count=uncertain_track_count,
