@@ -2,14 +2,17 @@ import io
 import json
 from pathlib import Path
 
-from local_operator_server import SESSION_COOKIE, create_lan_app\nfrom system import CorelessSystem
+from local_operator_server import SESSION_COOKIE, create_lan_app
+from system import CorelessSystem
 
 
 def _app(password, page, tmp_path):
     system = CorelessSystem(storage_path=tmp_path / "coreless.img")
     system.boot()
     return create_lan_app(password=password, page_path=page, system=system)
-\n\ndef _request(app, path="/", method="GET", body=b"", cookie=None, origin=None):
+
+
+def _request(app, path="/", method="GET", body=b"", cookie=None, origin=None):
     environ = {
         "PATH_INFO": path,
         "REQUEST_METHOD": method,
@@ -48,7 +51,7 @@ def test_lan_host_serves_display_and_requires_session_for_state(tmp_path):
 def test_lan_login_creates_secure_cookie_and_state_is_read_only(tmp_path):
     page = tmp_path / "operator-display.html"
     page.write_text("<!doctype html><title>LAN operator</title>", encoding="utf-8")
-    app = create_lan_app(password="a-strong-test-password-123", page_path=page)
+    app = _app("a-strong-test-password-123", page, tmp_path)
 
     response, body = _request(
         app,
@@ -76,7 +79,7 @@ def test_lan_login_creates_secure_cookie_and_state_is_read_only(tmp_path):
 def test_lan_login_rejects_wrong_password_and_cross_origin(tmp_path):
     page = tmp_path / "operator-display.html"
     page.write_text("display", encoding="utf-8")
-    app = create_lan_app(password="a-strong-test-password-123", page_path=page)
+    app = _app("a-strong-test-password-123", page, tmp_path)
 
     response, _ = _request(
         app,
