@@ -223,7 +223,8 @@
     spatialStatus.textContent=status+' / '+poseStatus;
     spatialStatus.className='status '+(status==='OK'?'ok':status==='DEGRADED'?'stale':'bad');
     spatialModel.textContent=model.model_id+' / '+model.revision+' / '+(selected||'all levels');
-    spatialDetail.textContent='FRAME '+model.frame_id+' · '+data.features.length+' modeled feature(s) · '+visibleObjects.length+' visible track(s) · '+(data.regions||[]).length+' region(s). Coordinates in meters; view is a projection of modeled geometry, not a claim of sensor coverage.';
+    var providers=data.sensor_providers||[], onlineProviders=providers.filter(function(p){return p.state==='ONLINE';}).length, failedProviders=providers.filter(function(p){return p.state==='ERROR';}).length;
+    spatialDetail.textContent='FRAME '+model.frame_id+' · '+data.features.length+' modeled feature(s) · '+visibleObjects.length+' visible track(s) · '+(data.regions||[]).length+' region(s) · SENSOR ADAPTERS '+onlineProviders+' online / '+failedProviders+' errors. Coordinates in meters; view is a projection of modeled geometry, not a claim of sensor coverage.';
     clear(spatialObjects);
     visibleObjects.forEach(function(object){
       var statusText=object.conflict?'CONFLICT / REVIEW':object.presence_state==='STALE'?'STALE / LAST KNOWN':String(object.motion_state||'MOTION UNKNOWN');
