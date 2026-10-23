@@ -173,7 +173,7 @@
     var x0=bounds[0].min,x1=bounds[0].max,y0=bounds[1].min,y1=bounds[1].max;
     function xy(p){
       if(!Array.isArray(p)||p.length<2||!Number.isFinite(p[0])||!Number.isFinite(p[1]))return null;
-      var nx=x1===x0?.5:(p[0]-x0)/(x1-x0),ny=y1===y0?.5:(p[1]-y0)/(y1-y0);
+      var nx=x1===x0 ? 0.5 : (p[0]-x0)/(x1-x0),ny=y1===y0 ? 0.5 : (p[1]-y0)/(y1-y0);
       return [54+nx*852,462-ny*404];
     }
     while(spatialMap.firstChild)spatialMap.removeChild(spatialMap.firstChild);
@@ -208,15 +208,19 @@
     });
     if(data.pose&&Array.isArray(data.pose.position_m)){
       var posePoint=xy(data.pose.position_m);
-      if(posePoint&&['TRACKING','DEGRADED'].indexOf(data.pose.state)>=0){
+      if(posePoint&&data.pose.presence_state==='CURRENT'&&['TRACKING','DEGRADED'].indexOf(data.pose.state)>=0){
         spatialMap.appendChild(svgNode('circle',{cx:posePoint[0],cy:posePoint[1],r:13,class:'map-pose'}));
         spatialMap.appendChild(svgNode('line',{x1:posePoint[0]-17,y1:posePoint[1],x2:posePoint[0]+17,y2:posePoint[1],class:'map-pose'}));
         spatialMap.appendChild(svgNode('line',{x1:posePoint[0],y1:posePoint[1]-17,x2:posePoint[0],y2:posePoint[1]+17,class:'map-pose'}));
         spatialMap.appendChild(svgNode('text',{x:posePoint[0]+18,y:posePoint[1]-10,class:'map-label'},'CORELESS POSE'));
+      }else if(posePoint&&data.pose.presence_state==='STALE'){
+        spatialMap.appendChild(svgNode('circle',{cx:posePoint[0],cy:posePoint[1],r:9,class:'map-object stale'}));
+        spatialMap.appendChild(svgNode('text',{x:posePoint[0]+13,y:posePoint[1]+5,class:'map-label'},'CORELESS POSE / LAST KNOWN'));
       }
     }
     var query=data.spatial_query||{},status=String(query.status||'NO FIX');
-    spatialStatus.textContent=status+(data.pose?' / POSE '+String(data.pose.state):' / NO POSE');
+    var poseStatus=data.pose?(data.pose.presence_state==='STALE'?'STALE LAST-KNOWN':data.pose.presence_state==='TIME_UNCERTAIN'?'POSE TIME UNCERTAIN':String(data.pose.state)):'NO POSE';
+    spatialStatus.textContent=status+' / '+poseStatus;
     spatialStatus.className='status '+(status==='OK'?'ok':status==='DEGRADED'?'stale':'bad');
     spatialModel.textContent=model.model_id+' / '+model.revision+' / '+(selected||'all levels');
     spatialDetail.textContent='FRAME '+model.frame_id+' · '+data.features.length+' modeled feature(s) · '+visibleObjects.length+' visible track(s) · '+(data.regions||[]).length+' region(s). Coordinates in meters; view is a projection of modeled geometry, not a claim of sensor coverage.';
