@@ -14,6 +14,20 @@ Keep three concepts distinct: storage enclosure/controller identity, persistent 
 
 The current implementation checkpoint includes the reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, Transformer → TensorRuntime routing, autonomous Coreless components, Hub composition, coordinated persistence, native CPU/VM component execution, Hub scheduling, a reference plug-and-play host transport layer, and an authenticated read-only Remote Operator Display endpoint backed by the active CorelessSystem. This operator surface reports runtime lifecycle and only those sensor events explicitly supplied to its telemetry provider; it does not imply physical sensor connectivity or a complete in-machine GUI.
 
+## Development sequencing guardrail — 2026-10-23
+
+The immediate active task is to finish validating the bootable SSD carrier: reproducible image build, offline image validation, and UEFI virtual boot. **This is one validation milestone, not a declaration that Coreless-64 or VIGIL is otherwise complete.** Keep the broader work below active in the roadmap and return to it after the boot-test pass/failure is understood; do not let carrier testing silently replace the remaining integration program.
+
+Remaining end-to-end work includes:
+- Integrate the Coreless execution engine, machine boot, operating-environment startup, and persistent state as one verified lifecycle.
+- Verify clean shutdown, restart, and persistence of both machine checkpoints and the VIGIL registry on the carrier state partition.
+- Finish the VIGIL software integration and validate tracking, calibration, evidence/provenance, and operator-display behavior end to end.
+- Implement concrete host/display/input/network transports and physical unplug/replug/reconnect on the first Lubuntu test host.
+- Connect and validate real sensor providers; establish live spatial accuracy and coverage with measured calibration data.
+- Validate local trained-model inference on Coreless resources and close the remaining native execution/model-part bindings.
+- Perform physical SSD boot, power-cycle/reconnect persistence tests, and multi-host/storage compatibility testing.
+- Complete the architecture/specification conformance audit and clearly distinguish automated tests from virtual and physical hardware validation.
+
 ## Phase 1 — Architecture
 
 - [x] Coreless-64 architecture and independent-computer objective
