@@ -33,18 +33,18 @@ def _position(model, source, timestamp_ns, x):
     )
 
 
-def _object(model, timestamp_ns, x):
+def _object(model, timestamp_ns, x, *, sensor_id="uwb-array", modality=TrackingModality.UWB):
     return ObjectObservation(
         object_id="cart-7",
-        sensor_id="uwb-array",
+        sensor_id=sensor_id,
         model_id=model.model_id,
         model_revision=model.revision,
         frame_id=model.frame_id,
         timestamp_ns=timestamp_ns,
         position_m=(x, 2.0, 0.0),
         uncertainty_m=0.15,
-        modality=TrackingModality.UWB,
-        provenance="deterministic-replay-ranging",
+        modality=modality,
+        provenance="deterministic-replay-ranging" if modality is TrackingModality.UWB else "deterministic-replay-vision",
         association_id="cart-7-entity",
         independence_group="uwb-array",
         calibration_status="verified",
@@ -73,14 +73,14 @@ def _run_replay():
                 _position(model, "uwb-pose", 100, 0.5),
                 _position(model, "vision-pose", 100, 0.5),
             ),
-            object_observations=(_object(model, 100, 1.0),),
+            object_observations=(_object(model, 100, 1.0), _object(model, 100, 1.0, sensor_id="camera-cart", modality=TrackingModality.VISION)),
         ),
         SensorBatch(
             position_observations=(
                 _position(model, "uwb-pose", 200, 2.0),
                 _position(model, "vision-pose", 200, 2.0),
             ),
-            object_observations=(_object(model, 200, 2.0),),
+            object_observations=(_object(model, 200, 2.0), _object(model, 200, 2.0, sensor_id="camera-cart", modality=TrackingModality.VISION)),
         ),
     )))
 
@@ -102,7 +102,7 @@ def test_deterministic_replay_connects_pose_tracks_regions_scene_and_operator_sn
      second_poll, second, second_scene, second_api) = _run_replay()
 
     assert [(item.provider_id, item.state, item.accepted) for item in first_poll] == [
-        ("replay", "ONLINE", 3)
+        ("replay", "ONLINE", 4)
     ]
     assert first.pose is not None and first.pose.position_m == (0.5, 0.0, 0.0)
     assert first.region_results[0].inside is True
@@ -120,7 +120,8 @@ def test_deterministic_replay_connects_pose_tracks_regions_scene_and_operator_sn
     track = second.object_tracks[0]
     assert track.object_id == "cart-7"
     assert track.position_m == (2.0, 2.0, 0.0)
-    assert track.observation_count == 2
+    assert track.observation_count == 4
+    assert track.sensor_ids == ("camera-cart", "uwb-array")
     assert track.calibration_status == "verified"
     assert track.calibration_ids == ("survey-replay-v1",)
     assert len(track.position_history_m) >= 2
@@ -131,6 +132,7 @@ def test_deterministic_replay_connects_pose_tracks_regions_scene_and_operator_sn
     assert api_object["observation_count"] == 2
     assert api_object["calibration_ids"] == ["survey-replay-v1"]
     assert len(api_object["motion_trail_m"]) >= 2
+    assert api_object["motion_trail_m"][-1]["sensor_ids"] == ["camera-cart", "uwb-array"]
     assert second_api["regions"][0]["inside"] is False
 
 
