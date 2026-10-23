@@ -66,6 +66,17 @@ The target plug-and-play lifecycle is: **connect → discover → verify Coreles
 
 The normative target is documented in `specification/host_interface.md`. Lubuntu is the preferred OS to run on the machine during initial bring-up, not the definition of the machine or a host OS that owns its execution. The portability target is a Coreless machine that can boot its own OS from a broad range of supported SSDs and expose its own device identity through appropriate hardware interfaces. Storage/enclosure identity is distinct from persistent Coreless machine identity and from any optional physical device-mode identity. An ordinary SSD cannot present itself as a separate USB computer without compatible device-side hardware/firmware. The reference host transport adapter and channel-binding contract are implemented; physical platform enumeration and concrete display/input/network transports remain open.
 
+## Bootable SSD carrier milestone — 2026-10-23
+
+The first x86-64 UEFI carrier-image builder is now implemented in `scripts/build-bootable-ssd.sh`. It creates a GPT disk image with an EFI System Partition and Linux root filesystem, installs the boot chain, copies the Coreless-64 repository onto the image, and enables the Coreless machine console service. The console starts the Coreless reference execution engine and stores its persistent machine image on the carrier.
+
+- Build specification: [specification/bootable_carrier.md](specification/bootable_carrier.md)
+- Build script: [scripts/build-bootable-ssd.sh](scripts/build-bootable-ssd.sh)
+- Image workflow: [Coreless bootable carrier workflow](https://github.com/buccees/Coreless-64/actions/workflows/bootable-carrier.yml)
+- Latest image-build run: [40012528792 — passed](https://github.com/buccees/Coreless-64/actions/runs/40012528792)
+
+This is a meaningful first bootable-carrier milestone, **not yet proof of a fully native, bare-metal Coreless boot chain or a physical-SSD boot test**. The first prototype uses a Debian/Linux kernel as the hardware bootstrap and driver substrate, then launches the Coreless reference engine. Actual boot on a physical SSD, broader controller/firmware compatibility, and replacement of the Linux bootstrap with a native Coreless boot path remain open. Writing the image to a physical drive erases that drive.
+
 ## Next engineering checkpoint
 
 The following priorities reflect the current implementation rather than the original milestone order:
