@@ -141,7 +141,31 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 .sensor-display-legend span{display:inline-flex;align-items:center;gap:6px}
 .legend-dot{width:8px;height:8px;display:inline-block;border-radius:50%}.csi-dot{background:#29f5b2}.ir-dot{background:#62b8ff}.review-dot{background:#e2d86a}
 @media(max-width:600px){.sensor-visual-display{padding:6px}.sensor-display-head{align-items:flex-start;flex-direction:column}.sensor-display-screen svg{min-height:0}.sensor-display-legend{font-size:9px;gap:8px}}
- .archive-appendix{margin-top:10px;border:1px solid var(--line);background:#020907}.archive-appendix>summary{cursor:pointer;color:var(--g);padding:9px 11px;letter-spacing:.5px;font-weight:bold}.archive-appendix[open]>summary{border-bottom:1px solid var(--line)}.archive-appendix .content{padding:9px 11px}.reconciliation-audit{margin:12px 0;padding:10px;border:1px solid var(--line);background:#020907}.reconciliation-audit h3{margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:7px}.reconciliation-audit h4{margin:12px 0 5px;font-size:11px}.reconciliation-audit li{margin:6px 0}.reconciliation-audit a{color:var(--g)}</style></head>
+ .archive-appendix{margin-top:10px;border:1px solid var(--line);background:#020907}.archive-appendix>summary{cursor:pointer;color:var(--g);padding:9px 11px;letter-spacing:.5px;font-weight:bold}.archive-appendix[open]>summary{border-bottom:1px solid var(--line)}.archive-appendix .content{padding:9px 11px}.reconciliation-audit{margin:12px 0;padding:10px;border:1px solid var(--line);background:#020907}.reconciliation-audit h3{margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:7px}.reconciliation-audit h4{margin:12px 0 5px;font-size:11px}.reconciliation-audit li{margin:6px 0}.reconciliation-audit a{color:var(--g)}
+/* Desktop Control Room: compact, stable section index; content gets the screen. */
+@media(min-width:761px){
+ body{padding:16px 22px 22px}
+ .nav-panel{
+  position:static;top:auto;left:auto;right:auto;z-index:1;
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:7px;align-items:stretch;justify-content:stretch;
+  max-width:1240px;margin:0 auto 14px;padding:10px;
+  overflow:visible;overscroll-behavior:initial;
+  border:1px solid var(--line);border-bottom:2px solid var(--g);
+  background:linear-gradient(120deg,#041710f5,#020907f5);
+  box-shadow:0 0 18px #00ff9d12;
+ }
+ .nav-button{flex:initial;min-width:0;min-height:42px;padding:9px 10px;white-space:normal;line-height:1.25}
+ .sheet{max-width:1240px;padding:12px}
+ .report-shell{gap:12px}
+ .layout{gap:12px}
+ .stack{gap:12px}
+ .panel{min-width:0}
+ .content{padding:12px 14px}
+ .settings-launch{right:18px;bottom:18px}
+ #engineering-handoff{margin:12px 0;padding:14px}
+}
+</style></head>
 <body><nav class="nav-panel" aria-label="VIGIL control room sections"><a class="nav-button" href="#overview-panel" data-view="overview" aria-pressed="true">01 // OVERVIEW</a><a class="nav-button" href="#architecture-panel" data-view="architecture" aria-pressed="false">02 // ARCHITECTURE</a><a class="nav-button" href="#spatial-panel" data-view="spatial" aria-pressed="false">03 // SPATIAL INTELLIGENCE</a><a class="nav-button" href="#sensors-panel" data-view="sensors" aria-pressed="false">04 // SENSOR INPUTS</a><a class="nav-button" href="#specimen-panel" data-view="specimen" aria-pressed="false">05 // SPECIMEN PLATE</a><a class="nav-button" href="#notes-panel" data-view="notes" aria-pressed="false">06 // RESEARCH NOTES</a><a class="nav-button" href="#lab-report-panel" data-view="lab-report" aria-pressed="false">07 // LAB REPORT</a><a class="nav-button" href="#roadmap-panel" data-view="roadmap" aria-pressed="false">08 // ROADMAP</a><a class="nav-button" href="#ci-panel" data-view="ci" aria-pressed="false">09 // CI &amp; TESTS</a><a class="nav-button" href="#environment-panel" data-view="environment" aria-pressed="false">10 // ENVIRONMENT</a><a class="nav-button" href="#changelog-panel" data-view="changelog" aria-pressed="false">11 // CHANGELOG</a><a class="nav-button" href="#hardware-panel" data-view="hardware" aria-pressed="false">12 // VIRTUAL HARDWARE</a><a class="nav-button" href="#biology-panel" data-view="biology" aria-pressed="false">13 // BIO-SIMULATION</a></nav><button type="button" class="settings-launch" id="site-settings-open" aria-haspopup="dialog" aria-controls="site-settings-panel">⚙ SETTINGS</button><div class="settings-backdrop" id="site-settings-backdrop" hidden><section class="settings-panel" id="site-settings-panel" role="dialog" aria-modal="true" aria-labelledby="site-settings-title" tabindex="-1"><div class="settings-head"><div><h2 id="site-settings-title">CONTROL ROOM SETTINGS</h2><p>Display, accessibility, and interface behavior</p></div><button type="button" id="site-settings-close" aria-label="Close settings">CLOSE ✕</button></div><div class="settings-group"><h3>ACCESSIBILITY &amp; DISPLAY</h3><label class="settings-choice"><span>Large text<small>Increase general reading size</small></span><input type="checkbox" id="setting-large-text"></label><label class="settings-choice"><span>High contrast<small>Strengthen terminal text and borders</small></span><input type="checkbox" id="setting-high-contrast"></label><label class="settings-choice"><span>Reduce motion<small>Disable animated effects and scrolling</small></span><input type="checkbox" id="setting-no-motion"></label></div><div class="settings-group"><h3>ULTIMATE DISPLAY // SPATIAL LAYERS</h3><label class="settings-choice"><span>Object tracks &amp; markers<small>Show/hide imported object markers and trails</small></span><input type="checkbox" id="setting-show-tracks" checked></label><label class="settings-choice"><span>Infrared overlay<small>Show/hide infrared floor-map layer</small></span><input type="checkbox" id="setting-show-infrared" checked></label><label class="settings-choice"><span>Signal-flow animation<small>Show/hide animated data-stream paths</small></span><input type="checkbox" id="setting-show-streams" checked></label><label class="settings-choice"><span>Sensor input cards<small>Show/hide the visual sensor-input display</small></span><input type="checkbox" id="setting-show-sensor-inputs" checked></label><label class="settings-choice"><span>Pause spatial display flow<small>Freeze animation without discarding sensor or track data</small></span><input type="checkbox" id="setting-pause-flow"></label></div><div class="settings-group"><h3>STARTUP</h3><label class="settings-choice"><span>Start on Overview<small>Open the main screen instead of a bookmarked section</small></span><input type="checkbox" id="setting-start-overview"></label></div><div class="settings-actions"><button type="button" id="settings-reset">RESET SETTINGS</button><button type="button" id="settings-done">APPLY &amp; CLOSE</button></div><p class="settings-state" id="settings-state" role="status" aria-live="polite">Preferences are stored in this browser on this device.</p></section></div><main class="sheet">
 <div id="intro-blocks" data-intro="true">
 <header>
@@ -591,7 +615,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <p class="muted" style="margin-top:9px">ARCHIVE PLATE // Responsive dossier rendering with dedicated egg and alien specimen illustrations and the full original project information preserved in structured sections.</p>
 </div></details></section>
 </div></div></div></div></div>
-<section id="engineering-handoff" class="report-section" aria-labelledby="engineering-handoff-title" style="margin:18px 0;padding:16px;border:1px solid var(--line);background:rgba(0,20,12,.72)">
+<section id="engineering-handoff" class="report-section report-panel" data-category="lab-report" aria-labelledby="engineering-handoff-title" style="margin:18px 0;padding:16px;border:1px solid var(--line);background:rgba(0,20,12,.72)">
 <h2 id="engineering-handoff-title">ENGINEERING HANDOFF // STARTUP RELIABILITY</h2>
 <p class="muted">CONTROL ROOM UPDATE // 2026-10-23</p>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
