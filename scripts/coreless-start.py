@@ -88,12 +88,15 @@ class StartupWizard:
         self.server = None
         self.server_thread = None
         self.system = None
+        # Keep the default machine image beside the project so the project folder can live on a portable SSD.
         self.image = tk.StringVar(value=str(ROOT / "coreless.img"))
         self.access = tk.StringVar(value="local")
         self.password = tk.StringVar()
         self.port = tk.StringVar(value="8443")
-        self.cert = tk.StringVar(value=str(Path.home() / ".coreless" / "operator" / "operator-cert.pem"))
-        self.key = tk.StringVar(value=str(Path.home() / ".coreless" / "operator" / "operator-key.pem"))
+        # Keep TLS files with the portable project, outside tracked source files.
+        portable_security_dir = ROOT / ".coreless-operator"
+        self.cert = tk.StringVar(value=str(portable_security_dir / "operator-cert.pem"))
+        self.key = tk.StringVar(value=str(portable_security_dir / "operator-key.pem"))
         self.status = tk.StringVar(value="READY // Review settings, then select START CORELESS.")
         self._build()
 
@@ -114,7 +117,7 @@ class StartupWizard:
         row = ttk.Frame(outer); row.pack(fill="x", pady=(4, 8))
         ttk.Entry(row, textvariable=self.image).pack(side="left", fill="x", expand=True)
         ttk.Button(row, text="BROWSE", command=self._browse_image).pack(side="left", padx=(8, 0))
-        ttk.Label(outer, text="If this file does not exist, Coreless will ask before creating a new image.").pack(anchor="w")
+        ttk.Label(outer, text="If this file does not exist, Coreless will ask before creating a new image. Keep the project folder and image together on the portable SSD.").pack(anchor="w")
 
         self._section(outer, "02 // WHERE SHOULD THE SCREEN BE AVAILABLE?")
         ttk.Radiobutton(outer, text="This computer only (recommended)", variable=self.access, value="local").pack(anchor="w", pady=2)
@@ -147,6 +150,7 @@ class StartupWizard:
         self.start_button.pack(side="left")
         ttk.Label(footer, textvariable=self.status, wraplength=440).pack(side="left", padx=12, fill="x", expand=True)
         ttk.Label(outer, text="The browser is only a display/input terminal. Coreless owns machine state.").pack(anchor="w", pady=(10, 0))
+        ttk.Label(outer, text="PORTABLE SSD: stop Coreless cleanly before unplugging. Never open the same image in two running instances.", wraplength=700).pack(anchor="w", pady=(5, 0))
 
     def _section(self, parent, title: str) -> None:
         ttk.Label(parent, text=title, font=("Consolas", 11, "bold")).pack(anchor="w", pady=(13, 1))
