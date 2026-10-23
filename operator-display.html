@@ -171,7 +171,7 @@
     if(!trackInspector)return;
     while(trackInspector.firstChild)trackInspector.removeChild(trackInspector.firstChild);
     if(!object){trackInspector.appendChild(textNode('h3','','OBJECT INSPECTOR / NO SELECTION'));trackInspector.appendChild(textNode('p','muted','Select a track marker or object card to inspect its combined sensor evidence, status, and recorded motion history.'));return;}
-    var state=object.conflict?'CONFLICT / REVIEW':object.presence_state==='STALE'?'STALE / LAST KNOWN':String(object.motion_state||'MOTION UNKNOWN');
+    var validity=String(object.track_validity|| (object.presence_state==='STALE'?'STALE_LAST_KNOWN':object.presence_state||'UNKNOWN'));var state=validity+' / '+(object.conflict?'CONFLICT REVIEW':String(object.motion_state||'MOTION UNKNOWN'));
     trackInspector.appendChild(textNode('h3','','SELECTED OBJECT / '+object.object_id+' / '+state));
     trackInspector.appendChild(textNode('p','muted','Aggregated VIGIL evidence only. Sensor IDs do not prove independent hardware; per-sensor positions are not invented when unavailable.'));
     var grid=textNode('div','track-inspector-grid',''), summary=textNode('section','track-inspector-block','');
@@ -180,7 +180,7 @@
     summary.appendChild(textNode('p','','SPEED: '+(object.speed_mps===null||object.speed_mps===undefined?'unknown':Number(object.speed_mps).toFixed(3)+' m/s')));
     summary.appendChild(textNode('p','','UNCERTAINTY: '+(object.uncertainty_m!==null&&object.uncertainty_m!==undefined&&Number.isFinite(Number(object.uncertainty_m))?Number(object.uncertainty_m).toFixed(3)+' m':'unknown')));
     summary.appendChild(textNode('p','','LAST SEEN: '+String(object.last_seen_ns===null||object.last_seen_ns===undefined?'unknown':object.last_seen_ns)+' ns · AGE: '+String(object.age_ns===null||object.age_ns===undefined?'unknown':object.age_ns)+' ns'));
-    summary.appendChild(textNode('p','','ASSOCIATION: '+String(object.association_id||'none declared')));grid.appendChild(summary);
+    summary.appendChild(textNode('p','','ASSOCIATION: '+String(object.association_id||'none declared')));summary.appendChild(textNode('p',validity==='CURRENT'?'sensor-ok':'sensor-conflict','TRACK VALIDITY: '+validity));if(object.track_validity_reasons&&object.track_validity_reasons.length)summary.appendChild(textNode('p','sensor-conflict','VALIDITY REASONS: '+object.track_validity_reasons.join(', ')));grid.appendChild(summary);
     var evidence=textNode('section','track-inspector-block','');evidence.appendChild(textNode('h4','','CONTRIBUTING SENSOR SOURCES'));
     var sensors=Array.isArray(object.sensor_ids)?object.sensor_ids:[];
     if(sensors.length)sensors.forEach(function(sensor){evidence.appendChild(textNode('p','','SENSOR: '+sensor));});else evidence.appendChild(textNode('p','muted','No sensor IDs reported for this track.'));
@@ -288,9 +288,9 @@
       var trail=(object.motion_trail_m||[]).map(function(t){return xy(t.position_m);}).filter(Boolean);
       if(trail.length>1)spatialMap.appendChild(svgNode('polyline',{points:trail.map(function(p){return p.join(',');}).join(' '),class:'map-trail'}));
       var p=xy(object.position_m);if(!p)return;
-      var klass=object.conflict?'conflict':object.presence_state==='STALE'?'stale':'';
+      var klass=object.conflict?'conflict':(['STALE_LAST_KNOWN','REACQUIRE','DEGRADED','TIME_UNCERTAIN'].indexOf(object.track_validity)>=0||object.presence_state==='STALE')?'stale':'';
       var marker=svgNode('circle',{cx:p[0],cy:p[1],r:8,class:'map-object '+klass,'data-track-key':trackKey(object),tabindex:0,role:'button','aria-label':'Select tracked object '+object.object_id});spatialMap.appendChild(marker);
-      var state=object.conflict?'CONFLICT':object.presence_state==='STALE'?'LAST KNOWN':object.motion_state||'MOTION UNKNOWN';
+      var state=object.track_validity|| (object.conflict?'DEGRADED':object.presence_state==='STALE'?'STALE_LAST_KNOWN':object.motion_state||'MOTION UNKNOWN');
       spatialMap.appendChild(svgNode('text',{x:p[0]+11,y:p[1]+5,class:'map-label'},object.object_id+' / '+state));
       spatialMap.appendChild(svgNode('title',{},object.object_id+' · '+state+' · '+object.position_m.map(function(v){return v.toFixed(2);}).join(', ')+' m · uncertainty '+Number(object.uncertainty_m).toFixed(2)+' m · sensors '+(object.sensor_ids||[]).join(', ')));
     });
@@ -315,8 +315,8 @@
     spatialDetail.textContent='FRAME '+model.frame_id+' · '+data.features.length+' modeled feature(s) · '+visibleObjects.length+' visible track(s) · '+(data.regions||[]).length+' region(s) · SENSOR ADAPTERS '+onlineProviders+' online / '+failedProviders+' errors / '+unpolledProviders+' unpolled. Coordinates in meters; view is a projection of modeled geometry, not a claim of sensor coverage.';
     clear(spatialObjects);
     visibleObjects.forEach(function(object){
-      var statusText=object.conflict?'CONFLICT / REVIEW':object.presence_state==='STALE'?'STALE / LAST KNOWN':String(object.motion_state||'MOTION UNKNOWN');
-      var klass=object.conflict?'conflict':object.presence_state==='STALE'?'stale':'';
+      var statusText=String(object.track_validity|| (object.conflict?'DEGRADED':object.presence_state==='STALE'?'STALE_LAST_KNOWN':object.motion_state||'MOTION UNKNOWN'))+' / '+String(object.motion_state||'MOTION UNKNOWN');
+      var klass=object.conflict?'conflict':(['STALE_LAST_KNOWN','REACQUIRE','DEGRADED','TIME_UNCERTAIN'].indexOf(object.track_validity)>=0||object.presence_state==='STALE')?'stale':'';
       var card=textNode('article','spatial-object '+klass,'');card.setAttribute('role','button');card.setAttribute('tabindex','0');card.setAttribute('data-track-key',trackKey(object));card.setAttribute('aria-pressed','false');
       card.appendChild(textNode('h3','',object.object_id+' / '+statusText));
       card.appendChild(textNode('p','','POSITION: '+object.position_m.map(function(v){return Number(v).toFixed(2);}).join(', ')+' m'));
