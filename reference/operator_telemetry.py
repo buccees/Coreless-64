@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 from threading import Lock
-from typing import Callable, Iterable, Mapping, Any
+from typing import Callable, Iterable, Mapping, Any, Sequence
 
 from operator_display import OperatorViewState
 
@@ -19,12 +19,7 @@ SnapshotProvider = Callable[[], OperatorViewState]
 
 
 def coreless_view_state(system: Any, *, sequence: int = 0) -> OperatorViewState:
-    """Build a truthful base snapshot from an existing CorelessSystem.
-
-    The current reference runtime exposes lifecycle status, not physical sensor
-    feeds. Consequently this function intentionally reports no sensors/alerts;
-    hardware adapters can be added only when they provide real source metadata.
-    """
+    """Build a truthful base snapshot from an existing CorelessSystem."""
     now_ns = time.time_ns()
     machine = getattr(system, "machine", None)
     booted = bool(getattr(machine, "booted", False))
@@ -42,11 +37,7 @@ def coreless_view_state(system: Any, *, sequence: int = 0) -> OperatorViewState:
 
 
 class CorelessOperatorSnapshotProvider:
-    """Thread-safe snapshot provider bound to one existing CorelessSystem.
-
-    Sequence numbers increase per snapshot request. The provider intentionally
-    reports lifecycle only; sensor/alert entries require explicit real adapters.
-    """
+    """Thread-safe lifecycle snapshot provider; no fabricated sensor data."""
 
     def __init__(self, system: Any) -> None:
         if not callable(getattr(system, "status", None)):
@@ -65,22 +56,22 @@ class CorelessOperatorSnapshotProvider:
 def create_coreless_operator_app(
     system: Any, *, authorize: Authorizer,
     path: str = "/api/operator/state",
+    allowed_origins: Sequence[str] = (),
 ) -> "OperatorTelemetryApp":
-    """Create the endpoint adapter for an existing CorelessSystem.
+    """Bind an existing CorelessSystem to an explicitly authorized WSGI app.
 
-    The caller still mounts the WSGI app behind its production server and
-    injects its authenticated session/authorization policy.
+    Cross-origin browser access is disabled unless HTTPS origins are explicitly
+    allowlisted. Production authentication and HTTPS remain host responsibilities.
     """
     provider = CorelessOperatorSnapshotProvider(system)
-    return OperatorTelemetryApp(provider, authorize=authorize, path=path)
+    return OperatorTelemetryApp(
+        provider, authorize=authorize, path=path,
+        allowed_origins=allowed_origins,
+    )
 
 
 class OperatorTelemetryApp:
-    """WSGI app exposing an authenticated, read-only operator state endpoint.
-
-    The authorize callback must validate the authenticated server-side session.
-    It is deliberately mandatory: no permissive default or browser-side secret.
-    """
+    """Authenticated, read-only WSGI endpoint with optional strict CORS allowlist."""
 
     def __init__(
         self,
@@ -88,6 +79,7 @@ class OperatorTelemetryApp:
         *,
         authorize: Authorizer,
         path: str = "/api/operator/state",
+        allowed_origins: Sequence[str] = (),
     ) -> None:
         if not callable(snapshot_provider):
             raise TypeError("snapshot_provider must be callable")
@@ -95,35 +87,74 @@ class OperatorTelemetryApp:
             raise TypeError("authorize callback is required")
         if not path.startswith("/") or path == "/":
             raise ValueError("path must be a non-root absolute path")
+        origins = tuple(allowed_origins)
+        if any(not isinstance(origin, str) or not origin.startswith("https://")
+               for origin in origins):
+            raise ValueError("allowed_origins must contain HTTPS origins only")
+        if len(set(origins)) != len(origins):
+            raise ValueError("allowed_origins must be unique")
         self._snapshot_provider = snapshot_provider
         self._authorize = authorize
+        self._allowed_origins = frozenset(origins)
         self.path = path
 
-    @staticmethod
-    def _respond(start_response: START_RESPONSE, status: str, body: bytes):
-        start_response(status, [
+    def _respond(
+        self, start_response: START_RESPONSE, status: str, body: bytes,
+        *, origin: str | None = None, preflight: bool = False,
+    ):
+        headers = [
             ("Content-Type", "application/json; charset=utf-8"),
             ("Content-Length", str(len(body))),
             ("Cache-Control", "no-store"),
             ("X-Content-Type-Options", "nosniff"),
-            ("Vary", "Cookie, Authorization"),
-        ])
+            ("Vary", "Cookie, Authorization, Origin"),
+        ]
+        if origin is not None:
+            headers.extend([
+                ("Access-Control-Allow-Origin", origin),
+                ("Access-Control-Allow-Credentials", "true"),
+            ])
+        if preflight:
+            headers.extend([
+                ("Access-Control-Allow-Methods", "GET, OPTIONS"),
+                ("Access-Control-Allow-Headers", "Accept"),
+                ("Access-Control-Max-Age", "300"),
+            ])
+        start_response(status, headers)
         return [body]
 
     def __call__(self, environ: Environ, start_response: START_RESPONSE) -> Iterable[bytes]:
         if environ.get("PATH_INFO") != self.path:
             return self._respond(start_response, "404 Not Found",
                                  b'{"error":"not_found"}')
-        if environ.get("REQUEST_METHOD", "GET").upper() != "GET":
+        origin = environ.get("HTTP_ORIGIN")
+        if origin and origin not in self._allowed_origins:
+            return self._respond(start_response, "403 Forbidden",
+                                 b'{"error":"origin_not_allowed"}')
+        cors_origin = origin if origin in self._allowed_origins else None
+        method = environ.get("REQUEST_METHOD", "GET").upper()
+        if method == "OPTIONS":
+            if cors_origin is None:
+                return self._respond(start_response, "403 Forbidden",
+                                     b'{"error":"origin_not_allowed"}')
+            requested_method = environ.get("HTTP_ACCESS_CONTROL_REQUEST_METHOD", "GET").upper()
+            if requested_method != "GET":
+                return self._respond(start_response, "405 Method Not Allowed",
+                                     b'{"error":"method_not_allowed"}',
+                                     origin=cors_origin)
+            return self._respond(start_response, "204 No Content", b"",
+                                 origin=cors_origin, preflight=True)
+        if method != "GET":
             return self._respond(start_response, "405 Method Not Allowed",
-                                 b'{"error":"method_not_allowed"}')
+                                 b'{"error":"method_not_allowed"}',
+                                 origin=cors_origin)
         try:
             allowed = self._authorize(environ)
         except Exception:
             allowed = False
         if not allowed:
             return self._respond(start_response, "401 Unauthorized",
-                                 b'{"error":"unauthorized"}')
+                                 b'{"error":"unauthorized"}', origin=cors_origin)
         try:
             state = self._snapshot_provider()
             if not isinstance(state, OperatorViewState):
@@ -131,5 +162,5 @@ class OperatorTelemetryApp:
             body = state.encode()
         except Exception:
             return self._respond(start_response, "503 Service Unavailable",
-                                 b'{"error":"telemetry_unavailable"}')
-        return self._respond(start_response, "200 OK", body)
+                                 b'{"error":"telemetry_unavailable"}', origin=cors_origin)
+        return self._respond(start_response, "200 OK", body, origin=cors_origin)
