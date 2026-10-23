@@ -299,7 +299,15 @@ class ProviderHostTransportAdapter(HostTransportAdapter):
 
 class MemoryHostTransportAdapter(HostTransportAdapter):
     def __init__(self, endpoints: Iterable[HostEndpoint] = (), candidates=()) -> None:
-        self._endpoints = {endpoint.endpoint_id: endpoint for endpoint in endpoints}
+        self._endpoints: dict[str, HostEndpoint] = {}
+        for endpoint in endpoints:
+            if not isinstance(endpoint, HostEndpoint):
+                raise ValueError("host endpoint has an invalid type")
+            if not isinstance(endpoint.endpoint_id, str) or not endpoint.endpoint_id.strip():
+                raise ValueError("endpoint_id must not be empty")
+            if endpoint.endpoint_id in self._endpoints:
+                raise ValueError("duplicate host endpoint id: " + endpoint.endpoint_id)
+            self._endpoints[endpoint.endpoint_id] = endpoint
         self._candidates = list(candidates)
 
     def register_candidate(self, candidate) -> None:
