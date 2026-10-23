@@ -336,7 +336,8 @@ This completes the first deterministic spatial-query API slice; it does not clai
 - [ ] Add a reviewed region-import/editor workflow for user-drawn or imported regions
 - [x] Persist normalized model revisions, regions, calibration metadata, and active-model pointer in the SQLite spatial registry
 - [x] Persist exact imported JSON source-manifest bytes as checksummed immutable assets tied to the normalized model revision
-- [ ] Bind the spatial registry database and all source blueprint assets into the final portable-machine snapshot/copy contract
+- [x] Add deterministic checksummed portable registry bundle export/restore for model revisions, regions, raster calibrations, sensor mounts, source assets, tracks/history, and active-model pointer
+- [ ] Integrate registry bundle export/restore into the final Coreless OS/SSD snapshot, boot, and copy lifecycle
 - [ ] Add end-to-end deterministic sensor replay across pose, object tracks, scene assembly, and region alerts
 - [ ] Implement and validate concrete sensor drivers; do not claim field accuracy from simulation/CI
 
@@ -347,7 +348,8 @@ This completes the first deterministic spatial-query API slice; it does not clai
 - [x] Restore active model and regions into a fresh `SpatialWorkspace`
 - [x] Persist bounded last-known object-track evidence/history and restore tracks as `REACQUIRE` after restart
 - [x] End-to-end restart coverage for model/region persistence and explicit revision activation
-- [ ] Persist and manage source blueprint assets and transform/calibration provenance through the full Coreless storage service
+- [x] Persist source manifests and sensor-mount transform/calibration provenance in the VIGIL registry
+- [ ] Integrate all VIGIL registry data and arbitrary source assets with the full Coreless storage service
 - [x] Connect saved raster calibrations to timestamped IR pixel ingestion and saved sensor-mount transform application
 - [ ] Complete raw image decoding adapters and survey-driven sensor-mount calibration
 
