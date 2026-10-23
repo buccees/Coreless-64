@@ -50,10 +50,14 @@ def main() -> int:
             parser.error("operator HTTPS requires --operator-cert/--operator-key or CORELESS_TLS_CERT/CORELESS_TLS_KEY")
         if not 1 <= args.operator_port <= 65535:
             parser.error("--operator-port must be between 1 and 65535")
-        if not Path(operator_cert).expanduser().is_file():
-            parser.error(f"operator TLS certificate does not exist: {operator_cert}")
-        if not Path(operator_key).expanduser().is_file():
-            parser.error(f"operator TLS private key does not exist: {operator_key}")
+        operator_cert_path = Path(operator_cert).expanduser()
+        operator_key_path = Path(operator_key).expanduser()
+        if not operator_cert_path.is_file():
+            parser.error(f"operator TLS certificate does not exist: {operator_cert_path}")
+        if not operator_key_path.is_file():
+            parser.error(f"operator TLS private key does not exist: {operator_key_path}")
+        operator_cert = str(operator_cert_path)
+        operator_key = str(operator_key_path)
 
     system = CorelessSystem(
         memory_size=args.memory,
