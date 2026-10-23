@@ -99,6 +99,7 @@ def test_snapshot_empty_workspace_is_valid_and_no_fake_geometry_is_added():
     snapshot = build_spatial_snapshot(SpatialWorkspace(), now_ns=0)
     assert snapshot["available"] is False
     assert snapshot["status"] == "no_blueprint"
+    assert snapshot["sensor_providers"] == []
     assert snapshot["model"] is None
     assert snapshot["features"] == []
     assert snapshot["objects"] == []
