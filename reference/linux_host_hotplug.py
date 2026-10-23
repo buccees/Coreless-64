@@ -100,6 +100,19 @@ class LinuxHostHotplugAdapter:
             return
         if not isinstance(endpoint_id, str) or not endpoint_id.strip():
             raise ValueError("event resolver returned an invalid endpoint ID")
+
+        # A sysfs path can be reused after a device is replaced. If the new
+        # event resolves to a different Coreless endpoint, retire the previous
+        # attachment before opening the replacement; otherwise the old endpoint
+        # would remain attached after the syspath mapping is overwritten.
+        with self._lock:
+            previous_endpoint_id = self._syspath_to_endpoint.get(event.syspath)
+        if previous_endpoint_id is not None and previous_endpoint_id != endpoint_id:
+            self._controller.device_removed(previous_endpoint_id)
+            with self._lock:
+                if self._syspath_to_endpoint.get(event.syspath) == previous_endpoint_id:
+                    self._syspath_to_endpoint.pop(event.syspath, None)
+
         interface = self._interface_factory(endpoint_id)
         options = self._attach_options(endpoint_id, event)
         if not isinstance(options, Mapping):
