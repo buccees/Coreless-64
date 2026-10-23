@@ -291,6 +291,25 @@ class ProviderHostTransportAdapter(HostTransportAdapter):
         """Discover and validate the provider's current endpoint snapshot."""
         return self.discover_provider(self._provider)
 
+    def connect(
+        self,
+        endpoint: HostEndpoint,
+        interface: CorelessHostInterface,
+        *,
+        system=None,
+        host_io: HostIO | None = None,
+        input_router=None,
+    ) -> frozenset[str]:
+        """Attach only to an endpoint present in the provider's current snapshot."""
+        current = {item.endpoint_id: item for item in self.enumerate()}.get(
+            endpoint.endpoint_id
+        )
+        if current is None or current != endpoint:
+            raise ValueError("host endpoint is not present in current discovery snapshot")
+        return super().connect(
+            current, interface, system=system, host_io=host_io, input_router=input_router
+        )
+
     @property
     def provider(self):
         """Return the discovery provider without exposing adapter state."""
