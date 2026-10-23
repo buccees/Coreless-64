@@ -600,6 +600,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <ul>
 <li>Startup wizard failure handling now attempts to close a partially created listener, preserve machine state, and shut down a machine that booted before HTTPS setup failed.</li>
 <li>Normal startup-window closure requests machine shutdown instead of only saving the image.</li>
+<li>Startup now records cancellation before teardown, coordinates resource publication with a lifecycle lock, and avoids scheduling UI callbacks after the window closes. A regression test verifies cancellation after boot saves machine state, shuts the system down, and never starts the HTTPS listener.</li>
 <li>CLI operator settings are validated before opening and booting the persistent machine image, including password length, HTTPS port, and certificate/key file existence.</li>
 <li>The CLI operator-serving path now requests machine shutdown when the HTTPS serving loop exits.</li>
 </ul>
@@ -614,7 +615,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <ul>
 <li>Add failure-path tests for partial startup, listener bind/TLS errors, and shutdown exceptions.</li>
 <li>Persistent-image writes now use a cross-process commit lock and compare the on-disk digest with the loaded version before replacing the image; stale writers are rejected instead of silently overwriting newer state. A regression test covers stale-writer rejection.</li>
-<li>Handle startup cancellation and GUI close races without orphaning a server or machine.</li>
+<li>Add explicit regression tests for listener bind/TLS setup failures and shutdown exceptions.</li>
 <li>Run the full reference test suite and inspect the newest CI run before marking this handoff verified.</li>
 </ul>
 </article>
