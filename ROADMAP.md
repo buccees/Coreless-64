@@ -325,3 +325,14 @@ The reference test suite is green at this checkpoint. Next implementation work s
 Spatial-intelligence development is active again. Added `vigil/spatial_query.py` and focused regression tests. The query engine reports nearest modeled feature, distance, level/zone labels, and optional nearby features only after checking model/revision/frame identity, pose timestamp, freshness, tracking state, and uncertainty. It distinguishes missing fix, stale data, future timestamps, mismatched model/frame, and degraded-but-usable estimates.
 
 This completes the first deterministic spatial-query API slice; it does not claim polygon-region semantics, raw CAD/PDF import, live sensor discovery, or physical tracking accuracy. Continue toward a complete spatial workflow by integrating query results into workspace/operator presentation, adding explicit modeled-region queries, and improving persistent calibration/model storage and real sensor adapters. Keep hardware accuracy claims separate from software CI.
+
+### VIGIL spatial query and region milestone — 2026-10-23
+
+- [x] Confidence-aware nearest-feature query API with freshness, frame/revision, and uncertainty gates (`vigil/spatial_query.py`)
+- [x] Explicit model-frame polygon regions with vertical bounds and safe membership results (`vigil/spatial_regions.py`)
+- [x] Regression coverage for missing/stale/future/mismatched poses, degraded estimates, region boundaries, and invalid geometry
+- [ ] Connect query/region results to workspace snapshots and operator-facing status/overlay
+- [ ] Add reviewed blueprint region import and robust polygon topology validation
+- [ ] Persist model revisions, calibration transforms, regions, and audit metadata through the Coreless storage boundary
+- [ ] Add end-to-end deterministic sensor replay across pose, object tracks, scene assembly, and region alerts
+- [ ] Implement and validate concrete sensor drivers; do not claim field accuracy from simulation/CI
