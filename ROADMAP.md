@@ -2,7 +2,7 @@
 
 ## Portability and hardware-identity goals
 
-**Lubuntu is the preferred initial OS, not the compatibility boundary.** Coreless should be designed for broad host-OS and storage compatibility through transport-neutral contracts plus explicit platform adapters. Start practical integration on Lubuntu/Linux, then add and validate other platforms rather than baking Linux assumptions into Coreless itself.
+**Coreless-64 is the machine; the operating system runs on Coreless-64.** Lubuntu is the user's preferred OS for the machine's initial bring-up, not a host OS that owns Coreless execution. Keep the machine architecture, boot path, device model, and OS/runtime authority distinct from the chosen operating system. The portability goal is to boot and operate the Coreless machine from a broad range of supported SSDs and to expose Coreless's own identity through suitable hardware interfaces. The repository's digital/reference model is not, by itself, proof that a complete physical machine exists.
 
 The portability goal includes USB-attached SATA/NVMe SSDs and native SATA/NVMe storage where the host firmware, bus, drivers, and boot path support them. Do not claim universal SSD compatibility without a tested drive/host/interface matrix.
 
@@ -86,6 +86,9 @@ The current implementation checkpoint includes the reference digital-machine lif
 - [x] Hub multi-vCPU scheduling
 
 ## Phase 5 — Portable Coreless machine
+
+- [ ] Specify the physical execution substrate and minimum hardware needed for Coreless-64 to operate as an independent machine (execution, memory, boot, storage, power, device interfaces)
+- [ ] Define the Coreless boot contract so the operating system runs on the machine rather than being treated as a host-owned application
 
 - [ ] Define a storage compatibility matrix (USB-attached SATA SSD, USB-attached NVMe SSD, native SATA, native NVMe; include boot firmware/driver constraints)
 - [ ] Test persistent Coreless machine portability across multiple SSDs and host computers without assuming storage identity equals Coreless machine identity
