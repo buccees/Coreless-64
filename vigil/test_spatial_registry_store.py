@@ -190,3 +190,59 @@ def test_source_assets_require_registered_model_and_respect_size_limit():
     finally:
         store.close()
 
+
+
+def test_sensor_mount_transform_round_trips_and_is_immutable():
+    from vigil.sensor_mounts import SensorMountTransform
+
+    active = model()
+    mount = SensorMountTransform(
+        mount_id="uwb-east-v1", sensor_id="uwb-east",
+        model_id=active.model_id, model_revision=active.revision,
+        frame_id=active.frame_id, source_frame_id="uwb-east/local",
+        translation_m=(1.0, 2.0, 3.0),
+        rotation_matrix=(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+        verified=True,
+    )
+    store = SpatialRegistryStore()
+    try:
+        store.save_model(active)
+        assert store.save_sensor_mount(mount) == mount.mount_id
+        assert store.load_sensor_mount(mount.mount_id) == mount
+        assert store.list_sensor_mounts(active.model_id, active.revision) == (mount,)
+        changed = SensorMountTransform(
+            mount_id="uwb-east-v1", sensor_id="uwb-east",
+            model_id=active.model_id, model_revision=active.revision,
+            frame_id=active.frame_id, source_frame_id="uwb-east/local",
+            translation_m=(1.5, 2.0, 3.0),
+            rotation_matrix=(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+            verified=True,
+        )
+        with pytest.raises(ValueError, match="immutable"):
+            store.save_sensor_mount(changed)
+    finally:
+        store.close()
+
+
+def test_sensor_mount_rejects_non_rigid_rotation_and_unregistered_model():
+    from vigil.sensor_mounts import SensorMountTransform
+
+    with pytest.raises(ValueError, match="orthonormal"):
+        SensorMountTransform(
+            mount_id="bad", sensor_id="sensor", model_id="building-a",
+            model_revision="r1", frame_id="building/world", source_frame_id="sensor/local",
+            translation_m=(0.0, 0.0, 0.0),
+            rotation_matrix=(2.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+        )
+    store = SpatialRegistryStore()
+    try:
+        mount = SensorMountTransform(
+            mount_id="missing-model", sensor_id="sensor", model_id="not-registered",
+            model_revision="r1", frame_id="building/world", source_frame_id="sensor/local",
+            translation_m=(0.0, 0.0, 0.0),
+            rotation_matrix=(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0),
+        )
+        with pytest.raises(KeyError, match="not registered"):
+            store.save_sensor_mount(mount)
+    finally:
+        store.close()
