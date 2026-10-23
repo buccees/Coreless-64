@@ -49,7 +49,8 @@ The current implementation checkpoint includes the reference digital-machine lif
 - [ ] Device drivers
 - [ ] Networking
 - [ ] GUI
-- [x] Authenticated read-only remote operator display page and runtime-state endpoint (reference implementation)\n- [ ] Complete in-machine GUI and platform-specific display/input transports
+- [x] Authenticated read-only remote operator display page and runtime-state endpoint (reference implementation)
+- [ ] Complete in-machine GUI and platform-specific display/input transports
 - [x] User-designated pointing-device subsystem
 - [x] Touch/pointing input routing through Coreless input boundary
 - [x] Initial optional VIGIL input interpretation layer
