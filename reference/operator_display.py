@@ -57,7 +57,7 @@ class OperatorSensorStatus:
             "sensor_id": self.sensor_id,
             "modality": self.modality,
             "state": self.state,
-            "source_timestamp_ns": self.source_timestamp_ns,
+            "source_timestamp_ns": str(self.source_timestamp_ns) if self.source_timestamp_ns is not None else None,
             "calibration": self.calibration,
             "reason": self.reason,
         }
@@ -86,7 +86,7 @@ class OperatorAlert:
             "severity": self.severity,
             "message": self.message,
             "source": self.source,
-            "source_timestamp_ns": self.source_timestamp_ns,
+            "source_timestamp_ns": str(self.source_timestamp_ns),
         }
 
 
@@ -120,12 +120,17 @@ class OperatorViewState:
             raise ValueError("alert IDs must be unique within a view state")
 
     def as_dict(self) -> dict[str, Any]:
-        """Return a JSON-safe protocol object; no hidden runtime objects escape."""
+        """Return a JSON-safe protocol object; timestamps are decimal strings.
+
+Nanosecond Unix timestamps exceed JavaScript safe-integer precision, so the
+wire representation uses decimal strings to preserve exact source times.
+No hidden runtime objects escape.
+"""
         return {
             "protocol_version": self.protocol_version,
             "sequence": self.sequence,
-            "generated_at_ns": self.generated_at_ns,
-            "source_timestamp_ns": self.source_timestamp_ns,
+            "generated_at_ns": str(self.generated_at_ns),
+            "source_timestamp_ns": str(self.source_timestamp_ns),
             "connection_state": self.connection_state,
             "runtime_state": self.runtime_state,
             "sensors": [sensor.as_dict() for sensor in self.sensors],
