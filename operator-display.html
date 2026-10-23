@@ -60,7 +60,7 @@
 <script>
 (function(){
   'use strict';
-  var endpoint=document.getElementById('endpoint'), connect=document.getElementById('connect'), disconnect=document.getElementById('disconnect');
+  var endpoint=document.getElementById('endpoint'), connect=document.getElementById('connect'), disconnectButton=document.getElementById('disconnect');
   var status=document.getElementById('connection-status'), dot=document.getElementById('status-dot'), detail=document.getElementById('connection-detail');
   var runtime=document.getElementById('runtime-state'), protocol=document.getElementById('protocol-version'), sequence=document.getElementById('sequence');
   var snapshotTime=document.getElementById('snapshot-time'), sourceTime=document.getElementById('source-time');
@@ -119,8 +119,8 @@
     renderSensors(data.sensors);renderAlerts(data.alerts);
   }
   function stopTimer(){if(timer!==null)window.clearInterval(timer);timer=null;}
-  function disconnect(message){
-    stopTimer();generation++;if(controller)controller.abort();controller=null;activeUrl='';inFlight=false;connect.disabled=false;disconnect.disabled=true;
+  function stopConnection(message){
+    stopTimer();generation++;if(controller)controller.abort();controller=null;activeUrl='';inFlight=false;connect.disabled=false;disconnectButton.disabled=true;
     setState('disconnected','DISCONNECTED',message||'No active telemetry connection.');lastSequence=-1;
   }
   function poll(){
@@ -135,10 +135,10 @@
   connect.addEventListener('click',function(){
     var raw=endpoint.value.trim(),url;try{url=new URL(raw,window.location.href);}catch(e){setState('disconnected','INVALID URL','Enter a valid HTTPS state endpoint.');return;}
     if(url.protocol!=='https:'||url.username||url.password||url.hash){setState('disconnected','INVALID URL','Use HTTPS without embedded credentials or a fragment.');return;}
-    stopTimer();generation++;if(controller)controller.abort();inFlight=false;activeUrl=url.href;lastSuccess=0;lastSequence=-1;failures=0;connect.disabled=true;disconnect.disabled=false;
+    stopTimer();generation++;if(controller)controller.abort();inFlight=false;activeUrl=url.href;lastSuccess=0;lastSequence=-1;failures=0;connect.disabled=true;disconnectButton.disabled=false;
     setState('stale','CONNECTING','Waiting for an authorized runtime snapshot.');poll();timer=window.setInterval(function(){if(lastSuccess&&Date.now()-lastSuccess>STALE_MS)setState('stale','DATA STALE','No successful update in the last '+Math.round((Date.now()-lastSuccess)/1000)+' seconds.');poll();},POLL_MS);
   });
-  disconnect.addEventListener('click',function(){disconnect('Connection stopped by operator.');});
+  disconnectButton.addEventListener('click',function(){stopConnection('Connection stopped by operator.');});
   window.addEventListener('pagehide',function(){stopTimer();if(controller)controller.abort();});
 })();
 </script>
