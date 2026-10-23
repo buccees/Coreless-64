@@ -100,16 +100,26 @@ def test_snapshot_empty_workspace_is_valid_and_no_fake_geometry_is_added():
     class UnpolledProvider:
         def read(self):
             return ()
+
+    class FailedProvider:
+        def read(self):
+            raise RuntimeError("sensor disconnected")
+
     workspace.register_sensor_provider("uwb-array", UnpolledProvider())
+    workspace.register_sensor_provider("camera-array", FailedProvider())
     snapshot = build_spatial_snapshot(workspace, now_ns=0)
     assert snapshot["available"] is False
     assert snapshot["status"] == "no_blueprint"
-    assert snapshot["sensor_providers"] == [{
-        "provider_id": "uwb-array", "accepted": 0, "state": "UNPOLLED", "error": None,
-    }]
+    assert snapshot["sensor_providers"] == [
+        {"provider_id": "camera-array", "accepted": 0, "state": "UNPOLLED", "error": None},
+        {"provider_id": "uwb-array", "accepted": 0, "state": "UNPOLLED", "error": None},
+    ]
     workspace.poll_sensors()
     polled = build_spatial_snapshot(workspace, now_ns=1)
-    assert polled["sensor_providers"][0]["state"] == "ONLINE"
+    by_id = {item["provider_id"]: item for item in polled["sensor_providers"]}
+    assert by_id["uwb-array"]["state"] == "ONLINE"
+    assert by_id["camera-array"]["state"] == "ERROR"
+    assert by_id["camera-array"]["error"] == "sensor disconnected"
     assert snapshot["model"] is None
     assert snapshot["features"] == []
     assert snapshot["objects"] == []
