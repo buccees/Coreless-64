@@ -7,6 +7,7 @@ It does not parse raw CAD/PDF files or own hardware sensor drivers.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from time import monotonic_ns
 from typing import Protocol, Sequence
 
 from .blueprint import BlueprintModel, PoseEstimate, load_blueprint_json
@@ -63,6 +64,8 @@ class SensorPollStatus:
     accepted: int
     state: str
     error: str | None = None
+    consecutive_failures: int = 0
+    last_success_ns: int | None = None
 
 
 @dataclass(frozen=True)
@@ -166,6 +169,7 @@ class SpatialWorkspace:
         self._infrared_maps: dict[str, InfraredFloorMap] = {}
         self._sensor_providers: dict[str, SpatialSensorProvider] = {}
         self._sensor_poll_statuses: tuple[SensorPollStatus, ...] = ()
+        self._sensor_lifecycle: dict[str, SensorPollStatus] = {}
         self._expected_sensor_coverage: dict[str, ExpectedSensorCoverage] = {}
         # Key by model/revision/region so activating an older blueprint cannot
         # silently reinterpret geometry registered for another revision.
@@ -623,10 +627,20 @@ class SpatialWorkspace:
         if provider_id in self._sensor_providers:
             raise ValueError(f"sensor provider already registered: {provider_id!r}")
         self._sensor_providers[provider_id] = provider
+        previous = self._sensor_lifecycle.get(provider_id)
+        self._sensor_lifecycle[provider_id] = SensorPollStatus(provider_id, 0, "UNPOLLED", None, 0, previous.last_success_ns if previous else None)
 
     def unregister_sensor_provider(self, provider_id: str) -> bool:
         """Remove an optional provider without affecting Coreless raw input."""
-        return self._sensor_providers.pop(provider_id, None) is not None
+        removed = self._sensor_providers.pop(provider_id, None) is not None
+        if removed:
+            previous = self._sensor_lifecycle.get(provider_id)
+            self._sensor_lifecycle[provider_id] = SensorPollStatus(
+                provider_id, 0, "DISCONNECTED", None,
+                previous.consecutive_failures if previous else 0,
+                previous.last_success_ns if previous else None)
+            self._sensor_poll_statuses = tuple(self._sensor_lifecycle[key] for key in sorted(self._sensor_lifecycle))
+        return removed
 
     def poll_sensors(self) -> tuple[SensorPollStatus, ...]:
         """Poll optional providers independently; one faulty device cannot block others.
@@ -639,6 +653,9 @@ class SpatialWorkspace:
         """
         statuses: list[SensorPollStatus] = []
         for provider_id, provider in sorted(self._sensor_providers.items()):
+            previous = self._sensor_lifecycle.get(provider_id)
+            last_success_ns = previous.last_success_ns if previous else None
+            consecutive_failures = previous.consecutive_failures if previous else 0
             try:
                 batch = provider.read()
                 if isinstance(batch, SensorBatch):
@@ -653,14 +670,17 @@ class SpatialWorkspace:
                     if any(not isinstance(item, SpatialObservation) for item in batch):
                         raise TypeError("read() returned a non-SpatialObservation item")
                     accepted = self.ingest(batch)
-                statuses.append(SensorPollStatus(provider_id, accepted, "ONLINE"))
+                last_success_ns = monotonic_ns()
+                statuses.append(SensorPollStatus(provider_id, accepted, "ONLINE", None, 0, last_success_ns))
             except Exception as exc:
                 # Adapter exceptions are contained at this optional boundary. The
                 # caller can display this status; raw pointer/touch handling stays
                 # outside this method and must never depend on provider health.
                 message = " ".join(str(exc).split())[:180] or type(exc).__name__
-                statuses.append(SensorPollStatus(provider_id, 0, "ERROR", message))
-        self._sensor_poll_statuses = tuple(statuses)
+                statuses.append(SensorPollStatus(provider_id, 0, "ERROR", message, consecutive_failures + 1, last_success_ns))
+        for status in statuses:
+            self._sensor_lifecycle[status.provider_id] = status
+        self._sensor_poll_statuses = tuple(self._sensor_lifecycle[key] for key in sorted(self._sensor_lifecycle))
         return self._sensor_poll_statuses
 
     def refresh(self, *, now_ns: int, max_age_ns: int = 2_000_000_000,
