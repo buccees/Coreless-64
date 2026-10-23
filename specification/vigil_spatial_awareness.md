@@ -186,3 +186,8 @@ The operator snapshot exposes `track_validity` separately from object presence a
 ## Expected-sensor coverage accounting
 
 The workspace can explicitly register an expected sensor, its provider, one or more modeled spatial regions, and a freshness limit. The spatial snapshot reports `UNPOLLED`, `PROVIDER_ERROR`, `TIME_UNCERTAIN`, `REPORTING_IN_SCOPE`, or `NO_REPORT_IN_SCOPE` based on provider lifecycle and timestamped observations from that sensor inside its declared region(s). An observation outside the polygon or vertical interval does not satisfy that region's expectation. Expectations are opt-in: absence of a row does not itself imply sensor failure or object absence. This is a reporting contract, not a guarantee that a physical sensor can see the whole region; field of view, occlusion, calibration, and driver health require independent validation. Expected-sensor declarations are currently workspace configuration and are not persisted by the registry store.
+
+
+### Persistent expected-sensor configuration
+
+Expected-sensor declarations can be stored in the SQLite spatial registry against an exact model ID and revision. The registry validates that each declared region exists in that same revision, checksummed records protect the saved declaration, workspace activation restores the matching declarations, and unregistering a declaration removes it from persistent storage. Portable registry bundles include expected-sensor declarations so the machine's configured reporting contract can travel with its spatial model. Provider connections and live readings remain runtime state and are not persisted as if they were live after restart. A restored declaration starts as `UNPOLLED` until its provider is registered and polled again.
