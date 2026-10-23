@@ -91,3 +91,32 @@ def test_terminal_surfaces_object_track_conflicts_and_sensor_sources():
     assert "OBJECT TRACKING" in output
     assert "person-7: CONFLICT position_disagreement" in output
     assert "conflicting sensors: camera-1, thermal-1" in output
+
+def test_terminal_displays_motion_only_when_track_has_a_timestamped_baseline():
+    model = fixture_model()
+    unknown = ObjectTrack(
+        object_id="new-target", model_id=model.model_id, model_revision=model.revision,
+        frame_id=model.frame_id, position_m=(1, 2, 0), velocity_mps=(0, 0, 0),
+        uncertainty_m=0.2, last_seen_ns=20, sensor_ids=("uwb",), modalities=("uwb",),
+        observation_count=1, position_history_m=((20, (1, 2, 0)),),
+    )
+    moving = ObjectTrack(
+        object_id="moving-cart", model_id=model.model_id, model_revision=model.revision,
+        frame_id=model.frame_id, position_m=(2, 2, 0), velocity_mps=(0.2, 0, 0),
+        uncertainty_m=0.2, last_seen_ns=20, sensor_ids=("uwb",), modalities=("uwb",),
+        observation_count=2, position_history_m=((10, (1, 2, 0)), (20, (2, 2, 0))),
+    )
+    stationary = ObjectTrack(
+        object_id="stationary-box", model_id=model.model_id, model_revision=model.revision,
+        frame_id=model.frame_id, position_m=(3, 2, 0), velocity_mps=(0.01, 0, 0),
+        uncertainty_m=0.2, last_seen_ns=20, sensor_ids=("uwb",), modalities=("uwb",),
+        observation_count=2, position_history_m=((10, (3, 2, 0)), (20, (3.01, 2, 0))),
+    )
+    output = VigilTerminal(color=False).render(
+        model, fixture_pose(model), [], now_ns=20,
+        object_tracks=(unknown, moving, stationary),
+    )
+    assert "new-target: MOTION UNKNOWN" in output
+    assert "moving-cart: MOVING 0.20m/s" in output
+    assert "stationary-box: STATIONARY 0.01m/s" in output
+
