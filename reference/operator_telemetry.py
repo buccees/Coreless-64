@@ -9,6 +9,7 @@ from __future__ import annotations
 import time
 from threading import Lock
 from typing import Callable, Iterable, Mapping, Any, Sequence
+from urllib.parse import urlsplit
 
 from operator_display import OperatorViewState
 
@@ -16,6 +17,28 @@ START_RESPONSE = Callable[[str, list[tuple[str, str]]], Any]
 Environ = Mapping[str, Any]
 Authorizer = Callable[[Environ], bool]
 SnapshotProvider = Callable[[], OperatorViewState]
+
+
+def _is_https_origin(origin: object) -> bool:
+    """Accept only serialized HTTPS origins, never URLs with paths or credentials."""
+    if not isinstance(origin, str) or not origin or origin != origin.strip():
+        return False
+    try:
+        parsed = urlsplit(origin)
+        # A browser Origin header serializes scheme + authority only.
+        return (
+            parsed.scheme == "https"
+            and bool(parsed.hostname)
+            and parsed.username is None
+            and parsed.password is None
+            and parsed.path == ""
+            and parsed.query == ""
+            and parsed.fragment == ""
+            and parsed.port != 0
+            and origin == f"https://{parsed.netloc}"
+        )
+    except ValueError:
+        return False
 
 
 def coreless_view_state(system: Any, *, sequence: int = 0) -> OperatorViewState:
@@ -88,9 +111,8 @@ class OperatorTelemetryApp:
         if not path.startswith("/") or path == "/":
             raise ValueError("path must be a non-root absolute path")
         origins = tuple(allowed_origins)
-        if any(not isinstance(origin, str) or not origin.startswith("https://")
-               for origin in origins):
-            raise ValueError("allowed_origins must contain HTTPS origins only")
+        if any(not _is_https_origin(origin) for origin in origins):
+            raise ValueError("allowed_origins must contain valid HTTPS origins only")
         if len(set(origins)) != len(origins):
             raise ValueError("allowed_origins must be unique")
         self._snapshot_provider = snapshot_provider
@@ -141,6 +163,14 @@ class OperatorTelemetryApp:
             if requested_method != "GET":
                 return self._respond(start_response, "405 Method Not Allowed",
                                      b'{"error":"method_not_allowed"}',
+                                     origin=cors_origin)
+            requested_headers = environ.get("HTTP_ACCESS_CONTROL_REQUEST_HEADERS", "")
+            if requested_headers and any(
+                header.strip().lower() != "accept"
+                for header in requested_headers.split(",")
+            ):
+                return self._respond(start_response, "400 Bad Request",
+                                     b'{"error":"headers_not_allowed"}',
                                      origin=cors_origin)
             return self._respond(start_response, "204 No Content", b"",
                                  origin=cors_origin, preflight=True)
