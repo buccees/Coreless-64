@@ -146,6 +146,13 @@ def build_spatial_snapshot(
             "motion_trail_m": [{
                 "timestamp_ns": str(timestamp),
                 "position_m": _point(position),
+                "sensor_ids": list(next((
+                    sensor_ids for history_timestamp, sensor_ids in
+                    tracks_by_identity[
+                        (item.object_id, item.association_id)
+                    ].position_history_sensor_ids
+                    if history_timestamp == timestamp
+                ), ())),
             } for timestamp, position in item.motion_trail_m],
         } for item in view.objects],
     })
