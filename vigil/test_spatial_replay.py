@@ -318,7 +318,7 @@ def test_expected_sensor_coverage_distinguishes_stale_report_from_no_report():
     workspace.register_expected_sensor("cam-1", provider_id="camera-provider",
                                        region_ids=("west-zone",), max_age_ns=50)
     workspace.register_sensor_provider("camera-provider", ReplayProvider((SensorBatch(object_observations=(
-        _object(active, "cart-7", 3.0, timestamp_ns=100, sensor_id="cam-1"),
+        _object(active, 100, 3.0, sensor_id="cam-1"),
     )),)))
     workspace.poll_sensors()
     stale = build_spatial_snapshot(workspace, now_ns=200)["expected_sensor_coverage"][0]
