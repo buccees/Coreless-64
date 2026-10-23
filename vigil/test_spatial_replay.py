@@ -33,7 +33,8 @@ def _position(model, source, timestamp_ns, x):
     )
 
 
-def _object(model, timestamp_ns, x, *, sensor_id="uwb-array", modality=TrackingModality.UWB):
+def _object(model, timestamp_ns, x, *, sensor_id="uwb-array", modality=TrackingModality.UWB,
+            calibration_status="verified", independence_group="uwb-array"):
     return ObjectObservation(
         object_id="cart-7",
         sensor_id=sensor_id,
@@ -46,8 +47,8 @@ def _object(model, timestamp_ns, x, *, sensor_id="uwb-array", modality=TrackingM
         modality=modality,
         provenance="deterministic-replay-ranging" if modality is TrackingModality.UWB else "deterministic-replay-vision",
         association_id="cart-7-entity",
-        independence_group="uwb-array",
-        calibration_status="verified",
+        independence_group=independence_group,
+        calibration_status=calibration_status,
         calibration_ids=("survey-replay-v1",),
         lineage_declared=True,
     )
@@ -170,3 +171,49 @@ def test_snapshot_degrades_track_validity_without_erasing_last_known_position():
     assert "measurement_age_exceeds_max_age" in stale["objects"][0]["track_validity_reasons"]
     assert stale["objects"][0]["position_m"] == [3.0, 2.0, 0.0]
     assert len(stale["objects"][0]["sensor_observations"]) == 1
+
+
+
+def test_failed_calibration_degrades_track_and_remains_visible_in_sensor_evidence():
+    workspace = SpatialWorkspace()
+    model = workspace.import_blueprint(
+        '{"schema_version":1,"model_id":"calibration-site","revision":"r1",'
+        '"frame_id":"calibration-site/world","units":"m","features":[]}',
+        activate=True,
+    )
+    workspace.ingest_object_observations((
+        _object(model, 100, 3.0, calibration_status="failed"),
+    ))
+    workspace.refresh(now_ns=100)
+    snapshot = build_spatial_snapshot(workspace, now_ns=100)
+    item = snapshot["objects"][0]
+
+    assert item["track_validity"] == "DEGRADED"
+    assert "calibration_failed" in item["track_validity_reasons"]
+    assert item["position_m"] == [3.0, 2.0, 0.0]
+    assert item["sensor_observations"][0]["quality_status"] == "UNCALIBRATED"
+    assert "uncalibrated" in item["sensor_observations"][0]["quality_flags"]
+
+
+def test_conflicting_independent_sensor_positions_degrade_track_without_midpoint():
+    workspace = SpatialWorkspace()
+    model = workspace.import_blueprint(
+        '{"schema_version":1,"model_id":"conflict-site","revision":"r1",'
+        '"frame_id":"conflict-site/world","units":"m","features":[]}',
+        activate=True,
+    )
+    workspace.ingest_object_observations((
+        _object(model, 100, 0.0, sensor_id="uwb-left", independence_group="uwb-left"),
+        _object(model, 100, 10.0, sensor_id="camera-right",
+                modality=TrackingModality.VISION, independence_group="camera-right"),
+    ))
+    workspace.refresh(now_ns=100)
+    snapshot = build_spatial_snapshot(workspace, now_ns=100)
+    item = snapshot["objects"][0]
+
+    assert item["track_validity"] == "DEGRADED"
+    assert "sensor_conflict_unresolved" in item["track_validity_reasons"]
+    assert item["conflict"] is True
+    assert item["position_m"] in ([0.0, 2.0, 0.0], [10.0, 2.0, 0.0])
+    assert item["position_m"] not in ([5.0, 2.0, 0.0],)
+    assert set(item["conflicting_sensor_ids"]) == {"uwb-left", "camera-right"}
