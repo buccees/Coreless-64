@@ -109,6 +109,9 @@ class ObjectTrack:
     calibration_status: str = "unverified"
     calibration_ids: tuple[str, ...] = ()
     lineage_declared: bool = False
+    # Tracking health is separate from object existence. STALE means last-known
+    # location only; it is not evidence that the object has left the area.
+    presence_state: str = "TRACKING"
 
 
 class ObjectTracker:
@@ -159,9 +162,12 @@ class ObjectTracker:
         *,
         now_ns: int,
         max_age_ns: int = 1_000_000_000,
+        retain_stale: bool = False,
     ) -> tuple[ObjectTrack, ...]:
         if now_ns < 0 or max_age_ns < 0:
             raise ValueError("time values must be non-negative")
+        if not isinstance(retain_stale, bool):
+            raise ValueError("retain_stale must be a boolean")
         fresh: dict[str, list[ObjectObservation]] = {}
         for item in observations:
             if (item.model_id, item.model_revision, item.frame_id) != (
@@ -268,6 +274,7 @@ class ObjectTracker:
                         calibration_status=("failed" if previous.calibration_status == "failed" or any(item.calibration_status == "failed" for item in current_sources) else "unverified" if previous.calibration_status == "unverified" or any(item.calibration_status == "unverified" for item in current_sources) else "verified"),
                         calibration_ids=tuple(sorted(set(previous.calibration_ids) | {value for item in current_sources for value in item.calibration_ids})),
                         lineage_declared=previous.lineage_declared and all(item.lineage_declared for item in current_sources),
+                        presence_state="TRACKING",
                         conflict=bool(effective_conflict_reasons),
                         conflict_reasons=tuple(sorted(effective_conflict_reasons)),
                         conflicting_sensor_ids=tuple(sorted(
@@ -329,6 +336,7 @@ class ObjectTracker:
                 calibration_status=("failed" if old_calibration_status == "failed" or any(item.calibration_status == "failed" for item in group) else "unverified" if old_calibration_status == "unverified" or any(item.calibration_status == "unverified" for item in group) else "verified"),
                 calibration_ids=tuple(sorted(old_calibration_ids | {value for item in group for value in item.calibration_ids})),
                 lineage_declared=old_lineage_declared and all(item.lineage_declared for item in group),
+                presence_state="TRACKING",
                 position_history_m=(
                     ((timestamp, position),) if previous is None else
                     (previous.position_history_m + ((timestamp, position),))[-self.max_history_points:]
@@ -342,10 +350,22 @@ class ObjectTracker:
                 ),
             )
 
-        # Retain only fresh tracks, then bound memory by most recently seen.
+        # Missing observations never prove departure. The opt-in stale-retention
+        # mode keeps the last-known position visible while clearly marking it stale.
+        # Tracks from another model revision/frame are never carried into this scene.
         for tracking_key, track in self._tracks.items():
-            if now_ns - track.last_seen_ns <= max_age_ns and tracking_key not in updated:
-                updated[tracking_key] = track
+            same_model = (track.model_id, track.model_revision, track.frame_id) == (
+                model.model_id, model.revision, model.frame_id
+            )
+            if not same_model or tracking_key in updated:
+                continue
+            age_ns = now_ns - track.last_seen_ns
+            if age_ns <= max_age_ns:
+                updated[tracking_key] = replace(track, presence_state="TRACKING")
+            elif retain_stale:
+                updated[tracking_key] = replace(
+                    track, presence_state="TIME_UNCERTAIN" if age_ns < 0 else "STALE"
+                )
         ordered = sorted(updated.items(), key=lambda pair: pair[1].last_seen_ns, reverse=True)
         self._tracks = dict(ordered[:self.max_tracks])
         return tuple(sorted(self._tracks.values(), key=lambda track: (track.object_id, track.association_id or "")))
