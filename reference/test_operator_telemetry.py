@@ -1,0 +1,98 @@
+import json
+import sys
+sys.path.insert(0, ".")
+import pytest
+
+from operator_display import OperatorViewState
+from operator_telemetry import OperatorTelemetryApp, coreless_view_state
+
+
+def _call(app, path="/api/operator/state", method="GET"):
+    captured = {}
+    environ = {
+        "PATH_INFO": path,
+        "REQUEST_METHOD": method,
+        "HTTP_COOKIE": "session=opaque",
+    }
+    def start_response(status, headers):
+        captured["status"] = status
+        captured["headers"] = dict(headers)
+    body = b"".join(app(environ, start_response))
+    return captured, body
+
+
+def _state():
+    return OperatorViewState(
+        sequence=1,
+        generated_at_ns=100,
+        source_timestamp_ns=100,
+        connection_state="connected",
+        runtime_state="ready",
+    )
+
+
+def test_endpoint_returns_read_only_versioned_json_without_cache():
+    app = OperatorTelemetryApp(lambda: _state(), authorize=lambda env: True)
+    response, body = _call(app)
+    assert response["status"] == "200 OK"
+    assert response["headers"]["Cache-Control"] == "no-store"
+    assert json.loads(body)["protocol_version"] == 1
+    assert json.loads(body)["sensors"] == []
+
+
+def test_endpoint_fails_closed_before_reading_telemetry():
+    calls = []
+    app = OperatorTelemetryApp(
+        lambda: calls.append("read") or _state(),
+        authorize=lambda env: False,
+    )
+    response, body = _call(app)
+    assert response["status"] == "401 Unauthorized"
+    assert json.loads(body)["error"] == "unauthorized"
+    assert calls == []
+
+
+def test_authorizer_exception_fails_closed():
+    def broken_authorizer(env):
+        raise RuntimeError("session store unavailable")
+    app = OperatorTelemetryApp(lambda: _state(), authorize=broken_authorizer)
+    response, _ = _call(app)
+    assert response["status"] == "401 Unauthorized"
+
+
+def test_endpoint_rejects_non_get_methods():
+    app = OperatorTelemetryApp(lambda: _state(), authorize=lambda env: True)
+    response, _ = _call(app, method="POST")
+    assert response["status"] == "405 Method Not Allowed"
+
+
+def test_endpoint_hides_unmatched_routes():
+    app = OperatorTelemetryApp(lambda: _state(), authorize=lambda env: True)
+    response, _ = _call(app, path="/api/operator/commands")
+    assert response["status"] == "404 Not Found"
+
+
+def test_endpoint_returns_service_unavailable_for_bad_provider():
+    app = OperatorTelemetryApp(lambda: {"not": "a state"}, authorize=lambda env: True)
+    response, body = _call(app)
+    assert response["status"] == "503 Service Unavailable"
+    assert json.loads(body)["error"] == "telemetry_unavailable"
+
+
+def test_runtime_adapter_reports_lifecycle_without_fabricating_sensors():
+    class Machine:
+        booted = False
+    class System:
+        machine = Machine()
+        def status(self):
+            return {"runtime": "reference"}
+    state = coreless_view_state(System(), sequence=4)
+    assert state.sequence == 4
+    assert state.runtime_state == "starting"
+    assert state.sensors == ()
+    assert state.alerts == ()
+
+
+def test_runtime_adapter_requires_existing_system_status():
+    with pytest.raises(TypeError, match="CorelessSystem.status"):
+        coreless_view_state(object())
