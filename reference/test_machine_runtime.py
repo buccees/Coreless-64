@@ -57,3 +57,27 @@ def test_machine_telemetry_uses_atomic_scheduler_load_snapshot():
     machine = CorelessMachine(memory_size=64 * 1024)
     published = machine.publish_telemetry()
     assert published.workloads.get("cpu", 0) >= 0
+
+def test_machine_image_reopens_with_executed_cpu_and_ram_state(tmp_path):
+    """The SSD-carried machine image must resume Coreless state, not just boot Linux."""
+    image_path = tmp_path / "coreless-machine.json"
+    machine = CorelessMachine(memory_size=4096, storage_path=image_path)
+    program = b"".join([
+        encode_base_i("ADDI", 7, 0, 37).to_bytes(4, "little"),
+        (0x30000001).to_bytes(4, "little"),  # HALT
+    ])
+
+    machine.boot(program)
+    assert machine.run() == 2
+    assert machine.cpu.read_reg(7) == 37
+    assert machine.cpu.halted
+
+    # Simulate power-off/reconnect: create a fresh runtime from the same image.
+    resumed = CorelessMachine(memory_size=4096, storage_path=image_path)
+    assert resumed.booted
+    assert resumed.power_state == "on"
+    assert resumed.cpu.read_reg(7) == 37
+    assert resumed.cpu.halted
+    assert resumed.cpu.pc == machine.cpu.pc
+    assert bytes(resumed.cpu.memory[:len(program)]) == program
+
