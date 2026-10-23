@@ -35,6 +35,8 @@ def test_snapshot_has_floor_geometry_pose_and_object_state_as_json_safe_data():
     workspace.ingest_object_observations([ObjectObservation(
         "cart-7", "uwb-array", active.model_id, active.revision, active.frame_id,
         100, (3, 2, 0), 0.2, TrackingModality.UWB, "calibrated-ranging",
+        independence_group="uwb-array", calibration_status="verified",
+        calibration_ids=("site-survey-2026-10",), lineage_declared=True,
     )])
     snapshot = build_spatial_snapshot(workspace, now_ns=110)
     assert snapshot["protocol_version"] == 1
@@ -47,6 +49,12 @@ def test_snapshot_has_floor_geometry_pose_and_object_state_as_json_safe_data():
     assert marker["position_m"] == [3.0, 2.0, 0.0]
     assert marker["motion_state"] == "UNKNOWN"
     assert marker["last_seen_ns"] == "100"
+    assert marker["provenance"] == ["calibrated-ranging"]
+    assert marker["observation_count"] == 1
+    assert marker["independence_groups"] == ["uwb-array"]
+    assert marker["calibration_status"] == "verified"
+    assert marker["calibration_ids"] == ["site-survey-2026-10"]
+    assert marker["lineage_declared"] is True
     assert snapshot["spatial_query"]["status"] == "OK"
     assert snapshot["pose"]["presence_state"] == "CURRENT"
     assert snapshot["pose"]["observation_timestamp_ns"] == "100"
