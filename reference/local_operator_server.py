@@ -114,15 +114,16 @@ def _cookie_token(environ) -> str | None:
         return None
 
 
-def create_lan_app(*, password: str, page_path: Path | None = None):
+def create_lan_app(*, password: str, system: CorelessSystem, page_path: Path | None = None):
     if not isinstance(password, str) or len(password) < 16:
         raise ValueError("CORELESS_OPERATOR_PASSWORD must contain at least 16 characters")
     page = page_path or ROOT / "operator-display.html"
     if not page.is_file():
         raise FileNotFoundError(page)
 
+    if not isinstance(system, CorelessSystem):
+        raise TypeError("system must be the active CorelessSystem instance")
     sessions = LocalSessions()
-    system = CorelessSystem()
     telemetry = create_coreless_operator_app(
         system,
         authorize=CorelessSessionAuthorizer(),
@@ -217,6 +218,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run the Coreless read-only operator display on a trusted LAN.")
     parser.add_argument("--host", default="127.0.0.1", help="bind address; use 0.0.0.0 to allow LAN clients")
     parser.add_argument("--port", type=int, default=8443)
+    parser.add_argument("--image", type=Path, required=True, help="persistent Coreless machine image path")
     parser.add_argument("--cert", default=os.environ.get("CORELESS_TLS_CERT"), help="TLS certificate PEM path")
     parser.add_argument("--key", default=os.environ.get("CORELESS_TLS_KEY"), help="TLS private key PEM path")
     args = parser.parse_args()
@@ -228,7 +230,10 @@ def main() -> int:
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(args.cert, args.key)
-    server = make_server(args.host, args.port, create_lan_app(password=password), server_class=WSGIServer, handler_class=QuietHandler)
+    # The service and telemetry share this exact machine instance; the browser never owns runtime state.
+    system = CorelessSystem(storage_path=args.image)
+    system.boot()
+    server = make_server(args.host, args.port, create_lan_app(password=password, system=system), server_class=WSGIServer, handler_class=QuietHandler)
     server.socket = context.wrap_socket(server.socket, server_side=True)
     print(f"Coreless operator display listening at https://{args.host}:{args.port}/")
     print("LAN access requires a trusted TLS certificate on every client; this server is read-only.")
@@ -238,6 +243,7 @@ def main() -> int:
         pass
     finally:
         server.server_close()
+        system.machine.save_state()
     return 0
 
 
