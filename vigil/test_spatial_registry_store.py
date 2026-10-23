@@ -305,8 +305,12 @@ def test_portable_bundle_rejects_corruption_and_size_overflow():
     try:
         store.save_model(model(), activate=True)
         bundle = store.export_portable_bundle()
+        import json
+        envelope = json.loads(bundle.decode("utf-8"))
+        envelope["payload"] = envelope["payload"].replace('"schema_version":1', '"schema_version":2')
+        corrupted = json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
         with pytest.raises(ValueError, match="checksum"):
-            store.import_portable_bundle(bundle.replace(b'"schema_version":1', b'"schema_version":2'))
+            store.import_portable_bundle(corrupted)
         with pytest.raises(ValueError, match="exceeds"):
             store.import_portable_bundle(bundle, max_bundle_bytes=256)
     finally:
