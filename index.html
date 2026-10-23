@@ -142,20 +142,19 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 .legend-dot{width:8px;height:8px;display:inline-block;border-radius:50%}.csi-dot{background:#29f5b2}.ir-dot{background:#62b8ff}.review-dot{background:#e2d86a}
 @media(max-width:600px){.sensor-visual-display{padding:6px}.sensor-display-head{align-items:flex-start;flex-direction:column}.sensor-display-screen svg{min-height:0}.sensor-display-legend{font-size:9px;gap:8px}}
  .archive-appendix{margin-top:10px;border:1px solid var(--line);background:#020907}.archive-appendix>summary{cursor:pointer;color:var(--g);padding:9px 11px;letter-spacing:.5px;font-weight:bold}.archive-appendix[open]>summary{border-bottom:1px solid var(--line)}.archive-appendix .content{padding:9px 11px}.reconciliation-audit{margin:12px 0;padding:10px;border:1px solid var(--line);background:#020907}.reconciliation-audit h3{margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:7px}.reconciliation-audit h4{margin:12px 0 5px;font-size:11px}.reconciliation-audit li{margin:6px 0}.reconciliation-audit a{color:var(--g)}
-/* Desktop Control Room: compact, stable section index; content gets the screen. */
+/* Desktop Control Room: numbered section rail stays on the left; workspace owns the rest. */
 @media(min-width:761px){
- body{padding:16px 22px 22px}
+ body{padding:16px 22px 22px 258px}
  .nav-panel{
-  position:static;top:auto;left:auto;right:auto;z-index:1;
-  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:7px;align-items:stretch;justify-content:stretch;
-  max-width:1240px;margin:0 auto 14px;padding:10px;
-  overflow:visible;overscroll-behavior:initial;
-  border:1px solid var(--line);border-bottom:2px solid var(--g);
+  position:fixed;top:16px;left:16px;right:auto;bottom:16px;z-index:1000;
+  width:218px;max-width:218px;
+  display:flex;flex-direction:column;gap:6px;align-items:stretch;justify-content:flex-start;
+  margin:0;padding:10px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+  border:1px solid var(--line);border-left:2px solid var(--g);
   background:linear-gradient(120deg,#041710f5,#020907f5);
   box-shadow:0 0 18px #00ff9d12;
  }
- .nav-button{flex:initial;min-width:0;min-height:42px;padding:9px 10px;white-space:normal;line-height:1.25}
+ .nav-button{flex:0 0 auto;min-width:0;min-height:40px;padding:9px 10px;white-space:normal;line-height:1.25;justify-content:flex-start;text-align:left}
  .sheet{max-width:1240px;padding:12px}
  .report-shell{gap:12px}
  .layout{gap:12px}
