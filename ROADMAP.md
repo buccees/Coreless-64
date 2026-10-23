@@ -351,7 +351,7 @@ This completes the first deterministic spatial-query API slice; it does not clai
 - [x] Persist bounded last-known object-track evidence/history and restore tracks as `REACQUIRE` after restart
 - [x] End-to-end restart coverage for model/region persistence and explicit revision activation
 - [x] Persist source manifests and sensor-mount transform/calibration provenance in the VIGIL registry
-- [ ] Integrate all VIGIL registry data and arbitrary source assets with the full Coreless storage service
+- [x] Open the persistent VIGIL registry from the bootable carrier console and restore the active model, lifecycle history, and alert acknowledgements at startup (SQLite remains a separate carrier-owned registry, not yet unified with the Coreless storage service)\n- [ ] Integrate all VIGIL registry data and arbitrary source assets with the full Coreless storage service
 - [x] Connect saved raster calibrations to timestamped IR pixel ingestion and saved sensor-mount transform application
 - [ ] Complete raw image decoding adapters and survey-driven sensor-mount calibration
 
@@ -409,3 +409,13 @@ This is a side quest. It must not silently displace the current boot/host-I/O/ru
 - [x] Clear acknowledgements when a subsequent snapshot observes that the incident has recovered, allowing a later observed recurrence to require acknowledgement again.
 - [ ] Confirm the full regression and bootable-carrier workflows pass for this milestone.
 - [ ] Validate the acknowledgement workflow on the deployed authenticated HTTPS operator display.
+
+
+### Carrier startup ↔ VIGIL persistence integration — 2026-10-23
+
+- [x] Initialize the VIGIL spatial registry from the carrier's persistent state directory during machine-console startup.
+- [x] Restore active model/revision, regions, expected sensor coverage, last-known tracks, lifecycle history, and alert acknowledgements through the existing workspace/store restoration paths.
+- [x] Add the `:spatial` console command to inspect restored model and persisted sensor/alert history counts.
+- [x] Add a restart integration test for active model, sensor lifecycle history, and alert acknowledgement restoration.
+- [ ] Verify the new commit's complete CI suite and bootable-carrier image workflow.
+- [ ] Exercise a physical SSD reboot and confirm the registry survives power-off/reconnect on the target host.
