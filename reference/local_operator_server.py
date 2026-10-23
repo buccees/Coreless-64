@@ -28,6 +28,9 @@ from operator_telemetry import CorelessSessionAuthorizer, create_coreless_operat
 from operator_display import OperatorViewState
 from system import CorelessSystem
 from vigil.security import AuthorizationContext
+from vigil.spatial_snapshot import build_spatial_snapshot
+from vigil.spatial_registry_store import SpatialRegistryStore
+from vigil.workspace import SpatialWorkspace
 
 SESSION_COOKIE = "coreless_operator_session"
 SESSION_TTL_SECONDS = 30 * 60
@@ -114,7 +117,10 @@ def _cookie_token(environ) -> str | None:
         return None
 
 
-def create_lan_app(*, password: str, system: CorelessSystem, page_path: Path | None = None):
+def create_lan_app(
+    *, password: str, system: CorelessSystem, page_path: Path | None = None,
+    spatial_workspace: SpatialWorkspace | None = None,
+):
     if not isinstance(password, str) or len(password) < 16:
         raise ValueError("CORELESS_OPERATOR_PASSWORD must contain at least 16 characters")
     page = page_path or ROOT / "operator-display.html"
@@ -123,6 +129,8 @@ def create_lan_app(*, password: str, system: CorelessSystem, page_path: Path | N
 
     if not isinstance(system, CorelessSystem):
         raise TypeError("system must be the active CorelessSystem instance")
+    if spatial_workspace is not None and not isinstance(spatial_workspace, SpatialWorkspace):
+        raise TypeError("spatial_workspace must be a SpatialWorkspace when provided")
     sessions = LocalSessions()
     telemetry = create_coreless_operator_app(
         system,
@@ -198,6 +206,27 @@ def create_lan_app(*, password: str, system: CorelessSystem, page_path: Path | N
                 "expires_in": SESSION_TTL_SECONDS if context is not None else 0,
             })
 
+        if path == "/api/vigil/spatial":
+            if method != "GET":
+                return _json(start_response, "405 Method Not Allowed",
+                             {"error": "method_not_allowed"}, [("Allow", "GET")])
+            if context is None:
+                return _json(start_response, "401 Unauthorized", {"error": "unauthorized"})
+            if spatial_workspace is None:
+                return _json(start_response, "503 Service Unavailable", {
+                    "error": "spatial_not_configured",
+                    "detail": "No VIGIL spatial workspace was attached to this operator session.",
+                })
+            try:
+                payload = build_spatial_snapshot(spatial_workspace, now_ns=time.time_ns())
+            except Exception:
+                # Keep exception internals and local paths out of the authenticated API.
+                return _json(start_response, "503 Service Unavailable", {
+                    "error": "spatial_snapshot_unavailable",
+                    "detail": "The current spatial snapshot could not be assembled.",
+                })
+            return _json(start_response, "200 OK", payload)
+
         if path == "/api/operator/state":
             return telemetry(environ, start_response)
 
@@ -216,6 +245,7 @@ def serve_lan(
     cert_path: str | Path,
     key_path: str | Path,
     password: str,
+    spatial_workspace: SpatialWorkspace | None = None,
 ) -> None:
     """Serve the operator display against the caller's already-running machine."""
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -224,7 +254,9 @@ def serve_lan(
     server = make_server(
         host,
         port,
-        create_lan_app(password=password, system=system),
+        create_lan_app(
+            password=password, system=system, spatial_workspace=spatial_workspace
+        ),
         server_class=WSGIServer,
         handler_class=QuietHandler,
     )
@@ -250,6 +282,8 @@ def main() -> int:
     parser.add_argument("--host", default="127.0.0.1", help="bind address; use 0.0.0.0 to allow LAN clients")
     parser.add_argument("--port", type=int, default=8443)
     parser.add_argument("--image", type=Path, required=True, help="persistent Coreless machine image path; must not be open by another process")
+    parser.add_argument("--spatial-db", type=Path, help="persistent VIGIL spatial registry path; defaults beside the machine image")
+    parser.add_argument("--blueprint", type=Path, help="optional versioned VIGIL blueprint JSON manifest to import and activate")
     parser.add_argument("--cert", default=os.environ.get("CORELESS_TLS_CERT"), help="TLS certificate PEM path")
     parser.add_argument("--key", default=os.environ.get("CORELESS_TLS_KEY"), help="TLS private key PEM path")
     args = parser.parse_args()
@@ -260,10 +294,19 @@ def main() -> int:
         parser.error("TLS is required: provide --cert/--key or CORELESS_TLS_CERT/CORELESS_TLS_KEY")
     system = CorelessSystem(storage_path=args.image)
     system.boot()
+    spatial_database = args.spatial_db or args.image.with_name(args.image.name + ".vigil-spatial.sqlite3")
+    spatial_store = SpatialRegistryStore(str(spatial_database))
+    spatial_workspace = SpatialWorkspace(registry_store=spatial_store)
+    if args.blueprint:
+        spatial_workspace.import_blueprint(args.blueprint.read_bytes(), activate=True)
     try:
-        serve_lan(system, host=args.host, port=args.port, cert_path=args.cert, key_path=args.key, password=password)
+        serve_lan(
+            system, host=args.host, port=args.port, cert_path=args.cert, key_path=args.key,
+            password=password, spatial_workspace=spatial_workspace,
+        )
     finally:
         system.machine.save_state()
+        spatial_store.close()
     return 0
 
 
