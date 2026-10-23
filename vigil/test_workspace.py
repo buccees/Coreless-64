@@ -445,3 +445,28 @@ def test_workspace_persistent_activation_follows_explicit_revision_change(tmp_pa
     finally:
         store.close()
 
+def test_workspace_keeps_stale_object_as_last_known_without_claiming_motion_or_departure():
+    from vigil.object_tracking import ObjectObservation, TrackingModality
+
+    workspace = SpatialWorkspace()
+    model = workspace.import_blueprint(manifest(), activate=True)
+    workspace.ingest_object_observations([ObjectObservation(
+        "stationary-toolbox", "uwb-1", model.model_id, model.revision,
+        model.frame_id, 100, (1.0, 2.0, 0.0), 0.2,
+        TrackingModality.UWB, "calibrated-uwb",
+    )])
+    current = workspace.refresh(now_ns=110)
+    assert current.object_tracks[0].presence_state == "TRACKING"
+
+    stale = workspace.refresh(now_ns=3_000_000_000)
+    assert len(stale.object_tracks) == 1
+    assert stale.object_tracks[0].object_id == "stationary-toolbox"
+    assert stale.object_tracks[0].presence_state == "STALE"
+    assert stale.object_tracks[0].position_m == (1.0, 2.0, 0.0)
+    assert stale.object_tracks[0].last_seen_ns == 100
+
+    view = workspace.blueprint_view(now_ns=3_000_000_001)
+    marker = next(item for item in view.objects if item.object_id == "stationary-toolbox")
+    assert marker.presence_state == "STALE"
+    assert marker.motion_state == "UNKNOWN"
+
