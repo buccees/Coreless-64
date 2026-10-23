@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>VIGIL // Remote Operator Display</title>
+<style>
+:root{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;color:#b9ffc0;background:#050b07;--green:#68ff83;--dim:#72a77b;--line:#245c32;--panel:#09140c;--warn:#ffcc68;--bad:#ff7272}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#102b17 0,#050b07 60%);line-height:1.5}a{color:var(--green)}button,input{font:inherit;color:inherit;background:#07100a;border:1px solid var(--line);border-radius:3px;padding:.65rem}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--green);outline-offset:3px}.shell{max-width:1120px;margin:auto;padding:clamp(1rem,3vw,2rem)}header{border-bottom:1px solid var(--line);padding-bottom:1rem;margin-bottom:1rem}.eyebrow{font-size:.75rem;letter-spacing:.18em;color:var(--dim)}h1{font-size:clamp(1.4rem,4vw,2.2rem);margin:.3rem 0;color:var(--green)}h2{font-size:1rem;color:var(--green);letter-spacing:.08em}.sub{color:var(--dim);max-width:75ch}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.panel{border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 92%,transparent);padding:1rem;min-width:0}.wide{grid-column:1/-1}.row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}.endpoint{display:flex;gap:.5rem;flex:1;min-width:min(100%,18rem)}.endpoint input{flex:1;min-width:0}.status{font-weight:700;letter-spacing:.06em}.dot{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;background:var(--dim);margin-right:.5rem}.ok{color:var(--green)}.stale{color:var(--warn)}.bad{color:var(--bad)}.muted{color:var(--dim);font-size:.85rem}.statgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin-top:1rem}.stat{border:1px solid #173d22;padding:.7rem;overflow-wrap:anywhere}.stat label{display:block;font-size:.72rem;color:var(--dim);letter-spacing:.08em}.stat strong{font-size:1.1rem}.list{display:grid;gap:.6rem}.item{border-left:2px solid var(--line);padding:.6rem .8rem;background:#07100a;overflow-wrap:anywhere}.item.warning{border-color:var(--warn)}.item.critical{border-color:var(--bad)}.item h3{font-size:.9rem;margin:0 0 .25rem}.item p{margin:.2rem 0;font-size:.85rem;color:#a7d7ae}.empty{color:var(--dim);border:1px dashed var(--line);padding:.9rem}.foot{border-top:1px solid var(--line);margin-top:1rem;padding-top:1rem;color:var(--dim);font-size:.8rem}code{overflow-wrap:anywhere;color:#d0ffd5}@media(max-width:700px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.statgrid{grid-template-columns:1fr}.endpoint{flex-basis:100%}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<main class="shell">
+<header>
+<div class="eyebrow">CORELESS-64 / VIGIL / OPERATOR SURFACE</div>
+<h1>REMOTE OPERATOR DISPLAY</h1>
+<p class="sub">Read-only runtime status for an authenticated browser session. This screen renders server-provided state; it does not control sensors, create tracks, or run a second AI system.</p>
+<div class="row"><span class="dot" id="status-dot"></span><span class="status" id="connection-status" role="status" aria-live="polite">DISCONNECTED</span><span class="muted" id="connection-detail">No telemetry source configured.</span></div>
+</header>
+<section class="panel wide" aria-labelledby="connect-title">
+<h2 id="connect-title">01 / CONNECTION</h2>
+<div class="row">
+<label class="endpoint"><span class="muted" style="align-self:center">STATE ENDPOINT</span><input id="endpoint" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://runtime.example/api/operator/state" aria-label="Operator state endpoint"></label>
+<button id="connect" type="button">CONNECT</button><button id="disconnect" type="button" disabled>DISCONNECT</button>
+</div>
+<p class="muted">Use an HTTPS endpoint. Authentication must be handled by the server’s normal session middleware; do not put tokens or passwords in this URL. Cross-origin deployments must explicitly permit this site and credentialed requests in their CORS policy. GitHub Pages hosts this interface only; it does not itself run the Coreless telemetry service.</p>
+</section>
+<div class="grid" style="margin-top:1rem">
+<section class="panel" aria-labelledby="runtime-title">
+<h2 id="runtime-title">02 / RUNTIME STATUS</h2>
+<div class="statgrid">
+<div class="stat"><label>RUNTIME</label><strong id="runtime-state">UNKNOWN</strong></div>
+<div class="stat"><label>PROTOCOL</label><strong id="protocol-version">—</strong></div>
+<div class="stat"><label>SEQUENCE</label><strong id="sequence">—</strong></div>
+</div>
+<p class="muted" id="snapshot-time">No snapshot received.</p>
+<p class="muted" id="source-time">Source timestamp: unavailable.</p>
+</section>
+<section class="panel" aria-labelledby="sensor-title">
+<h2 id="sensor-title">03 / DECLARED INPUTS</h2>
+<div class="statgrid">
+<div class="stat"><label>SOURCES</label><strong id="sensor-count">0</strong></div>
+<div class="stat"><label>READY</label><strong id="sensor-ready">0</strong></div>
+<div class="stat"><label>NEEDS ATTENTION</label><strong id="sensor-attention">0</strong></div>
+</div>
+<p class="muted">Only sources explicitly reported by the runtime appear here. An empty list does not mean sensors are physically absent; it means no sensor status was provided.</p>
+</section>
+<section class="panel" aria-labelledby="sensors-title">
+<h2 id="sensors-title">04 / INPUT HEALTH</h2>
+<div id="sensor-list" class="list"><div class="empty">Waiting for an authenticated runtime snapshot.</div></div>
+</section>
+<section class="panel" aria-labelledby="alerts-title">
+<h2 id="alerts-title">05 / ACTIVE ALERTS</h2>
+<div id="alert-list" class="list"><div class="empty">No snapshot received.</div></div>
+</section>
+</div>
+<footer class="foot">VIEW ONLY · Protocol v1 · No sensor readings or alert data are synthesized by this page. <a href="./index.html">Return to Control Room / Lab Report</a></footer>
+</main>
+<script>
+(function(){
+  'use strict';
+  var endpoint=document.getElementById('endpoint'), connect=document.getElementById('connect'), disconnect=document.getElementById('disconnect');
+  var status=document.getElementById('connection-status'), dot=document.getElementById('status-dot'), detail=document.getElementById('connection-detail');
+  var runtime=document.getElementById('runtime-state'), protocol=document.getElementById('protocol-version'), sequence=document.getElementById('sequence');
+  var snapshotTime=document.getElementById('snapshot-time'), sourceTime=document.getElementById('source-time');
+  var sensorCount=document.getElementById('sensor-count'), sensorReady=document.getElementById('sensor-ready'), sensorAttention=document.getElementById('sensor-attention');
+  var sensorList=document.getElementById('sensor-list'), alertList=document.getElementById('alert-list');
+  var timer=null, controller=null, activeUrl='', generation=0, inFlight=false, lastSuccess=0, failures=0, lastSequence=-1;
+  var POLL_MS=3000, STALE_MS=10000;
+  function setState(kind,title,message){
+    status.textContent=title; detail.textContent=message||'';
+    status.className='status '+(kind==='connected'?'ok':kind==='stale'?'stale':'bad');
+    dot.style.background=kind==='connected'?'#68ff83':kind==='stale'?'#ffcc68':'#ff7272';
+  }
+  function textNode(tag,cls,value){var el=document.createElement(tag);if(cls)el.className=cls;el.textContent=String(value);return el;}
+  function clear(node){while(node.firstChild)node.removeChild(node.firstChild);}
+  function showEmpty(node,message){clear(node);node.appendChild(textNode('div','empty',message));}
+  function renderSensors(sensors){
+    clear(sensorList);var ready=0,attention=0;
+    sensors.forEach(function(sensor){
+      if(sensor.state==='ready')ready++;else attention++;
+      var item=textNode('article','item '+(sensor.state==='ready'?'':'warning'),'');
+      item.appendChild(textNode('h3','',String(sensor.sensor_id)+' / '+String(sensor.modality)));
+      item.appendChild(textNode('p','', 'STATE: '+String(sensor.state).toUpperCase()+' · CALIBRATION: '+String(sensor.calibration||'unspecified')));
+      item.appendChild(textNode('p','',sensor.reason||'No additional status detail.'));
+      item.appendChild(textNode('p','muted','SOURCE TIME: '+(Number.isSafeInteger(sensor.source_timestamp_ns)?String(sensor.source_timestamp_ns)+' ns':'unavailable')));
+      sensorList.appendChild(item);
+    });
+    if(!sensors.length)showEmpty(sensorList,'Runtime reported no sensor status entries.');
+    sensorCount.textContent=String(sensors.length);sensorReady.textContent=String(ready);sensorAttention.textContent=String(attention);
+  }
+  function renderAlerts(alerts){
+    clear(alertList);
+    alerts.forEach(function(alert){
+      var item=textNode('article','item '+(alert.severity==='critical'?'critical':alert.severity==='warning'?'warning':''),'');
+      item.appendChild(textNode('h3','',String(alert.severity).toUpperCase()+' / '+String(alert.alert_id)));
+      item.appendChild(textNode('p','',alert.message));
+      item.appendChild(textNode('p','muted','SOURCE: '+String(alert.source)+' · SOURCE TIME: '+String(alert.source_timestamp_ns)+' ns'));
+      alertList.appendChild(item);
+    });
+    if(!alerts.length)showEmpty(alertList,'Runtime reported no active alerts.');
+  }
+  function validate(data){
+    if(!data||typeof data!=='object'||data.protocol_version!==1)throw new Error('Unsupported or missing protocol version.');
+    if(!Number.isSafeInteger(data.sequence)||data.sequence<0)throw new Error('Invalid sequence number.');
+    if(!Number.isSafeInteger(data.generated_at_ns)||data.generated_at_ns<0||!Number.isSafeInteger(data.source_timestamp_ns)||data.source_timestamp_ns<0)throw new Error('Invalid snapshot timestamps.');
+    if(['connected','stale','disconnected','degraded'].indexOf(data.connection_state)<0)throw new Error('Invalid connection state.');
+    if(['ready','starting','degraded','stopped','faulted'].indexOf(data.runtime_state)<0)throw new Error('Invalid runtime state.');
+    if(!Array.isArray(data.sensors)||!Array.isArray(data.alerts))throw new Error('Invalid sensor/alert collections.');
+    data.sensors.forEach(function(s){if(!s||typeof s.sensor_id!=='string'||typeof s.modality!=='string'||['ready','stale','disconnected','degraded','unavailable'].indexOf(s.state)<0)throw new Error('Invalid sensor entry.');});
+    data.alerts.forEach(function(a){if(!a||typeof a.alert_id!=='string'||typeof a.message!=='string'||typeof a.source!=='string'||['info','warning','critical'].indexOf(a.severity)<0||!Number.isSafeInteger(a.source_timestamp_ns))throw new Error('Invalid alert entry.');});
+    return data;
+  }
+  function render(data){
+    protocol.textContent=String(data.protocol_version);sequence.textContent=String(data.sequence);runtime.textContent=String(data.runtime_state).toUpperCase();
+    snapshotTime.textContent='Snapshot received: '+new Date().toLocaleTimeString()+' · generated timestamp '+data.generated_at_ns+' ns';
+    sourceTime.textContent='Source timestamp: '+data.source_timestamp_ns+' ns · transport reachability is not proof of physical sensor connectivity.';
+    renderSensors(data.sensors);renderAlerts(data.alerts);
+  }
+  function stopTimer(){if(timer!==null)window.clearInterval(timer);timer=null;}
+  function disconnect(message){
+    stopTimer();generation++;if(controller)controller.abort();controller=null;activeUrl='';inFlight=false;connect.disabled=false;disconnect.disabled=true;
+    setState('disconnected','DISCONNECTED',message||'No active telemetry connection.');lastSequence=-1;
+  }
+  function poll(){
+    if(!activeUrl||inFlight)return;
+    inFlight=true;var g=generation;controller=new AbortController();
+    fetch(activeUrl,{method:'GET',headers:{'Accept':'application/json'},credentials:'include',cache:'no-store',redirect:'error',signal:controller.signal})
+      .then(function(response){if(!response.ok)throw new Error('HTTP '+response.status);var type=response.headers.get('content-type')||'';if(type.indexOf('application/json')===-1)throw new Error('Endpoint did not return JSON.');return response.json();})
+      .then(function(raw){if(g!==generation||!activeUrl)return;var data=validate(raw);if(data.sequence<lastSequence)throw new Error('Out-of-order snapshot rejected.');lastSequence=data.sequence;lastSuccess=Date.now();failures=0;render(data);setState(data.connection_state==='connected'?'connected':data.connection_state==='stale'?'stale':'degraded',String(data.connection_state).toUpperCase(),'Runtime '+String(data.runtime_state)+' · last response '+new Date(lastSuccess).toLocaleTimeString());})
+      .catch(function(err){if(err.name==='AbortError'||g!==generation||!activeUrl)return;failures++;setState(lastSuccess&&Date.now()-lastSuccess>STALE_MS?'stale':'disconnected',failures>1?'FEED STALE · RETRYING':'REQUEST FAILED',err.message+' · automatic retry remains enabled.');})
+      .finally(function(){if(g===generation)inFlight=false;});
+  }
+  connect.addEventListener('click',function(){
+    var raw=endpoint.value.trim(),url;try{url=new URL(raw,window.location.href);}catch(e){setState('disconnected','INVALID URL','Enter a valid HTTPS state endpoint.');return;}
+    if(url.protocol!=='https:'||url.username||url.password||url.hash){setState('disconnected','INVALID URL','Use HTTPS without embedded credentials or a fragment.');return;}
+    stopTimer();generation++;if(controller)controller.abort();inFlight=false;activeUrl=url.href;lastSuccess=0;lastSequence=-1;failures=0;connect.disabled=true;disconnect.disabled=false;
+    setState('stale','CONNECTING','Waiting for an authorized runtime snapshot.');poll();timer=window.setInterval(function(){if(lastSuccess&&Date.now()-lastSuccess>STALE_MS)setState('stale','DATA STALE','No successful update in the last '+Math.round((Date.now()-lastSuccess)/1000)+' seconds.');poll();},POLL_MS);
+  });
+  disconnect.addEventListener('click',function(){disconnect('Connection stopped by operator.');});
+  window.addEventListener('pagehide',function(){stopTimer();if(controller)controller.abort();});
+})();
+</script>
+</body>
+</html>
