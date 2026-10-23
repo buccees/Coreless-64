@@ -1,6 +1,7 @@
 [Unit]
 Description=Coreless-64 persistent machine console
 After=local-fs.target
+RequiresMountsFor=/var/lib/coreless
 Before=getty@tty1.service
 Conflicts=getty@tty1.service
 
