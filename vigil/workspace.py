@@ -593,6 +593,26 @@ class SpatialWorkspace:
         """Bounded runtime transition history; monotonic times do not survive reboot."""
         return tuple(dict(event) for event in self._sensor_lifecycle_history)
 
+    @property
+    def sensor_alert_acknowledgements(self) -> dict[str, dict[str, object]]:
+        """Return persisted operator acknowledgements keyed by active alert incident ID."""
+        if self.registry_store is None:
+            return {}
+        return self.registry_store.load_sensor_alert_acknowledgements()
+
+    def set_sensor_alert_acknowledgement(
+        self, alert_id: str, *, acknowledged: bool = True, acknowledged_by: str = "operator"
+    ) -> None:
+        """Persist an alert acknowledgement; snapshots clear it once that incident recovers."""
+        if self.registry_store is None:
+            raise RuntimeError("persistent registry store is required for alert acknowledgements")
+        self.registry_store.set_sensor_alert_acknowledgement(
+            alert_id, acknowledged=acknowledged,
+            acknowledged_at_utc=datetime.now(timezone.utc).isoformat(timespec="microseconds")
+            if acknowledged else None,
+            acknowledged_by=acknowledged_by,
+        )
+
     def _record_sensor_lifecycle(self, status: SensorPollStatus) -> None:
         previous = self._sensor_lifecycle.get(status.provider_id)
         changed = previous is None or (previous.state, previous.consecutive_failures, previous.error) != (status.state, status.consecutive_failures, status.error)
