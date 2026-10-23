@@ -397,3 +397,51 @@ def test_workspace_keeps_region_membership_unknown_without_a_valid_pose():
     assert snapshot.spatial_query.status.value == "NO_FIX"
     assert snapshot.region_results[0].inside is None
 
+def test_workspace_persists_active_model_and_regions_across_restart(tmp_path):
+    from vigil.spatial_regions import SpatialRegion
+    from vigil.spatial_registry_store import SpatialRegistryStore
+
+    database = str(tmp_path / "vigil-spatial.sqlite3")
+    first_store = SpatialRegistryStore(database)
+    first = SpatialWorkspace(registry_store=first_store)
+    model = first.import_blueprint(manifest(), activate=True)
+    region = SpatialRegion(
+        "north-zone", "North zone", model.model_id, model.revision, model.frame_id,
+        ((-1, -1), (2, -1), (2, 1), (-1, 1)),
+        min_z_m=-1, max_z_m=1, level="L1", zone="north",
+    )
+    first.register_region(region)
+    assert first_store.active_model_ref == (model.model_id, model.revision)
+    first_store.close()
+
+    restored_store = SpatialRegistryStore(database)
+    try:
+        restored = SpatialWorkspace(registry_store=restored_store)
+        assert restored.active_model == model
+        assert restored.spatial_regions == (region,)
+        snapshot = restored.refresh(now_ns=110)
+        assert snapshot.spatial_query is not None
+        assert snapshot.spatial_query.status.value == "NO_FIX"
+        assert snapshot.region_results[0].inside is None
+        assert restored.unregister_region("north-zone")
+        assert restored.spatial_regions == ()
+    finally:
+        restored_store.close()
+
+
+def test_workspace_persistent_activation_follows_explicit_revision_change(tmp_path):
+    from vigil.spatial_registry_store import SpatialRegistryStore
+
+    database = str(tmp_path / "vigil-spatial.sqlite3")
+    store = SpatialRegistryStore(database)
+    try:
+        workspace = SpatialWorkspace(registry_store=store)
+        first = workspace.import_blueprint(manifest("site-a", "r1"), activate=True)
+        second = workspace.import_blueprint(manifest("site-a", "r2"), activate=False)
+        assert workspace.active_model == first
+        workspace.activate_blueprint("site-a", "r2")
+        assert workspace.active_model == second
+        assert store.active_model_ref == ("site-a", "r2")
+    finally:
+        store.close()
+
