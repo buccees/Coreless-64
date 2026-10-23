@@ -19,6 +19,7 @@ from .infrared_floor_mapping import InfraredFloorMap
 from .spatial_scene import SpatialScene, assemble_spatial_scene
 from .spatial_query import SpatialQueryEngine, SpatialQueryResult
 from .spatial_regions import RegionQueryResult, SpatialRegion, query_region
+from .spatial_registry_store import SpatialRegistryStore
 
 
 @dataclass(frozen=True)
@@ -132,10 +133,12 @@ class SpatialWorkspace:
         estimator: PoseEstimator | None = None,
         terminal: VigilTerminal | None = None,
         max_observations: int = 512,
+        registry_store: SpatialRegistryStore | None = None,
     ) -> None:
         if max_observations < 1:
             raise ValueError("max_observations must be positive")
         self.registry = registry or BlueprintRegistry()
+        self.registry_store = registry_store
         self.estimator = estimator or PoseEstimator()
         self.terminal = terminal or VigilTerminal()
         self.max_observations = max_observations
@@ -155,6 +158,40 @@ class SpatialWorkspace:
         # Key by model/revision/region so activating an older blueprint cannot
         # silently reinterpret geometry registered for another revision.
         self._regions: dict[tuple[str, str, str], SpatialRegion] = {}
+        # Restore the saved active model and regions when this workspace starts
+        # with an empty in-memory registry. Sensor observations/poses stay transient.
+        if self.registry_store is not None:
+            active_ref = self.registry_store.active_model_ref
+            if active_ref is not None:
+                model_id, revision = active_ref
+                restored = self.registry_store.load_model(model_id, revision)
+                if restored is None:
+                    raise ValueError("persistent active model points to a missing revision")
+                if self.registry.active_model is None:
+                    self.registry.register(restored, activate=True)
+                active_model = self.registry.active_model
+                if active_model is not None:
+                    self._restore_regions(active_model)
+
+    def _restore_regions(self, model: BlueprintModel) -> None:
+        """Load persisted regions for this exact model/revision/frame."""
+        if self.registry_store is None:
+            return
+        for region in self.registry_store.load_regions(model.model_id, model.revision):
+            if (region.model_id, region.model_revision, region.frame_id) != (
+                model.model_id, model.revision, model.frame_id
+            ):
+                raise ValueError("persisted spatial region does not match its model frame")
+            self._regions[(region.model_id, region.model_revision, region.region_id)] = region
+
+    def _persist_model(self, model: BlueprintModel, *, activate: bool) -> None:
+        if self.registry_store is not None:
+            self.registry_store.save_model(model, activate=activate)
+            if not activate:
+                return
+        if self.registry_store is not None and activate:
+            self.registry_store.set_active_model(model.model_id, model.revision)
+            self._restore_regions(model)
 
     @property
     def active_model(self) -> BlueprintModel | None:
@@ -174,6 +211,7 @@ class SpatialWorkspace:
 
     def activate_building(self, building: BuildingBlueprint, *, starting_level: str) -> BlueprintModel:
         """Activate a composed building and initialize automatic floor tracking."""
+        self._persist_model(building.model, activate=True)
         model = self.registry.register(building.model, activate=True)
         self._pose = None
         self._selected_level = None
@@ -199,7 +237,9 @@ class SpatialWorkspace:
                          max_bytes: int = 5_000_000) -> BlueprintModel:
         previous_active = self.registry.active_model
         model = self.registry.import_json(document, activate=activate, max_bytes=max_bytes)
-        if activate or previous_active is None:
+        becomes_active = activate or previous_active is None
+        self._persist_model(model, activate=becomes_active)
+        if becomes_active:
             self._pose = None
             self._selected_level = None
             self._floor_tracker = None
@@ -215,6 +255,7 @@ class SpatialWorkspace:
 
     def activate_blueprint(self, model_id: str, revision: str | None = None) -> BlueprintModel:
         model = self.registry.activate(model_id, revision)
+        self._persist_model(model, activate=True)
         self._pose = None
         self._selected_level = None
         self._floor_tracker = None
@@ -346,6 +387,8 @@ class SpatialWorkspace:
         key = (region.model_id, region.model_revision, region.region_id)
         if key in self._regions:
             raise ValueError(f"spatial region already registered: {region.region_id!r}")
+        if self.registry_store is not None:
+            self.registry_store.save_region(region)
         self._regions[key] = region
         return region
 
@@ -355,7 +398,12 @@ class SpatialWorkspace:
         if model is None:
             return False
         key = (model.model_id, model.revision, region_id)
-        return self._regions.pop(key, None) is not None
+        existed = key in self._regions
+        if self.registry_store is not None:
+            persisted = self.registry_store.delete_region(model.model_id, model.revision, region_id)
+            existed = existed or persisted
+        self._regions.pop(key, None)
+        return existed
 
     def query_region(
         self, region_id: str, *, now_ns: int,
