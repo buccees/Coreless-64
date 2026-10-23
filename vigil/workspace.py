@@ -249,6 +249,14 @@ class SpatialWorkspace:
         model = self.registry.import_json(document, activate=activate, max_bytes=max_bytes)
         becomes_active = activate or previous_active is None
         self._persist_model(model, activate=becomes_active)
+        if self.registry_store is not None:
+            source_bytes = document if isinstance(document, bytes) else document.encode("utf-8")
+            self.registry_store.save_source_asset(
+                model.model_id, model.revision, "source-manifest",
+                asset_name="source-manifest.json", media_type="application/json",
+                content=source_bytes,
+                metadata={"source_format": "coreless-blueprint-json-v1"},
+            )
         if becomes_active:
             self._pose = None
             self._selected_level = None
