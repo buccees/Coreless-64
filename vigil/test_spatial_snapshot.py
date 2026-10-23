@@ -48,6 +48,9 @@ def test_snapshot_has_floor_geometry_pose_and_object_state_as_json_safe_data():
     assert marker["motion_state"] == "UNKNOWN"
     assert marker["last_seen_ns"] == "100"
     assert snapshot["spatial_query"]["status"] == "OK"
+    assert snapshot["pose"]["presence_state"] == "CURRENT"
+    assert snapshot["pose"]["observation_timestamp_ns"] == "100"
+    assert snapshot["pose"]["age_ns"] == "10"
     assert json.loads(json.dumps(snapshot))["model"]["bounds_m"][0]["max"] == 10.0
 
 
