@@ -2,7 +2,7 @@
 
 ## First boot target
 
-The first bootable carrier target is a **UEFI x86_64 SSD image**. It uses a small Debian bootstrap environment to initialize physical hardware and launch the Coreless digital execution engine already stored on the SSD. The Coreless persistent machine image lives separately at `/var/lib/coreless/coreless.img`. The boot-time console sends commands to the Coreless OS shell rather than to the Linux shell. At startup it also opens the carrier-owned VIGIL registry at `/var/lib/coreless/vigil-spatial.sqlite3` and restores the active spatial model, regions, expected-sensor coverage, last-known tracks, sensor lifecycle history, and alert acknowledgements when present. This database is separate from the machine checkpoint image so machine-image upgrades do not inherently overwrite spatial registry state.
+The first bootable carrier target is a **UEFI x86_64 SSD image**. It uses a small Debian bootstrap environment to initialize physical hardware and launch the Coreless digital execution engine already stored on the SSD. The disk uses three GPT partitions: a UEFI EFI System Partition, a Debian bootstrap root filesystem, and a dedicated `CORELESS_STATE` ext4 partition mounted at `/var/lib/coreless`. The Coreless persistent machine image lives at `/var/lib/coreless/coreless.img`, and the VIGIL registry lives at `/var/lib/coreless/vigil-spatial.sqlite3`. This keeps machine and spatial state separate from the bootstrap root filesystem so root-image replacement does not inherently overwrite them. The boot-time console sends commands to the Coreless OS shell rather than to the Linux shell. At startup it also opens the carrier-owned VIGIL registry at `/var/lib/coreless/vigil-spatial.sqlite3` and restores the active spatial model, regions, expected-sensor coverage, last-known tracks, sensor lifecycle history, and alert acknowledgements when present. The registry database is separate from the machine checkpoint image, while both live on the dedicated state partition.
 
 This is an initial bootable carrier and integration milestone, not a claim that the current Python reference engine is already a native bare-metal Coreless kernel or that every PC/SSD combination has been validated. The Coreless machine, OS model, execution engine, and persistent state remain Coreless-owned; the Linux kernel is currently the bootstrap and physical-device driver substrate for this first hardware bring-up. Replacing that substrate with a native Coreless boot chain remains future work.
 
@@ -21,7 +21,7 @@ Then from the repository checkout:
 bash scripts/build-bootable-ssd.sh
 ```
 
-The default output is `dist/coreless-uefi-x86_64.img`, a sparse 16 GiB disk image. Set `CORELESS_DISK_SIZE` to change its capacity, `CORELESS_DEBIAN_SUITE` to select a supported Debian suite, or pass a different output path as the first argument. The build requires sudo, network access, and sufficient free space; it does not write to a physical SSD.
+The default output is `dist/coreless-uefi-x86_64.img`, a sparse 16 GiB disk image. The current partition layout assigns 1 MiB–513 MiB to EFI, 513 MiB–70% to bootstrap root, and 70%–100% to `CORELESS_STATE`. Set `CORELESS_DISK_SIZE` to change its capacity, `CORELESS_DEBIAN_SUITE` to select a supported Debian suite, or pass a different output path as the first argument. The build requires sudo, network access, and sufficient free space; it does not write to a physical SSD.
 
 ## Boot and operate
 
