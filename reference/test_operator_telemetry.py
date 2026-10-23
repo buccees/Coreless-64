@@ -217,6 +217,11 @@ def test_cors_preflight_is_allowlisted_and_read_only():
     "https://buccees.github.io#fragment",
     "https://",
     "https://buccees.github.io:invalid",
+    "https://buccees.github.io:",
+    "https://buccees.github.io:0",
+    "https://buccees.github.io:65536",
+    "https://buccees. github.io",
+    "https://buccees.github.io\\\\evil.example",
 ])
 def test_cors_rejects_malformed_or_non_https_allowlist_configuration(origin):
     with pytest.raises(ValueError, match="valid HTTPS origins"):
