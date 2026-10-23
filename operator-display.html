@@ -68,6 +68,7 @@
   var sensorList=document.getElementById('sensor-list'), alertList=document.getElementById('alert-list');
   var timer=null, controller=null, activeUrl='', generation=0, inFlight=false, lastSuccess=0, failures=0, lastSequence=-1;
   var POLL_MS=3000, STALE_MS=10000;
+  function validNs(value){return typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value);}
   function setState(kind,title,message){
     status.textContent=title; detail.textContent=message||'';
     status.className='status '+(kind==='connected'?'ok':kind==='stale'?'stale':'bad');
@@ -104,7 +105,7 @@
   function validate(data){
     if(!data||typeof data!=='object'||data.protocol_version!==1)throw new Error('Unsupported or missing protocol version.');
     if(!Number.isSafeInteger(data.sequence)||data.sequence<0)throw new Error('Invalid sequence number.');
-    function validNs(value){return typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value);} if(!validNs(data.generated_at_ns)||!validNs(data.source_timestamp_ns))throw new Error('Invalid snapshot timestamps.');
+    if(!validNs(data.generated_at_ns)||!validNs(data.source_timestamp_ns))throw new Error('Invalid snapshot timestamps.');
     if(['connected','stale','disconnected','degraded'].indexOf(data.connection_state)<0)throw new Error('Invalid connection state.');
     if(['ready','starting','degraded','stopped','faulted'].indexOf(data.runtime_state)<0)throw new Error('Invalid runtime state.');
     if(!Array.isArray(data.sensors)||!Array.isArray(data.alerts))throw new Error('Invalid sensor/alert collections.');
@@ -134,7 +135,7 @@
   }
   connect.addEventListener('click',function(){
     var raw=endpoint.value.trim(),url;try{url=new URL(raw,window.location.href);}catch(e){setState('disconnected','INVALID URL','Enter a valid HTTPS state endpoint.');return;}
-    if(url.protocol!=='https:'||url.username||url.password||url.hash){setState('disconnected','INVALID URL','Use HTTPS without embedded credentials or a fragment.');return;}
+    if(url.protocol!=='https:'||url.username||url.password||url.hash||url.search){setState('disconnected','INVALID URL','Use an HTTPS endpoint without embedded credentials, query parameters, or a fragment.');return;}
     stopTimer();generation++;if(controller)controller.abort();inFlight=false;activeUrl=url.href;lastSuccess=0;lastSequence=-1;failures=0;connect.disabled=true;disconnectButton.disabled=false;
     setState('stale','CONNECTING','Waiting for an authorized runtime snapshot.');poll();timer=window.setInterval(function(){if(lastSuccess&&Date.now()-lastSuccess>STALE_MS)setState('stale','DATA STALE','No successful update in the last '+Math.round((Date.now()-lastSuccess)/1000)+' seconds.');poll();},POLL_MS);
   });
