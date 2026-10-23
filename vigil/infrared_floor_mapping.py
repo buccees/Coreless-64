@@ -65,6 +65,8 @@ class InfraredFloorMap:
     image_height: int
     calibration_rms_m: float
     samples: tuple[MappedInfraredSample, ...]
+    calibration_id: str | None = None
+    sensor_mount_id: str | None = None
 
 
 class InfraredFloorMapper:
@@ -82,6 +84,8 @@ class InfraredFloorMapper:
         sensor_id: str,
         image_width: int,
         image_height: int,
+        calibration_id: str | None = None,
+        sensor_mount_id: str | None = None,
     ) -> None:
         if not sensor_id.strip():
             raise ValueError("sensor_id is required")
@@ -89,10 +93,16 @@ class InfraredFloorMapper:
             raise ValueError("image_width must be a positive integer")
         if isinstance(image_height, bool) or not isinstance(image_height, int) or image_height <= 0:
             raise ValueError("image_height must be a positive integer")
+        if calibration_id is not None and not calibration_id.strip():
+            raise ValueError("calibration_id must be non-empty when provided")
+        if sensor_mount_id is not None and not sensor_mount_id.strip():
+            raise ValueError("sensor_mount_id must be non-empty when provided")
         self.calibration = calibration
         self.sensor_id = sensor_id
         self.image_width = image_width
         self.image_height = image_height
+        self.calibration_id = calibration_id
+        self.sensor_mount_id = sensor_mount_id
 
     def map_frame(
         self,
@@ -141,4 +151,6 @@ class InfraredFloorMapper:
             image_height=self.image_height,
             calibration_rms_m=self.calibration.rms_residual_m,
             samples=tuple(mapped),
+            calibration_id=self.calibration_id,
+            sensor_mount_id=self.sensor_mount_id,
         )
