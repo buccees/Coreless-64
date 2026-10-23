@@ -7,6 +7,7 @@ never accepts commands and never invents sensor telemetry.
 from __future__ import annotations
 
 import time
+from threading import Lock
 from typing import Callable, Iterable, Mapping, Any
 
 from operator_display import OperatorViewState
@@ -38,6 +39,40 @@ def coreless_view_state(system: Any, *, sequence: int = 0) -> OperatorViewState:
         connection_state="connected",
         runtime_state="ready" if booted else "starting",
     )
+
+
+class CorelessOperatorSnapshotProvider:
+    """Thread-safe snapshot provider bound to one existing CorelessSystem.
+
+    Sequence numbers increase per snapshot request. The provider intentionally
+    reports lifecycle only; sensor/alert entries require explicit real adapters.
+    """
+
+    def __init__(self, system: Any) -> None:
+        if not callable(getattr(system, "status", None)):
+            raise TypeError("system must expose CorelessSystem.status()")
+        self._system = system
+        self._sequence = 0
+        self._lock = Lock()
+
+    def __call__(self) -> OperatorViewState:
+        with self._lock:
+            sequence = self._sequence
+            self._sequence += 1
+        return coreless_view_state(self._system, sequence=sequence)
+
+
+def create_coreless_operator_app(
+    system: Any, *, authorize: Authorizer,
+    path: str = "/api/operator/state",
+) -> "OperatorTelemetryApp":
+    """Create the endpoint adapter for an existing CorelessSystem.
+
+    The caller still mounts the WSGI app behind its production server and
+    injects its authenticated session/authorization policy.
+    """
+    provider = CorelessOperatorSnapshotProvider(system)
+    return OperatorTelemetryApp(provider, authorize=authorize, path=path)
 
 
 class OperatorTelemetryApp:
