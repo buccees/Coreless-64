@@ -6,7 +6,7 @@ It does not parse raw CAD/PDF files or own hardware sensor drivers.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Protocol, Sequence
 
 from .blueprint import BlueprintModel, PoseEstimate, load_blueprint_json
@@ -20,6 +20,7 @@ from .spatial_scene import SpatialScene, assemble_spatial_scene
 from .spatial_query import SpatialQueryEngine, SpatialQueryResult
 from .spatial_regions import RegionQueryResult, SpatialRegion, query_region
 from .spatial_registry_store import SpatialRegistryStore
+from .sensor_mounts import SensorMountTransform
 
 
 @dataclass(frozen=True)
@@ -337,6 +338,51 @@ class SpatialWorkspace:
         if len(self._object_observations) > self.max_observations:
             del self._object_observations[:-self.max_observations]
         return accepted
+
+    def ingest_sensor_local_object_observations(
+        self, mount_id: str, observations: Sequence[ObjectObservation],
+    ) -> int:
+        """Transform explicitly sensor-local observations using a persisted mount.
+
+        This separate entry point prevents accidentally transforming observations
+        that an adapter has already expressed in the shared model frame.
+        """
+        if self.registry_store is None:
+            raise RuntimeError("a persistent spatial registry is required to load sensor mounts")
+        if not isinstance(mount_id, str) or not mount_id.strip():
+            raise ValueError("mount_id is required")
+        model = self.active_model
+        if model is None:
+            raise RuntimeError("activate a blueprint before ingesting sensor-local observations")
+        mount = self.registry_store.load_sensor_mount(mount_id)
+        if mount is None:
+            raise KeyError(f"sensor mount is not registered: {mount_id}")
+        if (mount.model_id, mount.model_revision, mount.frame_id) != (
+            model.model_id, model.revision, model.frame_id
+        ):
+            raise ValueError("sensor mount must match the active model revision and frame")
+        transformed = []
+        for observation in observations:
+            if not isinstance(observation, ObjectObservation):
+                raise TypeError("all object observations must be ObjectObservation instances")
+            if (observation.model_id, observation.model_revision, observation.frame_id) != (
+                model.model_id, model.revision, mount.source_frame_id
+            ):
+                raise ValueError("sensor-local observation must match the mount source frame and active model revision")
+            if observation.sensor_id != mount.sensor_id:
+                raise ValueError("sensor-local observation sensor_id does not match the mount")
+            status = "failed" if observation.calibration_status == "failed" else (
+                "verified" if mount.verified else "unverified"
+            )
+            transformed.append(replace(
+                observation,
+                frame_id=mount.frame_id,
+                position_m=mount.transform_position(observation.position_m),
+                provenance=f"{observation.provenance};sensor-mount:{mount.mount_id}",
+                calibration_status=status,
+                calibration_ids=tuple(dict.fromkeys((*observation.calibration_ids, mount.mount_id))),
+            ))
+        return self.ingest_object_observations(transformed)
 
     @property
     def infrared_maps(self) -> tuple[InfraredFloorMap, ...]:
