@@ -201,3 +201,12 @@ Each provider lifecycle record preserves the last successful poll timestamp, con
 ### Sensor health alerts and transition history
 
 The runtime snapshot exposes derived `sensor_health_alerts` for provider errors/disconnections and expected sensors that are stale, overdue, time-uncertain, or reporting failures. These alerts are recomputed from current runtime status and expected-coverage declarations, so they clear when the corresponding condition recovers. A bounded `sensor_lifecycle_history` records provider state transitions, failure counts, errors, monotonic timestamps, and UTC recording timestamps; when a `SpatialRegistryStore` is configured, the most recent 1,000 events are persisted with record checksums and restored when a workspace starts. Monotonic timestamps are only meaningful within their original boot/session; `recorded_at_utc` is the cross-restart chronology field and follows the host wall clock. Without a configured registry store, history remains runtime-only. Alert severity is an operator triage hint, not a safety certification. No alerts are synthesized for undeclared sensors.
+
+
+## Persistent sensor-health alert acknowledgements
+
+- Sensor-health alerts in the authenticated spatial snapshot have deterministic incident IDs derived from source, provider, sensor (when applicable), and alert state.
+- When a persistent `SpatialRegistryStore` is configured, an authenticated operator can acknowledge an active alert through `POST /api/vigil/alerts/acknowledge`. The endpoint enforces session authentication, same-origin requests, payload limits, and active-alert validation.
+- Acknowledgement records are stored in SQLite with integrity-checked JSON payloads, UTC timestamp, and actor label. The snapshot exposes acknowledgement status and metadata to the operator display.
+- Acknowledgements are cleared when a subsequent snapshot observes that the corresponding alert is no longer active, so a later recurrence can require a new acknowledgement. If no snapshot observes the recovery interval, the system cannot infer that a distinct incident occurred; incident identity is limited by the currently available state-transition evidence.
+- Acknowledgement is an operator workflow marker, not a repair action and not proof that the sensor has recovered. Without a persistent registry, the acknowledgement endpoint returns an explicit unavailable response.
