@@ -146,3 +146,47 @@ def test_object_tracks_round_trip_with_evidence_and_history_intact():
         assert restored == (track,)
     finally:
         store.close()
+
+def test_source_manifest_asset_round_trips_and_is_immutable_per_revision():
+    active = model()
+    source = b'{"schema_version":1,"model_id":"building-a","revision":"r1"}'
+    store = SpatialRegistryStore()
+    try:
+        store.save_model(active, activate=True)
+        saved = store.save_source_asset(
+            active.model_id, active.revision, "source-manifest",
+            asset_name="source.json", media_type="application/json",
+            content=source, metadata={"format": "manifest-v1"},
+        )
+        assert saved["content_sha256"] == __import__("hashlib").sha256(source).hexdigest()
+        assert store.load_source_asset(active.model_id, active.revision, "source-manifest") == saved
+        assert store.list_source_assets(active.model_id, active.revision) == (saved,)
+        assert store.load_source_asset(active.model_id, active.revision, "missing") is None
+        with pytest.raises(ValueError, match="immutable"):
+            store.save_source_asset(
+                active.model_id, active.revision, "source-manifest",
+                asset_name="source.json", media_type="application/json",
+                content=source + b" ", metadata={"format": "manifest-v1"},
+            )
+    finally:
+        store.close()
+
+
+def test_source_assets_require_registered_model_and_respect_size_limit():
+    store = SpatialRegistryStore(max_record_bytes=256)
+    try:
+        with pytest.raises(KeyError, match="not registered"):
+            store.save_source_asset(
+                "missing", "r1", "asset", asset_name="a.bin",
+                media_type="application/octet-stream", content=b"x",
+            )
+        active = model()
+        store.save_model(active)
+        with pytest.raises(ValueError, match="exceeds"):
+            store.save_source_asset(
+                active.model_id, active.revision, "large", asset_name="large.bin",
+                media_type="application/octet-stream", content=b"x" * 257,
+            )
+    finally:
+        store.close()
+
