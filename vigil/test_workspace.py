@@ -500,3 +500,37 @@ def test_workspace_restores_persisted_object_as_reacquire_not_live():
         assert refreshed.object_tracks[0].calibration_ids == ("survey-1",)
     finally:
         store.close()
+
+
+def test_workspace_persists_original_blueprint_manifest_with_normalized_model(tmp_path):
+    from vigil.spatial_registry_store import SpatialRegistryStore
+
+    document = manifest(model_id="portable-site", revision="source-r1")
+    database = str(tmp_path / "spatial-assets.sqlite3")
+    store = SpatialRegistryStore(database)
+    try:
+        workspace = SpatialWorkspace(registry_store=store)
+        model = workspace.import_blueprint(document, activate=True)
+        asset = store.load_source_asset(model.model_id, model.revision, "source-manifest")
+        assert asset is not None
+        assert asset["content"] == document.encode("utf-8")
+        assert asset["asset_name"] == "source-manifest.json"
+        assert asset["media_type"] == "application/json"
+        assert asset["metadata"]["source_format"] == "coreless-blueprint-json-v1"
+        assert asset["content_sha256"]
+        store.close()
+
+        restored_store = SpatialRegistryStore(database)
+        try:
+            restored = SpatialWorkspace(registry_store=restored_store)
+            assert restored.active_model == model
+            assets = restored_store.list_source_assets(model.model_id, model.revision)
+            assert len(assets) == 1
+            assert assets[0]["content"] == document.encode("utf-8")
+        finally:
+            restored_store.close()
+    finally:
+        try:
+            store.close()
+        except Exception:
+            pass
