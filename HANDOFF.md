@@ -363,7 +363,7 @@ Perform a final cross-layer audit covering:
 
 ## Resume point
 
-Continue the **deep Qwen3/Coreless tensor execution boundary**, the **autonomous component/hub architecture**, and the **Lubuntu-first host platform adapter** work. VIGIL spatial-intelligence expansion remains paused.
+Continue the **deep Qwen3/Coreless tensor execution boundary**, the **autonomous component/hub architecture**, and the **Lubuntu-first host platform adapter** work. VIGIL spatial-intelligence work is active again.
 
 The Qwen3 KV-cache/head-data API boundary is implemented and covered by focused tests. Do not reopen the old “replace nested Python cache/head structures” task. Remaining open work is deeper native Coreless execution/performance validation and official trained Qwen3-0.6B end-to-end validation.
 
@@ -377,7 +377,7 @@ Latest repository head:
 
 This checkpoint includes the latest Qwen3/TensorRuntime transpose integration.
 
-**Next session checkpoint:** prioritize Lubuntu/Linux native host integration and the existing Coreless milestones. VIGIL spatial-intelligence expansion (blueprint/floor continuity, sensor fusion, IR mapping, object-track association) remains paused until explicitly resumed. Qwen3 cache/head API boundary reconciliation is complete; deeper native execution and official trained-model validation remain later checkpoints. Concrete host transport integration also remains open.
+**Next session checkpoint:** prioritize Lubuntu/Linux native host integration and the existing Coreless milestones. VIGIL spatial-intelligence work (blueprint/floor continuity, sensor fusion, IR mapping, object-track association) is active again. Qwen3 cache/head API boundary reconciliation is complete; deeper native execution and official trained-model validation remain later checkpoints. Concrete host transport integration also remains open.
 
 Do not restart from the older Qwen3-only handoff. The tensor runtime and Transformer routing work described above is already in `main`.
 
@@ -499,3 +499,11 @@ This milestone does not claim physical USB/PCIe/display/input/network adapters. 
 ## Documentation checkpoint — 2026-10-07: atomic HostIO validation
 
 The negotiated HostIO boundary now validates the complete negotiated display/input/network bundle before channel mutation and validates the input-router contract before binding. Regression coverage preserves the no-partial-attachment invariant. The latest reference-test checkpoint is green. Resume with concrete platform host providers/adapters while preserving the transport-neutral discovery, HostIO, command, and session contracts. Physical device support remains unclaimed.
+
+## Resume checkpoint — 2026-10-23: spatial-intelligence work resumed
+
+User explicitly resumed VIGIL spatial work. Do not treat the previous pause note as binding now; continue spatial engineering alongside other Coreless priorities.
+
+Added `vigil/spatial_query.py` with `SpatialQueryEngine`, `SpatialQueryResult`, and `SpatialQueryStatus`, plus `vigil/test_spatial_query.py`. It returns nearest modeled feature/distance, associated level/zone, and optional nearby features after checking model/revision/frame, timestamp, freshness, pose state, and uncertainty. No-fix, stale, future timestamp, model mismatch, and degraded states are explicit. Exported the new API from `vigil/__init__.py`.
+
+CI runs for implementation and tests must be checked before declaring this checkpoint green. Next spatial priorities: run the complete test suite; integrate query status into workspace/terminal or read-only web status; add explicit geometric region support; strengthen persistent blueprint/calibration records; then build actual sensor adapters and end-to-end synthetic replay. Real sensor hardware and field accuracy remain unvalidated.
