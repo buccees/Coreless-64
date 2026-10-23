@@ -35,6 +35,26 @@ def main() -> int:
     parser.add_argument("--operator-key", help="operator TLS private key PEM path (or CORELESS_TLS_KEY)")
     args = parser.parse_args()
 
+    # Reject invalid operator configuration before touching the persistent image.
+    operator_password = ""
+    operator_cert = None
+    operator_key = None
+    if args.operator:
+        import os
+        operator_password = os.environ.get("CORELESS_OPERATOR_PASSWORD", "")
+        operator_cert = args.operator_cert or os.environ.get("CORELESS_TLS_CERT")
+        operator_key = args.operator_key or os.environ.get("CORELESS_TLS_KEY")
+        if len(operator_password) < 16:
+            parser.error("set CORELESS_OPERATOR_PASSWORD to a unique password of at least 16 characters")
+        if not operator_cert or not operator_key:
+            parser.error("operator HTTPS requires --operator-cert/--operator-key or CORELESS_TLS_CERT/CORELESS_TLS_KEY")
+        if not 1 <= args.operator_port <= 65535:
+            parser.error("--operator-port must be between 1 and 65535")
+        if not Path(operator_cert).expanduser().is_file():
+            parser.error(f"operator TLS certificate does not exist: {operator_cert}")
+        if not Path(operator_key).expanduser().is_file():
+            parser.error(f"operator TLS private key does not exist: {operator_key}")
+
     system = CorelessSystem(
         memory_size=args.memory,
         cpu_count=args.cpus,
@@ -46,19 +66,13 @@ def main() -> int:
     if args.status:
         print(system.status())
     if args.operator:
-        import os
         from local_operator_server import serve_lan
-        password = os.environ.get("CORELESS_OPERATOR_PASSWORD", "")
-        cert = args.operator_cert or os.environ.get("CORELESS_TLS_CERT")
-        key = args.operator_key or os.environ.get("CORELESS_TLS_KEY")
-        if len(password) < 16:
-            parser.error("set CORELESS_OPERATOR_PASSWORD to a unique password of at least 16 characters")
-        if not cert or not key:
-            parser.error("operator HTTPS requires --operator-cert/--operator-key or CORELESS_TLS_CERT/CORELESS_TLS_KEY")
         try:
-            serve_lan(system, host=args.operator_host, port=args.operator_port, cert_path=cert, key_path=key, password=password)
+            serve_lan(system, host=args.operator_host, port=args.operator_port,
+                      cert_path=operator_cert, key_path=operator_key,
+                      password=operator_password)
         finally:
-            system.machine.save_state()
+            system.shutdown()
         return 0
     if args.steps > 0 and not args.command:
         system.run(args.steps)
