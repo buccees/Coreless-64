@@ -534,3 +534,62 @@ def test_workspace_persists_original_blueprint_manifest_with_normalized_model(tm
             store.close()
         except Exception:
             pass
+
+
+def test_workspace_loads_saved_raster_calibration_for_infrared_ingestion():
+    from vigil.infrared_floor_mapping import InfraredPixelSample
+    from vigil.raster_calibration import RasterBlueprintCalibration, RasterControlPoint
+    from vigil.spatial_registry_store import SpatialRegistryStore
+
+    store = SpatialRegistryStore()
+    try:
+        workspace = SpatialWorkspace(registry_store=store)
+        model = workspace.import_blueprint(manifest(model_id="ir-site", revision="r1"), activate=True)
+        calibration = RasterBlueprintCalibration.fit(
+            model_id=model.model_id, model_revision=model.revision,
+            frame_id=model.frame_id, level_id="L1", elevation_m=0.0,
+            control_points=(
+                RasterControlPoint(0, 0, 0, 0, "origin"),
+                RasterControlPoint(100, 0, 10, 0, "east"),
+                RasterControlPoint(0, 100, 0, 10, "north"),
+            ),
+        )
+        store.save_calibration("raster-ir-site-L1-v1", calibration)
+        result = workspace.ingest_calibrated_infrared_pixels(
+            "raster-ir-site-L1-v1", sensor_id="thermal-1",
+            sensor_mount_id="ceiling-west", image_width=200, image_height=150,
+            samples=(InfraredPixelSample(25, 40, 0.8, label="warm-patch"),),
+            timestamp_ns=100, track_labeled_objects=False,
+        )
+        assert result.samples[0].position_m == pytest.approx((2.5, 4.0, 0.0))
+        assert result.calibration_id == "raster-ir-site-L1-v1"
+        assert result.sensor_mount_id == "ceiling-west"
+        assert workspace.infrared_maps == (result,)
+    finally:
+        store.close()
+
+
+def test_workspace_rejects_saved_calibration_from_another_model_revision():
+    from vigil.raster_calibration import RasterBlueprintCalibration, RasterControlPoint
+    from vigil.spatial_registry_store import SpatialRegistryStore
+
+    store = SpatialRegistryStore()
+    try:
+        workspace = SpatialWorkspace(registry_store=store)
+        model = workspace.import_blueprint(manifest(model_id="active-site", revision="r2"), activate=True)
+        other = RasterBlueprintCalibration.fit(
+            model_id="other-site", model_revision="r1", frame_id="other/world",
+            level_id="L1", elevation_m=0.0,
+            control_points=(
+                RasterControlPoint(0, 0, 0, 0), RasterControlPoint(100, 0, 10, 0),
+                RasterControlPoint(0, 100, 0, 10),
+            ),
+        )
+        store.save_calibration("foreign-calibration", other)
+        with pytest.raises(ValueError, match="active model revision"):
+            workspace.ingest_calibrated_infrared_pixels(
+                "foreign-calibration", sensor_id="thermal-1", sensor_mount_id="mount-1",
+                image_width=100, image_height=100, samples=(), timestamp_ns=1,
+            )
+    finally:
+        store.close()
