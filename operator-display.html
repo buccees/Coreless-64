@@ -321,10 +321,11 @@
     if(!coverageRows.length){showEmpty(expectedSensorCoverage,'No expected sensor coverage declarations.');}
     coverageRows.forEach(function(item){
       var state=String(item.state||'UNKNOWN');
-      var klass=state==='REPORTING_IN_SCOPE'?'sensor-ok':(['NO_REPORT_IN_SCOPE','PROVIDER_ERROR','TIME_UNCERTAIN'].indexOf(state)>=0)?'sensor-conflict':'muted';
+      var klass=state==='REPORTING_IN_SCOPE'?'sensor-ok':(['NO_REPORT_IN_SCOPE','PROVIDER_ERROR','PROVIDER_DISCONNECTED','TIME_UNCERTAIN'].indexOf(state)>=0)?'sensor-conflict':'muted';
       var row=textNode('article','sensor-row '+klass,'');
       row.appendChild(textNode('strong','',String(item.sensor_id)+' / '+state));
-      row.appendChild(textNode('p','muted','PROVIDER: '+String(item.provider_id)+' / '+String(item.provider_state||'UNKNOWN')));
+      row.appendChild(textNode('p','muted','PROVIDER: '+String(item.provider_id)+' / '+String(item.provider_state||'UNKNOWN')+' · CONSECUTIVE FAILURES: '+String(item.provider_consecutive_failures||0)));
+      row.appendChild(textNode('p','muted','LAST SUCCESSFUL POLL (MONOTONIC NS): '+(item.provider_last_success_ns===null?'never':String(item.provider_last_success_ns))));
       row.appendChild(textNode('p','muted','EXPECTED REGIONS: '+((item.region_ids||[]).join(', ')||'none')+' · AGE: '+(item.age_ns===null?'no scoped reading':String(item.age_ns)+' ns')+' / MAX '+String(item.max_age_ns)+' ns'));
       if(item.provider_error)row.appendChild(textNode('p','sensor-conflict','PROVIDER ERROR: '+String(item.provider_error)));
       expectedSensorCoverage.appendChild(row);
