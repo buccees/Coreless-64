@@ -170,6 +170,7 @@ class SpatialWorkspace:
         self._sensor_providers: dict[str, SpatialSensorProvider] = {}
         self._sensor_poll_statuses: tuple[SensorPollStatus, ...] = ()
         self._sensor_lifecycle: dict[str, SensorPollStatus] = {}
+        self._sensor_lifecycle_history: list[dict[str, object]] = []
         self._expected_sensor_coverage: dict[str, ExpectedSensorCoverage] = {}
         # Key by model/revision/region so activating an older blueprint cannot
         # silently reinterpret geometry registered for another revision.
@@ -585,6 +586,24 @@ class SpatialWorkspace:
         return self._sensor_poll_statuses
 
     @property
+    def sensor_lifecycle_history(self) -> tuple[dict[str, object], ...]:
+        """Bounded runtime transition history; monotonic times do not survive reboot."""
+        return tuple(dict(event) for event in self._sensor_lifecycle_history)
+
+    def _record_sensor_lifecycle(self, status: SensorPollStatus) -> None:
+        previous = self._sensor_lifecycle.get(status.provider_id)
+        changed = previous is None or (previous.state, previous.consecutive_failures, previous.error) != (status.state, status.consecutive_failures, status.error)
+        self._sensor_lifecycle[status.provider_id] = status
+        if changed:
+            self._sensor_lifecycle_history.append({
+                "timestamp_ns": monotonic_ns(), "provider_id": status.provider_id,
+                "state": status.state, "consecutive_failures": status.consecutive_failures,
+                "error": status.error, "last_success_ns": status.last_success_ns,
+            })
+            if len(self._sensor_lifecycle_history) > 1000:
+                del self._sensor_lifecycle_history[:-1000]
+
+    @property
     def expected_sensor_coverage(self) -> tuple[ExpectedSensorCoverage, ...]:
         return tuple(self._expected_sensor_coverage[key] for key in sorted(self._expected_sensor_coverage))
 
@@ -628,17 +647,17 @@ class SpatialWorkspace:
             raise ValueError(f"sensor provider already registered: {provider_id!r}")
         self._sensor_providers[provider_id] = provider
         previous = self._sensor_lifecycle.get(provider_id)
-        self._sensor_lifecycle[provider_id] = SensorPollStatus(provider_id, 0, "UNPOLLED", None, 0, previous.last_success_ns if previous else None)
+        self._record_sensor_lifecycle(SensorPollStatus(provider_id, 0, "UNPOLLED", None, 0, previous.last_success_ns if previous else None))
 
     def unregister_sensor_provider(self, provider_id: str) -> bool:
         """Remove an optional provider without affecting Coreless raw input."""
         removed = self._sensor_providers.pop(provider_id, None) is not None
         if removed:
             previous = self._sensor_lifecycle.get(provider_id)
-            self._sensor_lifecycle[provider_id] = SensorPollStatus(
+            self._record_sensor_lifecycle(SensorPollStatus(
                 provider_id, 0, "DISCONNECTED", None,
                 previous.consecutive_failures if previous else 0,
-                previous.last_success_ns if previous else None)
+                previous.last_success_ns if previous else None))
             self._sensor_poll_statuses = tuple(self._sensor_lifecycle[key] for key in sorted(self._sensor_lifecycle))
         return removed
 
@@ -679,7 +698,7 @@ class SpatialWorkspace:
                 message = " ".join(str(exc).split())[:180] or type(exc).__name__
                 statuses.append(SensorPollStatus(provider_id, 0, "ERROR", message, consecutive_failures + 1, last_success_ns))
         for status in statuses:
-            self._sensor_lifecycle[status.provider_id] = status
+            self._record_sensor_lifecycle(status)
         self._sensor_poll_statuses = tuple(self._sensor_lifecycle[key] for key in sorted(self._sensor_lifecycle))
         return self._sensor_poll_statuses
 
