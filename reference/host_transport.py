@@ -404,13 +404,14 @@ class HostHotplugController:
         previous = self._attachments.pop(endpoint_id, None)
         if previous is not None:
             self._adapter.disconnect(previous[1])
+        was_attached = interface.attached
         try:
             negotiated = self._adapter.connect(
                 endpoint, interface, system=system, host_io=host_io,
                 input_router=input_router,
             )
         except Exception:
-            if interface.attached:
+            if not was_attached and interface.attached:
                 self._adapter.disconnect(interface)
             raise
         self._attachments[endpoint_id] = (endpoint, interface)
