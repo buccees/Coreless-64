@@ -7,7 +7,7 @@
 
 The Coreless host interface defines the narrow boundary between a Coreless computer and external equipment.
 
-Coreless-64 is the computer. Its operating system runs on the Coreless machine; it is not an application whose execution authority belongs to a host OS. This interface specification describes how the machine connects to external equipment. An external computer may provide selected I/O services or a compatible execution substrate only where explicitly specified, but it must not be silently treated as the owner of Coreless. The machine's physical execution, memory, boot path, persistent state, and device interfaces must be specified and validated separately from this host-interface contract.
+Coreless-64 is the computer. Its operating system runs on the Coreless machine; it is not an application whose execution authority belongs to a host OS. This interface specification describes how the machine connects to external equipment. An external computer may provide selected I/O services or a compatible execution substrate only where explicitly specified, but it must not be silently treated as the owner of Coreless. The Coreless execution engine is part of the machine, and the OS runs on that engine. This host-interface contract does not relocate execution to the external host. The integrated engine-to-boot-to-OS path and physical I/O adapters must be validated as a system.
 
 The target is a plug-and-play experience in which a host can discover a Coreless computer, verify its identity, negotiate supported interfaces, attach it, and provide only the external services required for operation.
 
