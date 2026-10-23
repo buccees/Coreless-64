@@ -34,14 +34,14 @@ sudo truncate -s "$SIZE" "$OUT"
 sudo parted -s "$OUT" mklabel gpt
 sudo parted -s "$OUT" mkpart ESP fat32 1MiB 513MiB
 sudo parted -s "$OUT" set 1 esp on
-sudo parted -s "$OUT" mkpart CORELESS ext4 513MiB 100%
+sudo parted -s "$OUT" mkpart CORELESS ext4 513MiB 70%\nsudo parted -s "$OUT" mkpart CORELESS_STATE ext4 70% 100%
 LOOP="$(sudo losetup --find --show --partscan "$OUT")"
 sudo partprobe "$LOOP" 2>/dev/null || true
 for _ in $(seq 1 20); do [[ -b "${LOOP}p2" ]] && break; sleep 0.25; done
-[[ -b "${LOOP}p1" && -b "${LOOP}p2" ]] || { echo "Partition devices were not created for $LOOP" >&2; exit 1; }
+[[ -b "${LOOP}p1" && -b "${LOOP}p2" && -b "${LOOP}p3" ]] || { echo "Partition devices were not created for $LOOP" >&2; exit 1; }
 
 sudo mkfs.vfat -F 32 -n CORELESSEFI "${LOOP}p1"
-sudo mkfs.ext4 -F -L CORELESS_ROOT "${LOOP}p2"
+sudo mkfs.ext4 -F -L CORELESS_ROOT "${LOOP}p2"\nsudo mkfs.ext4 -F -L CORELESS_STATE "${LOOP}p3"
 sudo mount "${LOOP}p2" "$WORK/root"; MOUNTED+=("$WORK/root")
 sudo mkdir -p "$WORK/root/boot/efi"
 sudo mount "${LOOP}p1" "$WORK/root/boot/efi"; MOUNTED+=("$WORK/root/boot/efi")
@@ -58,7 +58,7 @@ sudo tee "$WORK/root/etc/hosts" >/dev/null <<'EOF'
 ::1 localhost ip6-localhost ip6-loopback
 EOF
 ROOT_UUID="$(sudo blkid -s UUID -o value "${LOOP}p2")"
-EFI_UUID="$(sudo blkid -s UUID -o value "${LOOP}p1")"
+EFI_UUID="$(sudo blkid -s UUID -o value "${LOOP}p1")"\nSTATE_UUID="$(sudo blkid -s UUID -o value "${LOOP}p3")"
 sudo tee "$WORK/root/etc/fstab" >/dev/null <<EOF
 UUID=$ROOT_UUID / ext4 defaults,noatime 0 1
 UUID=$EFI_UUID /boot/efi vfat umask=0077 0 1
@@ -74,19 +74,19 @@ sudo chroot "$WORK/root" /usr/bin/env DEBIAN_FRONTEND=noninteractive /bin/bash -
   update-grub
 '
 
-sudo mkdir -p "$WORK/root/opt/coreless" "$WORK/root/var/lib/coreless"
+sudo mkdir -p "$WORK/root/opt/coreless" "$WORK/root/var/lib/coreless"\nsudo mount "${LOOP}p3" "$WORK/root/var/lib/coreless"; MOUNTED+=("$WORK/root/var/lib/coreless")
 sudo rsync -a --delete   --exclude=.git --exclude=dist --exclude='*.img' --exclude='*.lock'   --exclude='__pycache__' --exclude='.pytest_cache'   "$ROOT/" "$WORK/root/opt/coreless/"
 sudo install -m 0644 "$ROOT/deploy/coreless-machine.service" "$WORK/root/etc/systemd/system/coreless-machine.service"
 sudo systemctl --root="$WORK/root" disable getty@tty1.service
 sudo systemctl --root="$WORK/root" enable NetworkManager.service coreless-machine.service
 sudo systemctl --root="$WORK/root" set-default multi-user.target
 sudo sync
-sudo umount "$WORK/root/run" "$WORK/root/sys" "$WORK/root/proc" "$WORK/root/dev" "$WORK/root/boot/efi" "$WORK/root"
+sudo umount "$WORK/root/run" "$WORK/root/sys" "$WORK/root/proc" "$WORK/root/dev" "$WORK/root/var/lib/coreless" "$WORK/root/boot/efi" "$WORK/root"
 MOUNTED=()
 sudo losetup -d "$LOOP"
 LOOP=""
 sudo chown "$(id -u):$(id -g)" "$OUT"
 echo "Bootable Coreless carrier image created: $OUT"
-echo "Target: x86_64 UEFI; Debian $SUITE; GPT + EFI System Partition + ext4 root."
+echo "Target: x86_64 UEFI; Debian $SUITE; GPT + EFI System Partition + ext4 root + dedicated CORELESS_STATE partition mounted at /var/lib/coreless."
 echo "The image file is new and was not written to a physical disk."
 echo "Use a disk-imaging tool to write this image to a dedicated SSD; that target operation erases the SSD."
