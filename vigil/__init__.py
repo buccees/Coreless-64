@@ -6,6 +6,7 @@ from .blueprint_view import AxisBounds, BlueprintView, FeatureProjection, PosePr
 from .spatial_query import SpatialQueryEngine, SpatialQueryResult, SpatialQueryStatus
 from .spatial_regions import RegionQueryResult, SpatialRegion, query_region
 from .spatial_registry_store import SpatialRegistryStore
+from .spatial_snapshot import build_spatial_snapshot, SPATIAL_PROTOCOL_VERSION
 from .building import BuildingBlueprint, BuildingBlueprintBuilder, FloorRegistration, FloorTracker, FloorTransition, VerticalConnection
 from .blueprint import (
     BlueprintModel,
@@ -43,7 +44,7 @@ from .fast_touch import FastCameraTouchPath, FastTouchDetector
 from .camera import SharedCameraSource, CameraReader
 
 __all__ = [
-    "AnalysisResult", "AttentionItem", "AttentionLifecycle", "AttentionManager", "SpatialQueryEngine", "SpatialQueryResult", "SpatialQueryStatus", "SpatialRegion", "RegionQueryResult", "query_region", "SpatialRegistryStore",
+    "AnalysisResult", "AttentionItem", "AttentionLifecycle", "AttentionManager", "SpatialQueryEngine", "SpatialQueryResult", "SpatialQueryStatus", "SpatialRegion", "RegionQueryResult", "query_region", "SpatialRegistryStore", "build_spatial_snapshot", "SPATIAL_PROTOCOL_VERSION",
     "AuthorizationContext", "AuthorizationService", "BlueprintModel", "BlueprintView", "BuildingBlueprint", "BuildingBlueprintBuilder", "FloorRegistration", "FloorTracker", "FloorTransition", "VerticalConnection", "AxisBounds", "CameraFrame",
     "CameraReader", "CoordinateTransform", "CorelessVigilAI", "Detection",
     "DetectionKind", "EntityType", "FeatureProjection", "PoseProjection", "FastCameraTouchPath", "FastTouchDetector",
