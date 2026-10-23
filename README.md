@@ -66,12 +66,15 @@ The normative target is documented in `specification/host_interface.md`. The ref
 
 ## Next engineering checkpoint
 
-1. **Autonomous component system:** complete unified Hub lifecycle and native CPU/VM execution across standalone and composed components.
-2. **Plug-and-play host interface:** extend the reference transport adapter toward concrete display/input/network transports and cross-platform enumeration.
-3. **Deep Qwen3/Coreless tensor boundary:** move remaining KV-cache, head reshape/repeat, masking, and attention data movement into TensorRuntime without weakening the architectural boundary.
-4. Validate a real official trained Qwen3-0.6B artifact with a minimal forward pass and short generation.
-5. Extend native model runtimes and bind validated model parts to live Coreless resources.
-6. Complete final ISA, persistence, capability, AI-control, host-interface, and end-to-end conformance audit.
+The following priorities reflect the current implementation rather than the original milestone order:
+
+1. **Plug-and-play host interface:** implement platform-specific host enumeration and concrete display/input/network transports. The transport-neutral contract and reference adapters are implemented; physical platform providers remain open.
+2. **Remote Operator Display:** validate and extend the authenticated, read-only browser display against the active Coreless lifecycle and explicitly observed event sources. Never infer physical sensor connectivity from an available endpoint.
+3. **Native execution and trained-model validation:** deepen native Coreless execution/performance validation, then run the official trained Qwen3-0.6B artifact end-to-end and validate live inference on Coreless resources.
+4. **Model-part execution binding:** connect validated CPU/GPU/communication model roles to actual Coreless instruction, graphics/device, and user-session execution.
+5. **Conformance:** complete the final ISA, persistence, capability, AI-control, host-interface, and end-to-end audit.
+
+The VIGIL spatial-intelligence expansion is currently paused. Preserve its research notes and existing implementation; do not treat planned blueprint continuity, sensor fusion, IR registration, or persistent object association as completed.
 
 ## 314DNest
 
