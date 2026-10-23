@@ -16,7 +16,10 @@ jobs:
           python-version: "3.x"
       - name: Install test runner
         run: python -m pip install pytest
-      - name: Check bootable carrier entrypoints\n        run: |\n          bash -n scripts/build-bootable-ssd.sh\n          python -m py_compile scripts/coreless-console.py\n      - name: Run reference tests
+      - name: Check bootable carrier entrypoints
+        run: |
+          bash -n scripts/build-bootable-ssd.sh
+          python -m py_compile scripts/coreless-console.py\n      - name: Run reference tests
         working-directory: reference
         env:
           PYTHONPATH: ${{ github.workspace }}
