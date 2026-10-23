@@ -2,9 +2,9 @@
 
 [**Coreless-64 album cover artwork — Claude**](./Coreless-64%20album%20cover%20artwork%20-%20Claude.html)
 
-**Coreless is a computer architecture in which the complete digital computer can be carried by persistent storage and executed by a digital Coreless execution engine.**
+**Coreless-64 is intended to be an independent computer: its own execution architecture, memory model, persistent machine state, device interfaces, and operating environment. The operating system runs on Coreless-64; Coreless-64 does not run as an application owned by Lubuntu or another host OS.**
 
-> **Coreless is the computer. Persistent storage carries the machine state. The Coreless digital execution engine runs the machine. External equipment provides power and I/O.**
+> **Coreless-64 is the machine. Its operating system runs on it. Persistent storage carries its state; physical execution hardware and memory make it operational; external equipment supplies only the power and interfaces the machine is designed to use.**
 
 ## Coreless-64
 
@@ -62,7 +62,7 @@ Coreless now treats the host connection as a narrow external interface: power/st
 
 The target plug-and-play lifecycle is: **connect → discover → verify Coreless identity → advertise capabilities → negotiate interfaces → attach → boot/resume → operate → detach**.
 
-The normative target is documented in `specification/host_interface.md`. Lubuntu is the preferred initial working OS, not the compatibility ceiling: the architecture is intended to support multiple host platforms and a broad range of SSD interfaces through explicit adapters. Storage/enclosure identity is distinct from persistent Coreless machine identity and from any optional physical device-mode identity. An ordinary SSD cannot present itself as a separate USB computer without compatible device-side hardware/firmware. The reference host transport adapter and channel-binding contract are implemented; physical platform enumeration and concrete display/input/network transports remain open.
+The normative target is documented in `specification/host_interface.md`. Lubuntu is the preferred OS to run on the machine during initial bring-up, not the definition of the machine or a host OS that owns its execution. The portability target is a Coreless machine that can boot its own OS from a broad range of supported SSDs and expose its own device identity through appropriate hardware interfaces. Storage/enclosure identity is distinct from persistent Coreless machine identity and from any optional physical device-mode identity. An ordinary SSD cannot present itself as a separate USB computer without compatible device-side hardware/firmware. The reference host transport adapter and channel-binding contract are implemented; physical platform enumeration and concrete display/input/network transports remain open.
 
 ## Next engineering checkpoint
 
