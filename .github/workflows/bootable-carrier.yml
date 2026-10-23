@@ -82,6 +82,15 @@ jobs:
             echo "UEFI VM did not report reaching multi-user target" >&2
             exit 1
           }
+          grep -Fq "CORELESS-64 MACHINE CONSOLE" "$RUNNER_TEMP/qemu-boot.log" || {
+            echo "UEFI VM reached multi-user target, but Coreless console startup was not observed" >&2
+            exit 1
+          }
+          grep -Fq "Persistent machine image: /var/lib/coreless/coreless.img" "$RUNNER_TEMP/qemu-boot.log" || {
+            echo "Coreless console did not confirm the SSD-backed machine image path" >&2
+            exit 1
+          }
+          echo "PASS: UEFI boot reached multi-user and the Coreless runtime opened its persistent machine image."
       - name: Publish bootable image artifact (manual runs only)
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
