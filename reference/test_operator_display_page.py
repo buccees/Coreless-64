@@ -65,7 +65,9 @@ def test_browser_includes_spatial_map_and_polling_for_authenticated_vigil_snapsh
     assert "fetch('/api/vigil/spatial'" in source
     assert "function renderSpatial(data)" in source
     assert "function stopSpatialPolling()" in source
-    assert "presence_state==='STALE'?'LAST KNOWN'" in source
+    assert "object.presence_state==='STALE'?'STALE_LAST_KNOWN'" in source
+    assert "object.track_validity" in source
+    assert "VALIDITY REASONS:" in source
     assert "No sensor readings or object locations are synthesized" in source
     assert "innerHTML" not in source
 
