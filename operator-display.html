@@ -7,7 +7,7 @@
 <title>VIGIL // Remote Operator Display</title>
 <style>
 :root{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;color:#b9ffc0;background:#050b07;--green:#68ff83;--dim:#72a77b;--line:#245c32;--panel:#09140c;--warn:#ffcc68;--bad:#ff7272}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#102b17 0,#050b07 60%);line-height:1.5}a{color:var(--green)}button,input{font:inherit;color:inherit;background:#07100a;border:1px solid var(--line);border-radius:3px;padding:.65rem}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--green);outline-offset:3px}.shell{max-width:1120px;margin:auto;padding:clamp(1rem,3vw,2rem)}header{border-bottom:1px solid var(--line);padding-bottom:1rem;margin-bottom:1rem}.eyebrow{font-size:.75rem;letter-spacing:.18em;color:var(--dim)}h1{font-size:clamp(1.4rem,4vw,2.2rem);margin:.3rem 0;color:var(--green)}h2{font-size:1rem;color:var(--green);letter-spacing:.08em}.sub{color:var(--dim);max-width:75ch}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.panel{border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 92%,transparent);padding:1rem;min-width:0}.wide{grid-column:1/-1}.row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}.endpoint{display:flex;gap:.5rem;flex:1;min-width:min(100%,18rem)}.endpoint input{flex:1;min-width:0}.status{font-weight:700;letter-spacing:.06em}.dot{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;background:var(--dim);margin-right:.5rem}.ok{color:var(--green)}.stale{color:var(--warn)}.bad{color:var(--bad)}.muted{color:var(--dim);font-size:.85rem}.statgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin-top:1rem}.stat{border:1px solid #173d22;padding:.7rem;overflow-wrap:anywhere}.stat label{display:block;font-size:.72rem;color:var(--dim);letter-spacing:.08em}.stat strong{font-size:1.1rem}.list{display:grid;gap:.6rem}.item{border-left:2px solid var(--line);padding:.6rem .8rem;background:#07100a;overflow-wrap:anywhere}.item.warning{border-color:var(--warn)}.item.critical{border-color:var(--bad)}.item h3{font-size:.9rem;margin:0 0 .25rem}.item p{margin:.2rem 0;font-size:.85rem;color:#a7d7ae}.empty{color:var(--dim);border:1px dashed var(--line);padding:.9rem}.foot{border-top:1px solid var(--line);margin-top:1rem;padding-top:1rem;color:var(--dim);font-size:.8rem}code{overflow-wrap:anywhere;color:#d0ffd5}@media(max-width:700px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.statgrid{grid-template-columns:1fr}.endpoint{flex-basis:100%}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#102b17 0,#050b07 60%);line-height:1.5}a{color:var(--green)}button,input{font:inherit;color:inherit;background:#07100a;border:1px solid var(--line);border-radius:3px;padding:.65rem}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--green);outline-offset:3px}.shell{max-width:1120px;margin:auto;padding:clamp(1rem,3vw,2rem)}header{border-bottom:1px solid var(--line);padding-bottom:1rem;margin-bottom:1rem}.eyebrow{font-size:.75rem;letter-spacing:.18em;color:var(--dim)}h1{font-size:clamp(1.4rem,4vw,2.2rem);margin:.3rem 0;color:var(--green)}h2{font-size:1rem;color:var(--green);letter-spacing:.08em}.sub{color:var(--dim);max-width:75ch}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.panel{border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 92%,transparent);padding:1rem;min-width:0}.wide{grid-column:1/-1}.row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}.endpoint{display:flex;gap:.5rem;flex:1;min-width:min(100%,18rem)}.endpoint input{flex:1;min-width:0}.status{font-weight:700;letter-spacing:.06em}.dot{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;background:var(--dim);margin-right:.5rem}.ok{color:var(--green)}.stale{color:var(--warn)}.bad{color:var(--bad)}.muted{color:var(--dim);font-size:.85rem}.statgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin-top:1rem}.stat{border:1px solid #173d22;padding:.7rem;overflow-wrap:anywhere}.stat label{display:block;font-size:.72rem;color:var(--dim);letter-spacing:.08em}.stat strong{font-size:1.1rem}.list{display:grid;gap:.6rem}.item{border-left:2px solid var(--line);padding:.6rem .8rem;background:#07100a;overflow-wrap:anywhere}.item.warning{border-color:var(--warn)}.item.critical{border-color:var(--bad)}.item h3{font-size:.9rem;margin:0 0 .25rem}.item p{margin:.2rem 0;font-size:.85rem;color:#a7d7ae}.empty{color:var(--dim);border:1px dashed var(--line);padding:.9rem}.foot{border-top:1px solid var(--line);margin-top:1rem;padding-top:1rem;color:var(--dim);font-size:.8rem}code{overflow-wrap:anywhere;color:#d0ffd5}.spatial-map{display:block;width:100%;height:auto;min-height:16rem;background:#050b07;border:1px solid var(--line);margin-top:.8rem}.spatial-map .map-grid{stroke:#173d22;stroke-width:1}.spatial-map .map-feature{fill:#72a77b;stroke:#b9ffc0;stroke-width:1.2}.spatial-map .map-region{fill:#68ff83;fill-opacity:.07;stroke:#72a77b;stroke-width:1.5;stroke-dasharray:5 4}.spatial-map .map-region.inside{fill:#68ff83;fill-opacity:.15;stroke:#68ff83}.spatial-map .map-region.outside{stroke:#ffcc68}.spatial-map .map-region.unknown{stroke:#ffcc68;stroke-dasharray:3 5}.spatial-map .map-object{fill:#68ff83;stroke:#b9ffc0;stroke-width:2}.spatial-map .map-object.stale{fill:#ffcc68;stroke:#ffcc68;stroke-dasharray:3 2}.spatial-map .map-object.conflict{fill:#ff7272;stroke:#ff7272}.spatial-map .map-pose{fill:none;stroke:#83d9ff;stroke-width:3}.spatial-map .map-trail{fill:none;stroke:#68ff83;stroke-width:2;stroke-opacity:.7}.spatial-map .map-label{fill:#b9ffc0;font:13px ui-monospace,monospace;paint-order:stroke;stroke:#050b07;stroke-width:3px;stroke-linejoin:round}.spatial-map .map-region-label{fill:#72a77b;font:11px ui-monospace,monospace}.spatial-map .map-note{fill:#72a77b;font:16px ui-monospace,monospace}.spatial-meta{display:flex;justify-content:space-between;gap:.8rem;flex-wrap:wrap;margin:.5rem 0;color:var(--dim);font-size:.85rem}.spatial-legend{display:flex;gap:1rem;flex-wrap:wrap;color:var(--dim);font-size:.8rem;margin:.6rem 0}.spatial-legend span{display:flex;align-items:center;gap:.4rem}.spatial-key{width:.7rem;height:.7rem;border-radius:50%;display:inline-block;background:var(--green)}.spatial-key.stale{background:var(--warn)}.spatial-key.conflict{background:var(--bad)}.spatial-key.pose{background:#83d9ff}.spatial-objects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;margin-top:.8rem}.spatial-object{border-left:2px solid var(--green);background:#07100a;padding:.65rem .8rem;min-width:0;overflow-wrap:anywhere}.spatial-object.stale{border-color:var(--warn)}.spatial-object.conflict{border-color:var(--bad)}.spatial-object h3{font-size:.85rem;margin:0 0 .25rem}.spatial-object p{font-size:.78rem;color:#a7d7ae;margin:.15rem 0}.spatial-object .muted{color:var(--dim)}@media(max-width:700px){.spatial-objects{grid-template-columns:1fr}}@media(max-width:700px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.statgrid{grid-template-columns:1fr}.endpoint{flex-basis:100%}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -64,7 +64,20 @@
 <div id="alert-list" class="list"><div class="empty">No snapshot received.</div></div>
 </section>
 </div>
-<footer class="foot">VIEW ONLY · Protocol v1 · No sensor readings or alert data are synthesized by this page. <a href="./index.html">Return to Control Room / Lab Report</a></footer>
+<section class="panel wide" aria-labelledby="spatial-title" style="margin-top:1rem">
+<h2 id="spatial-title">06 / LIVE SPATIAL VIEW</h2>
+<div class="spatial-meta"><span id="spatial-status" class="status">WAITING FOR VIGIL</span><span id="spatial-model">No active blueprint</span></div>
+<p class="muted" id="spatial-detail" role="status" aria-live="polite">Connect to the local authenticated runtime to view the active model and tracked objects.</p>
+<svg id="spatial-map" class="spatial-map" viewBox="0 0 960 520" role="img" aria-label="VIGIL floor plan with feature, pose, and object markers">
+<rect x="0" y="0" width="960" height="520" fill="#050b07"></rect>
+<text x="480" y="260" text-anchor="middle" class="map-note">NO SPATIAL SNAPSHOT</text>
+</svg>
+<div class="spatial-legend" aria-label="Map legend">
+<span><i class="spatial-key"></i>Modeled feature</span><span><i class="spatial-key pose"></i>Current pose</span><span><i class="spatial-key"></i>Tracked object</span><span><i class="spatial-key stale"></i>Last known / stale</span><span><i class="spatial-key conflict"></i>Conflicting evidence</span>
+</div>
+<div id="spatial-objects" class="spatial-objects"><div class="empty">No object tracks reported.</div></div>
+</section>
+<footer class="foot">VIEW ONLY · No sensor readings or object locations are synthesized by this page. A stale marker means last known, not confirmed present or gone. <a href="./index.html">Return to Control Room / Lab Report</a></footer>
 </main>
 <script>
 (function(){
@@ -130,9 +143,119 @@
     sourceTime.textContent='Source timestamp: '+data.source_timestamp_ns+' ns · transport reachability is not proof of physical sensor connectivity.';
     renderSensors(data.sensors);renderAlerts(data.alerts);
   }
+
+  var spatialMap=document.getElementById('spatial-map'), spatialStatus=document.getElementById('spatial-status');
+  var spatialModel=document.getElementById('spatial-model'), spatialDetail=document.getElementById('spatial-detail');
+  var spatialObjects=document.getElementById('spatial-objects'), spatialTimer=null, spatialInFlight=false, spatialController=null;
+  var SVG_NS='http://www.w3.org/2000/svg';
+  function svgNode(tag,attrs,text){
+    var node=document.createElementNS(SVG_NS,tag);
+    Object.keys(attrs||{}).forEach(function(key){node.setAttribute(key,String(attrs[key]));});
+    if(text!==undefined)node.textContent=String(text);
+    return node;
+  }
+  function emptySpatial(message,state){
+    while(spatialMap.firstChild)spatialMap.removeChild(spatialMap.firstChild);
+    spatialMap.appendChild(svgNode('rect',{x:0,y:0,width:960,height:520,fill:'#050b07'}));
+    spatialMap.appendChild(svgNode('text',{x:480,y:255,'text-anchor':'middle',class:'map-note'},message));
+    spatialMap.appendChild(svgNode('text',{x:480,y:285,'text-anchor':'middle',class:'map-note'},state||''));
+    spatialStatus.textContent=state||'SPATIAL UNAVAILABLE';
+    spatialStatus.className='status stale';
+    spatialModel.textContent='No active blueprint';
+    spatialDetail.textContent=message;
+    showEmpty(spatialObjects,'No object tracks available.');
+  }
+  function renderSpatial(data){
+    if(!data||data.protocol_version!==1||typeof data.available!=='boolean'||!Array.isArray(data.features)||!Array.isArray(data.objects)||!Array.isArray(data.regions))throw new Error('Invalid VIGIL spatial snapshot contract.');
+    if(!data.available||!data.model){emptySpatial('NO BLUEPRINT LOADED','SPATIAL WORKSPACE READY');return;}
+    var model=data.model, bounds=model.bounds_m;
+    if(!Array.isArray(bounds)||bounds.length!==3||!bounds.every(function(b){return Number.isFinite(b.min)&&Number.isFinite(b.max)&&b.max>=b.min;}))throw new Error('Spatial model has invalid coordinate bounds.');
+    var x0=bounds[0].min,x1=bounds[0].max,y0=bounds[1].min,y1=bounds[1].max;
+    function xy(p){
+      if(!Array.isArray(p)||p.length<2||!Number.isFinite(p[0])||!Number.isFinite(p[1]))return null;
+      var nx=x1===x0?.5:(p[0]-x0)/(x1-x0),ny=y1===y0?.5:(p[1]-y0)/(y1-y0);
+      return [54+nx*852,462-ny*404];
+    }
+    while(spatialMap.firstChild)spatialMap.removeChild(spatialMap.firstChild);
+    spatialMap.appendChild(svgNode('rect',{x:0,y:0,width:960,height:520,fill:'#050b07'}));
+    for(var gx=0;gx<=8;gx++)spatialMap.appendChild(svgNode('line',{x1:54+gx*106.5,y1:44,x2:54+gx*106.5,y2:462,class:'map-grid'}));
+    for(var gy=0;gy<=4;gy++)spatialMap.appendChild(svgNode('line',{x1:54,y1:44+gy*104.5,x2:906,y2:44+gy*104.5,class:'map-grid'}));
+    var selected=model.selected_level;
+    data.regions.filter(function(r){return !r.level||!selected||r.level===selected;}).forEach(function(region){
+      var points=(region.polygon_xy_m||[]).map(xy).filter(Boolean).map(function(p){return p.join(',');}).join(' ');
+      if(!points)return;
+      var membership=region.inside===true?'inside':region.inside===false?'outside':'unknown';
+      spatialMap.appendChild(svgNode('polygon',{points:points,class:'map-region '+membership}));
+      var first=(region.polygon_xy_m||[]).length?xy(region.polygon_xy_m[0]):null;
+      if(first)spatialMap.appendChild(svgNode('text',{x:first[0]+4,y:first[1]-5,class:'map-region-label'},region.label+' / '+String(region.inside===null?'UNKNOWN':region.inside?'INSIDE':'OUTSIDE')));
+    });
+    data.features.forEach(function(feature){
+      var p=xy(feature.position_m);if(!p)return;
+      spatialMap.appendChild(svgNode('circle',{cx:p[0],cy:p[1],r:5,class:'map-feature'}));
+      spatialMap.appendChild(svgNode('title',{},feature.label+' · '+(feature.level||'level unknown')+' · '+(feature.zone||'zone unknown')));
+      spatialMap.appendChild(svgNode('text',{x:p[0]+8,y:p[1]-8,class:'map-label'},feature.label));
+    });
+    var visibleObjects=data.objects.filter(function(o){return o.visible_on_selected_level!==false;});
+    visibleObjects.forEach(function(object){
+      var trail=(object.motion_trail_m||[]).map(function(t){return xy(t.position_m);}).filter(Boolean);
+      if(trail.length>1)spatialMap.appendChild(svgNode('polyline',{points:trail.map(function(p){return p.join(',');}).join(' '),class:'map-trail'}));
+      var p=xy(object.position_m);if(!p)return;
+      var klass=object.conflict?'conflict':object.presence_state==='STALE'?'stale':'';
+      spatialMap.appendChild(svgNode('circle',{cx:p[0],cy:p[1],r:8,class:'map-object '+klass}));
+      var state=object.conflict?'CONFLICT':object.presence_state==='STALE'?'LAST KNOWN':object.motion_state||'MOTION UNKNOWN';
+      spatialMap.appendChild(svgNode('text',{x:p[0]+11,y:p[1]+5,class:'map-label'},object.object_id+' / '+state));
+      spatialMap.appendChild(svgNode('title',{},object.object_id+' · '+state+' · '+object.position_m.map(function(v){return v.toFixed(2);}).join(', ')+' m · uncertainty '+Number(object.uncertainty_m).toFixed(2)+' m · sensors '+(object.sensor_ids||[]).join(', ')));
+    });
+    if(data.pose&&Array.isArray(data.pose.position_m)){
+      var posePoint=xy(data.pose.position_m);
+      if(posePoint&&['TRACKING','DEGRADED'].indexOf(data.pose.state)>=0){
+        spatialMap.appendChild(svgNode('circle',{cx:posePoint[0],cy:posePoint[1],r:13,class:'map-pose'}));
+        spatialMap.appendChild(svgNode('line',{x1:posePoint[0]-17,y1:posePoint[1],x2:posePoint[0]+17,y2:posePoint[1],class:'map-pose'}));
+        spatialMap.appendChild(svgNode('line',{x1:posePoint[0],y1:posePoint[1]-17,x2:posePoint[0],y2:posePoint[1]+17,class:'map-pose'}));
+        spatialMap.appendChild(svgNode('text',{x:posePoint[0]+18,y:posePoint[1]-10,class:'map-label'},'CORELESS POSE'));
+      }
+    }
+    var query=data.spatial_query||{},status=String(query.status||'NO FIX');
+    spatialStatus.textContent=status+(data.pose?' / POSE '+String(data.pose.state):' / NO POSE');
+    spatialStatus.className='status '+(status==='OK'?'ok':status==='DEGRADED'?'stale':'bad');
+    spatialModel.textContent=model.model_id+' / '+model.revision+' / '+(selected||'all levels');
+    spatialDetail.textContent='FRAME '+model.frame_id+' · '+data.features.length+' modeled feature(s) · '+visibleObjects.length+' visible track(s) · '+(data.regions||[]).length+' region(s). Coordinates in meters; view is a projection of modeled geometry, not a claim of sensor coverage.';
+    clear(spatialObjects);
+    visibleObjects.forEach(function(object){
+      var statusText=object.conflict?'CONFLICT / REVIEW':object.presence_state==='STALE'?'STALE / LAST KNOWN':String(object.motion_state||'MOTION UNKNOWN');
+      var klass=object.conflict?'conflict':object.presence_state==='STALE'?'stale':'';
+      var card=textNode('article','spatial-object '+klass,'');
+      card.appendChild(textNode('h3','',object.object_id+' / '+statusText));
+      card.appendChild(textNode('p','','POSITION: '+object.position_m.map(function(v){return Number(v).toFixed(2);}).join(', ')+' m'));
+      card.appendChild(textNode('p','','SPEED: '+(object.speed_mps===null?'unknown':Number(object.speed_mps).toFixed(2)+' m/s')+' · UNCERTAINTY: '+Number(object.uncertainty_m).toFixed(2)+' m'));
+      card.appendChild(textNode('p','','LAST SEEN: '+object.last_seen_ns+' ns · AGE: '+object.age_ns+' ns'));
+      card.appendChild(textNode('p','muted','SENSORS: '+(object.sensor_ids||[]).join(', ')+' · MODALITIES: '+(object.modalities||[]).join(', ')));
+      if(object.conflict_reasons&&object.conflict_reasons.length)card.appendChild(textNode('p','', 'WARNINGS: '+object.conflict_reasons.join(', ')));
+      spatialObjects.appendChild(card);
+    });
+    if(!visibleObjects.length)showEmpty(spatialObjects,'No object tracks reported by the active VIGIL workspace.');
+  }
+  function pollSpatial(){
+    if(!sessionAuthenticated||!activeUrl||spatialInFlight)return;
+    spatialInFlight=true;var request=new AbortController();spatialController=request;
+    fetch('/api/vigil/spatial',{method:'GET',headers:{'Accept':'application/json'},credentials:'same-origin',cache:'no-store',redirect:'error',signal:request.signal})
+      .then(function(response){return response.json().catch(function(){return {};}).then(function(payload){if(!response.ok){var error=new Error(payload.detail||payload.error||('HTTP '+response.status));error.status=response.status;throw error;}return payload;});})
+      .then(function(payload){renderSpatial(payload);})
+      .catch(function(error){if(error.name==='AbortError')return;if(error.status===401){emptySpatial('OPERATOR SESSION REQUIRED','SIGN IN AGAIN');return;}emptySpatial(error.status===503?'SPATIAL WORKSPACE NOT READY':'SPATIAL SNAPSHOT UNAVAILABLE',error.message||'The authenticated spatial snapshot could not be loaded.');})
+      .finally(function(){spatialInFlight=false;if(spatialController===request)spatialController=null;});
+  }
+  function startSpatialPolling(){
+    if(spatialTimer!==null)window.clearInterval(spatialTimer);
+    pollSpatial();spatialTimer=window.setInterval(pollSpatial,POLL_MS);
+  }
+  function stopSpatialPolling(){
+    if(spatialTimer!==null)window.clearInterval(spatialTimer);spatialTimer=null;
+    if(spatialController)spatialController.abort();spatialController=null;spatialInFlight=false;
+  }
+
   function stopTimer(){if(timer!==null)window.clearInterval(timer);timer=null;}
   function stopConnection(message){
-    stopTimer();generation++;if(controller)controller.abort();controller=null;activeUrl='';inFlight=false;connect.disabled=false;disconnectButton.disabled=true;
+    stopTimer();stopSpatialPolling();generation++;if(controller)controller.abort();controller=null;activeUrl='';inFlight=false;connect.disabled=false;disconnectButton.disabled=true;
     setState('disconnected','DISCONNECTED',message||'No active telemetry connection.');lastSequence=-1;
   }
   function poll(){
@@ -154,10 +277,10 @@
     var raw=endpoint.value.trim(),url;try{url=new URL(raw,window.location.href);}catch(e){setState('disconnected','INVALID URL','Enter a valid HTTPS state endpoint.');return;}
     if(url.protocol!=='https:'||url.username||url.password||url.hash||url.search){setState('disconnected','INVALID URL','Use an HTTPS endpoint without embedded credentials, query parameters, or a fragment.');return;}
     stopTimer();generation++;if(controller)controller.abort();inFlight=false;activeUrl=url.href;lastSuccess=0;lastSequence=-1;failures=0;connect.disabled=true;disconnectButton.disabled=false;
-    setState('stale','CONNECTING','Waiting for an authorized runtime snapshot.');poll();timer=window.setInterval(function(){if(lastSuccess&&Date.now()-lastSuccess>STALE_MS)setState('stale','DATA STALE','No successful update in the last '+Math.round((Date.now()-lastSuccess)/1000)+' seconds.');poll();},POLL_MS);
+    setState('stale','CONNECTING','Waiting for an authorized runtime snapshot.');poll();startSpatialPolling();timer=window.setInterval(function(){if(lastSuccess&&Date.now()-lastSuccess>STALE_MS)setState('stale','DATA STALE','No successful update in the last '+Math.round((Date.now()-lastSuccess)/1000)+' seconds.');poll();},POLL_MS);
   });
   disconnectButton.addEventListener('click',function(){stopConnection('Connection stopped by operator.');});
-  window.addEventListener('pagehide',function(){stopTimer();if(controller)controller.abort();});
+  window.addEventListener('pagehide',function(){stopTimer();stopSpatialPolling();if(controller)controller.abort();});
   connect.disabled=true;endpoint.value=window.location.origin+'/api/operator/state';checkSession();
 })();
 </script>
