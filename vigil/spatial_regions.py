@@ -31,13 +31,30 @@ class SpatialRegion:
             self.region_id, self.label, self.model_id, self.model_revision, self.frame_id
         )):
             raise ValueError("region identity, label, model, revision, and frame are required")
-        if len(self.polygon_xy_m) < 3:
-            raise ValueError("region polygon requires at least three vertices")
+        if self.level is not None and (not isinstance(self.level, str) or not self.level.strip()):
+            raise ValueError("level must be a non-empty string or None")
+        if self.zone is not None and (not isinstance(self.zone, str) or not self.zone.strip()):
+            raise ValueError("zone must be a non-empty string or None")
         points = []
-        for point in self.polygon_xy_m:
-            if len(point) != 2 or not all(isfinite(float(value)) for value in point):
-                raise ValueError("region polygon vertices must be finite XY pairs")
-            points.append((float(point[0]), float(point[1])))
+        try:
+            for point in self.polygon_xy_m:
+                if len(point) != 2 or not all(isfinite(float(value)) for value in point):
+                    raise ValueError("region polygon vertices must be finite XY pairs")
+                points.append((float(point[0]), float(point[1])))
+        except (TypeError, OverflowError) as exc:
+            raise ValueError("region polygon vertices must be finite XY pairs") from exc
+        # Accept conventional closed rings, but store one canonical open ring.
+        if len(points) >= 2 and points[0] == points[-1]:
+            points.pop()
+        if len(points) < 3:
+            raise ValueError("region polygon requires at least three distinct vertices")
+        if len(set(points)) != len(points):
+            raise ValueError("region polygon must not repeat vertices")
+        edge_epsilon = 1e-9
+        for index, point in enumerate(points):
+            nxt = points[(index + 1) % len(points)]
+            if (point[0] - nxt[0]) ** 2 + (point[1] - nxt[1]) ** 2 <= edge_epsilon ** 2:
+                raise ValueError("region polygon must not contain zero-length edges")
         area_twice = sum(
             points[i][0] * points[(i + 1) % len(points)][1]
             - points[(i + 1) % len(points)][0] * points[i][1]
@@ -45,6 +62,41 @@ class SpatialRegion:
         )
         if abs(area_twice) <= 1e-9:
             raise ValueError("region polygon must have non-zero area")
+
+        def orientation(a, b, c):
+            return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+        def on_segment(a, b, p):
+            return (
+                min(a[0], b[0]) - edge_epsilon <= p[0] <= max(a[0], b[0]) + edge_epsilon
+                and min(a[1], b[1]) - edge_epsilon <= p[1] <= max(a[1], b[1]) + edge_epsilon
+            )
+
+        def intersects(a, b, d, e):
+            o1, o2 = orientation(a, b, d), orientation(a, b, e)
+            o3, o4 = orientation(d, e, a), orientation(d, e, b)
+            proper = ((o1 > edge_epsilon and o2 < -edge_epsilon or o1 < -edge_epsilon and o2 > edge_epsilon)
+                      and (o3 > edge_epsilon and o4 < -edge_epsilon or o3 < -edge_epsilon and o4 > edge_epsilon))
+            if proper:
+                return True
+            return (
+                abs(o1) <= edge_epsilon and on_segment(a, b, d)
+                or abs(o2) <= edge_epsilon and on_segment(a, b, e)
+                or abs(o3) <= edge_epsilon and on_segment(d, e, a)
+                or abs(o4) <= edge_epsilon and on_segment(d, e, b)
+            )
+
+        count = len(points)
+        for i in range(count):
+            a, b = points[i], points[(i + 1) % count]
+            for j in range(i + 1, count):
+                # Neighboring polygon edges are expected to meet at their shared vertex.
+                if j == i or j == (i + 1) % count or (j + 1) % count == i:
+                    continue
+                d, e = points[j], points[(j + 1) % count]
+                if intersects(a, b, d, e):
+                    raise ValueError("region polygon must not self-intersect")
+        object.__setattr__(self, "polygon_xy_m", tuple(points))
         if not isfinite(self.min_z_m) or not isfinite(self.max_z_m) or self.min_z_m > self.max_z_m:
             raise ValueError("region Z bounds must be finite and min_z_m <= max_z_m")
 
