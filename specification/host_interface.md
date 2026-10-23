@@ -230,3 +230,8 @@ These checks harden the software provider contract; they do not claim that a phy
 
 
 Discovery also snapshots each candidate's channel mapping when it constructs an endpoint. Later mutation of a provider-owned dictionary cannot silently add, remove, or rebind channels on an already-discovered endpoint; endpoint channel lookup remains a copy of that stable snapshot.
+
+
+## In-memory endpoint registry validation
+
+`MemoryHostTransportAdapter` validates initial endpoint records and rejects duplicate endpoint IDs instead of silently replacing an earlier endpoint during dictionary construction. This matches the discovery layer's duplicate-ID policy and keeps the test/reference registry deterministic. The explicit `register()` operation still permits intentional replacement of an existing endpoint ID for refresh/rebind tests. This is software-level validation only; it does not imply physical platform enumeration.
