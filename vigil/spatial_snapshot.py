@@ -50,6 +50,8 @@ def build_spatial_snapshot(
         "objects": [],
         "regions": [],
         "expected_sensor_coverage": [],
+        "sensor_lifecycle_history": [{**event, "timestamp_ns": str(event["timestamp_ns"]), "last_success_ns": str(event["last_success_ns"]) if event["last_success_ns"] is not None else None} for event in workspace.sensor_lifecycle_history],
+        "sensor_health_alerts": [],
         "sensor_providers": [{
             "provider_id": provider_id,
             "accepted": poll_status_by_id[provider_id].accepted if provider_id in poll_status_by_id else 0,
@@ -112,6 +114,14 @@ def build_spatial_snapshot(
             "scope_semantics": "No report is reported only for explicitly configured sensor/region expectations; this is not proof of physical sensor visibility or object absence.",
         })
     base["expected_sensor_coverage"] = coverage
+    alerts = []
+    for item in base["sensor_providers"]:
+        if item["state"] in ("ERROR", "DISCONNECTED"):
+            alerts.append({"source": "provider", "provider_id": item["provider_id"], "state": item["state"], "severity": "critical" if item["state"] == "DISCONNECTED" else "warning", "message": item.get("error") or item["state"].lower().replace("_", " ")})
+    for item in coverage:
+        if item["state"] in ("STALE_REPORT", "NO_REPORT_IN_SCOPE", "TIME_UNCERTAIN", "PROVIDER_ERROR", "PROVIDER_DISCONNECTED"):
+            alerts.append({"source": "expected_sensor", "sensor_id": item["sensor_id"], "provider_id": item["provider_id"], "state": item["state"], "severity": "warning" if item["state"] in ("STALE_REPORT", "NO_REPORT_IN_SCOPE") else "critical", "message": item["state"].lower().replace("_", " ")})
+    base["sensor_health_alerts"] = alerts
 
     view = build_blueprint_view(
         model, snapshot.pose, selected_level=snapshot.selected_level,
