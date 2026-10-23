@@ -155,6 +155,7 @@ class SpatialWorkspace:
         self._object_tracks: tuple[ObjectTrack, ...] = ()
         self._infrared_maps: dict[str, InfraredFloorMap] = {}
         self._sensor_providers: dict[str, SpatialSensorProvider] = {}
+        self._sensor_poll_statuses: tuple[SensorPollStatus, ...] = ()
         # Key by model/revision/region so activating an older blueprint cannot
         # silently reinterpret geometry registered for another revision.
         self._regions: dict[tuple[str, str, str], SpatialRegion] = {}
@@ -459,6 +460,11 @@ class SpatialWorkspace:
         """Registered optional providers in deterministic order."""
         return tuple(sorted(self._sensor_providers))
 
+    @property
+    def sensor_poll_statuses(self) -> tuple[SensorPollStatus, ...]:
+        """Most recent poll result for each provider; empty until the first poll."""
+        return self._sensor_poll_statuses
+
     def register_sensor_provider(self, provider_id: str, provider: SpatialSensorProvider) -> None:
         """Register an optional adapter. Duplicate IDs are rejected, not overwritten."""
         if not isinstance(provider_id, str) or not provider_id.strip():
@@ -505,7 +511,8 @@ class SpatialWorkspace:
                 # outside this method and must never depend on provider health.
                 message = " ".join(str(exc).split())[:180] or type(exc).__name__
                 statuses.append(SensorPollStatus(provider_id, 0, "ERROR", message))
-        return tuple(statuses)
+        self._sensor_poll_statuses = tuple(statuses)
+        return self._sensor_poll_statuses
 
     def refresh(self, *, now_ns: int, max_age_ns: int = 2_000_000_000,
                 max_uncertainty_m: float = 5.0,
