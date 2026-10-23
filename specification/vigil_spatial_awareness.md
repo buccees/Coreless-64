@@ -134,3 +134,9 @@ This API is deterministic software over registered feature points. It does not i
 `vigil/spatial_regions.py` adds `SpatialRegion`, a versioned polygon in model-frame XY coordinates with an explicit vertical interval, plus optional level/zone labels. `query_region()` checks model/revision/frame alignment and pose freshness/quality before reporting membership. Boundary points are treated as inside within a small explicit numerical tolerance. When pose is absent, stale, future-dated, or frame-mismatched, `inside` is `None` rather than a guessed true/false result.
 
 Regions must be explicitly supplied in calibrated meter coordinates; they are not inferred from a feature label, raster image, or AI text. The current polygon contract checks vertex validity and non-zero area; full CAD topology repair and arbitrary polygon self-intersection validation remain future geometry-import work.
+
+## Persistent spatial registry
+
+`vigil/spatial_registry_store.py` adds a SQLite-backed record store for normalized blueprint revisions, explicit polygon regions, and raster calibration metadata. Records use parameterized SQL, canonical JSON, record-size limits, and SHA-256 integrity checks. A model revision is immutable within the store; changed geometry or calibration requires a new revision/record ID. The store separately remembers the active model revision. Original image/CAD assets and raw sensor payloads are intentionally not stored here.
+
+`SpatialWorkspace(registry_store=...)` now saves imported/activated models and registered regions. On construction it restores the persisted active revision and regions into the in-memory workspace; live sensor observations, pose estimates, and tracks remain transient and must be reacquired. Raster calibrations can be saved and retrieved directly through `SpatialRegistryStore`; application-specific sensor mounting IDs and calibration workflows still need to be connected.
