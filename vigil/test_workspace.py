@@ -233,6 +233,7 @@ def test_optional_sensor_providers_are_polled_independently_and_fail_open():
     workspace.register_sensor_provider("wrong-payload", Provider([object()]))
 
     statuses = workspace.poll_sensors()
+    assert workspace.sensor_poll_statuses == statuses
     by_id = {status.provider_id: status for status in statuses}
     assert tuple(by_id) == ("broken-camera", "gps-primary", "wrong-payload")
     assert by_id["gps-primary"].state == "ONLINE"
