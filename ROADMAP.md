@@ -67,7 +67,8 @@ The current implementation checkpoint includes the reference digital-machine lif
 - [x] Reference host enumeration/transport adapter
 - [x] Provider-backed host transport adapter boundary
 - [x] Transport-neutral host hot-plug lifecycle coordinator (software contract only)
-- [ ] First native host adapter on Lubuntu/Linux: device-event subscription (evaluate udev/libudev) and arrival/removal handling
+- [x] Optional Linux udev event source with immutable, allowlisted OS-event snapshots and injected lifecycle tests (`reference/linux_udev_events.py`)
+- [ ] Integrate Linux udev events with Coreless identity probing, `HostHotplugController`, and concrete transport close/reopen handling
 - [ ] Physical unplug/replug and reconnect validation on the first Lubuntu test host
 - [ ] End-to-end VIGIL integration with native hot-plug lifecycle
 - [ ] Application environment
@@ -219,7 +220,7 @@ The Coreless input architecture uses VIGIL as an optional interpretation layer. 
 
 ## Current blocker — VIGIL hot-plug unavailable
 
-VIGIL **cannot use hot-plug yet**. The transport-neutral `HostHotplugController` exists and has software lifecycle tests, but it does not detect physical device events by itself. Native OS/device event subscriptions, concrete platform transport teardown/reopen, real unplug/replug validation, and an end-to-end VIGIL integration test remain incomplete. Do not describe VIGIL hot-plug as available until those checkpoints pass. This is a recorded blocker only; VIGIL spatial-intelligence expansion remains paused.
+VIGIL **cannot use hot-plug yet**. The transport-neutral `HostHotplugController` has software lifecycle tests, and `reference/linux_udev_events.py` now provides an optional pyudev event source with unit-tested snapshot and observer lifecycle behavior. That source only reports OS device events: it does not verify Coreless identity, attach endpoints, close/reopen transports, or prove physical unplug/replug. Those integration and hardware checks, plus an end-to-end VIGIL test, remain incomplete. Do not describe VIGIL hot-plug as available until those checkpoints pass. VIGIL spatial-intelligence expansion remains paused.
 
 ## Resume point
 
