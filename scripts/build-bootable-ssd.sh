@@ -77,11 +77,12 @@ sudo chroot "$WORK/root" /usr/bin/env DEBIAN_FRONTEND=noninteractive /bin/bash -
   ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
   printf "LANG=C.UTF-8
 " >/etc/default/locale
-  printf "GRUB_TIMEOUT=3
+  cat >/etc/default/grub <<GRUBCFG
+GRUB_TIMEOUT=3
 GRUB_DISTRIBUTOR=Coreless-64
 GRUB_DISABLE_OS_PROBER=true
-GRUB_CMDLINE_LINUX=\\"console=tty0 console=ttyS0,115200n8\\"
-" >/etc/default/grub
+GRUB_CMDLINE_LINUX="console=tty0 console=ttyS0,115200n8"
+GRUBCFG
   grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=CORELESS --removable --no-nvram
   update-grub
 '
