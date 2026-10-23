@@ -84,6 +84,24 @@ boundary where appropriate.
 The model does not gain architectural authority merely because it is local.
 Coreless CPU, VM, capability, and policy controls remain authoritative.
 
+### Shared AI boundary and VIGIL integration
+
+Component-local AI specialization does not mean every subsystem must create
+its own independent AI authority. A component may host a specialized model,
+while Coreless services that require shared analysis can submit requests through
+the existing Coreless AI registry/controller and its registered cores.
+
+VIGIL follows that shared path: it uses the existing Coreless AI registry via
+`vigil/ai.py`; it must not create or host a second VIGIL-specific AI runtime or
+authority. The VIGIL environment owns its interpretation state and derived
+perception results, not the underlying AI registry, model scheduling, or
+authorization policy. Component and model execution remains subject to
+deterministic Coreless CPU, VM, capability, and policy controls.
+
+This is the boundary between the two architectural statements: autonomous
+components may retain role-specific AI capability; VIGIL reuses the existing
+Coreless AI path rather than duplicating that path.
+
 ## Hot-plug and fault isolation
 
 Components are hot-pluggable composition members. Disconnecting a component
@@ -96,7 +114,6 @@ revokes its hub channels. The component retains its identity and can be
 recovered explicitly before rejoining. Faulted components cannot be attached
 until recovery, preventing an isolated failure from silently re-entering the
 unified system.
-
 
 ## Distributed workload execution
 
@@ -147,7 +164,6 @@ The host interface handles Coreless identity discovery, verification, capability
 Target lifecycle: **connect → discover → verify → negotiate → attach → boot/resume → operate → detach**.
 
 The host-interface contract is specified in `specification/host_interface.md`.
-
 
 ## External transport session integration
 
