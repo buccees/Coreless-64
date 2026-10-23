@@ -513,3 +513,13 @@ Spatial follow-up added after query API: `vigil/spatial_regions.py` defines expl
 ## Spatial persistence follow-up
 
 Added `vigil/spatial_registry_store.py` (`SpatialRegistryStore`) for SQLite persistence of normalized blueprint revisions, explicit regions, raster calibrations, and the active model pointer. `SpatialWorkspace(registry_store=store)` persists active-model imports/activation and region add/removal; a new workspace restores the saved active model/regions. Pose, live observations, and object tracks are deliberately transient and require fresh inputs after restart. Tests in `vigil/test_spatial_registry_store.py` and workspace restart tests cover the storage boundary. Latest workflow status must be checked for commit `8da9ef9` and subsequent integration/export/documentation commits.
+
+## Active checkpoint — 2026-10-23: live spatial operator path
+
+New implemented user-facing path:
+- `vigil/spatial_snapshot.py`: versioned JSON snapshot with active model/floor geometry, pose state/freshness, object positions and trails, motion/presence state, uncertainty/source IDs, and explicit region membership.
+- `reference/local_operator_server.py`: authenticated read-only `GET /api/vigil/spatial`. No session returns 401; POST is rejected; a missing workspace returns an explicit 503 instead of synthetic spatial data. CLI supports `--spatial-db` and optional `--blueprint`; the default SQLite spatial database sits next to the selected machine image.
+- `operator-display.html`: live SVG map and object roster polled on the authenticated session. Current pose/objects, last-known stale markers, conflict indicators, feature markers, region polygons/membership, speed, last-seen age, uncertainty and source metadata are visible.
+- Stale tracks are kept as last-known markers, not silently removed or treated as gone; stale motion is not reported as current. Stale markers remain out of current-evidence/readiness counts.
+
+The code path and regression tests are in GitHub; check the latest runs for current HEAD before calling this newest snapshot fully green. Software fixture tests do not establish physical range, coverage, or tracking accuracy. Real HTTPS deployment plus actual sensors and calibrated blueprint are still needed to validate end-to-end operation. The complete product remains unfinished until those are proven.
