@@ -13,7 +13,8 @@ LOOP=""
 MOUNTED=()
 
 cleanup() {
-  for target in "${MOUNTED[@]:-}"; do
+  for ((i=${#MOUNTED[@]}-1; i>=0; i--)); do
+    target="${MOUNTED[$i]}"
     mountpoint -q "$target" && sudo umount "$target" || true
   done
   if [[ -n "$LOOP" ]]; then sudo losetup -d "$LOOP" 2>/dev/null || true; fi
@@ -76,14 +77,15 @@ sudo chroot "$WORK/root" /usr/bin/env DEBIAN_FRONTEND=noninteractive /bin/bash -
 sudo mkdir -p "$WORK/root/opt/coreless" "$WORK/root/var/lib/coreless"
 sudo rsync -a --delete   --exclude=.git --exclude=dist --exclude='*.img' --exclude='*.lock'   --exclude='__pycache__' --exclude='.pytest_cache'   "$ROOT/" "$WORK/root/opt/coreless/"
 sudo install -m 0644 "$ROOT/deploy/coreless-machine.service" "$WORK/root/etc/systemd/system/coreless-machine.service"
-sudo chroot "$WORK/root" systemctl disable getty@tty1.service
-sudo chroot "$WORK/root" systemctl enable NetworkManager.service coreless-machine.service
-sudo chroot "$WORK/root" systemctl set-default multi-user.target
+sudo systemctl --root="$WORK/root" disable getty@tty1.service
+sudo systemctl --root="$WORK/root" enable NetworkManager.service coreless-machine.service
+sudo systemctl --root="$WORK/root" set-default multi-user.target
 sudo sync
 sudo umount "$WORK/root/run" "$WORK/root/sys" "$WORK/root/proc" "$WORK/root/dev" "$WORK/root/boot/efi" "$WORK/root"
 MOUNTED=()
 sudo losetup -d "$LOOP"
 LOOP=""
+sudo chown "$(id -u):$(id -g)" "$OUT"
 echo "Bootable Coreless carrier image created: $OUT"
 echo "Target: x86_64 UEFI; Debian $SUITE; GPT + EFI System Partition + ext4 root."
 echo "The image file is new and was not written to a physical disk."
