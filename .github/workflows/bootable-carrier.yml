@@ -30,6 +30,8 @@ jobs:
           python -m py_compile scripts/coreless-console.py
       - name: Build UEFI x86_64 disk image
         run: bash scripts/build-bootable-ssd.sh "$RUNNER_TEMP/coreless-uefi-x86_64.img"
+      - name: Validate built image offline
+        run: bash scripts/validate-bootable-ssd.sh "$RUNNER_TEMP/coreless-uefi-x86_64.img"
       - name: Publish bootable image artifact
         uses: actions/upload-artifact@v4
         with:
