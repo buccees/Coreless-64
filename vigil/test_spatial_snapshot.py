@@ -6,6 +6,7 @@ from vigil.object_tracking import ObjectObservation, TrackingModality
 from vigil.spatial_regions import SpatialRegion
 from vigil.spatial_snapshot import build_spatial_snapshot
 from vigil.workspace import SpatialWorkspace
+from vigil.positioning import SpatialObservation
 from vigil.blueprint import register_blueprint
 
 
@@ -25,6 +26,12 @@ def test_snapshot_has_floor_geometry_pose_and_object_state_as_json_safe_data():
     active = model()
     workspace.registry.register(active, activate=True)
     workspace.select_level("L1")
+    workspace.ingest([
+        SpatialObservation("pose-uwb", "uwb-pose", active.model_id, active.revision,
+                          active.frame_id, 100, (3.0, 2.0, 0.0), 0.2, "calibrated-test"),
+        SpatialObservation("pose-vision", "vision-pose", active.model_id, active.revision,
+                           active.frame_id, 100, (3.05, 2.0, 0.0), 0.2, "calibrated-test"),
+    ])
     workspace.ingest_object_observations([ObjectObservation(
         "cart-7", "uwb-array", active.model_id, active.revision, active.frame_id,
         100, (3, 2, 0), 0.2, TrackingModality.UWB, "calibrated-ranging",
