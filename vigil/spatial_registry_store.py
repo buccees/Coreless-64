@@ -165,6 +165,11 @@ class SpatialRegistryStore:
                 payload_json TEXT NOT NULL,
                 payload_sha256 TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS sensor_alert_acknowledgements (
+                alert_id TEXT PRIMARY KEY,
+                payload_json TEXT NOT NULL,
+                payload_sha256 TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS spatial_store_settings (
                 setting_key TEXT PRIMARY KEY,
                 setting_value TEXT NOT NULL
@@ -928,6 +933,69 @@ class SpatialRegistryStore:
             for row in reversed(rows)
         ]
         return tuple(events)
+
+    def set_sensor_alert_acknowledgement(
+        self, alert_id: str, *, acknowledged: bool,
+        acknowledged_at_utc: str | None = None, acknowledged_by: str = "operator",
+    ) -> None:
+        """Persist or clear an acknowledgement for one active alert incident."""
+        if not isinstance(alert_id, str) or not alert_id.strip():
+            raise ValueError("alert_id must be a non-empty string")
+        if not isinstance(acknowledged, bool):
+            raise TypeError("acknowledged must be a boolean")
+        if not isinstance(acknowledged_by, str) or not acknowledged_by.strip():
+            raise ValueError("acknowledged_by must be a non-empty string")
+        with self._connection:
+            if not acknowledged:
+                self._connection.execute(
+                    "DELETE FROM sensor_alert_acknowledgements WHERE alert_id=?", (alert_id,)
+                )
+                return
+            payload = {
+                "alert_id": alert_id,
+                "acknowledged": True,
+                "acknowledged_at_utc": acknowledged_at_utc,
+                "acknowledged_by": acknowledged_by,
+            }
+            encoded, digest = _encode(payload, max_bytes=self.max_record_bytes)
+            self._connection.execute(
+                "INSERT INTO sensor_alert_acknowledgements(alert_id,payload_json,payload_sha256) "
+                "VALUES(?,?,?) ON CONFLICT(alert_id) DO UPDATE SET "
+                "payload_json=excluded.payload_json,payload_sha256=excluded.payload_sha256",
+                (alert_id, encoded, digest),
+            )
+
+    def load_sensor_alert_acknowledgements(self) -> dict[str, dict[str, Any]]:
+        """Load integrity-checked alert acknowledgements keyed by alert incident ID."""
+        rows = self._connection.execute(
+            "SELECT alert_id,payload_json,payload_sha256 FROM sensor_alert_acknowledgements "
+            "ORDER BY alert_id"
+        ).fetchall()
+        result = {}
+        for row in rows:
+            payload = _decode(
+                row["payload_json"], row["payload_sha256"], max_bytes=self.max_record_bytes
+            )
+            if payload.get("alert_id") != row["alert_id"] or payload.get("acknowledged") is not True:
+                raise ValueError("stored sensor alert acknowledgement is inconsistent")
+            result[row["alert_id"]] = payload
+        return result
+
+    def clear_inactive_sensor_alert_acknowledgements(self, active_alert_ids: set[str]) -> None:
+        """Forget acknowledgements for incidents no longer present in the current snapshot."""
+        if not isinstance(active_alert_ids, set) or any(
+            not isinstance(item, str) for item in active_alert_ids
+        ):
+            raise TypeError("active_alert_ids must be a set of strings")
+        with self._connection:
+            if not active_alert_ids:
+                self._connection.execute("DELETE FROM sensor_alert_acknowledgements")
+                return
+            placeholders = ",".join("?" for _ in active_alert_ids)
+            self._connection.execute(
+                f"DELETE FROM sensor_alert_acknowledgements WHERE alert_id NOT IN ({placeholders})",
+                tuple(sorted(active_alert_ids)),
+            )
 
     def close(self) -> None:
         self._connection.close()
