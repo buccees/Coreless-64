@@ -7,11 +7,12 @@ never accepts commands and never invents sensor telemetry.
 from __future__ import annotations
 
 import time
+from dataclasses import replace
 from threading import Lock
 from typing import Callable, Iterable, Mapping, Any, Sequence
 from urllib.parse import urlsplit
 
-from operator_display import OperatorViewState
+from operator_display import OperatorAlert, OperatorSensorStatus, OperatorViewState
 
 START_RESPONSE = Callable[[str, list[tuple[str, str]]], Any]
 Environ = Mapping[str, Any]
@@ -95,6 +96,86 @@ def create_coreless_operator_app(
         allowed_origins=allowed_origins,
     )
 
+
+
+class VigilSensorEventSnapshotProvider:
+    """Combine Coreless lifecycle state with observed VIGIL ledger events.
+
+    This reports only events already present in the injected ledger. It does not
+    start sensors, imply physical hardware is connected, or turn context evidence
+    into a location. A recent rejected/warning event marks that source degraded.
+    """
+
+    def __init__(self, system: Any, ledger: Any, *, stale_after_ns: int = 5_000_000_000) -> None:
+        if not callable(getattr(system, "status", None)):
+            raise TypeError("system must expose CorelessSystem.status()")
+        if not callable(getattr(ledger, "snapshot", None)) or not callable(getattr(ledger, "alignment_for", None)):
+            raise TypeError("ledger must expose snapshot() and alignment_for()")
+        if isinstance(stale_after_ns, bool) or not isinstance(stale_after_ns, int) or stale_after_ns < 0:
+            raise ValueError("stale_after_ns must be a non-negative integer")
+        self._system = system
+        self._ledger = ledger
+        self._stale_after_ns = stale_after_ns
+        self._sequence = 0
+        self._lock = Lock()
+
+    def __call__(self) -> OperatorViewState:
+        with self._lock:
+            sequence = self._sequence
+            self._sequence += 1
+        base = coreless_view_state(self._system, sequence=sequence)
+        now_ns = base.generated_at_ns
+        events = self._ledger.snapshot(now_ns=now_ns, limit=10_000)
+        latest_by_sensor = {}
+        for event in events:
+            previous = latest_by_sensor.get(event.sensor_id)
+            aligned = self._ledger.alignment_for(event.event_id)["aligned_timestamp_ns"]
+            previous_aligned = (
+                self._ledger.alignment_for(previous.event_id)["aligned_timestamp_ns"]
+                if previous is not None else -1
+            )
+            if aligned > previous_aligned:
+                latest_by_sensor[event.sensor_id] = event
+
+        sensors = []
+        alerts = []
+        newest_source_ns = base.source_timestamp_ns
+        for sensor_id, event in sorted(latest_by_sensor.items()):
+            aligned_ns = self._ledger.alignment_for(event.event_id)["aligned_timestamp_ns"]
+            age_ns = max(0, now_ns - aligned_ns)
+            status = event.status.value
+            if age_ns > self._stale_after_ns:
+                sensor_state = "stale"
+                reason = f"Last observed event is {age_ns} ns old; latest event: {event.reason}"
+            elif status in {"rejected", "warning"}:
+                sensor_state = "degraded"
+                reason = event.reason
+            else:
+                sensor_state = "ready"
+                reason = f"{status}: {event.reason}"
+            sensors.append(OperatorSensorStatus(
+                sensor_id=sensor_id,
+                modality=event.modality,
+                state=sensor_state,
+                source_timestamp_ns=aligned_ns,
+                calibration=event.calibration_status,
+                reason=reason,
+            ))
+            newest_source_ns = max(newest_source_ns, aligned_ns)
+            if status in {"rejected", "warning"}:
+                alerts.append(OperatorAlert(
+                    alert_id=event.event_id,
+                    severity="warning",
+                    message=f"{sensor_id}: {event.event_kind} — {event.reason}",
+                    source="vigil.sensor_event",
+                    source_timestamp_ns=aligned_ns,
+                ))
+        return replace(
+            base,
+            source_timestamp_ns=newest_source_ns,
+            sensors=tuple(sensors),
+            alerts=tuple(alerts),
+        )
 
 class OperatorTelemetryApp:
     """Authenticated, read-only WSGI endpoint with optional strict CORS allowlist."""
