@@ -2,7 +2,7 @@
 
 ## Current checkpoint
 
-The current implementation checkpoint includes the complete reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, Transformer → TensorRuntime routing, autonomous Coreless components, Hub composition, coordinated persistence, native CPU/VM component execution, Hub scheduling, and a reference plug-and-play host transport layer.
+The current implementation checkpoint includes the reference digital-machine lifecycle, persistent TensorRuntime, native vector/matrix execution foundations, Transformer → TensorRuntime routing, autonomous Coreless components, Hub composition, coordinated persistence, native CPU/VM component execution, Hub scheduling, a reference plug-and-play host transport layer, and an authenticated read-only Remote Operator Display endpoint backed by the active CorelessSystem. This operator surface reports runtime lifecycle and only those sensor events explicitly supplied to its telemetry provider; it does not imply physical sensor connectivity or a complete in-machine GUI.
 
 ## Phase 1 — Architecture
 
@@ -49,7 +49,7 @@ The current implementation checkpoint includes the complete reference digital-ma
 - [ ] Device drivers
 - [ ] Networking
 - [ ] GUI
-- [ ] Remote display/input
+- [x] Authenticated read-only remote operator display page and runtime-state endpoint (reference implementation)\n- [ ] Complete in-machine GUI and platform-specific display/input transports
 - [x] User-designated pointing-device subsystem
 - [x] Touch/pointing input routing through Coreless input boundary
 - [x] Initial optional VIGIL input interpretation layer
@@ -198,7 +198,7 @@ The Coreless input architecture uses VIGIL as an optional interpretation layer. 
 
 ## Resume point
 
-**Next:** deepen the Coreless/Qwen3 execution boundary with tensor-backed KV-cache and native head data movement, while continuing concrete plug-and-play host transports → trained Qwen3-0.6B validation → persistent-storage-hosted runtime → live Coreless inference. Continue the optional VIGIL camera/spatial layer in parallel.
+**Current next priorities:** implement and validate concrete platform host enumeration and display/input/network transport adapters; validate the existing authenticated Remote Operator Display against the active machine lifecycle and observed VIGIL event ledger without fabricating sensor state; then continue deeper native Coreless execution and official trained Qwen3-0.6B end-to-end validation. The VIGIL spatial-intelligence expansion is paused; its existing research notes and historical decisions remain preserved.
 
 
 ## Latest transport milestone
