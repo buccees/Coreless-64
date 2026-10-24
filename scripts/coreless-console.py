@@ -20,10 +20,18 @@ def main() -> int:
     spatial_db = Path(__import__("os").environ.get("CORELESS_VIGIL_DB", "/var/lib/coreless/vigil-spatial.sqlite3"))
     spatial_store, spatial_workspace = open_carrier_spatial_workspace(spatial_db)
     system = CorelessSystem(storage_path=image)
+    # Inspect the image before boot mutates it. This lets the carrier report
+    # whether a previous power-on left recoverable Coreless state behind.
+    restored_machine_state = system.machine.storage.load_machine_state() is not None
     try:
         system.boot()
         print("\nCORELESS-64 MACHINE CONSOLE")
         print(f"Persistent machine image: {image}")
+        print(
+            "Persistent machine state: restored existing state"
+            if restored_machine_state
+            else "Persistent machine state: initialized new image"
+        )
         print(f"Persistent VIGIL registry: {spatial_db}")
         active = spatial_workspace.active_model
         print(f"Restored VIGIL model: {active.model_id}@{active.revision}" if active else "Restored VIGIL model: none registered yet")
