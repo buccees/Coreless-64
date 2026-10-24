@@ -23,8 +23,39 @@ def main() -> int:
     # Inspect the image before boot mutates it. This lets the carrier report
     # whether a previous power-on left recoverable Coreless state behind.
     restored_machine_state = system.machine.storage.load_machine_state() is not None
+    # A marker placed on the carrier's state partition opts into a deterministic
+    # CI-only recovery fixture. Production carriers never create this marker.
+    recovery_marker = Path("/var/lib/coreless/.recovery-test")
+    recovery_fixture = recovery_marker.is_file()
+    recovery_bytes = b"CORELESS"
+    recovery_address = 0x100
+    recovery_register = 37
     try:
+        if recovery_fixture and restored_machine_state:
+            cpu = system.machine.cpu
+            recovered_bytes = bytes(cpu.memory[recovery_address:recovery_address + len(recovery_bytes)])
+            if (cpu.read_reg(7) != recovery_register or cpu.pc != recovery_address + 4
+                    or recovered_bytes != recovery_bytes):
+                raise RuntimeError(
+                    "recovery fixture mismatch: "
+                    f"r7={cpu.read_reg(7)} pc={cpu.pc} ram={recovered_bytes.hex()}"
+                )
+            print(
+                "Recovery fixture restored: "
+                f"r7={cpu.read_reg(7)} pc={cpu.pc} ram={recovered_bytes.hex()}"
+            )
         system.boot()
+        if recovery_fixture and not restored_machine_state:
+            cpu = system.machine.cpu
+            cpu.write_reg(7, recovery_register)
+            cpu.pc = recovery_address + 4
+            cpu.memory[recovery_address:recovery_address + len(recovery_bytes)] = recovery_bytes
+            cpu.memory.flush()
+            system.machine.save_state()
+            print(
+                "Recovery fixture saved: "
+                f"r7={cpu.read_reg(7)} pc={cpu.pc} ram={recovery_bytes.hex()}"
+            )
         print("\nCORELESS-64 MACHINE CONSOLE")
         print(f"Persistent machine image: {image}")
         print(
