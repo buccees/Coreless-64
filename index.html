@@ -156,6 +156,9 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
  #sensors-panel #rf-evidence-selector #rf-evidence-description{overflow-wrap:break-word;word-break:normal}
 }
 /* Desktop Control Room: numbered section rail stays on the left; workspace uses available width. */
+.stack[hidden]{display:none!important}
+.workspace .layout.single-stack{grid-template-columns:minmax(0,1fr)!important}
+.workspace .layout.single-stack>.stack{width:100%;min-width:0}
 @media(min-width:761px){
  body{padding:16px 22px 22px 258px}
  .nav-panel{
@@ -741,7 +744,23 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     panels.forEach(function(panel) {
       panel.hidden = panel.getAttribute('data-category') !== category;
     });
+    updateWorkspaceColumns();
   }
+  function updateWorkspaceColumns() {
+    var layouts = Array.prototype.slice.call(document.querySelectorAll('.workspace .layout'));
+    layouts.forEach(function(layout) {
+      var stacks = Array.prototype.slice.call(layout.querySelectorAll(':scope > .stack'));
+      var visibleStacks = 0;
+      stacks.forEach(function(stack) {
+        var categoryPanels = Array.prototype.slice.call(stack.querySelectorAll('.report-panel[data-category]'));
+        var hasVisiblePanel = categoryPanels.some(function(panel) { return !panel.hidden; });
+        stack.hidden = !hasVisiblePanel;
+        if (hasVisiblePanel) visibleStacks++;
+      });
+      layout.classList.toggle('single-stack', visibleStacks <= 1);
+    });
+  }
+
   if (nav) {
     nav.addEventListener('click', function(event) {
       var link = event.target.closest ? event.target.closest('.nav-button[data-view]') : null;
