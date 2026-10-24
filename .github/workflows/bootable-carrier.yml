@@ -85,7 +85,7 @@ jobs:
           echo "Using UEFI firmware code: $OVMF_CODE"
           echo "Using writable UEFI variable store: $OVMF_VARS_COPY"
           set +e
-          timeout 150s qemu-system-x86_64 \
+          timeout 60s qemu-system-x86_64 \
             -machine q35 -m 2048 -smp 2 \
             -drive "if=pflash,format=raw,readonly=on,file=$OVMF_CODE" \
             -drive "if=pflash,format=raw,file=$OVMF_VARS_COPY" \
@@ -111,7 +111,41 @@ jobs:
             echo "Coreless console did not confirm the SSD-backed machine image path" >&2
             exit 1
           }
-          echo "PASS: UEFI boot reached multi-user and the Coreless runtime opened its persistent machine image."
+          grep -Fq "Persistent machine state: initialized new image" "$RUNNER_TEMP/qemu-boot.log" || {
+            echo "First UEFI boot did not report initialization of a fresh Coreless machine image" >&2
+            exit 1
+          }
+
+          # Simulate a power cycle by stopping QEMU after Coreless has saved
+          # its boot state, then boot the exact same disk image again.
+          set +e
+          timeout 60s qemu-system-x86_64 \
+            -machine q35 -m 2048 -smp 2 \
+            -drive "if=pflash,format=raw,readonly=on,file=$OVMF_CODE" \
+            -drive "if=pflash,format=raw,file=$OVMF_VARS_COPY" \
+            -drive "file=$IMAGE,format=raw,if=virtio" \
+            -display none -serial stdio -monitor none -no-reboot \
+            >"$RUNNER_TEMP/qemu-recovery.log" 2>&1
+          RECOVERY_QEMU_STATUS=$?
+          set -e
+          cat "$RUNNER_TEMP/qemu-recovery.log"
+          if [[ $RECOVERY_QEMU_STATUS -ne 0 && $RECOVERY_QEMU_STATUS -ne 124 ]]; then
+            echo "QEMU recovery boot exited unexpectedly with status $RECOVERY_QEMU_STATUS" >&2
+            exit "$RECOVERY_QEMU_STATUS"
+          fi
+          grep -Eqi "Reached target Multi-User System|Reached target.*Multi-User" "$RUNNER_TEMP/qemu-recovery.log" || {
+            echo "Recovery boot did not reach the multi-user target" >&2
+            exit 1
+          }
+          grep -Fq "Persistent machine state: restored existing state" "$RUNNER_TEMP/qemu-recovery.log" || {
+            echo "Recovery boot did not restore the machine state saved on the first boot" >&2
+            exit 1
+          }
+          grep -Fq "Persistent machine image: /var/lib/coreless/coreless.img" "$RUNNER_TEMP/qemu-recovery.log" || {
+            echo "Recovery boot did not reopen the same persistent machine image" >&2
+            exit 1
+          }
+          echo "PASS: UEFI boot reached multi-user, opened the persistent machine image, and recovered saved Coreless state after a simulated power cycle."
       - name: Publish bootable image artifact (manual runs only)
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
