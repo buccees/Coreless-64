@@ -220,9 +220,9 @@ console.log("VIGIL track inspector and review filters: 2 scenario groups passed.
   };
   vm.runInNewContext(extractFunction("function recordSpatialAudit(action, detail) {"), context);
   for (let i = 0; i < 103; i += 1) context.recordSpatialAudit("TEST EVENT", "event-" + i);
-  assert.equal(entries.length, 100);
-  assert.equal(entries[0].detail, "event-3");
-  assert.equal(entries[99].detail, "event-102");
+  assert.equal(context.spatialAuditEntries.length, 100);
+  assert.equal(context.spatialAuditEntries[0].detail, "event-3");
+  assert.equal(context.spatialAuditEntries[99].detail, "event-102");
   assert.equal(JSON.parse(stored["test-audit"]).length, 100);
 }
 {
