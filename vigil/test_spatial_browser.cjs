@@ -9,50 +9,7 @@ const { chromium } = require("playwright");
 
 const htmlPath = path.join(__dirname, "..", "index.html");
 const html = fs.readFileSync(htmlPath);
-const fixture = {
-  model_id: "BROWSER-TEST-MODEL",
-  revision: "r1",
-  frame_id: "frame-browser-test",
-  features: [],
-  objects: [
-    {
-      object_id: "TRACK-STABLE",
-      normalized_position: [0.2, 0.3, 0],
-      inferred_level: "1",
-      uncertainty_m: 0.5,
-      calibration_status: "verified",
-      calibration_ids: ["CAL-1"],
-      lineage_declared: true,
-      observation_count: 4,
-      sensor_ids: ["LIDAR-A"],
-      modalities: ["lidar"],
-      independence_groups: ["range-a"]
-    },
-    {
-      object_id: "TRACK-UNKNOWN",
-      normalized_position: [0.4, 0.3, 0],
-      inferred_level: "1",
-      calibration_status: "verified",
-      lineage_declared: true,
-      observation_count: 2,
-      sensor_ids: ["CAM-A"],
-      modalities: ["optical"]
-    },
-    {
-      object_id: "TRACK-REVIEW",
-      normalized_position: [0.6, 0.3, 0],
-      inferred_level: "1",
-      uncertainty_m: 1.4,
-      calibration_status: "pending",
-      lineage_declared: false,
-      observation_count: 3,
-      sensor_ids: ["LIDAR-B"],
-      modalities: ["lidar"],
-      conflict: true,
-      conflict_reasons: ["browser fixture conflict"]
-    }
-  ]
-};
+const fixture = require("./fixtures/vigil-test-scene.json");
 
 (async () => {
   const server = http.createServer((req, res) => {
