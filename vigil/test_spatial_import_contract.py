@@ -130,7 +130,7 @@ def test_spatial_audit_records_review_decisions_with_reasons_and_bounds_history(
 
 def test_successful_scene_import_binds_markers_and_refreshes_review_controls():
     source = SOURCE
-    import_handler = source[source.indexOf("reader.onload = function() {"):source.indexOf("reader.onerror = function() {")]
+    import_handler = source[source.index("reader.onload = function() {"):source.index("reader.onerror = function() {")]
     assert "var counts = renderImportedScene(data);" in import_handler
     assert "applyImportedLevelFilter();" in import_handler
     assert "applySpatialReviewFilter(spatialReviewFilter);" in import_handler
