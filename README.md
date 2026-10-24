@@ -1,5 +1,37 @@
 # Coreless
 
+## Live project website
+
+**Open the Coreless-64 / VIGIL website:** [Launch the live site](https://buccees.github.io/Coreless-64/)
+
+<iframe src="https://buccees.github.io/Coreless-64/" title="Coreless-64 and VIGIL project website" width="100%" height="720" loading="lazy" style="border:1px solid #30363d; border-radius:8px;"></iframe>
+
+If the embedded view is not displayed by your Markdown renderer, use the [live website link](https://buccees.github.io/Coreless-64/) directly. GitHub's README renderer may sanitize iframe elements; the website itself is published separately through the repository's GitHub Pages workflow.
+
+## Current verified checkpoint — 2026-10-24
+
+The latest carrier workflow has passed its QEMU/UEFI boot and simulated power-cycle recovery checks. The recovery fixture verified all three exact values after the second boot:
+
+- **Virtual CPU register:** `r7 = 37`
+- **Virtual program counter:** `260` (`0x104`)
+- **Virtual RAM marker:** eight bytes, `CORELESS` (`434f52454c455353` in hexadecimal)
+
+The automated workflow also confirmed that the booted carrier reached multi-user mode, launched the Coreless console, and restored the existing persistent machine state. The reference test workflow passed on the same checkpoint.
+
+- [Latest successful UEFI carrier and recovery workflow](https://github.com/buccees/Coreless-64/actions/runs/40100765232)
+- [Latest successful reference test workflow](https://github.com/buccees/Coreless-64/actions/runs/40100765455)
+- [Carrier build and test specification](specification/bootable_carrier.md)
+- [Project roadmap](ROADMAP.md)
+
+**What this proves:** the current Linux-based UEFI carrier can launch the Coreless reference runtime, open its persistent machine image, and recover the tested virtual CPU and RAM state across a simulated power cycle.
+
+**What it does not yet prove:** native Coreless-only boot, physical removable-SSD boot, full program continuation after interruption, trained Qwen3-0.6B end-to-end inference, or comparative performance benchmarks. The current recovery values are functional correctness checks, not throughput or latency benchmarks. Those remain engineering and validation work.
+
+The architectural direction remains a **software-defined machine**, not simply an application: Coreless is developing its own virtual processor and execution model, memory, devices, OS/runtime, AI integration, and persistent state. The host provides physical resources for the current reference implementation while work continues toward Coreless-controlled execution.
+
+---
+
+
 [**Coreless-64 album cover artwork — Claude**](./Coreless-64%20album%20cover%20artwork%20-%20Claude.html)
 
 **The SSD is the Coreless-64 machine. It carries the complete machine—not merely files or saved state—including its execution engine, operating environment, configuration, and persistent state. The operating system runs on that machine. Lubuntu is the preferred OS, not the host that owns or runs Coreless as an application.**
