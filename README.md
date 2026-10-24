@@ -2,7 +2,11 @@
 
 ## Live project website
 
-**Open the Coreless-64 / VIGIL website:** [Launch the live site](https://buccees.github.io/Coreless-64/)
+**Open the live project website:**
+
+[🌐 LAUNCH CORELESS-64 / VIGIL WEBSITE →](https://buccees.github.io/Coreless-64/)
+
+> GitHub does not allow an interactive website iframe inside a README. Use the prominent link above to open the live site; the iframe markup below is retained as a fallback for Markdown viewers that support it.
 
 <iframe src="https://buccees.github.io/Coreless-64/" title="Coreless-64 and VIGIL project website" width="100%" height="720" loading="lazy" style="border:1px solid #30363d; border-radius:8px;"></iframe>
 
