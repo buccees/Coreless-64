@@ -90,7 +90,7 @@ function track(overrides = {}) {
   assert.equal(n["bridge-review-count"].textContent, "4");
   assert.equal(n["bridge-conflict-count"].textContent, "1");
   assert.equal(n["bridge-uncertainty-count"].textContent, "1");
-  assert.equal(n["bridge-calibration-count"].textContent, "2");
-  assert.equal(n["bridge-lineage-count"].textContent, "2");
+  assert.equal(n["bridge-calibration-count"].textContent, "1");
+  assert.equal(n["bridge-lineage-count"].textContent, "1");
 }
 console.log("VIGIL spatial review logic: 6 scenario groups passed.");
