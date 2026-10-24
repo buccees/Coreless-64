@@ -126,3 +126,13 @@ def test_spatial_audit_records_review_decisions_with_reasons_and_bounds_history(
     assert "NOT TAMPER-PROOF" in SOURCE
     assert 'id="spatial-audit-list"' in SOURCE
     assert 'id="spatial-audit-export"' in SOURCE
+
+
+def test_successful_scene_import_binds_markers_and_refreshes_review_controls():
+    source = SOURCE
+    import_handler = source[source.indexOf("reader.onload = function() {"):source.indexOf("reader.onerror = function() {")]
+    assert "var counts = renderImportedScene(data);" in import_handler
+    assert "applyImportedLevelFilter();" in import_handler
+    assert "applySpatialReviewFilter(spatialReviewFilter);" in import_handler
+    assert "bindSpatialTrackInspection(importedScene);" in import_handler
+    assert "updateCsiAssociation(importedScene);" in import_handler
