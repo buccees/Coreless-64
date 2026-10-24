@@ -142,7 +142,7 @@ function treeText(node) {
       point.slice(0, 3).every(n => typeof n === "number" && Number.isFinite(n)),
     Array, Number, String, Math, Object
   };
-  vm.runInNewContext(extractFunction("function inspectSpatialTrack(object) {"), context);
+  vm.runInNewContext(extractFunction("function inspectSpatialTrack(object, suppressAudit) {"), context);
   context.inspectSpatialTrack({
     object_id: "T-42", inferred_level: "2",
     motion_trail_m: [[1, [0, 1, 1]], [2, [0, 2, 4]]],
