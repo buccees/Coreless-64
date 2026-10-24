@@ -74,7 +74,7 @@ const fixture = {
     await page.goto("http://127.0.0.1:" + address.port + "/", { waitUntil: "load" });
 
     await page.locator('.nav-button[data-view="spatial"]').click();
-    await page.locator("#spatial-stage").waitFor({ state: "visible" });
+    await page.locator("#spatial-panel .spatial-stage").waitFor({ state: "visible" });
     assert.equal(await page.locator("#spatial-audit-panel").isVisible(), true);
     assert.match(await page.locator(".spatial-legend").innerText(), /UNKNOWN UNCERTAINTY \/ AMBER DASHED/);
     assert.match(await page.locator(".spatial-legend").innerText(), /BLUE DASHED OUTLINE/);
