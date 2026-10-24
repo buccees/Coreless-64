@@ -140,6 +140,8 @@ function treeText(node) {
     document: { createElement: makeNode, createTextNode: text => Object.assign(makeNode("#text"), { textContent: text }) },
     spatialTrackDetail: detail, spatialLevel: level,
     recordSpatialAudit: () => {}, spatialReviewDecisionKey: object => String(object.object_id || 'OBJECT'),
+    spatialAuditSceneSnapshot: () => ({ model_id: "TEST-MODEL", revision: "r1", frame_id: "frame-1" }),
+    spatialAuditEntries: [],
     spatialTrackReviewDecisions: {},
     finite3: point => Array.isArray(point) && point.length >= 3 &&
       point.slice(0, 3).every(n => typeof n === "number" && Number.isFinite(n)),
