@@ -94,3 +94,111 @@ function track(overrides = {}) {
   assert.equal(n["bridge-lineage-count"].textContent, "1");
 }
 console.log("VIGIL spatial review logic: 6 scenario groups passed.");
+
+
+// Shared extractor for additional production functions embedded in index.html.
+function extractFunction(signature) {
+  const start = html.indexOf(signature);
+  assert.notEqual(start, -1, signature + " must exist");
+  let depth = 0, quote = null, escaped = false, end = -1;
+  for (let i = start + signature.length - 1; i < html.length; i += 1) {
+    const ch = html[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (ch.charCodeAt(0) === 92) escaped = true;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"') quote = ch;
+    else if (ch === "{") depth += 1;
+    else if (ch === "}" && --depth === 0) { end = i + 1; break; }
+  }
+  assert.notEqual(end, -1, signature + " body must be balanced");
+  return html.slice(start, end);
+}
+function makeNode(tag) {
+  return {
+    tag, textContent: "", style: {}, attributes: {}, children: [], parentNode: null,
+    appendChild(child) { child.parentNode = this; this.children.push(child); return child; },
+    removeChild(child) { this.children.splice(this.children.indexOf(child), 1); child.parentNode = null; return child; },
+    get firstChild() { return this.children[0] || null; },
+    setAttribute(name, value) { this.attributes[name] = String(value); },
+    getAttribute(name) { return this.attributes[name] || ""; }
+  };
+}
+function treeText(node) {
+  return [node.textContent].concat(node.children.map(treeText)).join(" ");
+}
+
+// Track inspector tests exercise the actual production inspector and its four
+// independent gate explanations, with a small DOM tree rather than a browser.
+{
+  const detail = makeNode("section");
+  const level = { value: "all" };
+  const context = {
+    document: { createElement: makeNode, createTextNode: text => Object.assign(makeNode("#text"), { textContent: text }) },
+    spatialTrackDetail: detail, spatialLevel: level,
+    finite3: point => Array.isArray(point) && point.length >= 3 &&
+      point.slice(0, 3).every(n => typeof n === "number" && Number.isFinite(n)),
+    Array, Number, String, Math, Object
+  };
+  vm.runInNewContext(extractFunction("function inspectSpatialTrack(object) {"), context);
+  context.inspectSpatialTrack({
+    object_id: "T-42", inferred_level: "2",
+    motion_trail_m: [[1, [0, 1, 1]], [2, [0, 2, 4]]],
+    floor_transitions: [{ from_level: "1", to_level: "2", timestamp_ns: 123 }],
+    uncertainty_m: 1.2, observation_count: 3, sensor_ids: ["LIDAR-A"],
+    independence_groups: ["optical"], modalities: ["lidar"],
+    conflict: true, conflict_reasons: ["range disagreement"],
+    conflicting_sensor_ids: ["LIDAR-B"], calibration_status: "pending",
+    lineage_declared: false
+  });
+  const text = treeText(detail);
+  assert.match(text, /TRACK INSPECTOR \/\/ T-42 \/\/ LEVEL 2/);
+  assert.match(text, /2\.00–4\.00 m Z/);
+  assert.match(text, /Position uncertainty/);
+  assert.match(text, /REVIEW REQUIRED \(4\/4\)/);
+  for (const gate of ["CONFLICT", "UNCERTAINTY", "CALIBRATION", "LINEAGE"]) {
+    assert.match(text, new RegExp(gate));
+  }
+  assert.match(text, /range disagreement/);
+  assert.match(text, /DO NOT CONFIRM/);
+  // Missing values are described as unknown rather than silently accepted.
+  detail.children = [];
+  context.inspectSpatialTrack({ object_id: "T-MISSING", uncertainty_m: NaN });
+  const missingText = treeText(detail);
+  assert.match(missingText, /Position uncertainty UNKNOWN/);
+  assert.match(missingText, /REVIEW REQUIRED \(3\/4\)/);
+}
+
+// Filter tests verify the real filter function dims non-matching markers,
+// keeps missing calibration/lineage under the "missing" filter, and updates
+// accessible button state plus the current status attribute.
+{
+  const filters = ["all", "conflict", "uncertainty", "missing"].map(value => {
+    const node = makeNode("button"); node.setAttribute("data-review-filter", value); return node;
+  });
+  const markers = [
+    { flags: "conflict", style: {} },
+    { flags: "uncertainty", style: {} },
+    { flags: "calibration-review", style: {} },
+    { flags: "lineage-unknown", style: {} },
+    { flags: "", style: {} }
+  ].map(item => ({
+    style: item.style, getAttribute: name => name === "data-review-flags" ? item.flags : ""
+  }));
+  const stage = { querySelectorAll: selector => selector === "[data-review-flags]" ? markers : [] };
+  const status = makeNode("div");
+  const context = { spatialReviewFilters: filters, spatialStatus: status, spatialStage: stage, Array, String };
+  vm.runInNewContext(extractFunction("function applySpatialReviewFilter(filter) {"), context);
+  context.applySpatialReviewFilter("missing");
+  assert.deepEqual(markers.map(m => m.style.opacity), [".12", ".12", "1", "1", ".12"]);
+  assert.equal(status.attributes["data-review-filter"], "missing");
+  assert.deepEqual(filters.map(b => b.attributes["aria-pressed"]), ["false", "false", "false", "true"]);
+  context.applySpatialReviewFilter("conflict");
+  assert.deepEqual(markers.map(m => m.style.opacity), ["1", ".12", ".12", ".12", ".12"]);
+  assert.deepEqual(filters.map(b => b.attributes["aria-pressed"]), ["false", "true", "false", "false"]);
+  context.applySpatialReviewFilter("all");
+  assert.deepEqual(markers.map(m => m.style.opacity), ["1", "1", "1", "1", "1"]);
+}
+console.log("VIGIL track inspector and review filters: 2 scenario groups passed.");
