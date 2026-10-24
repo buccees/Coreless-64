@@ -11,6 +11,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
@@ -32,3 +35,11 @@ jobs:
         run: python -m pytest -q ../vigil/test_blueprint.py ../vigil/test_positioning.py ../vigil/test_gps.py ../vigil/test_ai.py ../vigil/test_terminal.py ../vigil/test_workspace.py ../vigil/test_blueprint_view.py ../vigil/test_building.py ../vigil/test_object_tracking.py ../vigil/test_sensor_adapters.py ../vigil/test_raster_calibration.py ../vigil/test_infrared_floor_mapping.py ../vigil/test_multimodal_fusion.py ../vigil/test_spatial_import_contract.py
       - name: Run VIGIL spatial review logic scenarios
         run: node vigil/test_spatial_review_logic.cjs
+      - name: Install Playwright Chromium
+        run: |
+          npm install --prefix /tmp/vigil-playwright playwright
+          /tmp/vigil-playwright/node_modules/.bin/playwright install --with-deps chromium
+      - name: Run VIGIL browser integration
+        env:
+          NODE_PATH: /tmp/vigil-playwright/node_modules
+        run: node vigil/test_spatial_browser.cjs
