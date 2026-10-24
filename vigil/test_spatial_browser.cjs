@@ -185,6 +185,27 @@ const fixture = require("./fixtures/vigil-test-scene.json");
       await storageContext.close();
     }
 
+    // Simulation Bay: grid mechanics, repeat-shot collision guard, and sensor-only publication.
+    await page.locator('.nav-button[data-view="simulation"]').click();
+    await page.locator("#simulation-panel").waitFor({ state: "visible" });
+    assert.equal(await page.locator("#sim-board .sim-cell").count(), 100, "simulation grid must contain exactly 100 cells");
+    assert.equal(await page.locator("#sim-afloat").innerText(), "5", "new exercise must initialize all five vessels");
+    const firstCell = page.locator("#sim-board .sim-cell").first();
+    await firstCell.click();
+    assert.equal(await page.locator("#sim-shots").innerText(), "1", "one cell action must resolve exactly one shot");
+    assert.equal(await firstCell.isDisabled(), true, "resolved cells must not be targetable twice");
+    await page.locator("#sim-publish").click();
+    await page.waitForFunction(() => document.querySelector("#spatial-status").textContent.includes("IMPORTED VIGIL-SIMULATION-BAY"));
+    assert.ok(await page.locator("#imported-object-layer [data-track-id^="SIM-"]').count() > 0, "simulation must publish sensor-estimated tracks to Spatial Intelligence");
+    assert.match(await page.locator("#sim-telemetry").innerText(), /WORLD-STATE ACCESS: DENIED TO VIGIL/);
+    assert.match(await page.locator("#spatial-audit-list").innerText(), /SIMULATION OBSERVATIONS PUBLISHED/);
+    const resetBefore = await page.locator("#sim-shots").innerText();
+    await page.locator("#sim-new-game").click();
+    assert.equal(await page.locator("#sim-shots").innerText(), "0", "new exercise must reset engagement count");
+    assert.equal(await page.locator("#sim-board .sim-cell").count(), 100, "reset must rebuild a complete grid");
+    assert.notEqual(await page.locator("#sim-shots").innerText(), resetBefore, "new exercise resets shot state");
+    assert.deepEqual(errors, [], "simulation interactions must not throw uncaught JavaScript errors");
+
     console.log("VIGIL browser integration: import, marker states, review filters, decision persistence, audit export/clear, runtime errors, and mobile layout passed.");
     await context.close();
   } finally {
