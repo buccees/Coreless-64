@@ -218,7 +218,7 @@ console.log("VIGIL track inspector and review filters: 2 scenario groups passed.
     window: { localStorage: { setItem: (key, value) => { stored[key] = value; } } },
     renderSpatialAuditLog: () => {}, Date, String, JSON
   };
-  vm.runInNewContext(extractFunction("function recordSpatialAudit(action, detail) {"), context);
+  vm.runInNewContext(extractFunction("function recordSpatialAudit(action, detail, trackId) {"), context);
   for (let i = 0; i < 103; i += 1) context.recordSpatialAudit("TEST EVENT", "event-" + i);
   assert.equal(context.spatialAuditEntries.length, 100);
   assert.equal(context.spatialAuditEntries[0].detail, "event-3");
