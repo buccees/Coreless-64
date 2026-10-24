@@ -214,7 +214,8 @@ console.log("VIGIL track inspector and review filters: 2 scenario groups passed.
   const stored = {};
   const context = {
     spatialAuditEntries: entries, spatialAuditStorageKey: "test-audit",
-    spatialAuditStorageAvailable: true,
+    spatialAuditStorageAvailable: true, spatialAuditSessionId: "VIGIL-TEST-SESSION",
+    spatialAuditSequence: 0, spatialAuditSceneSnapshot: () => null,
     window: { localStorage: { setItem: (key, value) => { stored[key] = value; } } },
     renderSpatialAuditLog: () => {}, Date, String, JSON
   };
