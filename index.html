@@ -288,8 +288,8 @@ body{padding-top:108px}
 .specimen-scan-metadata b{color:var(--dim);font-size:8px;letter-spacing:.5px}
 .specimen-scan-note{border-left:2px solid #bd9850;background:#16150c;padding:9px 10px;color:#d9c999;font-size:10px}
 @media(max-width:680px){.specimen-scan-grid{grid-template-columns:1fr}.specimen-scan-metadata{grid-template-columns:repeat(2,minmax(0,1fr))}.scan-title{display:grid}}
-</style></head>
-<body><nav class="nav-panel" aria-label="VIGIL control room sections"><a class="nav-button" href="#overview-panel" data-view="overview" aria-pressed="true">01 // OVERVIEW</a><a class="nav-button" href="#architecture-panel" data-view="architecture" aria-pressed="false">02 // ARCHITECTURE</a><a class="nav-button" href="#spatial-panel" data-view="spatial" aria-pressed="false">03 // SPATIAL INTELLIGENCE</a><a class="nav-button" href="#sensors-panel" data-view="sensors" aria-pressed="false">04 // SENSOR INPUTS</a><a class="nav-button" href="#specimen-panel" data-view="specimen" aria-pressed="false">05 // SPECIMEN PLATE</a><a class="nav-button" href="#lab-report-panel" data-view="lab-report" aria-pressed="false">06 // LAB REPORT</a><a class="nav-button" href="#notes-panel" data-view="project-history" aria-pressed="false">07 // PROJECT HISTORY</a><a class="nav-button" href="#roadmap-panel" data-view="roadmap" aria-pressed="false">08 // ROADMAP</a><a class="nav-button" href="#verification-panel" data-view="verification" aria-pressed="false">09 // VERIFICATION</a><a class="nav-button" href="#hardware-panel" data-view="hardware" aria-pressed="false">10 // VIRTUAL HARDWARE</a><a class="nav-button" href="#biology-panel" data-view="biology" aria-pressed="false">11 // BIO-SIMULATION</a><a class="nav-button" href="#machine-panel" data-view="machine" aria-pressed="false">12 // MACHINE STATUS</a><a class="nav-button" href="#experimental-panel" data-view="experimental" aria-pressed="false">13 // EXPERIMENTAL FEATURES</a><button type="button" class="nav-button settings-launch" id="site-settings-open" aria-haspopup="dialog" aria-controls="site-settings-panel">⚙ SETTINGS</button></nav><div class="settings-backdrop" id="site-settings-backdrop" hidden><section class="settings-panel" id="site-settings-panel" role="dialog" aria-modal="true" aria-labelledby="site-settings-title" tabindex="-1">
+.sim-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:10px 0}.sim-metrics .stat b{font-size:18px}.sim-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(220px,.65fr);gap:10px}.sim-board-wrap,.sim-side{border:1px solid var(--line);padding:9px;min-width:0;background:#010805}.sim-board-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:7px;color:var(--g);font-size:10px;margin-bottom:8px}.sim-board{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:3px;max-width:620px;margin:auto}.sim-cell{aspect-ratio:1;min-width:0;border:1px solid #17634d;background:#041710;color:var(--dim);font:10px "Courier New",monospace;cursor:pointer;padding:0}.sim-cell:hover:not(:disabled){border-color:var(--g);background:#0b3828}.sim-cell:disabled{cursor:default;opacity:1}.sim-cell.hit{background:#481c19;border-color:#ff7770;color:#ffd2cc}.sim-cell.miss{background:#182a2a;border-color:#548b8b;color:#a4d0d0}.sim-controls{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.sim-controls button{background:#031b13;color:var(--g);border:1px solid var(--line);padding:9px;font:10px "Courier New",monospace;cursor:pointer}.sim-side h3{margin:0 0 10px;color:var(--g);font-size:12px}.sim-side label{display:block;color:var(--dim);font-size:10px;margin:10px 0 5px}.sim-side select,.sim-side input[type=range]{width:100%;background:#010604;color:var(--g);border:1px solid var(--line);padding:7px;font:inherit}.sim-telemetry{border:1px solid #17634d;background:#020a07;padding:9px;margin-top:12px;min-height:90px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--g);font-size:10px}.sim-telemetry-note{color:var(--dim);font-size:10px;line-height:1.5;margin-top:9px}@media(max-width:700px){.sim-layout{grid-template-columns:1fr}.sim-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sim-cell{font-size:9px}.sim-controls button{width:100%}}</style></head>
+<body><nav class="nav-panel" aria-label="VIGIL control room sections"><a class="nav-button" href="#overview-panel" data-view="overview" aria-pressed="true">01 // OVERVIEW</a><a class="nav-button" href="#architecture-panel" data-view="architecture" aria-pressed="false">02 // ARCHITECTURE</a><a class="nav-button" href="#spatial-panel" data-view="spatial" aria-pressed="false">03 // SPATIAL INTELLIGENCE</a><a class="nav-button" href="#simulation-panel" data-view="simulation" aria-pressed="false">14 // SIMULATION BAY</a><a class="nav-button" href="#sensors-panel" data-view="sensors" aria-pressed="false">04 // SENSOR INPUTS</a><a class="nav-button" href="#specimen-panel" data-view="specimen" aria-pressed="false">05 // SPECIMEN PLATE</a><a class="nav-button" href="#lab-report-panel" data-view="lab-report" aria-pressed="false">06 // LAB REPORT</a><a class="nav-button" href="#notes-panel" data-view="project-history" aria-pressed="false">07 // PROJECT HISTORY</a><a class="nav-button" href="#roadmap-panel" data-view="roadmap" aria-pressed="false">08 // ROADMAP</a><a class="nav-button" href="#verification-panel" data-view="verification" aria-pressed="false">09 // VERIFICATION</a><a class="nav-button" href="#hardware-panel" data-view="hardware" aria-pressed="false">10 // VIRTUAL HARDWARE</a><a class="nav-button" href="#biology-panel" data-view="biology" aria-pressed="false">11 // BIO-SIMULATION</a><a class="nav-button" href="#machine-panel" data-view="machine" aria-pressed="false">12 // MACHINE STATUS</a><a class="nav-button" href="#experimental-panel" data-view="experimental" aria-pressed="false">13 // EXPERIMENTAL FEATURES</a><button type="button" class="nav-button settings-launch" id="site-settings-open" aria-haspopup="dialog" aria-controls="site-settings-panel">⚙ SETTINGS</button></nav><div class="settings-backdrop" id="site-settings-backdrop" hidden><section class="settings-panel" id="site-settings-panel" role="dialog" aria-modal="true" aria-labelledby="site-settings-title" tabindex="-1">
 <div class="settings-head"><div><div class="settings-kicker">VIGIL / CORELESS-64 // CONFIGURATION UTILITY</div><h2 id="site-settings-title">SYSTEM CONFIGURATION</h2><p>Global preferences • subsystem configuration • diagnostics</p></div><button type="button" id="site-settings-close" aria-label="Close settings">CLOSE ✕</button></div>
 <div class="settings-system-strip"><span><i class="settings-led"></i> INTERFACE ONLINE</span><span>RUNTIME: REFERENCE MODE</span><span>DEVICE LINK: NOT CONNECTED</span></div>
 <div class="settings-tabs" role="tablist" aria-label="Configuration sections">
@@ -983,7 +983,12 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 </article>
 </div>
 </section>
-<footer><span>WEYLAND–YUTANI / XENOBIOLOGY</span><span>VIGIL SPATIAL INTELLIGENCE // CORELESS-64</span><span>DOC-XB-VIG-0917</span><a class="messenger-contact" href="https://m.me/61593167613019" target="_blank" rel="noopener noreferrer" aria-label="Contact VIGIL through Facebook Messenger">CONTACT / CORPORATE LIAISON ↗</a></footer>
+<section id="simulation-panel" class="panel report-panel" data-category="simulation"><h2>VIGIL SIMULATION BAY // NAVAL CONTACT EXERCISE</h2><div class="content">
+<p class="muted">TACTICAL SIMULATION // 10×10 operational grid. Collision rules enforce bounds and non-overlapping vessel placement. VIGIL receives noisy sensor estimates, not the hidden world-state coordinates.</p>
+<div class="sim-metrics"><div class="stat"><b id="sim-shots">0</b><span>ENGAGEMENTS</span></div><div class="stat"><b id="sim-hits">0</b><span>CONFIRMED HITS</span></div><div class="stat"><b id="sim-afloat">5</b><span>VESSELS AFLOAT</span></div><div class="stat"><b id="sim-observations">0</b><span>SENSOR OBSERVATIONS</span></div></div>
+<div class="sim-layout"><div class="sim-board-wrap"><div class="sim-board-head"><strong>TACTICAL GRID // OWN FIRING SOLUTION</strong><span id="sim-turn-status" role="status" aria-live="polite">READY // SELECT A CELL TO ENGAGE</span></div><div id="sim-board" class="sim-board" role="grid" aria-label="Battleship tactical grid"></div><div class="sim-controls"><button type="button" id="sim-new-game">INITIALIZE NEW EXERCISE</button><button type="button" id="sim-publish">PUBLISH SENSOR ESTIMATES TO SPATIAL INTELLIGENCE</button><button type="button" id="sim-export">EXPORT OBSERVATION JSON</button></div><p class="muted">Grid legend: hit = confirmed impact; miss = no contact. Hidden vessel positions are never drawn on the firing grid.</p></div>
+<div class="sim-side"><h3>SIMULATED SENSOR ARRAY</h3><label for="sim-sensor">SENSOR MODE</label><select id="sim-sensor"><option value="radar">RADAR // broad-area, ±1.2 cells</option><option value="sonar">SONAR // maritime, ±0.6 cells</option><option value="optical">OPTICAL // narrow field, ±0.25 cells</option></select><label for="sim-noise">OBSERVATION NOISE <span id="sim-noise-value">1.2</span></label><input id="sim-noise" type="range" min="0" max="2" step="0.1" value="1.2"><div class="sim-telemetry" id="sim-telemetry" aria-live="polite">SENSOR STANDBY // NO OBSERVATIONS GENERATED</div><div class="sim-telemetry-note">Sensor contacts are generated from surviving vessels with bounded positional noise and explicit uncertainty metadata. This is a local gameplay simulation, not a live sensor connection.</div></div></div>
+</div></section><footer><span>WEYLAND–YUTANI / XENOBIOLOGY</span><span>VIGIL SPATIAL INTELLIGENCE // CORELESS-64</span><span>DOC-XB-VIG-0917</span><a class="messenger-contact" href="https://m.me/61593167613019" target="_blank" rel="noopener noreferrer" aria-label="Contact VIGIL through Facebook Messenger">CONTACT / CORPORATE LIAISON ↗</a></footer>
 </main><script>
 (function(){
   var nav = document.querySelector('.nav-panel');
@@ -1354,6 +1359,18 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if (!spatialStatus) return;
     spatialStatus.textContent = prefix + ' // FEATURES ' + counts.features + ' // TRACKS ' + counts.objects + ' // TRAILS ' + counts.trails + ' // IR ' + counts.infrared + ' // SKIPPED ' + counts.skipped;
   }
+  window.vigilImportScene = function(data) {
+    if (!data || typeof data.model_id !== 'string' || typeof data.revision !== 'string' || typeof data.frame_id !== 'string' || !Array.isArray(data.features) || !Array.isArray(data.objects)) throw new Error('Invalid simulated BlueprintView scene');
+    importedScene = data;
+    updateEvidenceBridge(data);
+    var counts = renderImportedScene(data);
+    showImportStatus('IMPORTED ' + data.model_id + ' / REV ' + data.revision + ' / FRAME ' + data.frame_id, counts);
+    applyImportedLevelFilter();
+    applySpatialReviewFilter(spatialReviewFilter);
+    bindSpatialTrackInspection(importedScene);
+    updateCsiAssociation(importedScene);
+    recordSpatialAudit('SIMULATION OBSERVATIONS PUBLISHED', data.model_id + ' // SENSOR ESTIMATES ONLY // objects=' + data.objects.length);
+  };
   if (spatialJson) spatialJson.addEventListener('change', function() {
     var file = spatialJson.files && spatialJson.files[0];
     if (!file) return;
@@ -2185,4 +2202,86 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 
     apply();
   })();
+</script><script>
+(function(){
+  'use strict';
+  var board=document.getElementById('sim-board');
+  if(!board)return;
+  var sizes=[['CARRIER',5],['BATTLESHIP',4],['CRUISER',3],['SUBMARINE',3],['DESTROYER',2]];
+  var vessels=[],shots={},shotCount=0,hitCount=0,observationCount=0,gameOver=false,sequence=0;
+  var status=document.getElementById('sim-turn-status');
+  var sensor=document.getElementById('sim-sensor');
+  var noise=document.getElementById('sim-noise');
+  function key(r,c){return r+','+c;}
+  function randomInt(n){return Math.floor(Math.random()*n);}
+  function occupied(r,c,skip){return vessels.some(function(v){return v!==skip&&v.cells.some(function(p){return p[0]===r&&p[1]===c;});});}
+  function canPlace(r,c,size,vertical){
+    for(var i=0;i<size;i++){var y=r+(vertical?i:0),x=c+(vertical?0:i);if(y<0||y>=10||x<0||x>=10||occupied(y,x,null))return false;}
+    return true;
+  }
+  function placeVessel(name,size){
+    for(var tries=0;tries<500;tries++){var vertical=Math.random()<.5,r=randomInt(10),c=randomInt(10);if(!canPlace(r,c,size,vertical))continue;var cells=[];for(var i=0;i<size;i++)cells.push([r+(vertical?i:0),c+(vertical?0:i)]);return{name:name,size:size,cells:cells,hits:{}};}
+    throw new Error('Collision-safe placement could not find a valid location.');
+  }
+  function initialize(){
+    vessels=[];shots={};shotCount=0;hitCount=0;observationCount=0;gameOver=false;sequence++;
+    sizes.forEach(function(pair){vessels.push(placeVessel(pair[0],pair[1]));});
+    renderBoard();updateMetrics();status.textContent='READY // SELECT A CELL TO ENGAGE';document.getElementById('sim-telemetry').textContent='SENSOR STANDBY // NEW EXERCISE '+sequence;
+    publish(false);
+  }
+  function renderBoard(){
+    board.innerHTML='';
+    for(var r=0;r<10;r++)for(var c=0;c<10;c++){
+      var k=key(r,c),b=document.createElement('button');b.type='button';b.className='sim-cell';b.setAttribute('role','gridcell');b.setAttribute('aria-label',String.fromCharCode(65+c)+(r+1));b.dataset.row=r;b.dataset.col=c;
+      if(shots[k]){b.disabled=true;b.classList.add(shots[k]);b.textContent=shots[k]==='hit'?'X':'·';b.setAttribute('aria-label',b.getAttribute('aria-label')+(shots[k]==='hit'?' confirmed hit':' miss'));}
+      else{b.textContent=String.fromCharCode(65+c)+(r+1);b.addEventListener('click',fire);}
+      board.appendChild(b);
+    }
+  }
+  function updateMetrics(){
+    document.getElementById('sim-shots').textContent=shotCount;
+    document.getElementById('sim-hits').textContent=hitCount;
+    document.getElementById('sim-afloat').textContent=vessels.filter(function(v){return Object.keys(v.hits).length<v.size;}).length;
+    document.getElementById('sim-observations').textContent=observationCount;
+  }
+  function fire(event){
+    if(gameOver)return;
+    var r=Number(event.currentTarget.dataset.row),c=Number(event.currentTarget.dataset.col),k=key(r,c);
+    if(shots[k])return;
+    var target=null;
+    vessels.some(function(v){if(v.cells.some(function(p){return p[0]===r&&p[1]===c;})){target=v;return true;}return false;});
+    shotCount++;
+    if(target){shots[k]='hit';target.hits[k]=true;hitCount++;var sunk=Object.keys(target.hits).length===target.size;status.textContent='IMPACT CONFIRMED // '+target.name+(sunk?' // VESSEL DISABLED':' // CONTACT RETAINED');}
+    else{shots[k]='miss';status.textContent='NO CONTACT // '+String.fromCharCode(65+c)+(r+1);}
+    gameOver=vessels.every(function(v){return Object.keys(v.hits).length===v.size;});
+    if(gameOver)status.textContent='EXERCISE COMPLETE // ALL HOSTILE VESSELS DISABLED';
+    renderBoard();updateMetrics();publish(true);
+  }
+  function generateScene(){
+    var mode=sensor.value,base=Number(noise.value),sigma=mode==='sonar'?.6:mode==='optical'?.25:1.2;
+    sigma=Math.max(0,base*(mode==='sonar'?.5:mode==='optical'?.22:1));
+    var objects=[];
+    vessels.forEach(function(v,index){
+      var alive=v.cells.filter(function(p){return !v.hits[key(p[0],p[1])];});
+      if(!alive.length)return;
+      var rr=alive.reduce(function(a,p){return a+p[0];},0)/alive.length,cc=alive.reduce(function(a,p){return a+p[1];},0)/alive.length;
+      var jx=(Math.random()*2-1)*sigma,jy=(Math.random()*2-1)*sigma;
+      objects.push({object_id:'SIM-'+mode.toUpperCase()+'-'+sequence+'-'+v.name.replace(/[^A-Z]/g,'') ,normalized_position:[Math.max(0,Math.min(1,(cc+jx+.5)/10)),Math.max(0,Math.min(1,(rr+jy+.5)/10)),0],inferred_level:'0',uncertainty_m:Number((sigma*10/Math.sqrt(3)).toFixed(2)),calibration_status:'verified',calibration_ids:['SIM-CAL-'+mode.toUpperCase()],lineage_declared:true,observation_count:Math.max(1,shotCount),sensor_ids:['SIM-'+mode.toUpperCase()+'-01'],modalities:[mode],independence_groups:['simulation-sensor-'+mode],conflict:false});
+    });
+    return {model_id:'VIGIL-SIMULATION-BAY',revision:'r'+sequence,frame_id:'sim-grid-10x10',features:[],objects:objects,metadata:{source:'local simulation',sensor_mode:mode,world_state_withheld:true,generated_at:new Date().toISOString()}};
+  }
+  function publish(sendToSpatial){
+    var data=generateScene();observationCount+=data.objects.length;updateMetrics();
+    document.getElementById('sim-noise-value').textContent=Number(noise.value).toFixed(1);
+    document.getElementById('sim-telemetry').textContent='SENSOR: '+sensor.value.toUpperCase()+'\nCONTACT ESTIMATES: '+data.objects.length+'\nPOSITION UNCERTAINTY: '+data.objects.map(function(o){return o.object_id.split('-').slice(-1)[0]+': ±'+o.uncertainty_m+' m';}).join(' | ')+'\nWORLD-STATE ACCESS: DENIED TO VIGIL\nSOURCE: SIMULATED SENSOR OBSERVATIONS';
+    if(sendToSpatial&&typeof window.vigilImportScene==='function'){window.vigilImportScene(data);status.textContent+=' // SENSOR ESTIMATES PUBLISHED TO SPATIAL INTELLIGENCE';}
+    return data;
+  }
+  document.getElementById('sim-new-game').addEventListener('click',initialize);
+  document.getElementById('sim-publish').addEventListener('click',function(){publish(true);});
+  document.getElementById('sim-export').addEventListener('click',function(){var data=publish(false),blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='vigil-simulation-observations.json';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);});
+  sensor.addEventListener('change',function(){publish(false);});
+  noise.addEventListener('input',function(){document.getElementById('sim-noise-value').textContent=Number(noise.value).toFixed(1);});
+  initialize();
+})();
 </script></body></html>
