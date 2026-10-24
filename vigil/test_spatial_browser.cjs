@@ -105,6 +105,9 @@ const fixture = {
     await page.locator(".spatial-review-controls button").click();
     await page.waitForFunction(() => document.querySelector("#spatial-audit-list").innerText.includes("TRACK REVIEW DECISION"));
     assert.match(await page.locator(".spatial-review-current").innerText(), /NEEDS FOLLOW-UP/);
+    assert.match(await page.locator("#spatial-track-detail").innerText(), /TRACK REVIEW HISTORY \/\/ CURRENT SCENE/);
+    assert.match(await page.locator(".spatial-track-history").innerText(), /TRACK REVIEW DECISION/);
+    assert.match(await page.locator(".spatial-track-history").innerText(), /verify calibration and conflict evidence/);
     assert.match(await page.locator("#spatial-audit-list").innerText(), /verify calibration and conflict evidence/);
 
     const downloadPromise = page.waitForEvent("download");
