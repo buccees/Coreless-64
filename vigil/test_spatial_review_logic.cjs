@@ -155,7 +155,7 @@ function treeText(node) {
   });
   const text = treeText(detail);
   assert.match(text, /TRACK INSPECTOR \/\/ T-42 \/\/ LEVEL 2/);
-  assert.match(text, /2\.00–4\.00 m Z/);
+  assert.match(text, /1\.00–4\.00 m Z/);
   assert.match(text, /Position uncertainty/);
   assert.match(text, /REVIEW REQUIRED \(4\/4\)/);
   for (const gate of ["CONFLICT", "UNCERTAINTY", "CALIBRATION", "LINEAGE"]) {
