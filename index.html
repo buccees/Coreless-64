@@ -1528,7 +1528,11 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     render(0);
   })();
 
-  var initialView = (window.location.hash || '').replace(/^#/, '').replace(/-panel$/, '');
+  var initialHash = (window.location.hash || '').replace(/^#/, '');
+  var initialLink = buttons.filter(function(link) {
+    return (link.getAttribute('href') || '').replace(/^#/, '') === initialHash;
+  })[0];
+  var initialView = initialLink ? initialLink.getAttribute('data-view') : '';
   var knownView = buttons.some(function(link) { return link.getAttribute('data-view') === initialView; });
   selectCategory(knownView ? initialView : 'overview');
 })();
