@@ -196,7 +196,7 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     assert.equal(await firstCell.isDisabled(), true, "resolved cells must not be targetable twice");
     await page.locator("#sim-publish").click();
     await page.waitForFunction(() => document.querySelector("#spatial-status").textContent.includes("IMPORTED VIGIL-SIMULATION-BAY"));
-    assert.ok(await page.locator("#imported-object-layer [data-track-id^="SIM-"]').count() > 0, "simulation must publish sensor-estimated tracks to Spatial Intelligence");
+    assert.ok(await page.locator('#imported-object-layer [data-track-id^="SIM-"]').count() > 0, "simulation must publish sensor-estimated tracks to Spatial Intelligence");
     assert.match(await page.locator("#sim-telemetry").innerText(), /WORLD-STATE ACCESS: DENIED TO VIGIL/);
     assert.match(await page.locator("#spatial-audit-list").innerText(), /SIMULATION OBSERVATIONS PUBLISHED/);
     const resetBefore = await page.locator("#sim-shots").innerText();
