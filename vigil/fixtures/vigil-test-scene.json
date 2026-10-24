@@ -1,0 +1,77 @@
+{
+  "model_id": "VIGIL-TEST-SCENE-001",
+  "revision": "r1",
+  "frame_id": "frame-test-001",
+  "features": [],
+  "objects": [
+    {
+      "object_id": "TRACK-ALPHA",
+      "normalized_position": [
+        0.2,
+        0.3,
+        0
+      ],
+      "inferred_level": "1",
+      "uncertainty_m": 0.4,
+      "calibration_status": "verified",
+      "calibration_ids": [
+        "CAL-001"
+      ],
+      "lineage_declared": true,
+      "observation_count": 5,
+      "sensor_ids": [
+        "LIDAR-A"
+      ],
+      "modalities": [
+        "lidar"
+      ],
+      "independence_groups": [
+        "range-a"
+      ]
+    },
+    {
+      "object_id": "TRACK-BETA",
+      "normalized_position": [
+        0.5,
+        0.5,
+        0
+      ],
+      "inferred_level": "1",
+      "calibration_status": "pending",
+      "lineage_declared": false,
+      "observation_count": 2,
+      "sensor_ids": [
+        "CAM-A"
+      ],
+      "modalities": [
+        "optical"
+      ],
+      "conflict": true,
+      "conflict_reasons": [
+        "Unresolved sensor disagreement"
+      ]
+    },
+    {
+      "object_id": "TRACK-GAMMA",
+      "normalized_position": [
+        0.75,
+        0.25,
+        0
+      ],
+      "inferred_level": "2",
+      "uncertainty_m": 1.2,
+      "calibration_status": "verified",
+      "lineage_declared": true,
+      "observation_count": 3,
+      "sensor_ids": [
+        "LIDAR-B"
+      ],
+      "modalities": [
+        "lidar"
+      ],
+      "independence_groups": [
+        "range-b"
+      ]
+    }
+  ]
+}
