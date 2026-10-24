@@ -582,7 +582,10 @@ UNVERIFIED CALIBRATION: review required</div>
     <div class="sensor-console-metric"><b id="bridge-track-count">—</b><span>IMPORTED TRACKS</span></div>
     <div class="sensor-console-metric"><b id="bridge-stable-count">—</b><span>PASSING REVIEW GATES</span></div>
     <div class="sensor-console-metric"><b id="bridge-review-count">—</b><span>REVIEW REQUIRED</span></div>
+    <div class="sensor-console-metric"><b id="bridge-source-state">NONE</b><span>SCENE SOURCE</span></div>
+    <div class="sensor-console-metric"><b id="bridge-hardware-state">UNVERIFIED</b><span>PHYSICAL FEED</span></div>
   </div>
+  <p class="muted">PROVENANCE RULE // Importing a BlueprintView file establishes that scene data was loaded, not that its sensor IDs represent connected devices. Physical feed state remains unverified until a real adapter reports and validates it.</p>
   <div class="terminal-code" id="bridge-scene-detail" aria-live="polite">WAITING FOR SCREEN 03 IMPORT // Load a BlueprintView JSON file in Spatial Intelligence to populate this shared summary.</div>
 </div>
 <div class="hazard" style="border-color:#e2d86a;color:#e2d86a">SIMULATED FEED // EXAMPLE SIGNALS ONLY // NO HARDWARE CONNECTED</div>
@@ -1137,13 +1140,18 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var total = document.getElementById('bridge-track-count');
     var stableNode = document.getElementById('bridge-stable-count');
     var reviewNode = document.getElementById('bridge-review-count');
+    var sourceState = document.getElementById('bridge-source-state');
+    var hardwareState = document.getElementById('bridge-hardware-state');
     var detail = document.getElementById('bridge-scene-detail');
-    if (!state || !total || !stableNode || !reviewNode || !detail) return;
+    if (!state || !total || !stableNode || !reviewNode || !sourceState || !hardwareState || !detail) return;
+    hardwareState.textContent = 'UNVERIFIED';
     if (!data) {
       state.textContent = 'NO'; total.textContent = '—'; stableNode.textContent = '—'; reviewNode.textContent = '—';
+      sourceState.textContent = 'NONE';
       detail.textContent = 'WAITING FOR SCREEN 03 IMPORT // Load a BlueprintView JSON file in Spatial Intelligence to populate this shared summary.';
       return;
     }
+    sourceState.textContent = 'JSON IMPORT';
     var objects = Array.isArray(data.objects) ? data.objects : [];
     var stable = 0, review = 0, modalities = Object.create(null), sourceIds = Object.create(null);
     objects.forEach(function(object) {
