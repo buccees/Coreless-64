@@ -985,7 +985,8 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 </section>
 <section id="simulation-panel" class="panel report-panel" data-category="simulation"><h2>VIGIL SIMULATION BAY // NAVAL CONTACT EXERCISE</h2><div class="content">
 <p class="muted">TACTICAL SIMULATION // 10×10 operational grid. Collision rules enforce bounds and non-overlapping vessel placement. VIGIL receives noisy sensor estimates, not the hidden world-state coordinates.</p>
-<div class="sim-metrics"><div class="stat"><b id="sim-shots">0</b><span>ENGAGEMENTS</span></div><div class="stat"><b id="sim-hits">0</b><span>CONFIRMED HITS</span></div><div class="stat"><b id="sim-afloat">5</b><span>VESSELS AFLOAT</span></div><div class="stat"><b id="sim-observations">0</b><span>SENSOR OBSERVATIONS</span></div></div>
+<div class="sim-mode-row"><label for="sim-mode">ENGAGEMENT MODE</label><select id="sim-mode"><option value="solo">SOLO // PLAYER VS COMPUTER</option><option value="hotseat">LOCAL TWO-PLAYER // PASS-AND-PLAY</option></select><span class="muted">Fleet placement is collision-checked; each player’s target history is tracked independently.</span></div>
+<div class="sim-metrics"><div class="stat"><b id="sim-shots">0</b><span>YOUR ENGAGEMENTS</span></div><div class="stat"><b id="sim-hits">0</b><span>CONFIRMED HITS</span></div><div class="stat"><b id="sim-afloat">5</b><span>VESSELS AFLOAT</span></div><div class="stat"><b id="sim-observations">0</b><span>SENSOR OBSERVATIONS</span></div></div>
 <div class="sim-layout"><div class="sim-board-wrap"><div class="sim-board-head"><strong>TACTICAL GRID // OWN FIRING SOLUTION</strong><span id="sim-turn-status" role="status" aria-live="polite">READY // SELECT A CELL TO ENGAGE</span></div><div id="sim-board" class="sim-board" role="grid" aria-label="Battleship tactical grid"></div><div class="sim-controls"><button type="button" id="sim-new-game">INITIALIZE NEW EXERCISE</button><button type="button" id="sim-publish">PUBLISH SENSOR ESTIMATES TO SPATIAL INTELLIGENCE</button><button type="button" id="sim-export">EXPORT OBSERVATION JSON</button></div><p class="muted">Grid legend: hit = confirmed impact; miss = no contact. Hidden vessel positions are never drawn on the firing grid.</p></div>
 <div class="sim-side"><h3>SIMULATED SENSOR ARRAY</h3><label for="sim-sensor">SENSOR MODE</label><select id="sim-sensor"><option value="radar">RADAR // broad-area, ±1.2 cells</option><option value="sonar">SONAR // maritime, ±0.6 cells</option><option value="optical">OPTICAL // narrow field, ±0.25 cells</option></select><label for="sim-noise">OBSERVATION NOISE <span id="sim-noise-value">1.2</span></label><input id="sim-noise" type="range" min="0" max="2" step="0.1" value="1.2"><div class="sim-telemetry" id="sim-telemetry" aria-live="polite">SENSOR STANDBY // NO OBSERVATIONS GENERATED</div><div class="sim-telemetry-note">Sensor contacts are generated from surviving vessels with bounded positional noise and explicit uncertainty metadata. This is a local gameplay simulation, not a live sensor connection.</div></div></div>
 </div></section><footer><span>WEYLAND–YUTANI / XENOBIOLOGY</span><span>VIGIL SPATIAL INTELLIGENCE // CORELESS-64</span><span>DOC-XB-VIG-0917</span><a class="messenger-contact" href="https://m.me/61593167613019" target="_blank" rel="noopener noreferrer" aria-label="Contact VIGIL through Facebook Messenger">CONTACT / CORPORATE LIAISON ↗</a></footer>
@@ -2208,78 +2209,112 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   var board=document.getElementById('sim-board');
   if(!board)return;
   var sizes=[['CARRIER',5],['BATTLESHIP',4],['CRUISER',3],['SUBMARINE',3],['DESTROYER',2]];
-  var vessels=[],shots={},shotCount=0,hitCount=0,observationCount=0,gameOver=false,sequence=0;
-  var status=document.getElementById('sim-turn-status');
-  var sensor=document.getElementById('sim-sensor');
-  var noise=document.getElementById('sim-noise');
+  var mode=document.getElementById('sim-mode'),status=document.getElementById('sim-turn-status');
+  var sensor=document.getElementById('sim-sensor'),noise=document.getElementById('sim-noise');
+  var enemyFleet=[],playerFleet={},shotsByPlayer={},aiShots={},activePlayer=1,shotCount=0,hitCount=0,observationCount=0,gameOver=false,sequence=0,aiHitCount=0;
   function key(r,c){return r+','+c;}
   function randomInt(n){return Math.floor(Math.random()*n);}
-  function occupied(r,c,skip){return vessels.some(function(v){return v!==skip&&v.cells.some(function(p){return p[0]===r&&p[1]===c;});});}
-  function canPlace(r,c,size,vertical){
-    for(var i=0;i<size;i++){var y=r+(vertical?i:0),x=c+(vertical?0:i);if(y<0||y>=10||x<0||x>=10||occupied(y,x,null))return false;}
+  function occupied(fleet,r,c){return fleet.some(function(v){return v.cells.some(function(p){return p[0]===r&&p[1]===c;});});}
+  function canPlace(fleet,r,c,size,vertical){
+    for(var i=0;i<size;i++){var y=r+(vertical?i:0),x=c+(vertical?0:i);if(y<0||y>=10||x<0||x>=10||occupied(fleet,y,x))return false;}
     return true;
   }
-  function placeVessel(name,size){
-    for(var tries=0;tries<500;tries++){var vertical=Math.random()<.5,r=randomInt(10),c=randomInt(10);if(!canPlace(r,c,size,vertical))continue;var cells=[];for(var i=0;i<size;i++)cells.push([r+(vertical?i:0),c+(vertical?0:i)]);return{name:name,size:size,cells:cells,hits:{}};}
+  function placeVessel(fleet,name,size){
+    for(var tries=0;tries<1000;tries++){
+      var vertical=Math.random()<.5,r=randomInt(10),c=randomInt(10);
+      if(!canPlace(fleet,r,c,size,vertical))continue;
+      var cells=[];for(var i=0;i<size;i++)cells.push([r+(vertical?i:0),c+(vertical?0:i)]);
+      return{name:name,size:size,cells:cells,hits:{}};
+    }
     throw new Error('Collision-safe placement could not find a valid location.');
   }
+  function makeFleet(){var fleet=[];sizes.forEach(function(pair){fleet.push(placeVessel(fleet,pair[0],pair[1]));});return fleet;}
+  function activeShots(){return shotsByPlayer[activePlayer]||{};}
+  function targetFleet(){return mode.value==='hotseat' ? playerFleet[activePlayer===1?2:1] : enemyFleet;}
+  function afloat(fleet){return fleet.filter(function(v){return Object.keys(v.hits).length<v.size;}).length;}
+  function allSunk(fleet){return afloat(fleet)===0;}
   function initialize(){
-    vessels=[];shots={};shotCount=0;hitCount=0;observationCount=0;gameOver=false;sequence++;
-    sizes.forEach(function(pair){vessels.push(placeVessel(pair[0],pair[1]));});
-    renderBoard();updateMetrics();status.textContent='READY // SELECT A CELL TO ENGAGE';document.getElementById('sim-telemetry').textContent='SENSOR STANDBY // NEW EXERCISE '+sequence;
+    enemyFleet=makeFleet();playerFleet={1:makeFleet(),2:makeFleet()};shotsByPlayer={1:{},2:{}};aiShots={};
+    activePlayer=1;shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;gameOver=false;sequence++;
+    renderBoard();updateMetrics();status.textContent=mode.value==='hotseat'?'PLAYER 1 // SELECT A CELL TO FIRE':'SOLO ENGAGEMENT // SELECT A CELL TO FIRE';
+    document.getElementById('sim-telemetry').textContent='SENSOR STANDBY // NEW EXERCISE '+sequence+'\nCOMPUTER DEFENSE: '+(mode.value==='solo'?'ARMED':'DISABLED');
     publish(false);
   }
   function renderBoard(){
     board.innerHTML='';
+    var shots=activeShots();
     for(var r=0;r<10;r++)for(var c=0;c<10;c++){
       var k=key(r,c),b=document.createElement('button');b.type='button';b.className='sim-cell';b.setAttribute('role','gridcell');b.setAttribute('aria-label',String.fromCharCode(65+c)+(r+1));b.dataset.row=r;b.dataset.col=c;
       if(shots[k]){b.disabled=true;b.classList.add(shots[k]);b.textContent=shots[k]==='hit'?'X':'·';b.setAttribute('aria-label',b.getAttribute('aria-label')+(shots[k]==='hit'?' confirmed hit':' miss'));}
       else{b.textContent=String.fromCharCode(65+c)+(r+1);b.addEventListener('click',fire);}
       board.appendChild(b);
     }
+    var head=board.parentElement.querySelector('.sim-board-head strong');
+    if(head)head.textContent=mode.value==='hotseat'?'PLAYER '+activePlayer+' // FIRING SOLUTION':'TACTICAL GRID // OWN FIRING SOLUTION';
   }
   function updateMetrics(){
     document.getElementById('sim-shots').textContent=shotCount;
     document.getElementById('sim-hits').textContent=hitCount;
-    document.getElementById('sim-afloat').textContent=vessels.filter(function(v){return Object.keys(v.hits).length<v.size;}).length;
+    document.getElementById('sim-afloat').textContent=afloat(targetFleet());
     document.getElementById('sim-observations').textContent=observationCount;
+  }
+  function shoot(fleet,shots,r,c){
+    var k=key(r,c);if(shots[k])return null;
+    var target=null;
+    fleet.some(function(v){if(v.cells.some(function(p){return p[0]===r&&p[1]===c;})){target=v;return true;}return false;});
+    if(target){shots[k]='hit';target.hits[k]=true;return{hit:true,sunk:Object.keys(target.hits).length===target.size,ship:target.name};}
+    shots[k]='miss';return{hit:false,sunk:false,ship:null};
   }
   function fire(event){
     if(gameOver)return;
-    var r=Number(event.currentTarget.dataset.row),c=Number(event.currentTarget.dataset.col),k=key(r,c);
+    var r=Number(event.currentTarget.dataset.row),c=Number(event.currentTarget.dataset.col),shots=activeShots(),k=key(r,c);
     if(shots[k])return;
-    var target=null;
-    vessels.some(function(v){if(v.cells.some(function(p){return p[0]===r&&p[1]===c;})){target=v;return true;}return false;});
-    shotCount++;
-    if(target){shots[k]='hit';target.hits[k]=true;hitCount++;var sunk=Object.keys(target.hits).length===target.size;status.textContent='IMPACT CONFIRMED // '+target.name+(sunk?' // VESSEL DISABLED':' // CONTACT RETAINED');}
-    else{shots[k]='miss';status.textContent='NO CONTACT // '+String.fromCharCode(65+c)+(r+1);}
-    gameOver=vessels.every(function(v){return Object.keys(v.hits).length===v.size;});
-    if(gameOver)status.textContent='EXERCISE COMPLETE // ALL HOSTILE VESSELS DISABLED';
+    var target=targetFleet(),result=shoot(target,shots,r,c);if(!result)return;
+    shotCount++;if(result.hit)hitCount++;
+    if(result.hit)status.textContent='PLAYER '+activePlayer+' // HIT '+(result.sunk?'// '+result.ship+' SUNK':'// '+result.ship+' DAMAGED');
+    else status.textContent='PLAYER '+activePlayer+' // MISS AT '+String.fromCharCode(65+c)+(r+1);
+    if(allSunk(target)){gameOver=true;status.textContent=mode.value==='hotseat'?'PLAYER '+activePlayer+' WINS // ALL ENEMY VESSELS SUNK':'VICTORY // ALL HOSTILE VESSELS SUNK';}
+    else if(mode.value==='hotseat'&&!result.hit){activePlayer=activePlayer===1?2:1;status.textContent+=' // PASS DEVICE TO PLAYER '+activePlayer;}
     renderBoard();updateMetrics();publish(true);
+    if(!gameOver&&mode.value==='solo'&&!result.hit)computerTurn();
+  }
+  function computerTurn(){
+    var fleet=playerFleet[1],r,c,k,result,tries=0;
+    do{r=randomInt(10);c=randomInt(10);k=key(r,c);tries++;}while(aiShots[k]&&tries<200);
+    if(aiShots[k])return;
+    result=shoot(fleet,aiShots,r,c);if(!result)return;
+    if(result.hit)aiHitCount++;
+    var msg='COMPUTER FIRED '+String.fromCharCode(65+c)+(r+1)+' // '+(result.hit?'HIT'+(result.sunk?' // YOUR '+result.ship+' SUNK':' // YOUR '+result.ship+' DAMAGED'):'MISS');
+    document.getElementById('sim-telemetry').textContent=msg+'\nYOUR FLEET AFLOAT: '+afloat(fleet)+' / 5\nCOMPUTER HIT COUNT: '+aiHitCount+'\nWORLD-STATE ACCESS: DENIED TO VIGIL';
+    if(allSunk(fleet)){gameOver=true;status.textContent='DEFEAT // YOUR FLEET DISABLED // INITIALIZE A NEW EXERCISE';}
+    else if(result.hit){status.textContent+=' // COMPUTER RETAINS FIRE CONTROL';window.setTimeout(computerTurn,250);}
+    else{status.textContent+=' // YOUR TURN';}
+    updateMetrics();
   }
   function generateScene(){
-    var mode=sensor.value,base=Number(noise.value),sigma=mode==='sonar'?.6:mode==='optical'?.25:1.2;
-    sigma=Math.max(0,base*(mode==='sonar'?.5:mode==='optical'?.22:1));
+    var modeName=sensor.value,base=Number(noise.value),sigma=modeName==='sonar'?.6:modeName==='optical'?.25:1.2;
+    sigma=Math.max(0,base*(modeName==='sonar'?.5:modeName==='optical'?.22:1));
     var objects=[];
-    vessels.forEach(function(v,index){
+    enemyFleet.forEach(function(v){
       var alive=v.cells.filter(function(p){return !v.hits[key(p[0],p[1])];});
       if(!alive.length)return;
       var rr=alive.reduce(function(a,p){return a+p[0];},0)/alive.length,cc=alive.reduce(function(a,p){return a+p[1];},0)/alive.length;
       var jx=(Math.random()*2-1)*sigma,jy=(Math.random()*2-1)*sigma;
-      objects.push({object_id:'SIM-'+mode.toUpperCase()+'-'+sequence+'-'+v.name.replace(/[^A-Z]/g,'') ,normalized_position:[Math.max(0,Math.min(1,(cc+jx+.5)/10)),Math.max(0,Math.min(1,(rr+jy+.5)/10)),0],inferred_level:'0',uncertainty_m:Number((sigma*10/Math.sqrt(3)).toFixed(2)),calibration_status:'verified',calibration_ids:['SIM-CAL-'+mode.toUpperCase()],lineage_declared:true,observation_count:Math.max(1,shotCount),sensor_ids:['SIM-'+mode.toUpperCase()+'-01'],modalities:[mode],independence_groups:['simulation-sensor-'+mode],conflict:false});
+      objects.push({object_id:'SIM-'+modeName.toUpperCase()+'-'+sequence+'-'+v.name.replace(/[^A-Z]/g,''),normalized_position:[Math.max(0,Math.min(1,(cc+jx+.5)/10)),Math.max(0,Math.min(1,(rr+jy+.5)/10)),0],inferred_level:'0',uncertainty_m:Number((sigma*10/Math.sqrt(3)).toFixed(2)),calibration_status:'verified',calibration_ids:['SIM-CAL-'+modeName.toUpperCase()],lineage_declared:true,observation_count:Math.max(1,shotCount),sensor_ids:['SIM-'+modeName.toUpperCase()+'-01'],modalities:[modeName],independence_groups:['simulation-sensor-'+modeName],conflict:false});
     });
-    return {model_id:'VIGIL-SIMULATION-BAY',revision:'r'+sequence,frame_id:'sim-grid-10x10',features:[],objects:objects,metadata:{source:'local simulation',sensor_mode:mode,world_state_withheld:true,generated_at:new Date().toISOString()}};
+    return{model_id:'VIGIL-SIMULATION-BAY',revision:'r'+sequence,frame_id:'sim-grid-10x10',features:[],objects:objects,metadata:{source:'local simulation',sensor_mode:modeName,world_state_withheld:true,generated_at:new Date().toISOString()}};
   }
   function publish(sendToSpatial){
     var data=generateScene();observationCount+=data.objects.length;updateMetrics();
     document.getElementById('sim-noise-value').textContent=Number(noise.value).toFixed(1);
     document.getElementById('sim-telemetry').textContent='SENSOR: '+sensor.value.toUpperCase()+'\nCONTACT ESTIMATES: '+data.objects.length+'\nPOSITION UNCERTAINTY: '+data.objects.map(function(o){return o.object_id.split('-').slice(-1)[0]+': ±'+o.uncertainty_m+' m';}).join(' | ')+'\nWORLD-STATE ACCESS: DENIED TO VIGIL\nSOURCE: SIMULATED SENSOR OBSERVATIONS';
-    if(sendToSpatial&&typeof window.vigilImportScene==='function'){window.vigilImportScene(data);status.textContent+=' // SENSOR ESTIMATES PUBLISHED TO SPATIAL INTELLIGENCE';}
+    if(sendToSpatial&&typeof window.vigilImportScene==='function'){window.vigilImportScene(data);if(!gameOver)status.textContent+=' // SENSOR ESTIMATES PUBLISHED TO SPATIAL INTELLIGENCE';}
     return data;
   }
   document.getElementById('sim-new-game').addEventListener('click',initialize);
   document.getElementById('sim-publish').addEventListener('click',function(){publish(true);});
-  document.getElementById('sim-export').addEventListener('click',function(){var data=publish(false),blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='vigil-simulation-observations.json';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);});
+  document.getElementById('sim-export').addEventListener('click',function(){var data=publish(false),blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='vigil-simulation-observations.json';document.body.appendChild(a);a.click();a.remove();window.setTimeout(function(){URL.revokeObjectURL(url);},1000);});
+  mode.addEventListener('change',initialize);
   sensor.addEventListener('change',function(){publish(false);});
   noise.addEventListener('input',function(){document.getElementById('sim-noise-value').textContent=Number(noise.value).toFixed(1);});
   initialize();
