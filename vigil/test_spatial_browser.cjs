@@ -75,6 +75,9 @@ const fixture = {
 
     await page.locator('.nav-button[data-view="spatial"]').click();
     await page.locator("#spatial-panel .spatial-stage").waitFor({ state: "visible" });
+    assert.equal(await page.locator("#site-settings-backdrop").isVisible(), false, "closed settings overlay must not cover Spatial Intelligence controls");
+    assert.equal(await page.locator("#spatial-json").isEnabled(), true, "scene import file input must be enabled");
+    assert.equal(await page.locator("#spatial-json").evaluate(el => { const r = el.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return hit === el || el.contains(hit); }), true, "scene import control must receive pointer events rather than being covered by an overlay");
     assert.equal(await page.locator("#spatial-audit-panel").isVisible(), true);
     assert.match(await page.locator(".spatial-legend").innerText(), /UNKNOWN UNCERTAINTY \/ AMBER DASHED/);
     assert.match(await page.locator(".spatial-legend").innerText(), /BLUE DASHED OUTLINE/);
