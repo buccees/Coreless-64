@@ -231,12 +231,14 @@ console.log("VIGIL track inspector and review filters: 2 scenario groups passed.
   const stored = {};
   const audit = [];
   const inspected = [];
+  const sceneSnapshot = { model_id: "model", revision: "revision", frame_id: "frame" };
   const context = {
     spatialTrackReviewDecisions: decisions,
     spatialReviewDecisionStorageKey: "test-decisions",
     spatialReviewDecisionKey: object => "model::revision::frame::" + object.object_id,
+    spatialAuditSceneSnapshot: () => sceneSnapshot,
     window: { localStorage: { setItem: (key, value) => { stored[key] = value; } } },
-    recordSpatialAudit: (action, detail) => audit.push({ action, detail }),
+    recordSpatialAudit: (action, detail, trackId) => audit.push({ action, detail, trackId }),
     inspectSpatialTrack: (object, suppressAudit) => inspected.push({ object, suppressAudit }),
     Date, String, JSON
   };
@@ -250,9 +252,16 @@ console.log("VIGIL track inspector and review filters: 2 scenario groups passed.
   context.saveSpatialTrackReviewDecision(object, "NEEDS FOLLOW-UP", "Calibration record is missing.", message);
   assert.equal(decisions["model::revision::frame::T-99"].decision, "NEEDS FOLLOW-UP");
   assert.equal(decisions["model::revision::frame::T-99"].reason, "Calibration record is missing.");
+  assert.deepEqual({
+    model_id: decisions["model::revision::frame::T-99"].model_id,
+    revision: decisions["model::revision::frame::T-99"].revision,
+    frame_id: decisions["model::revision::frame::T-99"].frame_id,
+    track_id: decisions["model::revision::frame::T-99"].track_id
+  }, { model_id: "model", revision: "revision", frame_id: "frame", track_id: "T-99" });
   assert.equal(JSON.parse(stored["test-decisions"])["model::revision::frame::T-99"].decision, "NEEDS FOLLOW-UP");
   assert.equal(audit[0].action, "TRACK REVIEW DECISION");
   assert.match(audit[0].detail, /Calibration record is missing/);
+  assert.equal(audit[0].trackId, "T-99");
   assert.equal(inspected.length, 1);
   assert.equal(inspected[0].suppressAudit, true);
 }
