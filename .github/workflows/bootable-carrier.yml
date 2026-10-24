@@ -65,15 +65,30 @@ jobs:
             OVMF_CODE="$(find /usr/share /usr/lib -type f -iname 'OVMF.fd' -print -quit 2>/dev/null || true)"
           fi
           if [[ -z "$OVMF_CODE" || ! -s "$OVMF_CODE" ]]; then
-            echo "OVMF firmware file not found; installed package contents:" >&2
+            echo "OVMF firmware code file not found; installed package contents:" >&2
             dpkg -L ovmf >&2 || true
             find /usr/share /usr/lib -iname '*ovmf*' -o -iname '*edk2*' >&2 || true
             exit 1
           fi
-          echo "Using UEFI firmware: $OVMF_CODE"
+          # OVMF is a UEFI pflash image, not a legacy PC BIOS image. Pair its
+          # code and variable-store files and give QEMU a writable vars copy.
+          OVMF_DIR="${OVMF_CODE%/*}"
+          OVMF_SUFFIX="${OVMF_CODE##*OVMF_CODE}"
+          OVMF_VARS="$OVMF_DIR/OVMF_VARS$OVMF_SUFFIX"
+          if [[ ! -s "$OVMF_VARS" ]]; then
+            echo "Matching OVMF variable-store image not found: $OVMF_VARS" >&2
+            dpkg -L ovmf >&2 || true
+            exit 1
+          fi
+          OVMF_VARS_COPY="$RUNNER_TEMP/OVMF_VARS.fd"
+          cp "$OVMF_VARS" "$OVMF_VARS_COPY"
+          echo "Using UEFI firmware code: $OVMF_CODE"
+          echo "Using writable UEFI variable store: $OVMF_VARS_COPY"
           set +e
           timeout 150s qemu-system-x86_64 \
-            -machine q35 -m 2048 -smp 2 -bios "$OVMF_CODE" \
+            -machine q35 -m 2048 -smp 2 \
+            -drive "if=pflash,format=raw,readonly=on,file=$OVMF_CODE" \
+            -drive "if=pflash,format=raw,file=$OVMF_VARS_COPY" \
             -drive "file=$IMAGE,format=raw,if=virtio" \
             -display none -serial stdio -monitor none -no-reboot \
             >"$RUNNER_TEMP/qemu-boot.log" 2>&1
