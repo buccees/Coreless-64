@@ -112,3 +112,17 @@ def test_spatial_markers_distinguish_unknown_uncertainty_and_metadata_review():
     assert ".imported-object.metadata-review:not(.conflict):not(.uncertainty-unknown)" in SOURCE
     assert "UNKNOWN UNCERTAINTY / AMBER DASHED" in SOURCE
     assert "BLUE DASHED OUTLINE / CALIBRATION OR LINEAGE REVIEW" in SOURCE
+
+
+def test_spatial_audit_records_review_decisions_with_reasons_and_bounds_history():
+    recorder = function_body("recordSpatialAudit")
+    saver = function_body("saveSpatialTrackReviewDecision")
+    assert "new Date().toISOString()" in recorder
+    assert "spatialAuditEntries.length > 100" in recorder
+    assert "localStorage.setItem(spatialAuditStorageKey" in recorder
+    assert "if (!explanation)" in saver
+    assert "TRACK REVIEW DECISION" in saver
+    assert "spatialReviewDecisionStorageKey" in SOURCE
+    assert "NOT TAMPER-PROOF" in SOURCE
+    assert 'id="spatial-audit-list"' in SOURCE
+    assert 'id="spatial-audit-export"' in SOURCE
