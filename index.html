@@ -586,6 +586,14 @@ UNVERIFIED CALIBRATION: review required</div>
     <div class="sensor-console-metric"><b id="bridge-hardware-state">UNVERIFIED</b><span>PHYSICAL FEED</span></div>
   </div>
   <p class="muted">PROVENANCE RULE // Importing a BlueprintView file establishes that scene data was loaded, not that its sensor IDs represent connected devices. Physical feed state remains unverified until a real adapter reports and validates it.</p>
+  <div class="sensor-console-title"><span>REVIEW GATE BREAKDOWN // INDEPENDENT FLAGS</span><span class="sensor-demo-tag">FLAGS MAY OVERLAP</span></div>
+  <div class="sensor-console-metrics" aria-label="Independent imported-track review flags">
+    <div class="sensor-console-metric"><b id="bridge-conflict-count">—</b><span>CONFLICT</span></div>
+    <div class="sensor-console-metric"><b id="bridge-uncertainty-count">—</b><span>UNCERTAINTY UNKNOWN OR &gt; 1 M</span></div>
+    <div class="sensor-console-metric"><b id="bridge-calibration-count">—</b><span>CALIBRATION NOT VERIFIED</span></div>
+    <div class="sensor-console-metric"><b id="bridge-lineage-count">—</b><span>LINEAGE UNDECLARED</span></div>
+  </div>
+  <p class="muted">These are independent flag counts, not exclusive categories; one track may trigger multiple gates. “Not verified” includes unknown or failed calibration.</p>
   <div class="terminal-code" id="bridge-scene-detail" aria-live="polite">WAITING FOR SCREEN 03 IMPORT // Load a BlueprintView JSON file in Spatial Intelligence to populate this shared summary.</div>
 </div>
 <div class="hazard" style="border-color:#e2d86a;color:#e2d86a">SIMULATED FEED // EXAMPLE SIGNALS ONLY // NO HARDWARE CONNECTED</div>
@@ -1142,28 +1150,44 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var reviewNode = document.getElementById('bridge-review-count');
     var sourceState = document.getElementById('bridge-source-state');
     var hardwareState = document.getElementById('bridge-hardware-state');
+    var conflictNode = document.getElementById('bridge-conflict-count');
+    var uncertaintyNode = document.getElementById('bridge-uncertainty-count');
+    var calibrationNode = document.getElementById('bridge-calibration-count');
+    var lineageNode = document.getElementById('bridge-lineage-count');
     var detail = document.getElementById('bridge-scene-detail');
-    if (!state || !total || !stableNode || !reviewNode || !sourceState || !hardwareState || !detail) return;
+    if (!state || !total || !stableNode || !reviewNode || !sourceState || !hardwareState || !conflictNode || !uncertaintyNode || !calibrationNode || !lineageNode || !detail) return;
     hardwareState.textContent = 'UNVERIFIED';
     if (!data) {
       state.textContent = 'NO'; total.textContent = '—'; stableNode.textContent = '—'; reviewNode.textContent = '—';
       sourceState.textContent = 'NONE';
+      conflictNode.textContent = '—'; uncertaintyNode.textContent = '—'; calibrationNode.textContent = '—'; lineageNode.textContent = '—';
       detail.textContent = 'WAITING FOR SCREEN 03 IMPORT // Load a BlueprintView JSON file in Spatial Intelligence to populate this shared summary.';
       return;
     }
     sourceState.textContent = 'JSON IMPORT';
     var objects = Array.isArray(data.objects) ? data.objects : [];
-    var stable = 0, review = 0, modalities = Object.create(null), sourceIds = Object.create(null);
+    var stable = 0, review = 0, conflicts = 0, uncertain = 0, calibrationReview = 0, lineageReview = 0;
+    var modalities = Object.create(null), sourceIds = Object.create(null);
     objects.forEach(function(object) {
       var uncertainty = object.uncertainty_m;
       var uncertaintyKnown = typeof uncertainty === 'number' && Number.isFinite(uncertainty);
       var calibration = String(object.calibration_status || 'unknown').toLowerCase();
-      var needsReview = object.conflict === true || !uncertaintyKnown || uncertainty > 1 || calibration !== 'verified' || object.lineage_declared !== true;
+      var hasConflict = object.conflict === true;
+      var hasUncertaintyFlag = !uncertaintyKnown || uncertainty > 1;
+      var hasCalibrationFlag = calibration !== 'verified';
+      var hasLineageFlag = object.lineage_declared !== true;
+      if (hasConflict) conflicts++;
+      if (hasUncertaintyFlag) uncertain++;
+      if (hasCalibrationFlag) calibrationReview++;
+      if (hasLineageFlag) lineageReview++;
+      var needsReview = hasConflict || hasUncertaintyFlag || hasCalibrationFlag || hasLineageFlag;
       if (needsReview) review++; else stable++;
       (Array.isArray(object.modalities) ? object.modalities : []).forEach(function(value) { modalities[String(value)] = true; });
       (Array.isArray(object.sensor_ids) ? object.sensor_ids : []).forEach(function(value) { sourceIds[String(value)] = true; });
     });
     state.textContent = 'YES'; total.textContent = String(objects.length); stableNode.textContent = String(stable); reviewNode.textContent = String(review);
+    conflictNode.textContent = String(conflicts); uncertaintyNode.textContent = String(uncertain);
+    calibrationNode.textContent = String(calibrationReview); lineageNode.textContent = String(lineageReview);
     var modalityList = Object.keys(modalities);
     var sourceList = Object.keys(sourceIds);
     detail.textContent = 'MODEL ' + String(data.model_id || 'UNSPECIFIED') + ' / REV ' + String(data.revision || 'UNSPECIFIED') + ' / FRAME ' + String(data.frame_id || 'UNSPECIFIED') +
