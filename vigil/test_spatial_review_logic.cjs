@@ -205,3 +205,54 @@ function treeText(node) {
   assert.deepEqual(markers.map(m => m.style.opacity), ["1", "1", "1", "1", "1"]);
 }
 console.log("VIGIL track inspector and review filters: 2 scenario groups passed.");
+
+
+// Audit tests exercise bounded event retention and the requirement that a
+// human review decision include a reason before it is persisted.
+{
+  const entries = [];
+  const stored = {};
+  const context = {
+    spatialAuditEntries: entries, spatialAuditStorageKey: "test-audit",
+    spatialAuditStorageAvailable: true,
+    window: { localStorage: { setItem: (key, value) => { stored[key] = value; } } },
+    renderSpatialAuditLog: () => {}, Date, String, JSON
+  };
+  vm.runInNewContext(extractFunction("function recordSpatialAudit(action, detail) {"), context);
+  for (let i = 0; i < 103; i += 1) context.recordSpatialAudit("TEST EVENT", "event-" + i);
+  assert.equal(entries.length, 100);
+  assert.equal(entries[0].detail, "event-3");
+  assert.equal(entries[99].detail, "event-102");
+  assert.equal(JSON.parse(stored["test-audit"]).length, 100);
+}
+{
+  const decisions = {};
+  const stored = {};
+  const audit = [];
+  const inspected = [];
+  const context = {
+    spatialTrackReviewDecisions: decisions,
+    spatialReviewDecisionStorageKey: "test-decisions",
+    spatialReviewDecisionKey: object => "model::revision::frame::" + object.object_id,
+    window: { localStorage: { setItem: (key, value) => { stored[key] = value; } } },
+    recordSpatialAudit: (action, detail) => audit.push({ action, detail }),
+    inspectSpatialTrack: (object, suppressAudit) => inspected.push({ object, suppressAudit }),
+    Date, String, JSON
+  };
+  vm.runInNewContext(extractFunction("function saveSpatialTrackReviewDecision(object, decision, reason, messageNode) {"), context);
+  const object = { object_id: "T-99" };
+  const message = { textContent: "" };
+  context.saveSpatialTrackReviewDecision(object, "REVIEWED", "   ", message);
+  assert.match(message.textContent, /REASON REQUIRED/);
+  assert.equal(Object.keys(decisions).length, 0);
+  assert.equal(audit.length, 0);
+  context.saveSpatialTrackReviewDecision(object, "NEEDS FOLLOW-UP", "Calibration record is missing.", message);
+  assert.equal(decisions["model::revision::frame::T-99"].decision, "NEEDS FOLLOW-UP");
+  assert.equal(decisions["model::revision::frame::T-99"].reason, "Calibration record is missing.");
+  assert.equal(JSON.parse(stored["test-decisions"])["model::revision::frame::T-99"].decision, "NEEDS FOLLOW-UP");
+  assert.equal(audit[0].action, "TRACK REVIEW DECISION");
+  assert.match(audit[0].detail, /Calibration record is missing/);
+  assert.equal(inspected.length, 1);
+  assert.equal(inspected[0].suppressAudit, true);
+}
+console.log("VIGIL audit retention and review decision scenarios: 2 scenario groups passed.");
