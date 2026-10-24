@@ -192,7 +192,7 @@ function treeText(node) {
   }));
   const stage = { querySelectorAll: selector => selector === "[data-review-flags]" ? markers : [] };
   const status = makeNode("div");
-  const context = { spatialReviewFilters: filters, spatialStatus: status, spatialStage: stage, Array, String };
+  const context = { spatialReviewFilters: filters, spatialReviewFilter: "all", spatialStatus: status, spatialStage: stage, recordSpatialAudit: () => {}, Array, String };
   vm.runInNewContext(extractFunction("function applySpatialReviewFilter(filter) {"), context);
   context.applySpatialReviewFilter("missing");
   assert.deepEqual(markers.map(m => m.style.opacity), [".12", ".12", "1", "1", ".12"]);
