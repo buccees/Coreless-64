@@ -92,7 +92,7 @@ const fixture = {
 
     await page.locator('.spatial-review-filter[data-review-filter="missing"]').click();
     assert.equal(await page.locator('.spatial-review-filter[data-review-filter="missing"]').getAttribute("aria-pressed"), "true");
-    assert.equal(await page.locator('#imported-object-layer [data-track-id="TRACK-STABLE"]').evaluate(el => el.style.opacity), ".12");
+    assert.equal(await page.locator('#imported-object-layer [data-track-id="TRACK-STABLE"]').evaluate(el => el.style.opacity), "0.12");
     assert.equal(await page.locator('#imported-object-layer [data-track-id="TRACK-REVIEW"]').evaluate(el => el.style.opacity), "1");
     await page.locator('.spatial-review-filter[data-review-filter="review"]').click();
     assert.equal(await page.locator('#imported-object-layer [data-track-id="TRACK-UNKNOWN"]').evaluate(el => el.style.opacity), "1");
