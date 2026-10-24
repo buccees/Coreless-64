@@ -1446,7 +1446,17 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   var spatialReviewDecisionStorageKey = 'coreless64-vigil-track-review-decisions-v1';
   var spatialAuditEntries = [];
   var spatialAuditStorageAvailable = true;
+  var spatialAuditSessionId = 'VIGIL-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  var spatialAuditSequence = 0;
   var spatialTrackReviewDecisions = {};
+  function spatialAuditSceneSnapshot() {
+    if (!importedScene) return null;
+    return {
+      model_id: String(importedScene.model_id || 'UNKNOWN_MODEL'),
+      revision: String(importedScene.revision || 'UNKNOWN_REVISION'),
+      frame_id: String(importedScene.frame_id || 'UNKNOWN_FRAME')
+    };
+  }
   try {
     var storedAudit = JSON.parse(window.localStorage.getItem(spatialAuditStorageKey) || '[]');
     if (Array.isArray(storedAudit)) spatialAuditEntries = storedAudit.filter(function(entry) {
@@ -1484,9 +1494,14 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       (spatialAuditStorageAvailable ? 'LOCAL BROWSER STORAGE' : 'SESSION ONLY — STORAGE UNAVAILABLE') +
       ' // NOT TAMPER-PROOF';
   }
-  function recordSpatialAudit(action, detail) {
+  function recordSpatialAudit(action, detail, trackId) {
+    spatialAuditSequence += 1;
     spatialAuditEntries.push({
+      event_id: spatialAuditSessionId + ':' + spatialAuditSequence,
+      session_id: spatialAuditSessionId,
       timestamp: new Date().toISOString(),
+      scene: spatialAuditSceneSnapshot(),
+      track_id: trackId === undefined || trackId === null ? null : String(trackId),
       action: String(action || 'EVENT').slice(0, 80),
       detail: String(detail || '').slice(0, 240)
     });
@@ -1510,18 +1525,50 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       return;
     }
     var key = spatialReviewDecisionKey(object);
-    var entry = { decision: String(decision), reason: explanation.slice(0, 240), recorded_at: new Date().toISOString() };
+    var sceneSnapshot = spatialAuditSceneSnapshot();
+    var entry = {
+      model_id: sceneSnapshot ? sceneSnapshot.model_id : 'UNKNOWN_MODEL',
+      revision: sceneSnapshot ? sceneSnapshot.revision : 'UNKNOWN_REVISION',
+      frame_id: sceneSnapshot ? sceneSnapshot.frame_id : 'UNKNOWN_FRAME',
+      track_id: String(object && object.object_id || 'OBJECT'),
+      decision: String(decision),
+      reason: explanation.slice(0, 240),
+      recorded_at: new Date().toISOString()
+    };
     spatialTrackReviewDecisions[key] = entry;
     try { window.localStorage.setItem(spatialReviewDecisionStorageKey, JSON.stringify(spatialTrackReviewDecisions)); }
     catch (error) { spatialAuditStorageAvailable = false; }
-    recordSpatialAudit('TRACK REVIEW DECISION', key + ' // ' + entry.decision + ' // ' + entry.reason);
+    recordSpatialAudit('TRACK REVIEW DECISION', key + ' // ' + entry.decision + ' // ' + entry.reason, entry.track_id);
     inspectSpatialTrack(object, true);
   }
   renderSpatialAuditLog();
   var spatialAuditExportButton = document.getElementById('spatial-audit-export');
   var spatialAuditClearButton = document.getElementById('spatial-audit-clear');
   if (spatialAuditExportButton) spatialAuditExportButton.addEventListener('click', function() {
-    var payload = JSON.stringify({format:'VIGIL-spatial-audit', version:1, scope:'local-browser-review-history-not-tamper-proof', events:spatialAuditEntries}, null, 2);
+    var reviewDecisionExport = Object.keys(spatialTrackReviewDecisions).map(function(key) {
+      var decision = spatialTrackReviewDecisions[key] || {};
+      return {
+        key: key,
+        model_id: decision.model_id || null,
+        revision: decision.revision || null,
+        frame_id: decision.frame_id || null,
+        track_id: decision.track_id || null,
+        decision: decision.decision || null,
+        reason: decision.reason || '',
+        recorded_at: decision.recorded_at || null
+      };
+    });
+    var payload = JSON.stringify({
+      format: 'VIGIL-spatial-audit',
+      version: 2,
+      scope: 'local-browser-review-history-not-tamper-proof',
+      exported_at: new Date().toISOString(),
+      session_id: spatialAuditSessionId,
+      event_count: spatialAuditEntries.length,
+      active_scene: spatialAuditSceneSnapshot(),
+      review_decisions: reviewDecisionExport,
+      events: spatialAuditEntries
+    }, null, 2);
     var blob = new Blob([payload], {type:'application/json'});
     var url = URL.createObjectURL(blob);
     var link = document.createElement('a'); link.href = url; link.download = 'vigil-spatial-audit.json'; link.click();
@@ -1536,7 +1583,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 
   function inspectSpatialTrack(object, suppressAudit) {
     if (!spatialTrackDetail || !object) return;
-    if (!suppressAudit) recordSpatialAudit('TRACK INSPECTED', spatialReviewDecisionKey(object));
+    if (!suppressAudit) recordSpatialAudit('TRACK INSPECTED', spatialReviewDecisionKey(object), object.object_id);
     while (spatialTrackDetail.firstChild) spatialTrackDetail.removeChild(spatialTrackDetail.firstChild);
     var mappedLevel = object.inferred_level || object.level || null;
     var activeLevel = spatialLevel ? spatialLevel.value : 'all';
