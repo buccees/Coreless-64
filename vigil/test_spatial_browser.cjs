@@ -117,7 +117,7 @@ const fixture = {
     assert.equal(exported.format, "VIGIL-spatial-audit");
     assert.equal(exported.version, 2);
     assert.equal(exported.event_count, exported.events.length);
-    assert.match(exported.exported_at, /^\\d{4}-\\d{2}-\\d{2}T/);
+    assert.match(exported.exported_at, /^\d{4}-\d{2}-\d{2}T/);
     assert.ok(exported.session_id);
     assert.equal(exported.active_scene.model_id, "BROWSER-TEST-MODEL");
     const exportedDecisionEvent = exported.events.find(event => event.action === "TRACK REVIEW DECISION");
