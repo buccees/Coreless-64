@@ -58,13 +58,16 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE="$RUNNER_TEMP/coreless-uefi-x86_64.img"
-          # Discover the firmware shipped by this runner's installed OVMF package.
-          OVMF_CODE="$(dpkg -L ovmf | grep -E '/OVMF_CODE[^/]*[.]fd$' | head -n 1 || true)"
-          [[ -n "$OVMF_CODE" && -s "$OVMF_CODE" ]] || {
-            echo "OVMF_CODE firmware not found in the installed ovmf package" >&2
-            dpkg -L ovmf >&2
+          # Firmware package layouts differ across Ubuntu runner images.
+          # Search installed firmware files rather than relying on package ownership.
+          OVMF_CODE="$(find /usr/share /usr/lib -type f \\( -iname 'OVMF_CODE*.fd' -o -iname 'OVMF.fd' \\) -print -quit 2>/dev/null || true)"
+          if [[ -z "$OVMF_CODE" || ! -s "$OVMF_CODE" ]]; then
+            echo "OVMF firmware file not found; installed package contents:" >&2
+            dpkg -L ovmf >&2 || true
+            find /usr/share /usr/lib -iname '*ovmf*' -o -iname '*edk2*' >&2 || true
             exit 1
-          }
+          fi
+          echo "Using UEFI firmware: $OVMF_CODE"
           set +e
           timeout 150s qemu-system-x86_64 \
             -machine q35 -m 2048 -smp 2 -bios "$OVMF_CODE" \
