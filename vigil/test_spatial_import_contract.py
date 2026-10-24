@@ -102,3 +102,13 @@ def test_html_ids_are_unique():
     ids = re.findall(r'\bid=["\']([^"\']+)["\']', SOURCE)
     duplicates = sorted({item for item in ids if ids.count(item) > 1})
     assert not duplicates, f"Duplicate HTML IDs: {duplicates}"
+
+
+def test_spatial_markers_distinguish_unknown_uncertainty_and_metadata_review():
+    body = function_body("renderImportedScene")
+    assert "!uncertaintyKnown ? ' uncertainty-unknown' : ''" in body
+    assert "calibrationUnverified || !lineageDeclared ? ' metadata-review' : ''" in body
+    assert ".imported-object.uncertainty-unknown:not(.conflict)" in SOURCE
+    assert ".imported-object.metadata-review:not(.conflict):not(.uncertainty-unknown)" in SOURCE
+    assert "UNKNOWN UNCERTAINTY / AMBER DASHED" in SOURCE
+    assert "BLUE DASHED OUTLINE / CALIBRATION OR LINEAGE REVIEW" in SOURCE
