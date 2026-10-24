@@ -138,6 +138,7 @@ function treeText(node) {
   const context = {
     document: { createElement: makeNode, createTextNode: text => Object.assign(makeNode("#text"), { textContent: text }) },
     spatialTrackDetail: detail, spatialLevel: level,
+    recordSpatialAudit: () => {}, spatialReviewDecisionKey: object => String(object.object_id || 'OBJECT'),
     finite3: point => Array.isArray(point) && point.length >= 3 &&
       point.slice(0, 3).every(n => typeof n === "number" && Number.isFinite(n)),
     Array, Number, String, Math, Object
