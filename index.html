@@ -1729,6 +1729,43 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       saveSpatialTrackReviewDecision(object, decisionSelect.value, reasonInput.value, decisionMessage);
     });
     spatialTrackDetail.appendChild(decisionPanel);
+
+    // Show only events tied to this track in this exact model/revision/frame.
+    // This is an audit view, not a tamper-proof or cross-device history.
+    var historyHeading = document.createElement('strong');
+    historyHeading.textContent = 'TRACK REVIEW HISTORY // CURRENT SCENE';
+    historyHeading.style.marginTop = '12px';
+    spatialTrackDetail.appendChild(historyHeading);
+    var historyList = document.createElement('ol');
+    historyList.className = 'spatial-track-history';
+    historyList.style.margin = '7px 0';
+    historyList.style.paddingLeft = '22px';
+    var sceneForHistory = spatialAuditSceneSnapshot();
+    var matchingHistory = spatialAuditEntries.filter(function(entry) {
+      if (!entry || String(entry.track_id || '') !== String(object.object_id || 'OBJECT')) return false;
+      if (!sceneForHistory || !entry.scene) return false;
+      return String(entry.scene.model_id || '') === String(sceneForHistory.model_id || '') &&
+        String(entry.scene.revision || '') === String(sceneForHistory.revision || '') &&
+        String(entry.scene.frame_id || '') === String(sceneForHistory.frame_id || '');
+    }).slice(-8).reverse();
+    if (!matchingHistory.length) {
+      var noHistory = document.createElement('li');
+      noHistory.textContent = 'NO MATCHING TRACK EVENTS IN THE RETAINED LOCAL AUDIT LOG.';
+      historyList.appendChild(noHistory);
+    } else {
+      matchingHistory.forEach(function(entry) {
+        var item = document.createElement('li');
+        var eventTime = entry.timestamp || 'TIME UNKNOWN';
+        var eventAction = entry.action || 'EVENT';
+        item.textContent = eventTime + ' // ' + eventAction + (entry.detail ? ' // ' + entry.detail : '');
+        historyList.appendChild(item);
+      });
+    }
+    spatialTrackDetail.appendChild(historyList);
+    var historyNote = document.createElement('p');
+    historyNote.textContent = 'HISTORY SCOPE // Up to 8 matching events from this browser’s retained audit log. The log is capped, may be session-only when storage is unavailable, and is not tamper-proof.';
+    spatialTrackDetail.appendChild(historyNote);
+
     var note = document.createElement('p');
     note.textContent = 'FLOOR CONTINUITY NOTE // Evidence status distinguishes a flagged conflict, missing sensor provenance, an unlocalized track conflict, and provenance available for review. Conflicting sensor IDs are localized only when they overlap the source/destination sample IDs; otherwise the track-level conflict remains unlocalized. No status automatically confirms a floor change, and history alone does not prove the route taken.';
     spatialTrackDetail.appendChild(note);
