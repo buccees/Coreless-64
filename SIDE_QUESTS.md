@@ -2,6 +2,64 @@
 
 Optional explorations that complement Coreless-64 and VIGIL without silently displacing the main machine-development priorities.
 
+## Coreless Heart + Hardware Execution Fabric — external supervisor and native ISA prototype
+
+**Status:** Architecture concept captured; hardware selection, RTL implementation, and physical validation have not started. This is a planning summary, not a claim that an FPGA, Arduino, or custom Coreless processor has been purchased or tested.
+
+### Concept
+
+Develop a physical execution substrate for Coreless-64 so its defined instruction set can eventually execute in dedicated digital logic rather than being interpreted by Python on a host CPU. Pair it with a small Arduino-compatible **Coreless Heart** supervisory controller for startup coordination, readiness/health monitoring, fault logging, watchdog behavior, and recovery requests.
+
+The FPGA or future custom logic is the execution mechanism; the Arduino is not the CPU and does not make computation happen without physical hardware. The existing software reference machine remains the behavioral oracle for conformance tests. The current Linux/Python carrier is a transitional host-executed prototype, not proof of native Coreless execution.
+
+### Proposed architecture
+
+- **Coreless execution fabric:** FPGA prototype implementing a frozen, testable subset of the Coreless-64 ISA in RTL. A board such as the Digilent Arty A7-100T is only a candidate pending capacity, memory, toolchain, interface, and cost review.
+- **Coreless Heart:** Arduino-compatible supervisor using a defined control/telemetry protocol; it may request startup or recovery and monitor heartbeats. It does not execute the main instruction stream.
+- **Memory and persistence:** FPGA-accessible RAM for live execution state; nonvolatile storage for configuration/boot data; persistent machine checkpoints on storage. The supervisor may keep compact boot/fault metadata, not the entire RAM image.
+- **Coreless device boundary:** map the implementation onto the existing device-discovery, capability, MMIO, interrupt, and command/completion contracts where applicable.
+- **External host boundary:** retain the existing transport-neutral host interface for display, input, networking, and other negotiated I/O. These transports must not become substitute execution resources.
+
+### Existing interfaces to reuse
+
+- `specification/isa.md` — architectural state and instruction semantics. The binary opcode map is still a freeze task before a hardware decoder is finalized.
+- `specification/devices.md` — device discovery records, resource regions, interrupts, DMA rules, and command/completion interfaces.
+- `specification/host_interface.md` — plug-and-play identity, capability negotiation, startup/resume, display/input/network transport boundaries.
+- `specification/bootable_carrier.md` — current UEFI/Linux/Python carrier and its explicitly documented limitations.
+
+These are architectural/software contracts; they do not establish that physical FPGA adapters, electrical links, or full hardware transports already exist. SPI for supervisor control, UART for diagnostics, and GPIO reset/watchdog lines are candidate implementation choices, not existing requirements. Electrical levels, reset polarity, power sequencing, and isolation must be checked against the chosen boards before wiring.
+
+### Recommended build order
+
+1. Freeze a small ISA subset and opcode encoding; define reset state, memory transaction behavior, exception/retirement semantics, and conformance vectors.
+2. Establish reference-engine tests for deterministic instruction traces, registers, memory, PC, exceptions, and persistence.
+3. Select an FPGA board only after checking logic capacity, clocking, RAM, configuration boot, programming tools, accessible I/O, and budget.
+4. Implement a minimal scalar Coreless execution core in Verilog/SystemVerilog; start with arithmetic, branches, loads/stores, and basic control.
+5. Boot a tiny test program from FPGA-accessible memory. Do not begin with the entire OS, vector/AI extensions, or all peripheral transports.
+6. Differentially test the RTL against the software reference implementation and record pass/fail artifacts.
+7. Add Coreless device discovery and a narrow supervisor protocol; test readiness, heartbeat timeout, fault log, and safe recovery requests.
+8. Integrate persistent checkpoints and one external I/O path only after the core is conformant.
+9. Consider a custom PCB or ASIC only after the FPGA design, interfaces, and resource requirements are measured.
+
+### Acceptance criteria
+
+- The selected hardware demonstrably executes the frozen Coreless instruction subset in digital logic; no host CPU interpreter is in the instruction-execution path for that test.
+- RTL and software reference results match for agreed conformance vectors, including exceptions and memory effects.
+- The supervisor can detect missing heartbeat and request recovery without corrupting architectural state.
+- Boot configuration, RAM, storage, and power/reset sequencing are documented and electrically validated.
+- Coreless device identity/capabilities are discoverable through a documented adapter.
+- External display/input/network transports remain separate from the execution engine.
+- All claims distinguish FPGA logic execution from host CPU activity, and distinguish tested hardware from simulation.
+
+### Constraints and open decisions
+
+- No hardware has been selected, bought, wired, or tested as part of this plan.
+- The Coreless opcode map and hardware-level edge cases must be frozen before RTL can be treated as conformant.
+- FPGA fabric still consists of physical electronic logic; this removes a conventional CPU interpreter from the execution path, not the need for a physical computation mechanism.
+- The Arduino's onboard flash/EEPROM is suitable for small configuration and fault metadata, not full machine RAM checkpoints.
+- Choose whether the FPGA and Heart are a bench prototype connected to the USB-carried machine or a future integrated dedicated unit; the ISA and device contracts should remain transport-neutral either way.
+
+
 ## VIGIL Eye — modular optical sensor head and wearable sensor harness
 
 **Status:** Captured; equipment selection and prototyping not yet started.
