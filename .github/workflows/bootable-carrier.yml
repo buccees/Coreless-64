@@ -84,6 +84,22 @@ jobs:
           cp "$OVMF_VARS" "$OVMF_VARS_COPY"
           echo "Using UEFI firmware code: $OVMF_CODE"
           echo "Using writable UEFI variable store: $OVMF_VARS_COPY"
+
+          # Place an explicit opt-in marker on the dedicated state partition.
+          # The guest console uses it to save a deterministic virtual CPU/RAM
+          # fixture on boot one and assert those exact values on boot two.
+          RECOVERY_LOOP="$(sudo losetup --find --show --partscan "$IMAGE")"
+          sudo partprobe "$RECOVERY_LOOP" 2>/dev/null || true
+          for _ in $(seq 1 20); do [[ -b "${RECOVERY_LOOP}p3" ]] && break; sleep 0.25; done
+          [[ -b "${RECOVERY_LOOP}p3" ]] || { echo "State partition device missing for recovery fixture" >&2; exit 1; }
+          STATE_MOUNT="$RUNNER_TEMP/coreless-state"
+          mkdir -p "$STATE_MOUNT"
+          sudo mount "${RECOVERY_LOOP}p3" "$STATE_MOUNT"
+          printf 'enabled\n' | sudo tee "$STATE_MOUNT/.recovery-test" >/dev/null
+          sudo sync
+          sudo umount "$STATE_MOUNT"
+          sudo losetup -d "$RECOVERY_LOOP"
+
           set +e
           timeout 60s qemu-system-x86_64 \
             -machine q35 -m 2048 -smp 2 \
@@ -115,6 +131,10 @@ jobs:
             echo "First UEFI boot did not report initialization of a fresh Coreless machine image" >&2
             exit 1
           }
+          grep -Fq "Recovery fixture saved: r7=37 pc=260 ram=434f52454c455353" "$RUNNER_TEMP/qemu-boot.log" || {
+            echo "First UEFI boot did not persist the expected Coreless CPU/RAM recovery fixture" >&2
+            exit 1
+          }
 
           # Simulate a power cycle by stopping QEMU after Coreless has saved
           # its boot state, then boot the exact same disk image again.
@@ -141,11 +161,15 @@ jobs:
             echo "Recovery boot did not restore the machine state saved on the first boot" >&2
             exit 1
           }
+          grep -Fq "Recovery fixture restored: r7=37 pc=260 ram=434f52454c455353" "$RUNNER_TEMP/qemu-recovery.log" || {
+            echo "Recovery boot did not restore the exact virtual CPU register, PC, and RAM sentinel" >&2
+            exit 1
+          }
           grep -Fq "Persistent machine image: /var/lib/coreless/coreless.img" "$RUNNER_TEMP/qemu-recovery.log" || {
             echo "Recovery boot did not reopen the same persistent machine image" >&2
             exit 1
           }
-          echo "PASS: UEFI boot reached multi-user, opened the persistent machine image, and recovered saved Coreless state after a simulated power cycle."
+          echo "PASS: UEFI boot reached multi-user and restored the exact Coreless CPU register, PC, and RAM sentinel after a simulated power cycle."
       - name: Publish bootable image artifact (manual runs only)
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
