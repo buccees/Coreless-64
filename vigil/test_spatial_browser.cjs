@@ -77,6 +77,7 @@ const fixture = {
     await page.locator("#spatial-panel .spatial-stage").waitFor({ state: "visible" });
     assert.equal(await page.locator("#site-settings-backdrop").isVisible(), false, "closed settings overlay must not cover Spatial Intelligence controls");
     assert.equal(await page.locator("#spatial-json").isEnabled(), true, "scene import file input must be enabled");
+    await page.locator("#spatial-json").scrollIntoViewIfNeeded();
     const importHitTest = await page.locator("#spatial-json").evaluate(el => { const r = el.getBoundingClientRect(); const x = r.left + r.width / 2, y = r.top + r.height / 2; const hit = document.elementFromPoint(x, y); const backdrop = document.querySelector("#site-settings-backdrop"); return { hit: hit === el || el.contains(hit), target: hit ? { tag: hit.tagName, id: hit.id, className: typeof hit.className === "string" ? hit.className : "" } : null, inputRect: { x: r.x, y: r.y, width: r.width, height: r.height }, backdrop: { hidden: backdrop.hidden, display: getComputedStyle(backdrop).display, visibility: getComputedStyle(backdrop).visibility, pointerEvents: getComputedStyle(backdrop).pointerEvents } }; });
     console.log("SCENE IMPORT POINTER DIAGNOSTIC " + JSON.stringify(importHitTest));
     assert.equal(importHitTest.hit, true, "scene import control must receive pointer events rather than being covered by an overlay");
