@@ -60,7 +60,10 @@ jobs:
           IMAGE="$RUNNER_TEMP/coreless-uefi-x86_64.img"
           # Firmware package layouts differ across Ubuntu runner images.
           # Search installed firmware files rather than relying on package ownership.
-          OVMF_CODE="$(find /usr/share /usr/lib -type f \\( -iname 'OVMF_CODE*.fd' -o -iname 'OVMF.fd' \\) -print -quit 2>/dev/null || true)"
+          OVMF_CODE="$(find /usr/share /usr/lib -type f -iname 'OVMF_CODE*.fd' -print -quit 2>/dev/null || true)"
+          if [[ -z "$OVMF_CODE" ]]; then
+            OVMF_CODE="$(find /usr/share /usr/lib -type f -iname 'OVMF.fd' -print -quit 2>/dev/null || true)"
+          fi
           if [[ -z "$OVMF_CODE" || ! -s "$OVMF_CODE" ]]; then
             echo "OVMF firmware file not found; installed package contents:" >&2
             dpkg -L ovmf >&2 || true
