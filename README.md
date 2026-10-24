@@ -184,3 +184,7 @@ The reference Arduino sketch uses a 115200-baud serial connection and a small li
 
 
 The host-side `ArduinoInputAdapter` in `reference/arduino_io.py` now translates Arduino event frames into the existing Coreless `InputEvent` ABI and forwards them through the negotiated host input transport. Sensor/GPIO events default to `DEVICE_STATE`; firmware can emit supported typed input events with validated coordinates and fields. Acknowledgements are consumed without creating fake input events. Regression tests cover sensor forwarding, pointer events, acknowledgements, and malformed numeric data.
+
+## License
+
+Unless a file or directory contains a different license or third-party notice, this repository's original project code and documentation are released under the GNU Affero General Public License, version 3 (AGPL-3.0-only). See [`LICENSE`](./LICENSE) for the full license text. Third-party code, assets, generated materials, and dependencies remain subject to their own applicable copyright notices and license terms; this repository-wide notice does not override them.
