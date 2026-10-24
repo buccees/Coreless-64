@@ -1363,6 +1363,10 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         updateEvidenceBridge(data);
         var counts = renderImportedScene(data);
         showImportStatus('IMPORTED ' + data.model_id + ' / REV ' + data.revision + ' / FRAME ' + data.frame_id, counts);
+        applyImportedLevelFilter();
+        applySpatialReviewFilter(spatialReviewFilter);
+        bindSpatialTrackInspection(importedScene);
+        updateCsiAssociation(importedScene);
         recordSpatialAudit('SCENE IMPORTED', data.model_id + ' // REV ' + data.revision + ' // FRAME ' + data.frame_id + ' // objects=' + data.objects.length);
       } catch (error) {
         importedScene = null;
