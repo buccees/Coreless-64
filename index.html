@@ -114,7 +114,7 @@ header{display:grid;grid-template-columns:1.3fr 1fr .65fr;margin-bottom:9px}head
 .csi-association-controls button:disabled,.csi-association-controls select:disabled{opacity:.45;cursor:not-allowed}
 #csi-association-detail p{overflow-wrap:anywhere}
 @media(max-width:600px){.csi-association-controls{align-items:stretch;flex-direction:column}.csi-association-controls select,.csi-association-controls button{width:100%}}
-.spatial-track-detail strong{display:block;color:var(--g);font-size:11px;letter-spacing:.5px}.spatial-track-detail p{margin:5px 0 0;color:var(--dim);font-size:11px}.spatial-track-detail dl{display:grid;grid-template-columns:minmax(110px,.7fr) minmax(0,2fr);gap:5px 10px;margin:8px 0 0;font-size:11px}.spatial-track-detail dt{color:var(--dim)}.spatial-track-detail dd{margin:0;color:var(--text);overflow-wrap:anywhere}.spatial-stage [data-track-id]{cursor:pointer}.spatial-stage [data-track-id]:focus{outline:none;filter:drop-shadow(0 0 5px #29f5b2)}@media(max-width:600px){.spatial-track-detail dl{grid-template-columns:1fr;gap:2px}.spatial-track-detail dd{margin-bottom:5px}}
+.spatial-track-detail strong{display:block;color:var(--g);font-size:11px;letter-spacing:.5px}.spatial-review-decision{border:1px solid #17634d;background:#010604;padding:9px;margin:10px 0}.spatial-review-decision>strong{display:block;color:var(--g);font-size:11px;letter-spacing:.7px}.spatial-review-controls{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.spatial-review-controls select,.spatial-review-controls input{min-width:0;flex:1 1 150px;background:#010604;color:var(--g);border:1px solid var(--line);padding:7px;font:inherit;font-size:11px}.spatial-review-controls button,.spatial-audit-actions button{background:#031b13;color:var(--g);border:1px solid var(--line);padding:7px 9px;font:inherit;font-size:10px;cursor:pointer}.spatial-review-current,.spatial-review-message{font-size:10px;color:var(--dim);overflow-wrap:anywhere}.spatial-audit-panel{border:1px solid var(--line);background:#020a07;padding:10px;margin:10px 0}.spatial-audit-panel h3{margin:0 0 6px;color:var(--g);font-size:12px;letter-spacing:1px}.spatial-audit-panel p{font-size:10px;color:var(--dim);margin:5px 0 9px}.spatial-audit-actions{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.spatial-audit-status{font-size:10px;color:var(--dim);margin:7px 0}.spatial-audit-list{max-height:260px;overflow:auto;margin:0;padding-left:24px}.spatial-audit-list li{border-bottom:1px dotted #17634d;padding:7px 3px;font-size:10px;overflow-wrap:anywhere}.spatial-audit-list strong{color:var(--g)}.spatial-audit-list time{display:block;color:var(--dim);font-size:9px;margin-bottom:3px}@media(max-width:600px){.spatial-review-controls{flex-direction:column}.spatial-review-controls select,.spatial-review-controls input,.spatial-review-controls button{width:100%;flex:auto}}.spatial-track-detail p{margin:5px 0 0;color:var(--dim);font-size:11px}.spatial-track-detail dl{display:grid;grid-template-columns:minmax(110px,.7fr) minmax(0,2fr);gap:5px 10px;margin:8px 0 0;font-size:11px}.spatial-track-detail dt{color:var(--dim)}.spatial-track-detail dd{margin:0;color:var(--text);overflow-wrap:anywhere}.spatial-stage [data-track-id]{cursor:pointer}.spatial-stage [data-track-id]:focus{outline:none;filter:drop-shadow(0 0 5px #29f5b2)}@media(max-width:600px){.spatial-track-detail dl{grid-template-columns:1fr;gap:2px}.spatial-track-detail dd{margin-bottom:5px}}
 .status{display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center}.statusbox{border:1px solid var(--g);padding:8px;text-align:center;font-size:18px;color:var(--g)}
 .diagram{position:relative;overflow:hidden;background-image:linear-gradient(#0a5d4629 1px,transparent 1px),linear-gradient(90deg,#0a5d4629 1px,transparent 1px);background-size:18px 18px}.diagram svg{width:100%;height:auto;display:block}
 .caption{text-align:center;border-top:1px solid var(--line);padding:7px;color:var(--g);letter-spacing:1px}.hazard{border:1px solid var(--warn);padding:8px;color:#ff8989;letter-spacing:1px}
@@ -453,7 +453,13 @@ body{padding-top:108px}
 <p class="fluid-note">Review Wi-Fi CSI motion context against an imported track record. This panel only inspects metadata already present in the imported scene; it does not create detections, correlate synthetic examples, or imply a live radio feed.</p>
 <div class="csi-association-controls"><label for="csi-track-select">IMPORTED TRACK</label><select id="csi-track-select" aria-label="Select imported track"><option value="">WAITING FOR SCENE IMPORT</option></select><button id="csi-review-toggle" type="button" aria-pressed="false">MARK REVIEWED</button></div>
 <div id="csi-association-detail"><strong>NO SCENE IMPORTED</strong><p>Load a BlueprintView JSON file to inspect declared Wi-Fi / CSI sources.</p></div>
-</div><p class="fluid-note"><strong class="green">EVIDENCE RULE:</strong> a plotted marker is not automatically a confirmed fact. Preserve source sensor, timestamp, coordinate frame, and uncertainty; flag conflicts instead of silently averaging them. Imported scene data may drive the overlay. Without an import, the scene remains DEMONSTRATION DATA — NO LIVE SENSORS CONNECTED.</p><p class="fluid-note"><strong class="green">CONFLICT RESOLUTION POLICY:</strong> once a track is disputed, a later update cannot clear the warning unless a later clean epoch is corroborated by at least two distinct evidence-independence groups. Sensor IDs are still shown for audit, but two feeds declared to share a receiver, upstream detector, or other common source count as one group. If no group is declared, the tracker falls back to sensor ID for compatibility; that fallback does not prove physical independence. Scene readiness continues to block on unresolved active conflicts.</p><p class="fluid-note"><strong class="green">TRACK QUALITY GATE:</strong> scene diagnostics distinguish usable tracks (known uncertainty at or below 1.0 m by default), uncertain tracks (above the configured threshold), and unresolved conflicts. Uncertain tracks remain visible for review but are not precise fixes; missing, invalid, or non-finite uncertainty fails readiness. The threshold is configurable and must be matched to sensor calibration and environment.</p><p class="fluid-note"><strong class="green">SOURCE LINEAGE / CALIBRATION GATE:</strong> range adapters carry calibration status and IDs into each tracked object, alongside explicitly declared source lineage. FAILED calibration blocks scene readiness; UNVERIFIED calibration remains a visible warning and is never silently upgraded to verified. Missing lineage is also surfaced as a warning: distinct sensor IDs alone do not prove independent hardware. A position may remain visible for review while these warnings are present, but readiness cannot pass when a contributing track is marked FAILED. Hardware drivers must supply trustworthy metadata; software labels alone cannot validate physical sensors.</p>
+</div><p class="fluid-note"><strong class="green">EVIDENCE RULE:</strong></div><section id="spatial-audit-panel" class="spatial-audit-panel" aria-labelledby="spatial-audit-heading">
+<h3 id="spatial-audit-heading">SPATIAL REVIEW AUDIT TRAIL</h3>
+<p>Records scene imports, track inspections, review decisions and filter changes in this browser. Local records are useful for traceability, but are not tamper-proof evidence or a server-side record.</p>
+<div class="spatial-audit-actions"><button id="spatial-audit-export" type="button">EXPORT AUDIT JSON</button><button id="spatial-audit-clear" type="button">CLEAR AUDIT LOG</button></div>
+<p id="spatial-audit-status" class="spatial-audit-status" role="status" aria-live="polite">INITIALIZING LOCAL AUDIT STORE</p>
+<ol id="spatial-audit-list" class="spatial-audit-list" aria-live="polite"><li>No audit events yet.</li></ol>
+</section><p class="fluid-note"><strong class="green">EVIDENCE RULE:</strong> a plotted marker is not automatically a confirmed fact. Preserve source sensor, timestamp, coordinate frame, and uncertainty; flag conflicts instead of silently averaging them. Imported scene data may drive the overlay. Without an import, the scene remains DEMONSTRATION DATA — NO LIVE SENSORS CONNECTED.</p><p class="fluid-note"><strong class="green">CONFLICT RESOLUTION POLICY:</strong> once a track is disputed, a later update cannot clear the warning unless a later clean epoch is corroborated by at least two distinct evidence-independence groups. Sensor IDs are still shown for audit, but two feeds declared to share a receiver, upstream detector, or other common source count as one group. If no group is declared, the tracker falls back to sensor ID for compatibility; that fallback does not prove physical independence. Scene readiness continues to block on unresolved active conflicts.</p><p class="fluid-note"><strong class="green">TRACK QUALITY GATE:</strong> scene diagnostics distinguish usable tracks (known uncertainty at or below 1.0 m by default), uncertain tracks (above the configured threshold), and unresolved conflicts. Uncertain tracks remain visible for review but are not precise fixes; missing, invalid, or non-finite uncertainty fails readiness. The threshold is configurable and must be matched to sensor calibration and environment.</p><p class="fluid-note"><strong class="green">SOURCE LINEAGE / CALIBRATION GATE:</strong> range adapters carry calibration status and IDs into each tracked object, alongside explicitly declared source lineage. FAILED calibration blocks scene readiness; UNVERIFIED calibration remains a visible warning and is never silently upgraded to verified. Missing lineage is also surfaced as a warning: distinct sensor IDs alone do not prove independent hardware. A position may remain visible for review while these warnings are present, but readiness cannot pass when a contributing track is marked FAILED. Hardware drivers must supply trustworthy metadata; software labels alone cannot validate physical sensors.</p>
 <p class="muted">3D floor plan of the spatial engine: coordinate-aligned floors suspended in a shared scene model, with sensor evidence flowing between levels as a continuous field of information.</p>
 <div class="spatial-stage"><svg viewBox="0 0 760 540" role="img" aria-label="Isometric three-level building floor plan suspended in a glowing fluid of information, with sensor streams, infrared overlays, tracked objects, and confidence markers">
 <defs><linearGradient id="fluid" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#29f5b2" stop-opacity=".05"/><stop offset=".5" stop-color="#29f5b2" stop-opacity=".42"/><stop offset="1" stop-color="#62b8ff" stop-opacity=".08"/></linearGradient><linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b4736" stop-opacity=".92"/><stop offset="1" stop-color="#03130f" stop-opacity=".94"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
@@ -1357,11 +1363,13 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         updateEvidenceBridge(data);
         var counts = renderImportedScene(data);
         showImportStatus('IMPORTED ' + data.model_id + ' / REV ' + data.revision + ' / FRAME ' + data.frame_id, counts);
+        recordSpatialAudit('SCENE IMPORTED', data.model_id + ' // REV ' + data.revision + ' // FRAME ' + data.frame_id + ' // objects=' + data.objects.length);
       } catch (error) {
         importedScene = null;
         updateEvidenceBridge(null);
         clearImportedLayers();
         spatialStatus.textContent = 'IMPORT REJECTED // ' + (error && error.message ? error.message : 'Invalid JSON');
+        recordSpatialAudit('IMPORT REJECTED', error && error.message ? error.message : 'Invalid JSON');
       }
     };
     reader.onerror = function() {
@@ -1369,10 +1377,12 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       updateEvidenceBridge(null);
       clearImportedLayers();
       spatialStatus.textContent = 'IMPORT FAILED // FILE COULD NOT BE READ';
+      recordSpatialAudit('IMPORT FAILED', 'Browser FileReader could not read the selected file.');
     };
     reader.readAsText(file);
   });
   if (spatialClearData) spatialClearData.addEventListener('click', function() {
+    recordSpatialAudit('SCENE CLEARED', importedScene ? importedScene.model_id + ' // REV ' + importedScene.revision + ' // FRAME ' + importedScene.frame_id : 'No scene was active');
     importedScene = null;
     updateEvidenceBridge(null);
     clearImportedLayers();
@@ -1427,8 +1437,102 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     }
   }
   var spatialTrackDetail = document.getElementById('spatial-track-detail');
-  function inspectSpatialTrack(object) {
+
+  var spatialAuditStorageKey = 'coreless64-vigil-spatial-audit-v1';
+  var spatialReviewDecisionStorageKey = 'coreless64-vigil-track-review-decisions-v1';
+  var spatialAuditEntries = [];
+  var spatialAuditStorageAvailable = true;
+  var spatialTrackReviewDecisions = {};
+  try {
+    var storedAudit = JSON.parse(window.localStorage.getItem(spatialAuditStorageKey) || '[]');
+    if (Array.isArray(storedAudit)) spatialAuditEntries = storedAudit.filter(function(entry) {
+      return entry && typeof entry.timestamp === 'string' && typeof entry.action === 'string' && typeof entry.detail === 'string';
+    }).slice(-100);
+  } catch (error) { spatialAuditStorageAvailable = false; }
+  try {
+    var storedReviewDecisions = JSON.parse(window.localStorage.getItem(spatialReviewDecisionStorageKey) || '{}');
+    if (storedReviewDecisions && typeof storedReviewDecisions === 'object' && !Array.isArray(storedReviewDecisions)) spatialTrackReviewDecisions = storedReviewDecisions;
+  } catch (error) { spatialAuditStorageAvailable = false; }
+  function renderSpatialAuditLog() {
+    var list = document.getElementById('spatial-audit-list');
+    var status = document.getElementById('spatial-audit-status');
+    if (!list || !status) return;
+    while (list.firstChild) list.removeChild(list.firstChild);
+    if (!spatialAuditEntries.length) {
+      var empty = document.createElement('li');
+      empty.textContent = 'No audit events recorded in this browser yet.';
+      list.appendChild(empty);
+    } else {
+      spatialAuditEntries.slice().reverse().forEach(function(entry) {
+        var item = document.createElement('li');
+        var time = document.createElement('time');
+        time.dateTime = entry.timestamp;
+        time.textContent = entry.timestamp;
+        var action = document.createElement('strong');
+        action.textContent = entry.action;
+        var detail = document.createElement('div');
+        detail.textContent = entry.detail;
+        item.appendChild(time); item.appendChild(action); item.appendChild(detail);
+        list.appendChild(item);
+      });
+    }
+    status.textContent = spatialAuditEntries.length + ' EVENTS // ' +
+      (spatialAuditStorageAvailable ? 'LOCAL BROWSER STORAGE' : 'SESSION ONLY — STORAGE UNAVAILABLE') +
+      ' // NOT TAMPER-PROOF';
+  }
+  function recordSpatialAudit(action, detail) {
+    spatialAuditEntries.push({
+      timestamp: new Date().toISOString(),
+      action: String(action || 'EVENT').slice(0, 80),
+      detail: String(detail || '').slice(0, 240)
+    });
+    if (spatialAuditEntries.length > 100) spatialAuditEntries = spatialAuditEntries.slice(-100);
+    try { window.localStorage.setItem(spatialAuditStorageKey, JSON.stringify(spatialAuditEntries)); }
+    catch (error) { spatialAuditStorageAvailable = false; }
+    renderSpatialAuditLog();
+  }
+  function spatialReviewDecisionKey(object) {
+    return [
+      importedScene && importedScene.model_id || 'UNKNOWN_MODEL',
+      importedScene && importedScene.revision || 'UNKNOWN_REVISION',
+      importedScene && importedScene.frame_id || 'UNKNOWN_FRAME',
+      object && object.object_id || 'OBJECT'
+    ].map(String).join('::');
+  }
+  function saveSpatialTrackReviewDecision(object, decision, reason, messageNode) {
+    var explanation = String(reason || '').trim();
+    if (!explanation) {
+      if (messageNode) messageNode.textContent = 'REASON REQUIRED // Enter a concise reason before recording this decision.';
+      return;
+    }
+    var key = spatialReviewDecisionKey(object);
+    var entry = { decision: String(decision), reason: explanation.slice(0, 240), recorded_at: new Date().toISOString() };
+    spatialTrackReviewDecisions[key] = entry;
+    try { window.localStorage.setItem(spatialReviewDecisionStorageKey, JSON.stringify(spatialTrackReviewDecisions)); }
+    catch (error) { spatialAuditStorageAvailable = false; }
+    recordSpatialAudit('TRACK REVIEW DECISION', key + ' // ' + entry.decision + ' // ' + entry.reason);
+    inspectSpatialTrack(object, true);
+  }
+  renderSpatialAuditLog();
+  var spatialAuditExportButton = document.getElementById('spatial-audit-export');
+  var spatialAuditClearButton = document.getElementById('spatial-audit-clear');
+  if (spatialAuditExportButton) spatialAuditExportButton.addEventListener('click', function() {
+    var payload = JSON.stringify({format:'VIGIL-spatial-audit', version:1, scope:'local-browser-review-history-not-tamper-proof', events:spatialAuditEntries}, null, 2);
+    var blob = new Blob([payload], {type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a'); link.href = url; link.download = 'vigil-spatial-audit.json'; link.click();
+    URL.revokeObjectURL(url);
+  });
+  if (spatialAuditClearButton) spatialAuditClearButton.addEventListener('click', function() {
+    spatialAuditEntries = [];
+    try { window.localStorage.removeItem(spatialAuditStorageKey); spatialAuditStorageAvailable = true; }
+    catch (error) { spatialAuditStorageAvailable = false; }
+    renderSpatialAuditLog();
+  });
+
+  function inspectSpatialTrack(object, suppressAudit) {
     if (!spatialTrackDetail || !object) return;
+    if (!suppressAudit) recordSpatialAudit('TRACK INSPECTED', spatialReviewDecisionKey(object));
     while (spatialTrackDetail.firstChild) spatialTrackDetail.removeChild(spatialTrackDetail.firstChild);
     var mappedLevel = object.inferred_level || object.level || null;
     var activeLevel = spatialLevel ? spatialLevel.value : 'all';
@@ -1529,6 +1633,51 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       });
       spatialTrackDetail.appendChild(transitionList);
     }
+    var reviewKey = spatialReviewDecisionKey(object);
+    var savedDecision = spatialTrackReviewDecisions[reviewKey] || null;
+    var decisionPanel = document.createElement('div');
+    decisionPanel.className = 'spatial-review-decision';
+    var decisionHeading = document.createElement('strong');
+    decisionHeading.textContent = 'HUMAN REVIEW DECISION // LOCAL RECORD';
+    decisionPanel.appendChild(decisionHeading);
+    var currentDecision = document.createElement('p');
+    currentDecision.className = 'spatial-review-current';
+    currentDecision.textContent = savedDecision
+      ? 'CURRENT: ' + savedDecision.decision + ' // ' + savedDecision.recorded_at + ' // REASON: ' + savedDecision.reason
+      : 'CURRENT: NO HUMAN REVIEW DECISION RECORDED FOR THIS MODEL / REVISION / FRAME / TRACK.';
+    decisionPanel.appendChild(currentDecision);
+    var controls = document.createElement('div');
+    controls.className = 'spatial-review-controls';
+    var decisionSelect = document.createElement('select');
+    decisionSelect.setAttribute('aria-label', 'Human review decision');
+    [
+      ['', 'SELECT DECISION'],
+      ['REVIEWED', 'REVIEWED'],
+      ['NEEDS FOLLOW-UP', 'NEEDS FOLLOW-UP'],
+      ['ESCALATED', 'ESCALATED']
+    ].forEach(function(optionData) {
+      var option = document.createElement('option'); option.value = optionData[0]; option.textContent = optionData[1];
+      decisionSelect.appendChild(option);
+    });
+    if (savedDecision) decisionSelect.value = savedDecision.decision;
+    var reasonInput = document.createElement('input');
+    reasonInput.type = 'text'; reasonInput.maxLength = 240;
+    reasonInput.placeholder = 'Reason required (max 240 characters)';
+    reasonInput.setAttribute('aria-label', 'Reason for human review decision');
+    reasonInput.value = savedDecision ? savedDecision.reason : '';
+    var saveDecision = document.createElement('button');
+    saveDecision.type = 'button'; saveDecision.textContent = 'RECORD DECISION';
+    controls.appendChild(decisionSelect); controls.appendChild(reasonInput); controls.appendChild(saveDecision);
+    decisionPanel.appendChild(controls);
+    var decisionMessage = document.createElement('p');
+    decisionMessage.className = 'spatial-review-message';
+    decisionMessage.setAttribute('role', 'status');
+    decisionPanel.appendChild(decisionMessage);
+    saveDecision.addEventListener('click', function() {
+      if (!decisionSelect.value) { decisionMessage.textContent = 'SELECT A DECISION BEFORE SAVING.'; return; }
+      saveSpatialTrackReviewDecision(object, decisionSelect.value, reasonInput.value, decisionMessage);
+    });
+    spatialTrackDetail.appendChild(decisionPanel);
     var note = document.createElement('p');
     note.textContent = 'FLOOR CONTINUITY NOTE // Evidence status distinguishes a flagged conflict, missing sensor provenance, an unlocalized track conflict, and provenance available for review. Conflicting sensor IDs are localized only when they overlap the source/destination sample IDs; otherwise the track-level conflict remains unlocalized. No status automatically confirms a floor change, and history alone does not prove the route taken.';
     spatialTrackDetail.appendChild(note);
@@ -1601,6 +1750,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   if (csiReviewToggle) csiReviewToggle.addEventListener('click', function() {
     if (!csiTrackSelect || !csiTrackSelect.value) return;
     var id = csiTrackSelect.value; csiReviewedTracks[id] = !csiReviewedTracks[id];
+    recordSpatialAudit('CSI ASSOCIATION REVIEW', id + ' // ' + (csiReviewedTracks[id] ? 'MARKED REVIEWED' : 'MARKED UNREVIEWED'));
     updateCsiAssociation(importedScene);
   });
   function bindSpatialTrackInspection(data) {
@@ -1618,7 +1768,9 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   var spatialReviewFilters = Array.prototype.slice.call(document.querySelectorAll('.spatial-review-filter'));
   var spatialReviewFilter = 'all';
   function applySpatialReviewFilter(filter) {
+    var previousFilter = spatialReviewFilter;
     spatialReviewFilter = filter || 'all';
+    if (previousFilter !== spatialReviewFilter) recordSpatialAudit('SPATIAL REVIEW FILTER', previousFilter + ' → ' + spatialReviewFilter);
     spatialReviewFilters.forEach(function(button) { button.setAttribute('aria-pressed', String(button.getAttribute('data-review-filter') === spatialReviewFilter)); });
     if (spatialStatus) spatialStatus.setAttribute('data-review-filter', spatialReviewFilter);
     spatialStage.querySelectorAll('[data-review-flags]').forEach(function(node) {
