@@ -177,6 +177,27 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
  .settings-launch{right:18px;bottom:18px}
  #engineering-handoff{margin:12px 0;padding:14px}
 }
+
+/* Layout correction: keep spatial intelligence from being stranded in a narrow right column on desktop. */
+@media(min-width:761px){
+ #spatial-panel>.content{display:block;width:100%;max-width:none}
+ #spatial-panel .spatial-stage,
+ #spatial-panel .spatial-readout,
+ #spatial-panel .spatial-legend,
+ #spatial-panel .spatial-controls,
+ #spatial-panel .spatial-transition-summary,
+ #spatial-panel .spatial-track-detail,
+ #spatial-panel .fluid-note{width:100%;max-width:none}
+ .report-panel{width:100%;min-width:0}
+ .report-panel>.content{min-width:0}
+}
+@media(max-width:760px){
+ body{padding-top:112px}
+ .nav-panel{top:0;left:0;right:0;bottom:auto;width:auto;max-width:none;max-height:104px;display:flex;flex-direction:row;overflow-x:auto;overflow-y:hidden;border-left:0;border-bottom:2px solid var(--g)}
+ .nav-button{flex:0 0 auto;min-width:120px;white-space:normal}
+ .sheet{margin:0;width:100%;max-width:100%}
+}
+
 </style></head>
 <body><nav class="nav-panel" aria-label="VIGIL control room sections"><a class="nav-button" href="#overview-panel" data-view="overview" aria-pressed="true">01 // OVERVIEW</a><a class="nav-button" href="#architecture-panel" data-view="architecture" aria-pressed="false">02 // ARCHITECTURE</a><a class="nav-button" href="#spatial-panel" data-view="spatial" aria-pressed="false">03 // SPATIAL INTELLIGENCE</a><a class="nav-button" href="#sensors-panel" data-view="sensors" aria-pressed="false">04 // SENSOR INPUTS</a><a class="nav-button" href="#specimen-panel" data-view="specimen" aria-pressed="false">05 // SPECIMEN PLATE</a><a class="nav-button" href="#lab-report-panel" data-view="lab-report" aria-pressed="false">06 // LAB REPORT</a><a class="nav-button" href="#notes-panel" data-view="project-history" aria-pressed="false">07 // PROJECT HISTORY</a><a class="nav-button" href="#roadmap-panel" data-view="roadmap" aria-pressed="false">08 // ROADMAP</a><a class="nav-button" href="#verification-panel" data-view="verification" aria-pressed="false">09 // VERIFICATION</a><a class="nav-button" href="#hardware-panel" data-view="hardware" aria-pressed="false">10 // VIRTUAL HARDWARE</a><a class="nav-button" href="#biology-panel" data-view="biology" aria-pressed="false">11 // BIO-SIMULATION</a><a class="nav-button" href="#machine-panel" data-view="machine" aria-pressed="false">12 // MACHINE STATUS</a></nav><button type="button" class="settings-launch" id="site-settings-open" aria-haspopup="dialog" aria-controls="site-settings-panel">⚙ SETTINGS</button><div class="settings-backdrop" id="site-settings-backdrop" hidden><section class="settings-panel" id="site-settings-panel" role="dialog" aria-modal="true" aria-labelledby="site-settings-title" tabindex="-1"><div class="settings-head"><div><h2 id="site-settings-title">CONTROL ROOM SETTINGS</h2><p>Display, accessibility, and interface behavior</p></div><button type="button" id="site-settings-close" aria-label="Close settings">CLOSE ✕</button></div><div class="settings-group"><h3>ACCESSIBILITY &amp; DISPLAY</h3><label class="settings-choice"><span>Large text<small>Increase general reading size</small></span><input type="checkbox" id="setting-large-text"></label><label class="settings-choice"><span>High contrast<small>Strengthen terminal text and borders</small></span><input type="checkbox" id="setting-high-contrast"></label><label class="settings-choice"><span>Reduce motion<small>Disable animated effects and scrolling</small></span><input type="checkbox" id="setting-no-motion"></label></div><div class="settings-group"><h3>ULTIMATE DISPLAY // SPATIAL LAYERS</h3><label class="settings-choice"><span>Object tracks &amp; markers<small>Show/hide imported object markers and trails</small></span><input type="checkbox" id="setting-show-tracks" checked></label><label class="settings-choice"><span>Infrared overlay<small>Show/hide infrared floor-map layer</small></span><input type="checkbox" id="setting-show-infrared" checked></label><label class="settings-choice"><span>Signal-flow animation<small>Show/hide animated data-stream paths</small></span><input type="checkbox" id="setting-show-streams" checked></label><label class="settings-choice"><span>Sensor input cards<small>Show/hide the visual sensor-input display</small></span><input type="checkbox" id="setting-show-sensor-inputs" checked></label><label class="settings-choice"><span>Pause spatial display flow<small>Freeze animation without discarding sensor or track data</small></span><input type="checkbox" id="setting-pause-flow"></label></div><div class="settings-group"><h3>STARTUP</h3><label class="settings-choice"><span>Start on Overview<small>Open the main screen instead of a bookmarked section</small></span><input type="checkbox" id="setting-start-overview"></label></div><div class="settings-actions"><button type="button" id="settings-reset">RESET SETTINGS</button><button type="button" id="settings-done">APPLY &amp; CLOSE</button></div><p class="settings-state" id="settings-state" role="status" aria-live="polite">Preferences are stored in this browser on this device.</p></section></div><main class="sheet">
 <div id="intro-blocks" data-intro="true">
