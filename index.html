@@ -1453,6 +1453,51 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       list.appendChild(term); list.appendChild(value);
     });
     spatialTrackDetail.appendChild(list);
+
+    // Explain the same four independent review gates shown in the Sensor Inputs bridge.
+    var uncertaintyValue = object.uncertainty_m;
+    var uncertaintyKnown = typeof uncertaintyValue === 'number' && Number.isFinite(uncertaintyValue);
+    var calibrationValue = String(object.calibration_status || 'unknown').toLowerCase();
+    var gateChecks = [
+      {name:'CONFLICT', flagged:object.conflict === true, detail:object.conflict === true
+        ? (Array.isArray(object.conflict_reasons) && object.conflict_reasons.length ? object.conflict_reasons.join(', ') : 'Conflict flag is set; no reason details were provided.')
+        : 'No explicit conflict flag in imported metadata.'},
+      {name:'UNCERTAINTY', flagged:!uncertaintyKnown || uncertaintyValue > 1, detail:!uncertaintyKnown
+        ? 'uncertainty_m is missing or not a finite number.'
+        : uncertaintyValue > 1 ? 'Reported uncertainty is ' + uncertaintyValue + ' m; review threshold is greater than 1 m.'
+        : 'Reported uncertainty is ' + uncertaintyValue + ' m; within the 1 m review threshold.'},
+      {name:'CALIBRATION', flagged:calibrationValue !== 'verified', detail:calibrationValue !== 'verified'
+        ? 'calibration_status is "' + calibrationValue + '"; expected value is "verified".'
+        : 'Calibration is explicitly marked verified in imported metadata.'},
+      {name:'LINEAGE', flagged:object.lineage_declared !== true, detail:object.lineage_declared !== true
+        ? 'lineage_declared is not true; source lineage is missing or unconfirmed.'
+        : 'Lineage is explicitly declared in imported metadata.'}
+    ];
+    var flaggedGates = gateChecks.filter(function(gate) { return gate.flagged; });
+    var gateHeading = document.createElement('strong');
+    gateHeading.textContent = 'INDEPENDENT REVIEW GATES // ' + (flaggedGates.length ? 'REVIEW REQUIRED (' + flaggedGates.length + '/4)' : 'ALL FOUR PASS');
+    gateHeading.style.marginTop = '12px';
+    spatialTrackDetail.appendChild(gateHeading);
+    var gateList = document.createElement('ul');
+    gateList.style.margin = '7px 0';
+    gateList.style.paddingLeft = '20px';
+    gateChecks.forEach(function(gate) {
+      var item = document.createElement('li');
+      item.style.margin = '5px 0';
+      var status = document.createElement('strong');
+      status.textContent = (gate.flagged ? 'REVIEW' : 'PASS') + ' // ' + gate.name + ' — ';
+      status.style.color = gate.flagged ? '#ffb86b' : 'var(--g)';
+      item.appendChild(status);
+      item.appendChild(document.createTextNode(gate.detail));
+      gateList.appendChild(item);
+    });
+    spatialTrackDetail.appendChild(gateList);
+    var gateNote = document.createElement('p');
+    gateNote.textContent = flaggedGates.length
+      ? 'REVIEW ACTION // Resolve each flagged item with source evidence. A missing field is not a pass, and clearing one gate does not clear the others.'
+      : 'GATE LIMIT // These four metadata checks pass, but that alone does not validate physical sensor connectivity or independently confirm the track.';
+    spatialTrackDetail.appendChild(gateNote);
+
     if (Array.isArray(object.floor_transitions) && object.floor_transitions.length) {
       var transitionHeading = document.createElement('strong');
       transitionHeading.textContent = 'CANDIDATE FLOOR TRANSITIONS // REVIEW REQUIRED';
