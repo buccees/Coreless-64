@@ -115,7 +115,24 @@ const fixture = {
     const exported = JSON.parse(fs.readFileSync(downloadPath, "utf8"));
     fs.unlinkSync(downloadPath);
     assert.equal(exported.format, "VIGIL-spatial-audit");
-    assert.ok(exported.events.some(event => event.action === "TRACK REVIEW DECISION"));
+    assert.equal(exported.version, 2);
+    assert.equal(exported.event_count, exported.events.length);
+    assert.match(exported.exported_at, /^\\d{4}-\\d{2}-\\d{2}T/);
+    assert.ok(exported.session_id);
+    assert.equal(exported.active_scene.model_id, "BROWSER-TEST-MODEL");
+    const exportedDecisionEvent = exported.events.find(event => event.action === "TRACK REVIEW DECISION");
+    assert.ok(exportedDecisionEvent);
+    assert.equal(exportedDecisionEvent.scene.model_id, "BROWSER-TEST-MODEL");
+    assert.equal(exportedDecisionEvent.scene.revision, "r1");
+    assert.equal(exportedDecisionEvent.scene.frame_id, "frame-browser-test");
+    assert.equal(exportedDecisionEvent.track_id, "TRACK-REVIEW");
+    assert.ok(exported.review_decisions.some(decision =>
+      decision.model_id === "BROWSER-TEST-MODEL" &&
+      decision.revision === "r1" &&
+      decision.frame_id === "frame-browser-test" &&
+      decision.track_id === "TRACK-REVIEW" &&
+      decision.decision === "NEEDS FOLLOW-UP"
+    ));
 
     // Reload checks browser persistence for both the audit history and review decision.
     await page.reload({ waitUntil: "load" });
@@ -143,6 +160,64 @@ const fixture = {
     }));
     assert.ok(dimensions.page <= dimensions.viewport + 2,
       "mobile page should not overflow horizontally: " + JSON.stringify(dimensions));
+
+    // Storage failure and malformed persisted JSON must degrade to an explicit session-only mode.
+    for (const storageMode of ["unavailable", "corrupt"]) {
+      const storageContext = await browser.newContext({ acceptDownloads: true, viewport: { width: 1280, height: 900 } });
+      const storageErrors = [];
+      await storageContext.addInitScript((mode) => {
+        const auditKey = "coreless64-vigil-spatial-audit-v1";
+        const decisionKey = "coreless64-vigil-track-review-decisions-v1";
+        const originalGet = Storage.prototype.getItem;
+        const originalSet = Storage.prototype.setItem;
+        const originalRemove = Storage.prototype.removeItem;
+        Storage.prototype.getItem = function(key) {
+          if (mode === "unavailable" && (key === auditKey || key === decisionKey)) throw new Error("simulated storage unavailable");
+          if (mode === "corrupt" && key === auditKey) return "{malformed-json";
+          if (mode === "corrupt" && key === decisionKey) return "[]";
+          return originalGet.call(this, key);
+        };
+        if (mode === "unavailable") {
+          Storage.prototype.setItem = function(key, value) {
+            if (key === auditKey || key === decisionKey) throw new Error("simulated storage unavailable");
+            return originalSet.call(this, key, value);
+          };
+          Storage.prototype.removeItem = function(key) {
+            if (key === auditKey || key === decisionKey) throw new Error("simulated storage unavailable");
+            return originalRemove.call(this, key);
+          };
+        }
+      }, storageMode);
+      const storagePage = await storageContext.newPage();
+      storagePage.on("pageerror", error => storageErrors.push(error.message));
+      await storagePage.goto("http://127.0.0.1:" + address.port + "/", { waitUntil: "load" });
+      await storagePage.locator('.nav-button[data-view="spatial"]').click();
+      assert.match(await storagePage.locator("#spatial-audit-status").innerText(), /SESSION ONLY/);
+      await storagePage.locator("#spatial-json").setInputFiles({
+        name: "browser-fixture.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify(fixture))
+      });
+      await storagePage.waitForFunction(() => document.querySelector("#spatial-status").textContent.includes("IMPORTED BROWSER-TEST-MODEL"));
+      await storagePage.locator('#imported-object-layer [data-track-id="TRACK-REVIEW"]').click();
+      await storagePage.locator(".spatial-review-controls select").selectOption("ESCALATED");
+      await storagePage.locator(".spatial-review-controls input").fill("Storage resilience test decision.");
+      await storagePage.locator(".spatial-review-controls button").click();
+      await storagePage.waitForFunction(() => document.querySelector("#spatial-audit-list").innerText.includes("TRACK REVIEW DECISION"));
+      assert.match(await storagePage.locator(".spatial-review-current").innerText(), /ESCALATED/);
+      assert.match(await storagePage.locator("#spatial-audit-status").innerText(), /SESSION ONLY/);
+      const storageDownloadPromise = storagePage.waitForEvent("download");
+      await storagePage.locator("#spatial-audit-export").click();
+      const storageDownload = await storageDownloadPromise;
+      const storageExportPath = path.join(require("node:os").tmpdir(), storageDownload.suggestedFilename());
+      await storageDownload.saveAs(storageExportPath);
+      const storageExport = JSON.parse(fs.readFileSync(storageExportPath, "utf8"));
+      fs.unlinkSync(storageExportPath);
+      assert.equal(storageExport.active_scene.model_id, "BROWSER-TEST-MODEL");
+      assert.ok(storageExport.review_decisions.some(decision => decision.track_id === "TRACK-REVIEW" && decision.decision === "ESCALATED"));
+      assert.deepEqual(storageErrors, [], storageMode + " storage mode must not throw uncaught page errors");
+      await storageContext.close();
+    }
 
     console.log("VIGIL browser integration: import, marker states, review filters, decision persistence, audit export/clear, runtime errors, and mobile layout passed.");
     await context.close();
