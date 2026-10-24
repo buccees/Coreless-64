@@ -1359,11 +1359,17 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         showImportStatus('IMPORTED ' + data.model_id + ' / REV ' + data.revision + ' / FRAME ' + data.frame_id, counts);
       } catch (error) {
         importedScene = null;
+        updateEvidenceBridge(null);
         clearImportedLayers();
         spatialStatus.textContent = 'IMPORT REJECTED // ' + (error && error.message ? error.message : 'Invalid JSON');
       }
     };
-    reader.onerror = function() { spatialStatus.textContent = 'IMPORT FAILED // FILE COULD NOT BE READ'; };
+    reader.onerror = function() {
+      importedScene = null;
+      updateEvidenceBridge(null);
+      clearImportedLayers();
+      spatialStatus.textContent = 'IMPORT FAILED // FILE COULD NOT BE READ';
+    };
     reader.readAsText(file);
   });
   if (spatialClearData) spatialClearData.addEventListener('click', function() {
