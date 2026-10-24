@@ -447,7 +447,7 @@ body{padding-top:108px}
 <div class="statrow" aria-label="Spatial confidence interpretation"><div class="stat"><b id="spatial-stable-count" class="confidence-high">—</b><span>TRACKS // STABLE</span></div><div class="stat"><b id="spatial-review-count" class="confidence-mid">—</b><span>TRACKS // REVIEW</span></div></div>
 <div class="statrow spatial-flag-row" aria-label="Independent review flags"><div class="stat"><b id="spatial-conflict-count" class="confidence-mid">—</b><span>FLAGS // SENSOR CONFLICT</span></div><div class="stat"><b id="spatial-uncertain-count" class="confidence-mid">—</b><span>FLAGS // UNCERTAINTY OVER 1 M</span></div><div class="stat"><b id="spatial-missing-count" class="confidence-mid">—</b><span>FLAGS // UNCERTAINTY UNKNOWN</span></div></div><p class="muted spatial-flag-note">IMPORTED TRACK FLAGS // Independent categories; one track may trigger multiple flags. Counts describe imported tracks, not live sensor activity.</p>
 <div class="spatial-transition-summary" aria-label="Calibration and lineage review policy"><strong>CALIBRATION / LINEAGE GATE</strong><div><span>CALIBRATION<b>Verified required</b></span><span>LINEAGE<b>Declared required</b></span><span>FAILED CALIBRATION<b>Block readiness</b></span><span>UNKNOWN METADATA<b>Review track</b></span></div><p>Imported tracks with absent calibration or lineage metadata are conservatively marked for review. A declared independence group is descriptive metadata, not proof of physical sensor independence.</p></div>
-<div class="spatial-filter-bar" role="group" aria-label="Filter imported tracks for review"><span>ISOLATE:</span><button type="button" class="spatial-review-filter" data-review-filter="all" aria-pressed="true">ALL TRACKS</button><button type="button" class="spatial-review-filter" data-review-filter="conflict" aria-pressed="false">CONFLICT</button><button type="button" class="spatial-review-filter" data-review-filter="uncertain" aria-pressed="false">UNCERTAINTY &gt; 1 M</button><button type="button" class="spatial-review-filter" data-review-filter="missing" aria-pressed="false">UNKNOWN</button><button type="button" class="spatial-review-filter" data-review-filter="review" aria-pressed="false">ALL REVIEW</button></div>
+<div class="spatial-filter-bar" role="group" aria-label="Filter imported tracks for review"><span>ISOLATE:</span><button type="button" class="spatial-review-filter" data-review-filter="all" aria-pressed="true">ALL TRACKS</button><button type="button" class="spatial-review-filter" data-review-filter="conflict" aria-pressed="false">CONFLICT</button><button type="button" class="spatial-review-filter" data-review-filter="uncertain" aria-pressed="false">UNCERTAINTY &gt; 1 M</button><button type="button" class="spatial-review-filter" data-review-filter="missing" aria-pressed="false">MISSING / UNVERIFIED</button><button type="button" class="spatial-review-filter" data-review-filter="review" aria-pressed="false">ALL REVIEW</button></div>
 <div id="spatial-track-detail" class="spatial-track-detail" aria-live="polite"><strong>TRACK INSPECTOR // STANDBY</strong><p>Select an imported object marker to inspect its reported evidence, uncertainty, and sensor conflicts.</p></div><div id="csi-association-panel" class="spatial-track-detail csi-association-panel" aria-live="polite">
 <strong>CSI MOTION ASSOCIATION // TRACK CANDIDATES</strong>
 <p class="fluid-note">Review Wi-Fi CSI motion context against an imported track record. This panel only inspects metadata already present in the imported scene; it does not create detections, correlate synthetic examples, or imply a live radio feed.</p>
@@ -1216,10 +1216,12 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       var p = planePoint(object.normalized_position, level);
       if (!p) { counts.skipped++; return; }
       var radius = object.conflict ? 7 : (object.uncertainty_m > 1 ? 6 : 5);
+      var uncertaintyRing = null;
       if (typeof object.uncertainty_m === 'number' && Number.isFinite(object.uncertainty_m)) {
-        var ring = svgNode('circle',{cx:p.x,cy:p.y,r:Math.max(8,Math.min(28,8+object.uncertainty_m*4)),class:'imported-uncertainty','data-level':levelCode(level)});
-        objectLayer.appendChild(ring);
+        uncertaintyRing = svgNode('circle',{cx:p.x,cy:p.y,r:Math.max(8,Math.min(28,8+object.uncertainty_m*4)),class:'imported-uncertainty','data-level':levelCode(level)});
+        objectLayer.appendChild(uncertaintyRing);
       }
+      var trailLine = null;
       var trail = Array.isArray(object.motion_trail_m) ? object.motion_trail_m : [];
       var pts = trail.map(function(item) {
         if (!Array.isArray(item) || !finite3(item[1])) return null;
@@ -1232,13 +1234,15 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         var q = planePoint(norm, level);
         return q ? q.x+','+q.y : null;
       }).filter(Boolean);
-      if (pts.length > 1) { trailLayer.appendChild(svgNode('polyline',{points:pts.join(' '),fill:'none',stroke:object.conflict?'#ff5555':'#29f5b2','stroke-width':2,'stroke-dasharray':'4 4','data-level':levelCode(level)})); counts.trails++; }
+      if (pts.length > 1) { trailLine = svgNode('polyline',{points:pts.join(' '),fill:'none',stroke:object.conflict?'#ff5555':'#29f5b2','stroke-width':2,'stroke-dasharray':'4 4','data-level':levelCode(level)}); trailLayer.appendChild(trailLine); counts.trails++; }
       var uncertaintyKnown = typeof object.uncertainty_m === 'number' && Number.isFinite(object.uncertainty_m);
       var calibrationStatus = String(object.calibration_status || 'unknown').toLowerCase();
       var lineageDeclared = object.lineage_declared === true;
       var calibrationFailed = calibrationStatus === 'failed';
       var calibrationUnverified = calibrationStatus !== 'verified';
       var reviewFlags = [object.conflict === true ? 'conflict' : '', uncertaintyKnown && object.uncertainty_m > 1 ? 'uncertain' : '', !uncertaintyKnown ? 'missing' : '', calibrationFailed ? 'calibration-failed' : '', calibrationUnverified ? 'calibration-review' : '', !lineageDeclared ? 'lineage-unknown' : '', object.conflict === true || !uncertaintyKnown || object.uncertainty_m > 1 || calibrationFailed || calibrationUnverified || !lineageDeclared ? 'review' : ''].filter(Boolean).join(' ');
+      if (uncertaintyRing) uncertaintyRing.setAttribute('data-review-flags', reviewFlags);
+      if (trailLine) trailLine.setAttribute('data-review-flags', reviewFlags);
       var transitions = Array.isArray(object.floor_transitions) ? object.floor_transitions : [];
       transitions.forEach(function(transition) {
         if (!transition || transition.from_level === undefined || transition.to_level === undefined) return;
@@ -1247,7 +1251,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         if (!fromPoint || !toPoint) return;
         var status = transition.evidence_status ? String(transition.evidence_status) : 'INSUFFICIENT SENSOR PROVENANCE';
         var linkClass = status === 'CONFLICT FLAGGED' ? 'conflict' : (status === 'INSUFFICIENT SENSOR PROVENANCE' ? 'unknown' : (status === 'TRACK CONFLICT NOT LOCALIZED' ? 'unlocalized' : 'review'));
-        var link = svgNode('line',{x1:fromPoint.x,y1:fromPoint.y,x2:toPoint.x,y2:toPoint.y,class:'imported-transition-link '+linkClass,'data-level':levelCode(level),'data-track-id':String(object.object_id || 'OBJECT')});
+        var link = svgNode('line',{x1:fromPoint.x,y1:fromPoint.y,x2:toPoint.x,y2:toPoint.y,class:'imported-transition-link '+linkClass,'data-level':levelCode(level),'data-review-flags':reviewFlags,'data-track-id':String(object.object_id || 'OBJECT')});
         link.appendChild(svgNode('title',{},String(object.object_id || 'OBJECT')+' candidate transition: '+String(transition.from_level)+' → '+String(transition.to_level)+' // '+status+' // REVIEW REQUIRED'));
         trailLayer.appendChild(link);
       });
@@ -1613,7 +1617,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if (spatialStatus) spatialStatus.setAttribute('data-review-filter', spatialReviewFilter);
     spatialStage.querySelectorAll('[data-review-flags]').forEach(function(node) {
       var flags = (node.getAttribute('data-review-flags') || '').split(/\s+/);
-      var visible = spatialReviewFilter === 'all' || flags.indexOf(spatialReviewFilter) !== -1;
+      var visible = spatialReviewFilter === 'all' || flags.indexOf(spatialReviewFilter) !== -1 || (spatialReviewFilter === 'missing' && (flags.indexOf('calibration-review') !== -1 || flags.indexOf('lineage-unknown') !== -1));
       node.style.opacity = visible ? '1' : '.12';
     });
   }
