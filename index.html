@@ -1694,7 +1694,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     };
     var defaults={largeText:false,highContrast:false,noMotion:false,pauseFlow:false,showTracks:true,showInfrared:true,showStreams:true,showSensorInputs:true,startOverview:false,scanlines:true,compact:false,showMasthead:true,phosphor:'green',density:'standard',sensorPolicy:'observe',signalThreshold:'medium',sensorProvenance:true,observationWindow:'50',uncertainty:'10',requireCalibration:true,showUncertainty:true,resourceProfile:'balanced',faultPolicy:'report',heartbeat:'500',disconnectPolicy:'report',persist:true,profileName:'VIGIL-DEFAULT',showBoundaries:true,startSection:'overview',restorePreferences:true};
     var prefs=Object.assign({},defaults);
-    try { var saved=JSON.parse(window.localStorage.getItem('coreless64-control-room-settings')||'null'); if(saved&&typeof saved==='object') Object.keys(defaults).forEach(function(k){if(typeof saved[k]==='boolean')prefs[k]=saved[k];}); } catch(e) {}
+    try { var saved=JSON.parse(window.localStorage.getItem('coreless64-control-room-settings')||'null'); if(saved&&typeof saved==='object') Object.keys(defaults).forEach(function(k){if(typeof saved[k]===typeof defaults[k])prefs[k]=saved[k];}); } catch(e) {}
     function persist(){try{if(prefs.persist)window.localStorage.setItem('coreless64-control-room-settings',JSON.stringify(prefs));else window.localStorage.removeItem('coreless64-control-room-settings');state.textContent=prefs.persist?'Configuration saved locally in this browser.':'Persistence disabled; configuration applies for this session only.';}catch(e){state.textContent='Configuration applied for this session; browser storage is unavailable.';}}
     function apply(){
       document.body.classList.toggle('settings-large-text',prefs.largeText);
@@ -1717,7 +1717,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if(prefs.restorePreferences&&prefs.startOverview){var overviewButton=document.querySelector('.nav-button[data-view="overview"]');if(overviewButton)overviewButton.click();}else if(prefs.restorePreferences&&prefs.startSection){var startupButton=document.querySelector('.nav-button[data-view="'+prefs.startSection+'"]');if(startupButton)startupButton.click();}
     openButton.addEventListener('click',show);
     closeButton.addEventListener('click',close);
-    doneButton.addEventListener('click',function(){Object.keys(controls).forEach(function(k){prefs[k]=controls[k].checked;});apply();persist();close();});
+    doneButton.addEventListener('click',function(){Object.keys(controls).forEach(function(k){if(controls[k])prefs[k]=controls[k].type==='checkbox'?controls[k].checked:controls[k].value;});apply();persist();close();});
     resetButton.addEventListener('click',function(){prefs=Object.assign({},defaults);apply();persist();state.textContent='Default configuration restored.';Array.prototype.slice.call(panel.querySelectorAll('[data-settings-tab]')).forEach(function(t){var active=t.getAttribute('data-settings-tab')==='display';t.classList.toggle('active',active);t.setAttribute('aria-selected',String(active));});Array.prototype.slice.call(panel.querySelectorAll('[data-settings-page]')).forEach(function(p){p.hidden=p.getAttribute('data-settings-page')!=='display';});});
     backdrop.addEventListener('click',function(e){if(e.target===backdrop)close();});
     document.addEventListener('keydown',function(e){if(!backdrop.hidden&&e.key==='Escape')close();});
