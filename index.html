@@ -187,6 +187,17 @@ footer{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:
 </header>
 <div class="project"><strong>PROJECT: VIGIL / XENONEURAL</strong><span class="classification">CLASSIFIED // EYES ONLY</span></div>
 <div class="subhead">ALIEN NEURAL DISSECTION / SPATIAL INTELLIGENCE RECONSTRUCTION / CORELESS-64</div>
+
+<div class="panel-note" id="verified-machine-milestone" style="border:1px solid var(--line);padding:14px;margin:12px 0;background:rgba(41,245,178,.055)">
+<strong class="green">CORELESS-64 // VERIFIED MACHINE MILESTONE</strong>
+<p><strong>Persistent virtual machine state survived a simulated power cycle.</strong> The latest UEFI/QEMU carrier workflow booted the Coreless runtime, reopened its persistent machine image, and verified the restored virtual CPU register <code>r7=37</code>, program counter <code>0x104</code> (260), and eight-byte RAM sentinel <code>CORELESS</code>.</p>
+<p><span class="green">WHAT PASSED:</span> the automated carrier test saved a known CPU/RAM state on first boot, restarted the virtual carrier, then compared the restored register, PC, and RAM bytes against the exact expected values. The general reference-test workflow passed as well.</p>
+<p><span class="green">ARCHITECTURE NOTE:</span> Coreless-64 is a software-defined machine. Its CPU, memory, devices, and persistent state are virtual components; no physical Coreless hardware is implied by this result.</p>
+<p><span class="green">BOUNDARY:</span> this verifies the reference runtime and persistence path inside a UEFI-booted Linux carrier under QEMU. It does not yet prove native Coreless-only execution or booting from a user's physical removable SSD.</p>
+<p><a href="https://github.com/buccees/Coreless-64/actions/runs/40100765232" target="_blank" rel="noopener noreferrer" style="color:var(--g);text-decoration:underline">Open passing UEFI carrier + recovery workflow ↗</a> &nbsp;|&nbsp; <a href="https://github.com/buccees/Coreless-64/actions/runs/40100765455" target="_blank" rel="noopener noreferrer" style="color:var(--g);text-decoration:underline">Open passing reference-test workflow ↗</a></p>
+<p class="muted">Checkpoint recorded 24 OCT 2026 // automated CI evidence</p>
+</div>
+
 <div class="panel-note" style="border:1px solid var(--line);padding:12px;margin:12px 0;background:rgba(41,245,178,.035)">
 <strong class="green">TEMPORAL EVIDENCE WINDOW // CROSS-SENSOR GROUPING</strong>
 <p>VIGIL groups normalized observations by calibrated event time before any spatial reasoning. The software primitive uses a configurable window anchored at the earliest event in each group; it preserves per-event source time, aligned time, modality, calibration, uncertainty, model/frame provenance, and alignment warnings.</p>
