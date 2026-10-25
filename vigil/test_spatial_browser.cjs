@@ -79,6 +79,20 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     });
     assert.deepEqual(trackAging.aged.agedContactIds, ["LAST-SEEN-ONE"], "a missed detection must preserve the contact as last-known rather than erase it");
     assert.equal(trackAging.picture[0].status, "STALE", "old last-known tracks must age to stale");
+    const sensorFusion = await page.evaluate(() => {
+      const api = window.vigilSimulationCatalog;
+      const first = api.fuseObservation("player-fusion", { contactId: "FUSION-1", observedAt: 1, positionEstimate: { x: 0.2, y: 0.2, z: 0 }, confidence: 0.8, uncertaintyMeters: 0.2, modality: "radar", sourceUnitId: "RADAR-A" });
+      const second = api.fuseObservation("player-fusion", { contactId: "FUSION-1", observedAt: 2, positionEstimate: { x: 0.22, y: 0.21, z: 0 }, confidence: 0.7, uncertaintyMeters: 0.1, modality: "optical", sourceUnitId: "OPTICAL-B" }, { conflictThreshold: 0.18 });
+      const conflict = api.fuseObservation("player-fusion", { contactId: "FUSION-1", observedAt: 3, positionEstimate: { x: 0.9, y: 0.9, z: 0 }, confidence: 0.99, uncertaintyMeters: 0.05, modality: "sonar", sourceUnitId: "SONAR-C" }, { conflictThreshold: 0.18 });
+      return { first, second, conflict, picture: api.getPlayerPicture("player-fusion") };
+    });
+    assert.equal(sensorFusion.second.conflict, false, "nearby independent reports should fuse without conflict");
+    assert.ok(sensorFusion.second.observation.uncertaintyMeters < sensorFusion.first.observation.uncertaintyMeters, "consistent observations should reduce position uncertainty");
+    assert.equal(sensorFusion.conflict.conflict, true, "widely divergent sensor reports should be flagged");
+    assert.equal(sensorFusion.conflict.observation.status, "CONFLICT", "conflicting tracks must be explicit");
+    assert.equal(sensorFusion.conflict.observation.sourceObservations.length, 3, "source evidence must be retained for review");
+    assert.ok(sensorFusion.conflict.observation.confidence < 0.99, "conflict must prevent a single high-confidence report from dominating");
+
 
 
     const catalogUnits = await page.evaluate(() => window.vigilSimulationCatalog.getUnits());
