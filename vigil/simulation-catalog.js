@@ -19,6 +19,70 @@
     { id:'level-5', name:'05 / NETWORKED OPERATIONS', difficulty:'MULTI-ROLE', objective:'Coordinate distinct intelligence pictures and explicit information-sharing rules.', unitIds:['scout-drone','long-endurance-uav','mq-9a-reaper','manned-surveillance','surface-patrol','subsurface-scout','ground-sensor-team','prank-submersible'], activeContacts:20, detectionNoise:'SCENARIO-DEFINED', unlock:'Complete Level 4; multiplayer transport is a planned milestone.' }
   ];
   var state = { levelId:'level-1', clockMinutes:0, sorties:[], nextSortieId:1, sharedIntelOptIn:false, log:[] };
+  // Player-visible intelligence is a separate, allow-listed store. Hidden scenario truth
+  // belongs to the simulation/evaluator and is intentionally not part of this browser API.
+  var playerPictures = Object.create(null);
+  var playerSharing = Object.create(null);
+  var OBSERVATION_FIELDS = ['contactId','observedAt','positionEstimate','classificationEstimate','confidence','modality','uncertaintyMeters','status','sourceUnitId'];
+  function cleanObservation(input) {
+    if (!input || typeof input !== 'object' || typeof input.contactId !== 'string' || !input.contactId) return null;
+    var out = {};
+    OBSERVATION_FIELDS.forEach(function(key) {
+      if (input[key] === undefined) return;
+      if (key === 'positionEstimate' && input[key] && typeof input[key] === 'object') {
+        var p = input[key], pos = {};
+        ['x','y','z'].forEach(function(axis) { if (Number.isFinite(p[axis])) pos[axis] = p[axis]; });
+        if (Object.keys(pos).length) out.positionEstimate = pos;
+      } else if (key === 'confidence') {
+        if (Number.isFinite(input[key])) out.confidence = Math.max(0, Math.min(1, input[key]));
+      } else if (key === 'uncertaintyMeters') {
+        if (Number.isFinite(input[key]) && input[key] >= 0) out.uncertaintyMeters = input[key];
+      } else if (key === 'observedAt') {
+        if (Number.isFinite(input[key])) out.observedAt = input[key];
+      } else if (typeof input[key] === 'string' || typeof input[key] === 'boolean') out[key] = input[key];
+    });
+    out.status = out.status || 'CURRENT';
+    out.confidence = Number.isFinite(out.confidence) ? out.confidence : 0.5;
+    out.uncertaintyMeters = Number.isFinite(out.uncertaintyMeters) ? out.uncertaintyMeters : null;
+    return out;
+  }
+  function recordObservation(playerId, observation) {
+    if (typeof playerId !== 'string' || !playerId.trim()) return {ok:false,reason:'invalid_player'};
+    var clean = cleanObservation(observation);
+    if (!clean) return {ok:false,reason:'invalid_observation'};
+    var picture = playerPictures[playerId] || (playerPictures[playerId] = Object.create(null));
+    var previous = picture[clean.contactId];
+    if (previous && Number.isFinite(previous.observedAt) && Number.isFinite(clean.observedAt) && clean.observedAt < previous.observedAt) {
+      return {ok:false,reason:'older_observation'};
+    }
+    picture[clean.contactId] = clean;
+    return {ok:true,observation:JSON.parse(JSON.stringify(clean))};
+  }
+  function getPlayerPicture(playerId) {
+    var picture = playerPictures[playerId] || Object.create(null);
+    return Object.keys(picture).map(function(id) {
+      var item = JSON.parse(JSON.stringify(picture[id]));
+      if (Number.isFinite(item.observedAt) && state.clockMinutes - item.observedAt > 30 && item.status === 'CURRENT') item.status = 'STALE';
+      return item;
+    });
+  }
+  function setIntelSharing(playerId, enabled) {
+    if (typeof playerId !== 'string' || !playerId.trim() || typeof enabled !== 'boolean') return {ok:false,reason:'invalid_policy'};
+    playerSharing[playerId] = enabled;
+    return {ok:true,enabled:enabled};
+  }
+  function shareObservation(fromPlayerId, toPlayerId, contactId) {
+    if (!playerSharing[fromPlayerId] || !playerSharing[toPlayerId]) return {ok:false,reason:'sharing_not_mutually_enabled'};
+    var source = playerPictures[fromPlayerId];
+    var observation = source && source[contactId];
+    if (!observation) return {ok:false,reason:'observation_not_found'};
+    var shared = JSON.parse(JSON.stringify(observation));
+    shared.status = 'SHARED';
+    shared.sharedBy = fromPlayerId;
+    var target = playerPictures[toPlayerId] || (playerPictures[toPlayerId] = Object.create(null));
+    target[contactId] = shared;
+    return {ok:true,observation:JSON.parse(JSON.stringify(shared))};
+  }
   function byId(list,id){return list.find(function(item){return item.id===id;});}
   function el(id){return document.getElementById(id);}
   function safe(value){return String(value).replace(/[&<>"]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch];});}
@@ -106,7 +170,11 @@
       getUnits:function(){return UNIT_CATALOG.map(function(u){return JSON.parse(JSON.stringify(u));});},
       getScenarios:function(){return SCENARIOS.map(function(s){return JSON.parse(JSON.stringify(s));});},
       getState:getState,deploy:deploy,recover:recover,advanceTime:advanceTime,
-      observeFow:function(observations){return {observed_contact_count:Array.isArray(observations)?observations.length:0,ground_truth_included:false,information_scope:'authorized_observations_only'};}
+      observeFow:function(observations){return {observed_contact_count:Array.isArray(observations)?observations.length:0,ground_truth_included:false,information_scope:'authorized_observations_only'};},
+      recordObservation:recordObservation,
+      getPlayerPicture:getPlayerPicture,
+      setIntelSharing:setIntelSharing,
+      shareObservation:shareObservation
     };
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
