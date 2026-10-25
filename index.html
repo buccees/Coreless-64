@@ -2356,6 +2356,24 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     }
     return{model_id:'VIGIL-SIMULATION-BAY',revision:'r'+sequence+'-s'+sweepCount,frame_id:'sim-grid-10x10',features:[],objects:objects,metadata:{source:'local simulation',sensor_mode:modeName,world_state_withheld:true,generated_at:new Date().toISOString()}};
   }
+  function publishPlayerObservations(data,playerId){
+    var api=window.vigilSimulationCatalog;
+    if(!api||typeof api.recordObservation!=='function'||!data||!Array.isArray(data.objects))return;
+    data.objects.forEach(function(object){
+      var p=object.normalized_position||[];
+      api.recordObservation(playerId,{
+        contactId:String(object.object_id),
+        observedAt:sweepCount,
+        positionEstimate:{x:Number(p[0]),y:Number(p[1]),z:Number(p[2]||0)},
+        classificationEstimate:'unresolved',
+        confidence:Math.max(0.1,Math.min(0.99,1/(1+Number(object.uncertainty_m||1)/10))),
+        modality:Array.isArray(object.modalities)?object.modalities.join('+'):'unknown',
+        uncertaintyMeters:Number(object.uncertainty_m),
+        status:'CURRENT',
+        sourceUnitId:Array.isArray(object.sensor_ids)?object.sensor_ids[0]:'simulated-sensor'
+      });
+    });
+  }
   function recordReconObservation(data){
     data.objects.forEach(function(object){
       var track=reconTracks[object.object_id];
@@ -2413,6 +2431,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       return{ok:false,request_id:requestId,reason:'sensor_miss',contact_id:contactId,sensor_mode:sensor.value,observation:null,world_state_withheld:true};
     }
     recordReconObservation({objects:[observation]});
+    publishPlayerObservations({objects:[observation]},'vigil');
     var prior=lastObservationData.objects.find(function(item){return item.object_id===contactId;});
     if(prior){prior.normalized_position=observation.normalized_position;prior.uncertainty_m=observation.uncertainty_m;prior.observation_count=observation.observation_count;prior.sensor_ids=observation.sensor_ids;prior.modalities=observation.modalities;}
     lastObservationData.revision=fresh.revision;
@@ -2550,7 +2569,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   }
   function publish(sendToSpatial,countObservation){
     if(countObservation)sweepCount++;
-    var data=generateScene();recordReconObservation(data);lastObservationData=data;renderReconContacts(data);
+    var data=generateScene();recordReconObservation(data);publishPlayerObservations(data,'vigil');publishPlayerObservations(data,'operator');lastObservationData=data;renderReconContacts(data);
     if(countObservation)observationCount+=data.objects.length;updateMetrics();
     if(countObservation){var result=document.getElementById('sim-recon-results');if(result)result.textContent='NEW OBSERVATIONS AVAILABLE // RUN EVALUATION TO COMPARE ESTIMATES WITH HIDDEN TRUTH.';}
     document.getElementById('sim-noise-value').textContent=Number(noise.value).toFixed(1);
