@@ -2488,12 +2488,24 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       }
     });
     if(!objects.length)return null;
+    var missionClock=api&&typeof api.getState==='function'&&api.getState()?Number(api.getState().clockMinutes):NaN;
+    // Abstract game-tuning rates, not real-world platform performance. Unknown tracks use a conservative generic rate.
+    var mobilityGrowthByClass={slow:0.25,surface:1,fast:3,air:8,unknown:2};
     var candidates=objects.filter(function(object){
       return object&&typeof object.object_id==='string'&&Array.isArray(object.normalized_position);
     }).map(function(object){
       var evidence=evidenceById[object.object_id]||{};
-      var uncertainty=Number(object.uncertainty_m);
-      return {object:object,evidence:evidence,uncertainty:Number.isFinite(uncertainty)?uncertainty:Infinity,
+      var baseUncertainty=Number(object.uncertainty_m);
+      if(!Number.isFinite(baseUncertainty))baseUncertainty=Number(evidence.uncertaintyMeters);
+      if(!Number.isFinite(baseUncertainty))baseUncertainty=0;
+      var observedAt=Number(evidence.observedAt);
+      var elapsed=Number.isFinite(missionClock)&&Number.isFinite(observedAt)?Math.max(0,missionClock-observedAt):0;
+      var classHint=String(evidence.classificationEstimate||'').toLowerCase();
+      var mobilityClass=/air|drone|aircraft/.test(classHint)?'air':/fast|high.?speed/.test(classHint)?'fast':/surface|vessel|vehicle/.test(classHint)?'surface':/slow|stationary/.test(classHint)?'slow':'unknown';
+      var growthRate=mobilityGrowthByClass[mobilityClass];
+      var searchUncertainty=baseUncertainty+elapsed*growthRate;
+      return {object:object,evidence:evidence,uncertainty:searchUncertainty,baseUncertainty:baseUncertainty,
+        elapsedSinceLastSeen:elapsed,mobilityGrowthRate:growthRate,mobilityClass:mobilityClass,
         conflict:evidence.conflict===true||evidence.status==='CONFLICT',
         stale:evidence.status==='STALE'||evidence.status==='LAST_KNOWN'};
     });
@@ -2532,9 +2544,9 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if(selected.conflict){
       reason='Prioritized a conflicting sensor track and requested '+mode.toUpperCase()+' from a different modality to independently re-check the estimate; source evidence is retained and evaluator truth remains withheld.';
     }else if(selected.stale){
-      reason='Prioritized a last-known or stale track for a fresh observation; requested '+mode.toUpperCase()+' to refresh its age and uncertainty.';
+      reason='Prioritized a last-known or stale track; elapsed mission time '+selected.elapsedSinceLastSeen.toFixed(1)+' min expands its simulated search uncertainty from ±'+selected.baseUncertainty.toFixed(2)+' m to ±'+selected.uncertainty.toFixed(2)+' m. Requested '+mode.toUpperCase()+' to reacquire it.';
     }else{
-      reason='Selected the contact with the greatest reported position uncertainty (±'+(Number.isFinite(uncertainty)?uncertainty.toFixed(2):'unknown')+' m); requested '+mode.toUpperCase()+' as the policy\'s follow-up modality.';
+      reason='Selected the contact with the greatest effective search uncertainty (±'+(Number.isFinite(uncertainty)?uncertainty.toFixed(2):'unknown')+' m, including elapsed-time movement allowance); requested '+mode.toUpperCase()+' as the policy\'s follow-up modality.';
     }
     return {
       action:'focused_observation',
@@ -2542,6 +2554,10 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       sensor_mode:mode,
       requested_by:'VIGIL',
       request_id:'VIGIL-AUTO-REQ-'+sequence+'-'+(sweepCount+1),
+      elapsed_since_last_seen_min:selected.elapsedSinceLastSeen,
+      base_uncertainty_m:selected.baseUncertainty,
+      search_uncertainty_m:selected.uncertainty,
+      simulated_mobility_growth_m_per_min:selected.mobilityGrowthRate,
       rationale:reason
     };
   }
