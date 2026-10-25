@@ -2518,6 +2518,29 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         conflict:evidence.conflict===true||evidence.status==='CONFLICT',
         stale:evidence.status==='STALE'||evidence.status==='LAST_KNOWN'};
     });
+    // Defensive invariant: every authorized conflicting observation with a valid
+    // estimate must be represented as a conflict candidate, even if sweep projection
+    // omitted it or produced an incompatible object shape.
+    picture.forEach(function(item){
+      if(!(item.status==='CONFLICT'||item.conflict===true))return;
+      var estimate=item.positionEstimate||{};
+      if(!Number.isFinite(estimate.x)||!Number.isFinite(estimate.y))return;
+      var existing=candidates.find(function(candidate){return candidate.object&&candidate.object.object_id===item.contactId;});
+      if(existing){
+        existing.evidence=item;
+        existing.conflict=true;
+        existing.stale=false;
+        return;
+      }
+      var clock=api&&typeof api.getState==='function'&&api.getState()?Number(api.getState().clockMinutes):NaN;
+      var observed=Number(item.observedAt);
+      var elapsed=Number.isFinite(clock)&&Number.isFinite(observed)?Math.max(0,clock-observed):0;
+      var base=Number.isFinite(item.uncertaintyMeters)?item.uncertaintyMeters:Infinity;
+      candidates.push({object:{object_id:item.contactId,normalized_position:[estimate.x,estimate.y,Number(estimate.z)||0],
+        uncertainty_m:base,observation_count:0,modalities:[],sensor_ids:[]},evidence:item,
+        uncertainty:base+elapsed*2,baseUncertainty:base,elapsedSinceLastSeen:elapsed,
+        mobilityGrowthRate:2,mobilityClass:'unknown',conflict:true,stale:false});
+    });
     if(!candidates.length)return null;
     candidates.sort(function(a,b){
       if(a.conflict!==b.conflict)return a.conflict?-1:1;
