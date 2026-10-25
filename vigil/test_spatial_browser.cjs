@@ -56,7 +56,7 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     await page.waitForFunction(() => document.querySelector("#sim-unit-roster model-viewer[alt*=\"Phallus-class\"]"));
     assert.match(await page.locator("#sim-unit-roster").innerText(), /local procedural 3D gag model; bundled in repository/i, "joke model must be identified as local project geometry");
     await page.evaluate(() => window.dispatchEvent(new CustomEvent("vigil:game-victory", { detail: { trophy: "phallus-class" } })));
-    assert.equal(await page.locator('[data-victory-plaque="phallus"]').innerText(), "I GOT MY DICK BACK", "winning must unlock the novelty submarine's victory plaque");
+    assert.equal(await page.locator('[data-victory-plaque="phallus"]').innerText(), "🥇 I GOT MY DICK BACK", "winning must unlock the novelty submarine's medal victory plaque");
     assert.equal(await page.evaluate(() => localStorage.getItem("vigil-phallus-victory-trophy-v1")), "true", "victory plaque unlock must persist in this browser");
     assert.equal(await globalHawkViewer.count(), 1, "Global Hawk roster entry must render an interactive 3D model viewer");
     assert.match(await globalHawkViewer.getAttribute("src"), /Global%20Hawk\.glb$/, "viewer must load the sourced NASA GLB asset");
