@@ -414,6 +414,8 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     assert.match(decisionTrail.output, /STEP 01[\s\S]*STEP 02[\s\S]*WORLD STATE: WITHHELD/);
     const conflictPolicy = await page.evaluate(() => {
       const api = window.vigilSimulationCatalog;
+      // Ensure this conflict is newer than pre-existing retained tracks.
+      api.advanceTime(1);
       // Make this scenario self-contained: earlier autonomous steps may age all
       // initial tracks, so seed a fresh authorized track before injecting conflict.
       const targetId = "TEST-AUTONOMOUS-CONFLICT-PRIORITY";
