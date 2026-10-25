@@ -2419,9 +2419,13 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var requestedMode=request.sensor_mode;
     if(request.action&&request.action!=='focused_observation')return{ok:false,request_id:requestId,reason:'unsupported_action'};
     if(requestedMode&&['radar','sonar','optical'].indexOf(requestedMode)===-1)return{ok:false,request_id:requestId,reason:'unsupported_sensor_mode'};
-    if(!contactId||!lastObservationData||!lastObservationData.objects.some(function(item){return item.object_id===contactId;})){
-      if(result)result.textContent='SENSOR REQUEST REJECTED // CONTACT MUST BE PRESENT IN THE CURRENT OBSERVATION REGISTER';
-      return{ok:false,request_id:requestId,reason:'contact_not_in_current_observations',contact_id:contactId};
+    var currentObjects=lastObservationData&&Array.isArray(lastObservationData.objects)?lastObservationData.objects:[];
+    var currentContact=currentObjects.some(function(item){return item.object_id===contactId;});
+    var fowApi=window.vigilSimulationCatalog;
+    var knownTrack=fowApi&&typeof fowApi.getPlayerPicture==='function'&&fowApi.getPlayerPicture('vigil').some(function(item){return item.contactId===contactId;});
+    if(!contactId||!lastObservationData||(!currentContact&&!knownTrack)){
+      if(result)result.textContent='SENSOR REQUEST REJECTED // CONTACT HAS NO AUTHORIZED CURRENT OR LAST-KNOWN TRACK';
+      return{ok:false,request_id:requestId,reason:'contact_not_in_authorized_tracks',contact_id:contactId,world_state_withheld:true};
     }
     selectedReconTrackId=contactId;
     if(requestedMode){sensor.value=requestedMode;}
@@ -2437,6 +2441,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     publishPlayerObservations({objects:[observation]},'vigil',false);
     var prior=lastObservationData.objects.find(function(item){return item.object_id===contactId;});
     if(prior){prior.normalized_position=observation.normalized_position;prior.uncertainty_m=observation.uncertainty_m;prior.observation_count=observation.observation_count;prior.sensor_ids=observation.sensor_ids;prior.modalities=observation.modalities;}
+    else { lastObservationData.objects.push(observation); }
     lastObservationData.revision=fresh.revision;
     lastObservationData.metadata=Object.assign({},lastObservationData.metadata,{focused_contact_id:contactId,observation_type:'focused-follow-up',requested_by:requestedBy,request_id:requestId,generated_at:fresh.metadata.generated_at});
     observationCount++;
@@ -2466,12 +2471,23 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   // First closed-loop recon controller: choose only from public observations, never evaluator truth.
   var vigilReconDecisionHistory=[];
   function chooseVigilReconAction(data){
-    var objects=data&&Array.isArray(data.objects)?data.objects:[];
-    if(!objects.length)return null;
+    var objects=data&&Array.isArray(data.objects)?data.objects.slice():[];
     var api=window.vigilSimulationCatalog;
     var picture=api&&typeof api.getPlayerPicture==='function'?api.getPlayerPicture('vigil'):[];
     var evidenceById=Object.create(null);
     picture.forEach(function(item){evidenceById[item.contactId]=item;});
+    // Include authorized last-known tracks even when a later sweep no longer detects them.
+    picture.forEach(function(item){
+      if((item.status==='LAST_KNOWN'||item.status==='STALE')&&!objects.some(function(object){return object&&object.object_id===item.contactId;})){
+        var estimate=item.positionEstimate||{};
+        if(Number.isFinite(estimate.x)&&Number.isFinite(estimate.y)){
+          objects.push({object_id:item.contactId,normalized_position:[estimate.x,estimate.y,Number(estimate.z)||0],
+            uncertainty_m:Number.isFinite(item.uncertaintyMeters)?item.uncertaintyMeters:Infinity,observation_count:0,
+            modalities:[],sensor_ids:[],last_known_only:true});
+        }
+      }
+    });
+    if(!objects.length)return null;
     var candidates=objects.filter(function(object){
       return object&&typeof object.object_id==='string'&&Array.isArray(object.normalized_position);
     }).map(function(object){
