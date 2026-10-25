@@ -424,7 +424,7 @@ const fixture = require("./fixtures/vigil-test-scene.json");
         classificationEstimate: "unresolved",
         confidence: 0.4,
         modality: "radar",
-        uncertaintyMeters: 12,
+        uncertaintyMeters: 1000000,
         status: "CURRENT",
         sourceUnitId: "TEST-LAST-KNOWN-POLICY-SENSOR"
       });
