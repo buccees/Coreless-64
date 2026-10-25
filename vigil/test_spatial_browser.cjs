@@ -444,7 +444,7 @@ const fixture = require("./fixtures/vigil-test-scene.json");
       return { targetId, next, evidence, sourceModes };
     });
     assert.equal(conflictPolicy.evidence.status, "CONFLICT", "test must establish a conflicting track in authorized observations");
-    assert.equal(conflictPolicy.next.contact_id, conflictPolicy.targetId, "autonomous recon must prioritize a conflicting track");
+    assert.equal(conflictPolicy.next.contact_id, conflictPolicy.targetId, "autonomous recon must prioritize a conflicting track; diagnostics=" + JSON.stringify({targetId:conflictPolicy.targetId,next:conflictPolicy.next,evidence:{status:conflictPolicy.evidence.status,conflict:conflictPolicy.evidence.conflict,positionEstimate:conflictPolicy.evidence.positionEstimate,uncertaintyMeters:conflictPolicy.evidence.uncertaintyMeters,observedAt:conflictPolicy.evidence.observedAt},sourceModes:conflictPolicy.sourceModes}));
     assert.match(conflictPolicy.next.rationale, /conflicting sensor track/i, "decision rationale must explain the conflict-driven follow-up");
     if (conflictPolicy.sourceModes.some(mode => ["optical", "radar", "sonar"].includes(mode))) {
       const availableIndependentModes = ["optical", "radar", "sonar"].filter(mode => !conflictPolicy.sourceModes.includes(mode));
