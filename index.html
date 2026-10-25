@@ -2325,7 +2325,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   function generateScene(){
     var modeName=sensor.value,base=Number(noise.value),sigma=modeName==='sonar'?.6:modeName==='optical'?.25:1.2;
     sigma=Math.max(0,base*(modeName==='sonar'?.5:modeName==='optical'?.22:1));
-    var objects=[];reconTruthById=Object.create(null);
+    var objects=[];
     var detectionRate=Number(document.getElementById('sim-detection-rate').value);
     enemyFleet.forEach(function(v,trackIndex){
       var alive=v.cells.filter(function(p){return !v.hits[key(p[0],p[1])];});
@@ -2377,26 +2377,57 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       list.appendChild(button);
     });
   }
-  function investigateReconContact(){
+  function investigateReconContact(request){
+    request=request||{};
     var result=document.getElementById('sim-recon-results'),detail=document.getElementById('sim-recon-detail');
-    if(!selectedReconTrackId||!lastObservationData){if(result)result.textContent='FOCUSED FOLLOW-UP UNAVAILABLE // SELECT A CONTACT FROM A RECON SWEEP FIRST';return;}
+    var contactId=String(request.contact_id||selectedReconTrackId||'');
+    var requestId=String(request.request_id||('VIGIL-SENSOR-REQ-'+sequence+'-'+(sweepCount+1)));
+    var requestedBy=String(request.requested_by||'operator');
+    var requestedMode=request.sensor_mode;
+    if(request.action&&request.action!=='focused_observation')return{ok:false,request_id:requestId,reason:'unsupported_action'};
+    if(requestedMode&&['radar','sonar','optical'].indexOf(requestedMode)===-1)return{ok:false,request_id:requestId,reason:'unsupported_sensor_mode'};
+    if(!contactId||!lastObservationData||!lastObservationData.objects.some(function(item){return item.object_id===contactId;})){
+      if(result)result.textContent='SENSOR REQUEST REJECTED // CONTACT MUST BE PRESENT IN THE CURRENT OBSERVATION REGISTER';
+      return{ok:false,request_id:requestId,reason:'contact_not_in_current_observations',contact_id:contactId};
+    }
+    selectedReconTrackId=contactId;
+    if(requestedMode){sensor.value=requestedMode;}
     sweepCount++;
     var fresh=generateScene();
-    var observation=fresh.objects.find(function(item){return item.object_id===selectedReconTrackId;});
-    if(!observation){if(result)result.textContent='FOCUSED FOLLOW-UP UNAVAILABLE // SELECTED CONTACT HAS NO CURRENT SENSOR RETURN';return;}
+    var observation=fresh.objects.find(function(item){return item.object_id===contactId;});
+    if(!observation){
+      if(result)result.textContent='SENSOR MISS // '+contactId+' // '+sensor.value.toUpperCase()+' RETURN NOT DETECTED; NO HIDDEN STATE DISCLOSED';
+      status.textContent='SENSOR MISS '+sweepCount+' // '+contactId+' // '+sensor.value.toUpperCase();
+      return{ok:false,request_id:requestId,reason:'sensor_miss',contact_id:contactId,sensor_mode:sensor.value,observation:null,world_state_withheld:true};
+    }
     recordReconObservation({objects:[observation]});
-    var prior=lastObservationData.objects.find(function(item){return item.object_id===selectedReconTrackId;});
+    var prior=lastObservationData.objects.find(function(item){return item.object_id===contactId;});
     if(prior){prior.normalized_position=observation.normalized_position;prior.uncertainty_m=observation.uncertainty_m;prior.observation_count=observation.observation_count;prior.sensor_ids=observation.sensor_ids;prior.modalities=observation.modalities;}
     lastObservationData.revision=fresh.revision;
-    lastObservationData.metadata=Object.assign({},lastObservationData.metadata,{focused_contact_id:selectedReconTrackId,observation_type:'focused-follow-up',generated_at:fresh.metadata.generated_at});
+    lastObservationData.metadata=Object.assign({},lastObservationData.metadata,{focused_contact_id:contactId,observation_type:'focused-follow-up',requested_by:requestedBy,request_id:requestId,generated_at:fresh.metadata.generated_at});
     observationCount++;
     renderReconContacts(lastObservationData);updateMetrics();
-    if(detail){var p=observation.normalized_position||[];detail.textContent='CONTACT EVIDENCE // FOCUSED FOLLOW-UP RECEIVED\nTRACK ID: '+selectedReconTrackId+'\nSENSOR: '+(observation.sensor_ids||[]).join(', ')+'\nMODALITY: '+(observation.modalities||[]).join(', ')+'\nFUSED NORMALIZED ESTIMATE: '+Number(p[0]).toFixed(3)+', '+Number(p[1]).toFixed(3)+'\nPOSITION UNCERTAINTY: ±'+observation.uncertainty_m+' m\nOBSERVATIONS IN TRACK: '+observation.observation_count+'\nASSESSMENT: STILL UNRESOLVED // SENSOR EVIDENCE ONLY';}
+    if(detail){var p=observation.normalized_position||[];detail.textContent='CONTACT EVIDENCE // FOCUSED FOLLOW-UP RECEIVED\nTRACK ID: '+contactId+'\nREQUESTED BY: '+requestedBy.toUpperCase()+'\nSENSOR: '+(observation.sensor_ids||[]).join(', ')+'\nMODALITY: '+(observation.modalities||[]).join(', ')+'\nFUSED NORMALIZED ESTIMATE: '+Number(p[0]).toFixed(3)+', '+Number(p[1]).toFixed(3)+'\nPOSITION UNCERTAINTY: ±'+observation.uncertainty_m+' m\nOBSERVATIONS IN TRACK: '+observation.observation_count+'\nASSESSMENT: STILL UNRESOLVED // SENSOR EVIDENCE ONLY';}
     var focusedPayload=Object.assign({},lastObservationData,{objects:[observation],metadata:Object.assign({},lastObservationData.metadata)});
     if(typeof window.vigilImportScene==='function')window.vigilImportScene(focusedPayload);
-    if(result)result.textContent='FOCUSED FOLLOW-UP COMPLETE // '+selectedReconTrackId+'\nNEW SENSOR RETURN FUSED WITH PRIOR OBSERVATIONS.\nVIGIL RECEIVED ONLY THE SELECTED CONTACT OBSERVATION; HIDDEN WORLD STATE WAS NOT INCLUDED.\nCLASSIFICATION REMAINS UNRESOLVED UNTIL VIGIL HAS SUFFICIENT EVIDENCE.';
-    status.textContent='FOCUSED FOLLOW-UP '+sweepCount+' // '+selectedReconTrackId+' // PUBLISHED TO SPATIAL INTELLIGENCE';
+    if(result)result.textContent='FOCUSED FOLLOW-UP COMPLETE // '+contactId+'\nREQUEST: '+requestId+' // REQUESTED BY: '+requestedBy.toUpperCase()+'\nNEW SENSOR RETURN FUSED WITH PRIOR OBSERVATIONS.\nVIGIL RECEIVED ONLY THE SELECTED CONTACT OBSERVATION; HIDDEN WORLD STATE WAS NOT INCLUDED.\nCLASSIFICATION REMAINS UNRESOLVED UNTIL VIGIL HAS SUFFICIENT EVIDENCE.';
+    status.textContent='FOCUSED FOLLOW-UP '+sweepCount+' // '+contactId+' // '+sensor.value.toUpperCase()+' // PUBLISHED TO SPATIAL INTELLIGENCE';
+    return{ok:true,request_id:requestId,requested_by:requestedBy,contact_id:contactId,sensor_mode:sensor.value,observation:JSON.parse(JSON.stringify(observation)),world_state_withheld:true};
   }
+  window.vigilSensorBridge={
+    requestObservation:function(request){return window.vigilRequestSensorAction(request);}
+  };
+  window.vigilRequestSensorAction=function(request){
+    request=request||{};
+    var response=investigateReconContact(Object.assign({},request,{requested_by:request.requested_by||'VIGIL'}));
+    window.dispatchEvent(new CustomEvent('vigil:sensor-response',{detail:response}));
+    return response;
+  };
+  window.addEventListener('vigil:sensor-request',function(event){
+    var request=event&&event.detail?event.detail:{};
+    var response=window.vigilRequestSensorAction(request);
+    window.dispatchEvent(new CustomEvent('vigil:sensor-response',{detail:response}));
+  });
   function evaluateRecon(){
     var result=document.getElementById('sim-recon-results');
     if(!result||!lastObservationData){if(result)result.textContent='EVALUATION UNAVAILABLE // RUN A RECON SWEEP FIRST';return;}
