@@ -40,6 +40,8 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     assert.match(await page.locator("#sim-fow-status").innerText(), /GROUND TRUTH: NOT EXPOSED/);
     const catalogUnits = await page.evaluate(() => window.vigilSimulationCatalog.getUnits());
     assert.ok(catalogUnits.some(unit => unit.domain === "air" && unit.id === "scout-drone"), "catalog must include a drone profile");
+    const gagSub = catalogUnits.find(unit => unit.id === "prank-submersible");
+    assert.ok(gagSub && gagSub.is_bonus === true && gagSub.inventory === 1 && gagSub.max_deployed === 1 && /phallic/i.test(gagSub.silhouette) && /JOKE BONUS UNIT ONLY/.test(gagSub.notes), "Level 5 must include a clearly labelled fictional phallic gag submarine with finite capacity");
     assert.ok(catalogUnits.every(unit => unit.inventory > 0 && unit.max_deployed > 0 && unit.max_deployed <= unit.inventory && unit.endurance_minutes > 0), "unit definitions must have finite, valid capacity and endurance");
     const globalHawk = catalogUnits.find(unit => unit.id === "long-endurance-uav");
     const reaper = catalogUnits.find(unit => unit.id === "mq-9a-reaper");
