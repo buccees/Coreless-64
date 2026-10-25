@@ -1,0 +1,254 @@
+#!/usr/bin/env node
+"use strict";
+
+const assert = require("node:assert/strict");
+const http = require("node:http");
+const fs = require("node:fs");
+const path = require("node:path");
+const { chromium } = require("playwright");
+
+const htmlPath = path.join(__dirname, "..", "index.html");
+const html = fs.readFileSync(htmlPath);
+const fixture = require("./fixtures/vigil-test-scene.json");
+
+(async () => {
+  const server = http.createServer((req, res) => {
+    if (req.url === "/" || req.url === "/index.html") {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(html);
+      return;
+    }
+    res.writeHead(404); res.end("not found");
+  });
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  const browser = await chromium.launch({ headless: true });
+  const errors = [];
+  try {
+    const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    page.on("pageerror", error => errors.push(error.message));
+    await page.goto("http://127.0.0.1:" + address.port + "/", { waitUntil: "load" });
+
+    await page.locator('.nav-button[data-view="spatial"]').click();
+    await page.locator("#spatial-panel .spatial-stage").waitFor({ state: "visible" });
+    assert.equal(await page.locator("#site-settings-backdrop").isVisible(), false, "closed settings overlay must not cover Spatial Intelligence controls");
+    assert.equal(await page.locator("#spatial-import-open").isVisible(), true, "scene import action must be visible near the top of Spatial Intelligence");
+    assert.equal(await page.locator("#spatial-import-open").isEnabled(), true, "scene import action must be enabled");
+    assert.equal(await page.locator("#spatial-audit-panel").isVisible(), true);
+    assert.match(await page.locator(".spatial-legend").innerText(), /UNKNOWN UNCERTAINTY \/ AMBER DASHED/);
+    assert.match(await page.locator(".spatial-legend").innerText(), /BLUE DASHED OUTLINE/);
+
+    const sceneChooserPromise = page.waitForEvent("filechooser");
+    await page.locator("#spatial-import-open").click();
+    const sceneChooser = await sceneChooserPromise;
+    await sceneChooser.setFiles({
+      name: "browser-fixture.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(fixture))
+    });
+    await page.waitForFunction(() => document.querySelector("#spatial-status").textContent.includes("IMPORTED BROWSER-TEST-MODEL"));
+    assert.equal(await page.locator('#imported-object-layer [data-track-id="TRACK-STABLE"]').count(), 1);
+    assert.equal(await page.locator('#imported-object-layer [data-track-id="TRACK-UNKNOWN"].uncertainty-unknown').count(), 1);
+    assert.equal(await page.locator('#imported-object-layer [data-track-id="TRACK-REVIEW"].metadata-review').count(), 1);
+    assert.equal(await page.locator('#imported-object-layer [data-track-id="TRACK-REVIEW"].conflict').count(), 1);
+
+    await page.locator('.spatial-review-filter[data-review-filter="missing"]').click();
+    assert.equal(await page.locator('.spatial-review-filter[data-review-filter="missing"]').getAttribute("aria-pressed"), "true");
+    assert.equal(await page.locator('#imported-object-layer [data-track-id="TRACK-STABLE"]').evaluate(el => el.style.opacity), "0.12");
+    assert.equal(await page.locator('#imported-object-layer [data-track-id="TRACK-REVIEW"]').evaluate(el => el.style.opacity), "1");
+    await page.locator('.spatial-review-filter[data-review-filter="review"]').click();
+    assert.equal(await page.locator('#imported-object-layer [data-track-id="TRACK-UNKNOWN"]').evaluate(el => el.style.opacity), "1");
+
+    await page.locator('#imported-object-layer [data-track-id="TRACK-REVIEW"]').click();
+    await page.locator(".spatial-review-decision").waitFor({ state: "visible" });
+    assert.match(await page.locator("#spatial-track-detail").innerText(), /REVIEW REQUIRED/);
+    await page.locator(".spatial-review-controls select").selectOption("NEEDS FOLLOW-UP");
+    await page.locator(".spatial-review-controls input").fill("Browser test: verify calibration and conflict evidence.");
+    await page.locator(".spatial-review-controls button").click();
+    await page.waitForFunction(() => document.querySelector("#spatial-audit-list").innerText.includes("TRACK REVIEW DECISION"));
+    assert.match(await page.locator(".spatial-review-current").innerText(), /NEEDS FOLLOW-UP/);
+    assert.match(await page.locator("#spatial-track-detail").innerText(), /TRACK REVIEW HISTORY \/\/ CURRENT SCENE/);
+    assert.match(await page.locator(".spatial-track-history").innerText(), /TRACK REVIEW DECISION/);
+    assert.match(await page.locator(".spatial-track-history").innerText(), /verify calibration and conflict evidence/);
+    assert.match(await page.locator("#spatial-audit-list").innerText(), /verify calibration and conflict evidence/);
+
+    const downloadPromise = page.waitForEvent("download");
+    await page.locator("#spatial-audit-export").click();
+    const download = await downloadPromise;
+    const downloadPath = path.join(require("node:os").tmpdir(), download.suggestedFilename());
+    await download.saveAs(downloadPath);
+    const exported = JSON.parse(fs.readFileSync(downloadPath, "utf8"));
+    fs.unlinkSync(downloadPath);
+    assert.equal(exported.format, "VIGIL-spatial-audit");
+    assert.equal(exported.version, 2);
+    assert.equal(exported.event_count, exported.events.length);
+    assert.match(exported.exported_at, /^\d{4}-\d{2}-\d{2}T/);
+    assert.ok(exported.session_id);
+    assert.equal(exported.active_scene.model_id, "BROWSER-TEST-MODEL");
+    const exportedDecisionEvent = exported.events.find(event => event.action === "TRACK REVIEW DECISION");
+    assert.ok(exportedDecisionEvent);
+    assert.equal(exportedDecisionEvent.scene.model_id, "BROWSER-TEST-MODEL");
+    assert.equal(exportedDecisionEvent.scene.revision, "r1");
+    assert.equal(exportedDecisionEvent.scene.frame_id, "frame-browser-test");
+    assert.equal(exportedDecisionEvent.track_id, "TRACK-REVIEW");
+    assert.ok(exported.review_decisions.some(decision =>
+      decision.model_id === "BROWSER-TEST-MODEL" &&
+      decision.revision === "r1" &&
+      decision.frame_id === "frame-browser-test" &&
+      decision.track_id === "TRACK-REVIEW" &&
+      decision.decision === "NEEDS FOLLOW-UP"
+    ));
+
+    // Reload checks browser persistence for both the audit history and review decision.
+    await page.reload({ waitUntil: "load" });
+    await page.locator('.nav-button[data-view="spatial"]').click();
+    assert.match(await page.locator("#spatial-audit-list").innerText(), /TRACK REVIEW DECISION/);
+    await page.locator("#spatial-json").setInputFiles({
+      name: "browser-fixture.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(fixture))
+    });
+    await page.waitForFunction(() => document.querySelector("#spatial-status").textContent.includes("IMPORTED BROWSER-TEST-MODEL"));
+    await page.locator('#imported-object-layer [data-track-id="TRACK-REVIEW"]').click();
+    assert.match(await page.locator(".spatial-review-current").innerText(), /NEEDS FOLLOW-UP/);
+    assert.match(await page.locator(".spatial-review-controls input").inputValue(), /verify calibration and conflict evidence/);
+
+    await page.locator("#spatial-audit-clear").click();
+    assert.match(await page.locator("#spatial-audit-status").innerText(), /^0 EVENTS/);
+    assert.deepEqual(errors, [], "browser page must not throw uncaught JavaScript errors");
+
+    // Check the mobile viewport doesn't create horizontal page overflow.
+    await page.setViewportSize({ width: 390, height: 844 });
+    const dimensions = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      page: document.documentElement.scrollWidth
+    }));
+    assert.ok(dimensions.page <= dimensions.viewport + 2,
+      "mobile page should not overflow horizontally: " + JSON.stringify(dimensions));
+
+    // Storage failure and malformed persisted JSON must degrade to an explicit session-only mode.
+    for (const storageMode of ["unavailable", "corrupt"]) {
+      const storageContext = await browser.newContext({ acceptDownloads: true, viewport: { width: 1280, height: 900 } });
+      const storageErrors = [];
+      await storageContext.addInitScript((mode) => {
+        const auditKey = "coreless64-vigil-spatial-audit-v1";
+        const decisionKey = "coreless64-vigil-track-review-decisions-v1";
+        const originalGet = Storage.prototype.getItem;
+        const originalSet = Storage.prototype.setItem;
+        const originalRemove = Storage.prototype.removeItem;
+        Storage.prototype.getItem = function(key) {
+          if (mode === "unavailable" && (key === auditKey || key === decisionKey)) throw new Error("simulated storage unavailable");
+          if (mode === "corrupt" && key === auditKey) return "{malformed-json";
+          if (mode === "corrupt" && key === decisionKey) return "[]";
+          return originalGet.call(this, key);
+        };
+        if (mode === "unavailable") {
+          Storage.prototype.setItem = function(key, value) {
+            if (key === auditKey || key === decisionKey) throw new Error("simulated storage unavailable");
+            return originalSet.call(this, key, value);
+          };
+          Storage.prototype.removeItem = function(key) {
+            if (key === auditKey || key === decisionKey) throw new Error("simulated storage unavailable");
+            return originalRemove.call(this, key);
+          };
+        }
+      }, storageMode);
+      const storagePage = await storageContext.newPage();
+      storagePage.on("pageerror", error => storageErrors.push(error.message));
+      await storagePage.goto("http://127.0.0.1:" + address.port + "/", { waitUntil: "load" });
+      await storagePage.locator('.nav-button[data-view="spatial"]').click();
+      assert.match(await storagePage.locator("#spatial-audit-status").innerText(), /SESSION ONLY/);
+      await storagePage.locator("#spatial-json").setInputFiles({
+        name: "browser-fixture.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify(fixture))
+      });
+      await storagePage.waitForFunction(() => document.querySelector("#spatial-status").textContent.includes("IMPORTED BROWSER-TEST-MODEL"));
+      await storagePage.locator('#imported-object-layer [data-track-id="TRACK-REVIEW"]').click();
+      await storagePage.locator(".spatial-review-controls select").selectOption("ESCALATED");
+      await storagePage.locator(".spatial-review-controls input").fill("Storage resilience test decision.");
+      await storagePage.locator(".spatial-review-controls button").click();
+      await storagePage.waitForFunction(() => document.querySelector("#spatial-audit-list").innerText.includes("TRACK REVIEW DECISION"));
+      assert.match(await storagePage.locator(".spatial-review-current").innerText(), /ESCALATED/);
+      assert.match(await storagePage.locator("#spatial-audit-status").innerText(), /SESSION ONLY/);
+      const storageDownloadPromise = storagePage.waitForEvent("download");
+      await storagePage.locator("#spatial-audit-export").click();
+      const storageDownload = await storageDownloadPromise;
+      const storageExportPath = path.join(require("node:os").tmpdir(), storageDownload.suggestedFilename());
+      await storageDownload.saveAs(storageExportPath);
+      const storageExport = JSON.parse(fs.readFileSync(storageExportPath, "utf8"));
+      fs.unlinkSync(storageExportPath);
+      assert.equal(storageExport.active_scene.model_id, "BROWSER-TEST-MODEL");
+      assert.ok(storageExport.review_decisions.some(decision => decision.track_id === "TRACK-REVIEW" && decision.decision === "ESCALATED"));
+      assert.deepEqual(storageErrors, [], storageMode + " storage mode must not throw uncaught page errors");
+      await storageContext.close();
+    }
+
+    // Simulation Bay: grid mechanics, repeat-shot collision guard, and sensor-only publication.
+    await page.locator('.nav-button[data-view="simulation"]').click();
+    await page.locator("#simulation-panel").waitFor({ state: "visible" });
+    assert.equal(await page.locator("#sim-board .sim-cell").count(), 100, "simulation grid must contain exactly 100 cells");
+    assert.equal(await page.locator("#sim-afloat").innerText(), "5", "new exercise must initialize all five vessels");
+    const firstCell = page.locator("#sim-board .sim-cell").first();
+    await firstCell.click();
+    assert.equal(await page.locator("#sim-shots").innerText(), "1", "one cell action must resolve exactly one shot");
+    assert.equal(await firstCell.isDisabled(), true, "resolved cells must not be targetable twice");
+    await page.locator("#sim-publish").click();
+    await page.waitForFunction(() => document.querySelector("#spatial-status").textContent.includes("IMPORTED VIGIL-SIMULATION-BAY"));
+    assert.ok(await page.locator('#imported-object-layer [data-track-id^="SIM-"]').count() > 0, "simulation must publish sensor-estimated tracks to Spatial Intelligence");
+    assert.match(await page.locator("#sim-telemetry").innerText(), /WORLD-STATE ACCESS: DENIED TO VIGIL/);
+    assert.match(await page.locator("#spatial-audit-list").innerText(), /SIMULATION OBSERVATIONS PUBLISHED/);
+    await page.locator("#sim-view-fleet").click();
+    assert.equal(await page.locator("#sim-view-fleet").getAttribute("aria-pressed"), "true", "own-fleet inspection must expose its active state");
+    assert.ok(await page.locator("#sim-board .sim-cell.ship").count() >= 17, "own-fleet view must render all 17 vessel cells");
+    assert.equal(await page.locator("#sim-board .sim-cell:not(:disabled)").count(), 0, "own-fleet inspection must not allow firing at friendly cells");
+    await page.locator("#sim-view-fleet").click();
+    assert.equal(await page.locator("#sim-board .sim-cell.ship").count(), 0, "returning to firing grid must conceal friendly vessel positions");
+    const resetBefore = await page.locator("#sim-shots").innerText();
+    await page.locator("#sim-new-game").click();
+    assert.equal(await page.locator("#sim-shots").innerText(), "0", "new exercise must reset engagement count");
+    assert.equal(await page.locator("#sim-board .sim-cell").count(), 100, "reset must rebuild a complete grid");
+    await page.locator("#sim-manual-setup").click();
+    assert.match(await page.locator("#sim-turn-status").innerText(), /PLACE CARRIER/);
+    await page.locator("#sim-board .sim-cell").nth(0).hover();
+    assert.equal(await page.locator("#sim-board .placement-preview").count(), 5, "placement preview must show the current ship footprint");
+    await page.locator("#sim-board .sim-cell").nth(0).click();
+    assert.match(await page.locator("#sim-turn-status").innerText(), /PLACE BATTLESHIP/);
+    await page.locator("#sim-rotate").click();
+    await page.locator("#sim-board .sim-cell").nth(99).click();
+    assert.match(await page.locator("#sim-turn-status").innerText(), /INVALID PLACEMENT/);
+    assert.equal(await page.locator("#sim-board .sim-cell.ship").count(), 5, "invalid out-of-bounds placement must not alter the fleet");
+    await page.locator("#sim-rotate").click();
+    await page.locator("#sim-board .sim-cell").nth(5).click();
+    await page.locator("#sim-board .sim-cell").nth(20).click();
+    await page.locator("#sim-board .sim-cell").nth(24).click();
+    await page.locator("#sim-board .sim-cell").nth(28).click();
+    assert.match(await page.locator("#sim-turn-status").innerText(), /FLEETS READY/);
+    assert.equal(await page.locator("#sim-board .sim-cell.ship").count(), 0, "completed setup returns to the concealed firing grid");
+    await page.locator("#sim-view-fleet").click();
+    assert.equal(await page.locator("#sim-board .sim-cell.ship").count(), 17, "manual setup must place all 17 vessel cells");
+    await page.locator("#sim-new-game").click();
+    assert.deepEqual(errors, [], "simulation interactions must not throw uncaught JavaScript errors");
+    assert.notEqual(await page.locator("#sim-shots").innerText(), resetBefore, "new exercise resets shot state");
+    assert.equal(await page.locator(".sim-ship-card").count(), 3, "shipyard must expose the three blueprint-derived historical vessel classes");
+    await page.locator(".sim-ship-card[data-ship=\"iowa\"] details summary").click();
+    const iowaDossier = await page.locator(".sim-ship-card[data-ship=\"iowa\"]").innerText();
+    assert.ok(iowaDossier.includes("Armor Class") && iowaDossier.includes("320"), "expanded dossier must expose D20 stats and hull integrity");
+    await page.locator(".sim-select-attacker[data-ship=\"fletcher\"]").click();
+    await page.locator(".sim-select-target[data-ship=\"balao\"]").click();
+    assert.match(await page.locator("#sim-combat-selection").innerText(), /Fletcher-class destroyer.*Balao-class submarine/);
+    await page.locator("#sim-roll-attack").click();
+    assert.match(await page.locator("#sim-combat-log").innerText(), /HIT|MISS|CRITICAL HIT|NATURAL 1/);
+    assert.deepEqual(errors, [], "ship roster and D20 combat must not throw uncaught JavaScript errors");
+
+    console.log("VIGIL browser integration: import, marker states, review filters, audit export/clear, Simulation Bay mechanics, manual fleet placement, ship dossiers, D20 combat, runtime errors, and mobile layout passed.");
+    await context.close();
+  } finally {
+    await browser.close();
+    await new Promise(resolve => server.close(resolve));
+  }
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
