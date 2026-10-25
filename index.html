@@ -2374,7 +2374,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         status:'CURRENT',
         sourceUnitId:Array.isArray(object.sensor_ids)?object.sensor_ids[0]:'simulated-sensor'
       };
-      if(typeof api.fuseObservation==='function')api.fuseObservation(playerId,observation,{conflictThresholdMeters:0.18});else api.recordObservation(playerId,observation);
+      if(typeof api.fuseObservation==='function')api.fuseObservation(playerId,observation,{conflictThreshold:0.18});else api.recordObservation(playerId,observation);
     });
   }
   function recordReconObservation(data){
