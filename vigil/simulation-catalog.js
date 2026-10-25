@@ -62,7 +62,7 @@
     var picture = playerPictures[playerId] || Object.create(null);
     return Object.keys(picture).map(function(id) {
       var item = JSON.parse(JSON.stringify(picture[id]));
-      if (Number.isFinite(item.observedAt) && state.clockMinutes - item.observedAt > 30 && item.status === 'CURRENT') item.status = 'STALE';
+      if (Number.isFinite(item.observedAt) && state.clockMinutes - item.observedAt > 30 && (item.status === 'CURRENT' || item.status === 'LAST_KNOWN')) item.status = 'STALE';
       return item;
     });
   }
