@@ -236,6 +236,32 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     assert.match(focusedDetail, /FOCUSED FOLLOW-UP RECEIVED[\s\S]*OBSERVATIONS IN TRACK: \d+/);
     assert.ok(Number(focusedDetail.match(/OBSERVATIONS IN TRACK: (\d+)/)[1]) >= 3, "focused follow-up must append to existing track history");
     assert.match(await page.locator("#sim-recon-results").innerText(), /VIGIL RECEIVED ONLY THE SELECTED CONTACT OBSERVATION/);
+    const directSensorResponse = await page.evaluate(id => window.vigilSensorBridge.requestObservation({
+      action: "focused_observation", contact_id: id, sensor_mode: "optical", request_id: "BROWSER-DIRECT-REQ"
+    }), contactId);
+    assert.equal(directSensorResponse.ok, true, "VIGIL sensor bridge must fulfill a valid focused observation request");
+    assert.equal(directSensorResponse.request_id, "BROWSER-DIRECT-REQ");
+    assert.equal(directSensorResponse.requested_by, "VIGIL");
+    assert.equal(directSensorResponse.contact_id, contactId);
+    assert.equal(directSensorResponse.sensor_mode, "optical", "VIGIL must be able to request a specific simulated sensor modality");
+    assert.equal(directSensorResponse.observation.modalities[0], "optical");
+    assert.equal(directSensorResponse.world_state_withheld, true);
+    assert.equal(Object.hasOwn(directSensorResponse, "ground_truth"), false, "sensor responses must not expose evaluator truth");
+    assert.equal(Object.hasOwn(directSensorResponse.observation, "vesselIndex"), false, "individual observations must not expose internal truth labels");
+    assert.equal(directSensorResponse.observation.observation_count >= 4, true, "VIGIL-requested observation must append to track history");
+    const eventSensorResponse = await page.evaluate(id => {
+      let response = null;
+      const receive = event => { response = event.detail; };
+      window.addEventListener("vigil:sensor-response", receive);
+      window.dispatchEvent(new CustomEvent("vigil:sensor-request", { detail: {
+        action: "focused_observation", contact_id: id, sensor_mode: "radar", request_id: "BROWSER-EVENT-REQ"
+      }}));
+      window.removeEventListener("vigil:sensor-response", receive);
+      return response;
+    }, contactId);
+    assert.equal(eventSensorResponse.ok, true, "VIGIL event-based sensor requests must return a response");
+    assert.equal(eventSensorResponse.request_id, "BROWSER-EVENT-REQ");
+    assert.equal(eventSensorResponse.observation.modalities[0], "radar");
     await page.locator("#sim-view-fleet").click();
     assert.equal(await page.locator("#sim-view-fleet").getAttribute("aria-pressed"), "true", "own-fleet inspection must expose its active state");
     assert.ok(await page.locator("#sim-board .sim-cell.ship").count() >= 17, "own-fleet view must render all 17 vessel cells");
