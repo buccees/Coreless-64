@@ -23,7 +23,7 @@
   // belongs to the simulation/evaluator and is intentionally not part of this browser API.
   var playerPictures = Object.create(null);
   var playerSharing = Object.create(null);
-  var OBSERVATION_FIELDS = ['contactId','observedAt','positionEstimate','classificationEstimate','confidence','modality','uncertaintyMeters','status','sourceUnitId'];
+  var OBSERVATION_FIELDS = ['contactId','observedAt','positionEstimate','classificationEstimate','confidence','modality','uncertaintyMeters','status','sourceUnitId','sourceObservations','conflict','conflictDistanceMeters','trackRevision'];
   function cleanObservation(input) {
     if (!input || typeof input !== 'object' || typeof input.contactId !== 'string' || !input.contactId) return null;
     var out = {};
@@ -45,6 +45,54 @@
     out.confidence = Number.isFinite(out.confidence) ? out.confidence : 0.5;
     out.uncertaintyMeters = Number.isFinite(out.uncertaintyMeters) ? out.uncertaintyMeters : null;
     return out;
+  }
+  function fuseObservation(playerId, observation, options) {
+    options = options || {};
+    var clean = cleanObservation(observation);
+    if (!clean) return {ok:false,reason:'invalid_observation'};
+    var picture = playerPictures[playerId] || (playerPictures[playerId] = Object.create(null));
+    var previous = picture[clean.contactId];
+    var threshold = Number.isFinite(options.conflictThresholdMeters) ? Math.max(0, options.conflictThresholdMeters) : 0.18;
+    var distance = null, conflict = false;
+    if (previous && previous.positionEstimate && clean.positionEstimate) {
+      var a = previous.positionEstimate, b = clean.positionEstimate;
+      var dx = Number(a.x||0)-Number(b.x||0), dy = Number(a.y||0)-Number(b.y||0), dz = Number(a.z||0)-Number(b.z||0);
+      distance = Math.sqrt(dx*dx+dy*dy+dz*dz);
+      conflict = distance > threshold;
+    }
+    var sourceList = previous && Array.isArray(previous.sourceObservations) ? previous.sourceObservations.slice() : [];
+    sourceList.push({
+      observedAt: clean.observedAt,
+      positionEstimate: clean.positionEstimate ? JSON.parse(JSON.stringify(clean.positionEstimate)) : null,
+      confidence: clean.confidence,
+      uncertaintyMeters: clean.uncertaintyMeters,
+      modality: clean.modality || 'unknown',
+      sourceUnitId: clean.sourceUnitId || 'unknown'
+    });
+    if (sourceList.length > 8) sourceList = sourceList.slice(-8);
+    if (previous && previous.positionEstimate && clean.positionEstimate && !conflict) {
+      var oldU = Number(previous.uncertaintyMeters), newU = Number(clean.uncertaintyMeters);
+      var oldWeight = Number.isFinite(oldU) && oldU > 0 ? 1/(oldU*oldU) : 1;
+      var newWeight = Number.isFinite(newU) && newU > 0 ? 1/(newU*newU) : 1;
+      var denom = oldWeight + newWeight, fused = {};
+      ['x','y','z'].forEach(function(axis) {
+        fused[axis] = ((Number(previous.positionEstimate[axis]||0)*oldWeight)+(Number(clean.positionEstimate[axis]||0)*newWeight))/denom;
+      });
+      clean.positionEstimate = fused;
+      clean.uncertaintyMeters = Math.sqrt(1/denom);
+      clean.confidence = Math.max(previous.confidence||0,clean.confidence||0);
+    } else if (conflict && previous) {
+      clean.positionEstimate = JSON.parse(JSON.stringify(previous.positionEstimate));
+      clean.uncertaintyMeters = Math.max(Number(previous.uncertaintyMeters)||0,Number(clean.uncertaintyMeters)||0,distance||0);
+      clean.confidence = Math.min(Number(previous.confidence)||0.5,Number(clean.confidence)||0.5);
+    }
+    clean.sourceObservations = sourceList;
+    clean.conflict = conflict;
+    clean.conflictDistanceMeters = distance;
+    clean.trackRevision = (previous && Number(previous.trackRevision)||0)+1;
+    clean.status = conflict ? 'CONFLICT' : 'CURRENT';
+    picture[clean.contactId] = clean;
+    return {ok:true,observation:JSON.parse(JSON.stringify(clean)),conflict:conflict,distance:distance};
   }
   function recordObservation(playerId, observation) {
     if (typeof playerId !== 'string' || !playerId.trim()) return {ok:false,reason:'invalid_player'};
@@ -190,6 +238,7 @@
       getState:getState,deploy:deploy,recover:recover,advanceTime:advanceTime,
       observeFow:function(observations){return {observed_contact_count:Array.isArray(observations)?observations.length:0,ground_truth_included:false,information_scope:'authorized_observations_only'};},
       recordObservation:recordObservation,
+      fuseObservation:fuseObservation,
       markUnobserved:markUnobserved,
       getPlayerPicture:getPlayerPicture,
       setIntelSharing:setIntelSharing,
