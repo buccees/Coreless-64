@@ -2253,7 +2253,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     publish(false,false);
   }
   function startManualSetup(){
-    placementMode=true;placementIndex=0;placementVertical=false;activePlayer=1;gameOver=false;ownFleetView=false;enemyFleet=makeFleet();playerFleet={1:[],2:[]};if(mode.value==="solo")playerFleet[2]=makeFleet();shotsByPlayer={1:{},2:{}};aiShots={};shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;sweepCount=0;reconTracks=Object.create(null);lastObservationData=null;
+    placementMode=true;placementIndex=0;placementVertical=false;activePlayer=1;gameOver=false;ownFleetView=false;enemyFleet=makeFleet();playerFleet={1:[],2:[]};if(mode.value==="solo")playerFleet[2]=makeFleet();shotsByPlayer={1:{},2:{}};aiShots={};shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;sweepCount=0;reconTracks=Object.create(null);lastObservationData=null;sequence++;
     document.getElementById("sim-manual-setup").textContent="CANCEL MANUAL SETUP";document.getElementById("sim-rotate").disabled=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";
     status.textContent="MANUAL SETUP // PLACE "+sizes[0][0]+" ("+sizes[0][1]+" CELLS)";document.getElementById("sim-telemetry").textContent="FLEET CONFIGURATION // "+(mode.value==="hotseat"?"PLAYER 1":"YOUR FLEET")+"\nSelect the first cell for each vessel. Rotate orientation as needed.";renderBoard();updateMetrics();
   }
