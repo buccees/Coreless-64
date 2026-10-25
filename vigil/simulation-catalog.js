@@ -176,6 +176,7 @@
       setIntelSharing:setIntelSharing,
       shareObservation:shareObservation
     };
+    window.dispatchEvent(new CustomEvent('vigil:fow-ready'));
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
