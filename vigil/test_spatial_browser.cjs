@@ -412,6 +412,28 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     }));
     assert.equal(decisionTrail.history.length, 2, "the visible decision trail must preserve consecutive VIGIL steps");
     assert.match(decisionTrail.output, /STEP 01[\s\S]*STEP 02[\s\S]*WORLD STATE: WITHHELD/);
+    const conflictPolicy = await page.evaluate(() => {
+      const api = window.vigilSimulationCatalog;
+      const picture = api.getPlayerPicture("vigil");
+      const target = picture.find(item => item.positionEstimate && item.status === "CURRENT");
+      if (!target) return { skipped: true };
+      api.fuseObservation("vigil", {
+        contactId: target.contactId,
+        observedAt: api.getState().clockMinutes,
+        positionEstimate: { x: 0.99, y: 0.99, z: 0 },
+        confidence: 0.99,
+        uncertaintyMeters: 0.1,
+        modality: "test-independent",
+        sourceUnitId: "TEST-CONFLICT-SENSOR"
+      }, { conflictThreshold: 0.18 });
+      const next = window.vigilReconController.chooseNextAction();
+      return { targetId: target.contactId, next, evidence: api.getPlayerPicture("vigil").find(item => item.contactId === target.contactId) };
+    });
+    assert.equal(conflictPolicy.skipped, undefined, "autonomous policy conflict test needs at least one current FOW track");
+    assert.equal(conflictPolicy.evidence.status, "CONFLICT", "test must establish a conflicting track in authorized observations");
+    assert.equal(conflictPolicy.next.contact_id, conflictPolicy.targetId, "autonomous recon must prioritize a conflicting track");
+    assert.match(conflictPolicy.next.rationale, /conflicting sensor track/i, "decision rationale must explain the conflict-driven follow-up");
+
     await page.locator("#sim-view-fleet").click();
     assert.equal(await page.locator("#sim-view-fleet").getAttribute("aria-pressed"), "true", "own-fleet inspection must expose its active state");
     assert.ok(await page.locator("#sim-board .sim-cell.ship").count() >= 17, "own-fleet view must render all 17 vessel cells");
