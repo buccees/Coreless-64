@@ -2479,20 +2479,20 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     // Conflict is a hard policy override, not merely one ranking feature. Resolve it
     // directly from authorized retained observations before considering sweep contacts.
     // This prevents scene-only candidates from winning due to projection/ranking drift.
-    var priorityConflicts=picture.filter(function(item){
+    var priorityTracks=picture.filter(function(item){
       var p=item&&item.positionEstimate;
-      return item&&(item.status==='CONFLICT'||item.conflict===true)&&p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
+      return item&&(item.status==='CONFLICT'||item.conflict===true||item.status==='LAST_KNOWN'||item.status==='STALE')&&p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
     });
-    // getPlayerPicture may return older retained conflicts before newly fused ones.
-    // Prefer the freshest authorized conflict; use list order as a stable tie-breaker
-    // when the simulation clock gives multiple observations the same timestamp.
-    priorityConflicts.sort(function(a,b){
+    // Choose the freshest authorized priority track across conflicts and missed
+    // contacts. The picture can retain older conflicts ahead of newly seeded tracks;
+    // array order breaks equal simulation timestamps deterministically.
+    priorityTracks.sort(function(a,b){
       var at=Number(a&&a.observedAt), bt=Number(b&&b.observedAt);
       at=Number.isFinite(at)?at:-Infinity;
       bt=Number.isFinite(bt)?bt:-Infinity;
       return at-bt;
     });
-    var priorityConflict=priorityConflicts.length?priorityConflicts[priorityConflicts.length-1]:null;
+    var priorityConflict=priorityTracks.length?priorityTracks[priorityTracks.length-1]:null;
     if(priorityConflict){
       var reports=Array.isArray(priorityConflict.sourceObservations)?priorityConflict.sourceObservations:[];
       var representedModes=Object.create(null);
@@ -2523,7 +2523,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         base_uncertainty_m:conflictUncertainty,
         search_uncertainty_m:conflictUncertainty+conflictElapsed*2,
         simulated_mobility_growth_m_per_min:2,
-        rationale:'Prioritized a conflicting sensor track and requested '+conflictMode.toUpperCase()+' from a different modality to independently re-check the estimate; source evidence is retained and evaluator truth remains withheld.'
+        rationale:(priorityConflict.status==='CONFLICT'||priorityConflict.conflict===true?'Prioritized a conflicting sensor track and requested ':'Prioritized a last-known or stale track for reacquisition using ')+conflictMode.toUpperCase()+(priorityConflict.status==='CONFLICT'||priorityConflict.conflict===true?' from a different modality to independently re-check the estimate;':' to reacquire its last known position;')+' source evidence is retained and evaluator truth remains withheld.'
       };
     }
     // Keep authorized conflict and last-known tracks eligible even when the latest sweep
