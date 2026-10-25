@@ -2468,22 +2468,45 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   function chooseVigilReconAction(data){
     var objects=data&&Array.isArray(data.objects)?data.objects:[];
     if(!objects.length)return null;
+    var api=window.vigilSimulationCatalog;
+    var picture=api&&typeof api.getPlayerPicture==='function'?api.getPlayerPicture('vigil'):[];
+    var evidenceById=Object.create(null);
+    picture.forEach(function(item){evidenceById[item.contactId]=item;});
     var candidates=objects.filter(function(object){
       return object&&typeof object.object_id==='string'&&Array.isArray(object.normalized_position);
+    }).map(function(object){
+      var evidence=evidenceById[object.object_id]||{};
+      var uncertainty=Number(object.uncertainty_m);
+      return {object:object,evidence:evidence,uncertainty:Number.isFinite(uncertainty)?uncertainty:Infinity,
+        conflict:evidence.conflict===true||evidence.status==='CONFLICT',
+        stale:evidence.status==='STALE'||evidence.status==='LAST_KNOWN'};
     });
     if(!candidates.length)return null;
     candidates.sort(function(a,b){
-      var uncertaintyB=Number.isFinite(Number(b.uncertainty_m))?Number(b.uncertainty_m):Infinity;
-      var uncertaintyA=Number.isFinite(Number(a.uncertainty_m))?Number(a.uncertainty_m):Infinity;
-      if(uncertaintyB!==uncertaintyA)return uncertaintyB-uncertaintyA;
-      var countA=Number(a.observation_count)||0,countB=Number(b.observation_count)||0;
+      if(a.conflict!==b.conflict)return a.conflict?-1:1;
+      if(a.stale!==b.stale)return a.stale?-1:1;
+      if(a.uncertainty!==b.uncertainty)return b.uncertainty-a.uncertainty;
+      var countA=Number(a.object.observation_count)||0,countB=Number(b.object.observation_count)||0;
       if(countA!==countB)return countA-countB;
-      return String(a.object_id).localeCompare(String(b.object_id));
+      return String(a.object.object_id).localeCompare(String(b.object.object_id));
     });
-    var target=candidates[0];
-    var uncertainty=Number(target.uncertainty_m);
-    var mode=!Number.isFinite(uncertainty)||uncertainty>=4?'optical':uncertainty>=1.5?'sonar':'radar';
-    var reason='Selected the contact with the greatest reported position uncertainty (±'+(Number.isFinite(uncertainty)?uncertainty.toFixed(2):'unknown')+' m); requested '+mode.toUpperCase()+' as the policy\'s follow-up modality.';
+    var selected=candidates[0],target=selected.object,uncertainty=selected.uncertainty;
+    var priorModes=String(selected.evidence.modality||target.modalities&&target.modalities[0]||'').toLowerCase().split('+');
+    var mode;
+    if(selected.conflict){
+      var alternatives=['optical','radar','sonar'].filter(function(candidate){return priorModes.indexOf(candidate)===-1;});
+      mode=alternatives[0]||'optical';
+    }else{
+      mode=!Number.isFinite(uncertainty)||uncertainty>=4?'optical':uncertainty>=1.5?'sonar':'radar';
+    }
+    var reason;
+    if(selected.conflict){
+      reason='Prioritized a conflicting sensor track and requested '+mode.toUpperCase()+' from a different modality to independently re-check the estimate; source evidence is retained and evaluator truth remains withheld.';
+    }else if(selected.stale){
+      reason='Prioritized a last-known or stale track for a fresh observation; requested '+mode.toUpperCase()+' to refresh its age and uncertainty.';
+    }else{
+      reason='Selected the contact with the greatest reported position uncertainty (±'+(Number.isFinite(uncertainty)?uncertainty.toFixed(2):'unknown')+' m); requested '+mode.toUpperCase()+' as the policy\'s follow-up modality.';
+    }
     return {
       action:'focused_observation',
       contact_id:target.object_id,
