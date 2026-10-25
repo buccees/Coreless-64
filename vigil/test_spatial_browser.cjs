@@ -427,12 +427,20 @@ const fixture = require("./fixtures/vigil-test-scene.json");
         sourceUnitId: "TEST-CONFLICT-SENSOR"
       }, { conflictThreshold: 0.18 });
       const next = window.vigilReconController.chooseNextAction();
-      return { targetId: target.contactId, next, evidence: api.getPlayerPicture("vigil").find(item => item.contactId === target.contactId) };
+      const evidence = api.getPlayerPicture("vigil").find(item => item.contactId === target.contactId);
+      const sourceModes = (evidence.sourceObservations || []).flatMap(report => String(report.modality || "").toLowerCase().split(/[^a-z]+/)).filter(mode => ["optical", "radar", "sonar"].includes(mode));
+      return { targetId: target.contactId, next, evidence, sourceModes };
     });
     assert.equal(conflictPolicy.skipped, undefined, "autonomous policy conflict test needs at least one current FOW track");
     assert.equal(conflictPolicy.evidence.status, "CONFLICT", "test must establish a conflicting track in authorized observations");
     assert.equal(conflictPolicy.next.contact_id, conflictPolicy.targetId, "autonomous recon must prioritize a conflicting track");
     assert.match(conflictPolicy.next.rationale, /conflicting sensor track/i, "decision rationale must explain the conflict-driven follow-up");
+    if (conflictPolicy.sourceModes.some(mode => ["optical", "radar", "sonar"].includes(mode))) {
+      const availableIndependentModes = ["optical", "radar", "sonar"].filter(mode => !conflictPolicy.sourceModes.includes(mode));
+      if (availableIndependentModes.length) {
+        assert.ok(availableIndependentModes.includes(conflictPolicy.next.sensor_mode), "conflict follow-up should prefer a modality not already represented in source reports");
+      }
+    }
 
     await page.locator("#sim-view-fleet").click();
     assert.equal(await page.locator("#sim-view-fleet").getAttribute("aria-pressed"), "true", "own-fleet inspection must expose its active state");
