@@ -2577,6 +2577,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if(sendToSpatial&&typeof window.vigilImportScene==='function'){window.vigilImportScene(data);if(!gameOver)status.textContent+=' // SENSOR ESTIMATES PUBLISHED TO SPATIAL INTELLIGENCE';}
     return data;
   }
+  window.addEventListener('vigil:fow-ready',function(){if(lastObservationData){publishPlayerObservations(lastObservationData,'vigil');publishPlayerObservations(lastObservationData,'operator');}});
   document.getElementById('sim-new-game').addEventListener('click',initialize);
   board.addEventListener("pointerleave",function(){board.querySelectorAll(".sim-cell").forEach(function(cell){cell.classList.remove("placement-preview","placement-invalid");});});
   document.getElementById("sim-manual-setup").addEventListener("click",function(){if(placementMode){initialize();}else{startManualSetup();}});
