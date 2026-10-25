@@ -231,9 +231,17 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     await page.locator("#sim-new-game").click();
     assert.deepEqual(errors, [], "simulation interactions must not throw uncaught JavaScript errors");
     assert.notEqual(await page.locator("#sim-shots").innerText(), resetBefore, "new exercise resets shot state");
-    assert.deepEqual(errors, [], "simulation interactions must not throw uncaught JavaScript errors");
+    assert.equal(await page.locator(".sim-ship-card").count(), 3, "shipyard must expose the three blueprint-derived historical vessel classes");
+    await page.locator(".sim-ship-card[data-ship=\"iowa\"] details summary").click();
+    assert.match(await page.locator(".sim-ship-card[data-ship=\"iowa\"]").innerText(), /Armor Class[\\s\\S]*320|320[\\s\\S]*Hull HP/, "expanded dossier must expose D20 stats and hull integrity");
+    await page.locator(".sim-select-attacker[data-ship=\"fletcher\"]").click();
+    await page.locator(".sim-select-target[data-ship=\"balao\"]").click();
+    assert.match(await page.locator("#sim-combat-selection").innerText(), /Fletcher-class destroyer.*Balao-class submarine/);
+    await page.locator("#sim-roll-attack").click();
+    assert.match(await page.locator("#sim-combat-log").innerText(), /HIT|MISS|CRITICAL HIT|NATURAL 1/);
+    assert.deepEqual(errors, [], "ship roster and D20 combat must not throw uncaught JavaScript errors");
 
-    console.log("VIGIL browser integration: import, marker states, review filters, audit export/clear, Simulation Bay mechanics, manual fleet placement, runtime errors, and mobile layout passed.");
+    console.log("VIGIL browser integration: import, marker states, review filters, audit export/clear, Simulation Bay mechanics, manual fleet placement, ship dossiers, D20 combat, runtime errors, and mobile layout passed.");
     await context.close();
   } finally {
     await browser.close();
