@@ -2491,11 +2491,24 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       return String(a.object.object_id).localeCompare(String(b.object.object_id));
     });
     var selected=candidates[0],target=selected.object,uncertainty=selected.uncertainty;
-    var priorModes=String(selected.evidence.modality||target.modalities&&target.modalities[0]||'').toLowerCase().split('+');
+    var sourceReports=Array.isArray(selected.evidence.sourceObservations)?selected.evidence.sourceObservations:[];
+    var modeCounts={optical:0,radar:0,sonar:0};
+    sourceReports.forEach(function(report){
+      String(report&&report.modality||'').toLowerCase().split(/[^a-z]+/).forEach(function(token){
+        if(Object.prototype.hasOwnProperty.call(modeCounts,token))modeCounts[token]++;
+      });
+    });
+    String(selected.evidence.modality||'').toLowerCase().split(/[^a-z]+/).forEach(function(token){
+      if(Object.prototype.hasOwnProperty.call(modeCounts,token))modeCounts[token]=Math.max(1,modeCounts[token]);
+    });
     var mode;
     if(selected.conflict){
-      var alternatives=['optical','radar','sonar'].filter(function(candidate){return priorModes.indexOf(candidate)===-1;});
-      mode=alternatives[0]||'optical';
+      // Prefer the least-represented modality across the retained source reports, not just the latest report.
+      mode=['optical','radar','sonar'].sort(function(a,b){
+        if((modeCounts[a]===0)!==(modeCounts[b]===0))return modeCounts[a]===0?-1:1;
+        if(modeCounts[a]!==modeCounts[b])return modeCounts[a]-modeCounts[b];
+        return ['optical','radar','sonar'].indexOf(a)-['optical','radar','sonar'].indexOf(b);
+      })[0];
     }else{
       mode=!Number.isFinite(uncertainty)||uncertainty>=4?'optical':uncertainty>=1.5?'sonar':'radar';
     }
