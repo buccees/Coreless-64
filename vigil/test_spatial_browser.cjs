@@ -205,7 +205,7 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     await page.locator("#sim-recon-contacts .sim-recon-contact").first().click();
     assert.match(await page.locator("#sim-recon-detail").innerText(), /CONTACT EVIDENCE[\s\S]*POSITION UNCERTAINTY/);
     await page.locator("#sim-recon-evaluate").click();
-    assert.match(await page.locator("#sim-recon-results").innerText(), /MEAN POSITION ERROR/);
+    assert.match(await page.locator("#sim-recon-results").innerText(), /MEAN GENUINE-CONTACT POSITION ERROR/);
     assert.match(await page.locator("#sim-recon-results").innerText(), /FALSE RETURNS: \d+ \/ \d+ \([\d.]+% of observed returns\)/);
     assert.match(await page.locator("#sim-recon-results").innerText(), /MISSED-DETECTION RATE IS NOT EVALUATED/);
     assert.equal(await page.locator("#sim-recon-contacts .sim-recon-contact").count(), 8, "default clutter setting should add three false returns to five genuine contacts");
