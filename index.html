@@ -987,7 +987,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <p class="muted">TACTICAL SIMULATION // 10×10 operational grid. Collision rules enforce bounds and non-overlapping vessel placement. VIGIL receives noisy sensor estimates, not the hidden world-state coordinates.</p>
 <div class="sim-mode-row"><label for="sim-mode">ENGAGEMENT MODE</label><select id="sim-mode"><option value="solo">SOLO // PLAYER VS COMPUTER</option><option value="hotseat">LOCAL TWO-PLAYER // PASS-AND-PLAY</option></select><span class="muted">Fleet placement is collision-checked; each player’s target history is tracked independently.</span></div>
 <div class="sim-metrics"><div class="stat"><b id="sim-shots">0</b><span>YOUR ENGAGEMENTS</span></div><div class="stat"><b id="sim-hits">0</b><span>CONFIRMED HITS</span></div><div class="stat"><b id="sim-afloat">5</b><span>VESSELS AFLOAT</span></div><div class="stat"><b id="sim-observations">0</b><span>SENSOR OBSERVATIONS</span></div></div>
-<div class="sim-layout"><div class="sim-board-wrap"><div class="sim-board-head"><strong>TACTICAL GRID // OWN FIRING SOLUTION</strong><span id="sim-turn-status" role="status" aria-live="polite">READY // SELECT A CELL TO ENGAGE</span></div><div id="sim-board" class="sim-board" role="grid" aria-label="Battleship tactical grid"></div><div class="sim-controls"><button type="button" id="sim-new-game">INITIALIZE NEW EXERCISE</button><button type="button" id="sim-view-fleet" aria-pressed="false">VIEW OWN FLEET</button><button type="button" id="sim-publish">PUBLISH SENSOR ESTIMATES TO SPATIAL INTELLIGENCE</button><button type="button" id="sim-export">EXPORT OBSERVATION JSON</button></div><p class="muted">Grid legend: hit = confirmed impact; miss = no contact. Hidden vessel positions are never drawn on the firing grid.</p></div>
+<div class="sim-layout"><div class="sim-board-wrap"><div class="sim-board-head"><strong>TACTICAL GRID // OWN FIRING SOLUTION</strong><span id="sim-turn-status" role="status" aria-live="polite">READY // SELECT A CELL TO ENGAGE</span></div><div id="sim-board" class="sim-board" role="grid" aria-label="Battleship tactical grid"></div><div class="sim-controls"><button type="button" id="sim-new-game">INITIALIZE NEW EXERCISE</button><button type="button" id="sim-manual-setup">MANUAL FLEET SETUP</button><button type="button" id="sim-rotate" disabled>ORIENTATION: HORIZONTAL</button><button type="button" id="sim-view-fleet" aria-pressed="false">VIEW OWN FLEET</button><button type="button" id="sim-publish">PUBLISH SENSOR ESTIMATES TO SPATIAL INTELLIGENCE</button><button type="button" id="sim-export">EXPORT OBSERVATION JSON</button></div><p class="muted">Grid legend: hit = confirmed impact; miss = no contact. Hidden vessel positions are never drawn on the firing grid.</p></div>
 <div class="sim-side"><h3>SIMULATED SENSOR ARRAY</h3><label for="sim-sensor">SENSOR MODE</label><select id="sim-sensor"><option value="radar">RADAR // broad-area, ±1.2 cells</option><option value="sonar">SONAR // maritime, ±0.6 cells</option><option value="optical">OPTICAL // narrow field, ±0.25 cells</option></select><label for="sim-noise">OBSERVATION NOISE <span id="sim-noise-value">1.2</span></label><input id="sim-noise" type="range" min="0" max="2" step="0.1" value="1.2"><div class="sim-telemetry" id="sim-telemetry" aria-live="polite">SENSOR STANDBY // NO OBSERVATIONS GENERATED</div><div class="sim-telemetry-note">Sensor contacts are generated from surviving vessels with bounded positional noise and explicit uncertainty metadata. This is a local gameplay simulation, not a live sensor connection.</div></div></div>
 </div></section><footer><span>WEYLAND–YUTANI / XENOBIOLOGY</span><span>VIGIL SPATIAL INTELLIGENCE // CORELESS-64</span><span>DOC-XB-VIG-0917</span><a class="messenger-contact" href="https://m.me/61593167613019" target="_blank" rel="noopener noreferrer" aria-label="Contact VIGIL through Facebook Messenger">CONTACT / CORPORATE LIAISON ↗</a></footer>
 </main><script>
@@ -2211,7 +2211,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   var sizes=[['CARRIER',5],['BATTLESHIP',4],['CRUISER',3],['SUBMARINE',3],['DESTROYER',2]];
   var mode=document.getElementById('sim-mode'),status=document.getElementById('sim-turn-status');
   var sensor=document.getElementById('sim-sensor'),noise=document.getElementById('sim-noise');
-  var enemyFleet=[],playerFleet={},shotsByPlayer={},aiShots={},activePlayer=1,shotCount=0,hitCount=0,observationCount=0,gameOver=false,sequence=0,aiHitCount=0,ownFleetView=false;
+  var enemyFleet=[],playerFleet={},shotsByPlayer={},aiShots={},activePlayer=1,shotCount=0,hitCount=0,observationCount=0,gameOver=false,sequence=0,aiHitCount=0,ownFleetView=false,placementMode=false,placementIndex=0,placementVertical=false;
   function key(r,c){return r+','+c;}
   function randomInt(n){return Math.floor(Math.random()*n);}
   function occupied(fleet,r,c){return fleet.some(function(v){return v.cells.some(function(p){return p[0]===r&&p[1]===c;});});}
@@ -2229,29 +2229,40 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     throw new Error('Collision-safe placement could not find a valid location.');
   }
   function makeFleet(){var fleet=[];sizes.forEach(function(pair){fleet.push(placeVessel(fleet,pair[0],pair[1]));});return fleet;}
+  function vesselAt(fleet,r,c){return fleet.find(function(v){return v.cells.some(function(p){return p[0]===r&&p[1]===c;});});}
+  function placeAt(fleet,name,size,r,c,vertical){if(!canPlace(fleet,r,c,size,vertical))return false;var cells=[];for(var i=0;i<size;i++)cells.push([r+(vertical?i:0),c+(vertical?0:i)]);fleet.push({name:name,size:size,cells:cells,hits:{}});return true;}
   function activeShots(){return shotsByPlayer[activePlayer]||{};}
   function targetFleet(){return mode.value==='hotseat' ? playerFleet[activePlayer===1?2:1] : enemyFleet;}
   function afloat(fleet){return fleet.filter(function(v){return Object.keys(v.hits).length<v.size;}).length;}
   function allSunk(fleet){return afloat(fleet)===0;}
   function initialize(){
     enemyFleet=makeFleet();playerFleet={1:makeFleet(),2:makeFleet()};shotsByPlayer={1:{},2:{}};aiShots={};
-    activePlayer=1;ownFleetView=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;gameOver=false;sequence++;
+    activePlayer=1;placementMode=false;placementIndex=0;placementVertical=false;document.getElementById("sim-manual-setup").textContent="MANUAL FLEET SETUP";document.getElementById("sim-rotate").disabled=true;document.getElementById("sim-rotate").textContent="ORIENTATION: HORIZONTAL";ownFleetView=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;gameOver=false;sequence++;
     renderBoard();updateMetrics();status.textContent=mode.value==='hotseat'?'PLAYER 1 // SELECT A CELL TO FIRE':'SOLO ENGAGEMENT // SELECT A CELL TO FIRE';
     document.getElementById('sim-telemetry').textContent='SENSOR STANDBY // NEW EXERCISE '+sequence+'\nCOMPUTER DEFENSE: '+(mode.value==='solo'?'ARMED':'DISABLED');
     publish(false,false);
   }
+  function startManualSetup(){
+    placementMode=true;placementIndex=0;placementVertical=false;activePlayer=1;gameOver=false;ownFleetView=false;enemyFleet=makeFleet();playerFleet={1:[],2:[]};if(mode.value==="solo")playerFleet[2]=makeFleet();shotsByPlayer={1:{},2:{}};aiShots={};shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;
+    document.getElementById("sim-manual-setup").textContent="CANCEL MANUAL SETUP";document.getElementById("sim-rotate").disabled=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";
+    status.textContent="MANUAL SETUP // PLACE "+sizes[0][0]+" ("+sizes[0][1]+" CELLS)";document.getElementById("sim-telemetry").textContent="FLEET CONFIGURATION // "+(mode.value==="hotseat"?"PLAYER 1":"YOUR FLEET")+"\nSelect the first cell for each vessel. Rotate orientation as needed.";renderBoard();updateMetrics();
+  }
+  function placeManualCell(r,c){var pair=sizes[placementIndex],fleet=playerFleet[activePlayer];if(!placeAt(fleet,pair[0],pair[1],r,c,placementVertical)){status.textContent="INVALID PLACEMENT // OUT OF BOUNDS OR OVERLAPPING VESSEL";return;}placementIndex++;
+    if(placementIndex>=sizes.length){if(mode.value==="hotseat"&&activePlayer===1){activePlayer=2;placementIndex=0;status.textContent="PASS DEVICE // PLAYER 2 PLACE "+sizes[0][0];document.getElementById("sim-telemetry").textContent="PLAYER 1 FLEET LOCKED.\nPASS DEVICE TO PLAYER 2; PLACE THEIR FLEET WITHOUT REVEALING PLAYER 1.";renderBoard();return;}placementMode=false;document.getElementById("sim-manual-setup").textContent="MANUAL FLEET SETUP";document.getElementById("sim-rotate").disabled=true;status.textContent="FLEETS READY // SELECT A CELL TO ENGAGE";document.getElementById("sim-telemetry").textContent="MANUAL FLEET CONFIGURATION COMPLETE\n"+(mode.value==="solo"?"COMPUTER DEFENSE: ARMED":"BOTH PLAYER FLEETS LOCKED")+"\nWORLD-STATE ACCESS: DENIED TO VIGIL";renderBoard();updateMetrics();publish(false,false);return;}
+    pair=sizes[placementIndex];status.textContent=(mode.value==="hotseat"?"PLAYER "+activePlayer:"YOUR FLEET")+" // PLACE "+pair[0]+" ("+pair[1]+" CELLS)";renderBoard();updateMetrics();
+  }
   function renderBoard(){
     board.innerHTML='';
-    var shots=activeShots(),displayFleet=ownFleetView?(mode.value==="hotseat"?playerFleet[activePlayer]:playerFleet[1]):null,displayShots=ownFleetView?(mode.value==="solo"?aiShots:{}):shots;
+    var shots=activeShots(),displayFleet=(placementMode||ownFleetView)?(mode.value==="hotseat"?playerFleet[activePlayer]:playerFleet[1]):null,displayShots=ownFleetView?(mode.value==="solo"?aiShots:{}):shots;
     for(var r=0;r<10;r++)for(var c=0;c<10;c++){
       var k=key(r,c),b=document.createElement('button');b.type='button';b.className='sim-cell';b.setAttribute('role','gridcell');b.setAttribute('aria-label',String.fromCharCode(65+c)+(r+1));b.dataset.row=r;b.dataset.col=c;
-      if(ownFleetView){var vessel=displayFleet.find(function(v){return v.cells.some(function(p){return p[0]===r&&p[1]===c;});});if(vessel){b.classList.add("ship");b.textContent=vessel.name.charAt(0);b.setAttribute("aria-label",b.getAttribute("aria-label")+" "+vessel.name);}if(displayShots[k]){b.classList.add(displayShots[k]);if(displayShots[k]==="hit")b.classList.add("incoming-hit");b.textContent=displayShots[k]==="hit"?"X":(vessel?vessel.name.charAt(0):"·");b.setAttribute("aria-label",b.getAttribute("aria-label")+(displayShots[k]==="hit"?" incoming hit":" incoming miss"));}b.disabled=true;}
+      if(placementMode||ownFleetView){var vessel=vesselAt(displayFleet,r,c);if(vessel){b.classList.add("ship");b.textContent=vessel.name.charAt(0);b.setAttribute("aria-label",b.getAttribute("aria-label")+" "+vessel.name);}if(ownFleetView&&displayShots[k]){b.classList.add(displayShots[k]);if(displayShots[k]==="hit")b.classList.add("incoming-hit");b.textContent=displayShots[k]==="hit"?"X":(vessel?vessel.name.charAt(0):"·");b.setAttribute("aria-label",b.getAttribute("aria-label")+(displayShots[k]==="hit"?" incoming hit":" incoming miss"));}if(placementMode){b.disabled=false;b.addEventListener("click",function(){placeManualCell(r,c);});}else b.disabled=true;}
       else if(shots[k]){b.disabled=true;b.classList.add(shots[k]);b.textContent=shots[k]==='hit'?'X':'·';b.setAttribute('aria-label',b.getAttribute('aria-label')+(shots[k]==='hit'?' confirmed hit':' miss'));}
       else{b.textContent=String.fromCharCode(65+c)+(r+1);b.addEventListener('click',fire);}
       board.appendChild(b);
     }
     var head=board.parentElement.querySelector('.sim-board-head strong');
-    if(head)head.textContent=ownFleetView?((mode.value==="hotseat"?"PLAYER "+activePlayer:"YOUR")+" // OWN FLEET STATUS"):(mode.value==='hotseat'?'PLAYER '+activePlayer+' // FIRING SOLUTION':'TACTICAL GRID // OWN FIRING SOLUTION');
+    if(head)head.textContent=placementMode?((mode.value==="hotseat"?"PLAYER "+activePlayer:"YOUR")+" // PLACE "+sizes[placementIndex][0]+" ("+sizes[placementIndex][1]+" CELLS)"+(placementVertical?" // VERTICAL":" // HORIZONTAL")):ownFleetView?((mode.value==="hotseat"?"PLAYER "+activePlayer:"YOUR")+" // OWN FLEET STATUS"):(mode.value==='hotseat'?'PLAYER '+activePlayer+' // FIRING SOLUTION':'TACTICAL GRID // OWN FIRING SOLUTION');
   }
   function updateMetrics(){
     document.getElementById('sim-shots').textContent=shotCount;
@@ -2267,7 +2278,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     shots[k]='miss';return{hit:false,sunk:false,ship:null};
   }
   function fire(event){
-    if(gameOver||ownFleetView)return;
+    if(gameOver||ownFleetView||placementMode)return;
     var r=Number(event.currentTarget.dataset.row),c=Number(event.currentTarget.dataset.col),shots=activeShots(),k=key(r,c);
     if(shots[k])return;
     var target=targetFleet(),result=shoot(target,shots,r,c);if(!result)return;
@@ -2312,6 +2323,8 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     return data;
   }
   document.getElementById('sim-new-game').addEventListener('click',initialize);
+  document.getElementById("sim-manual-setup").addEventListener("click",function(){if(placementMode){initialize();}else{startManualSetup();}});
+  document.getElementById("sim-rotate").addEventListener("click",function(){placementVertical=!placementVertical;this.textContent="ORIENTATION: "+(placementVertical?"VERTICAL":"HORIZONTAL");if(placementMode)renderBoard();});
   document.getElementById("sim-view-fleet").addEventListener("click",function(){ownFleetView=!ownFleetView;this.setAttribute("aria-pressed",String(ownFleetView));this.textContent=ownFleetView?"RETURN TO FIRING GRID":"VIEW OWN FLEET";renderBoard();status.textContent=ownFleetView?"OWN FLEET VIEW // SHIPS AND INCOMING DAMAGE":"FIRING GRID // SELECT A CELL TO ENGAGE";});
   document.getElementById('sim-publish').addEventListener('click',function(){publish(true,true);});
   document.getElementById('sim-export').addEventListener('click',function(){var data=publish(false,true),blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='vigil-simulation-observations.json';document.body.appendChild(a);a.click();a.remove();window.setTimeout(function(){URL.revokeObjectURL(url);},1000);});
