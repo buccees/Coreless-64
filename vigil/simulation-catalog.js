@@ -219,8 +219,8 @@
   }
   function renderFow(){
     var contacts=el('sim-recon-contacts'),n=contacts?contacts.querySelectorAll('button.sim-recon-contact').length:0;
-    var api=window.vigilSimulationCatalog,picture=api&&api.getPlayerPicture?api.getPlayerPicture('vigil'):[],lastKnown=picture.filter(function(item){return item.status==='LAST_KNOWN';}).length,stale=picture.filter(function(item){return item.status==='STALE';}).length;
-    el('sim-fow-status').textContent='FOG OF WAR // PLAYER OBSERVATION VIEW\nCURRENT OBSERVED CONTACTS: '+n+'\nLAST-KNOWN TRACKS: '+lastKnown+' · STALE TRACKS: '+stale+'\nGROUND TRUTH: NOT EXPOSED TO PLAYER-FACING POLICY\nTRACK RULE: DISAPPEARING CONTACTS SHOULD AGE TO LAST-KNOWN / STALE, NOT BE ASSUMED DESTROYED\nINTELLIGENCE SHARING: PLAYER-SCOPED PERMISSION REQUIRED; THIS LOCAL PROTOTYPE DOES NOT BROADCAST DATA.';
+    var api=window.vigilSimulationCatalog,picture=api&&api.getPlayerPicture?api.getPlayerPicture('vigil'):[],lastKnown=picture.filter(function(item){return item.status==='LAST_KNOWN';}).length,stale=picture.filter(function(item){return item.status==='STALE';}).length,conflicts=picture.filter(function(item){return item.status==='CONFLICT'||item.conflict===true;}).length;
+    el('sim-fow-status').textContent='FOG OF WAR // PLAYER OBSERVATION VIEW\nCURRENT OBSERVED CONTACTS: '+n+'\nLAST-KNOWN TRACKS: '+lastKnown+' · STALE TRACKS: '+stale+' · CONFLICTING TRACKS: '+conflicts+'\nGROUND TRUTH: NOT EXPOSED TO PLAYER-FACING POLICY\nTRACK RULE: DISAPPEARING CONTACTS SHOULD AGE TO LAST-KNOWN / STALE, NOT BE ASSUMED DESTROYED\nINTELLIGENCE SHARING: PLAYER-SCOPED PERMISSION REQUIRED; THIS LOCAL PROTOTYPE DOES NOT BROADCAST DATA.';
   }
   function init(){
     try{window.vigilPhallusTrophyUnlocked=window.localStorage.getItem('vigil-phallus-victory-trophy-v1')==='true';}catch(e){window.vigilPhallusTrophyUnlocked=false;}
