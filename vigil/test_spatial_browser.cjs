@@ -38,6 +38,28 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     await page.locator("#sim-campaign-panel").waitFor({ state: "visible" });
     assert.equal(await page.locator("#sim-level-select option").count(), 5, "campaign must expose five data-driven levels");
     assert.match(await page.locator("#sim-fow-status").innerText(), /GROUND TRUTH: NOT EXPOSED/);
+    const fowIsolation = await page.evaluate(() => {
+      const api = window.vigilSimulationCatalog;
+      const input = { contactId: "CONTACT-ALPHA", observedAt: 0, positionEstimate: { x: 10, y: 20, z: 3 }, classificationEstimate: "unknown-vessel", confidence: 0.62, modality: "radar", uncertaintyMeters: 85, status: "CURRENT", hiddenIdentity: "SECRET", truePosition: { x: 999, y: 999 }, groundTruth: { allegiance: "SECRET" } };
+      const recorded = api.recordObservation("player-A", input);
+      const beforeSharing = api.getPlayerPicture("player-A");
+      const denied = api.shareObservation("player-A", "player-B", "CONTACT-ALPHA");
+      api.setIntelSharing("player-A", true);
+      api.setIntelSharing("player-B", true);
+      const shared = api.shareObservation("player-A", "player-B", "CONTACT-ALPHA");
+      return { recorded, beforeSharing, denied, shared, receiver: api.getPlayerPicture("player-B"), apiKeys: Object.keys(api) };
+    });
+    assert.equal(fowIsolation.recorded.ok, true, "valid sensor observation should enter its owning player's picture");
+    assert.equal(fowIsolation.beforeSharing.length, 1);
+    assert.equal(fowIsolation.beforeSharing[0].hiddenIdentity, undefined, "observation allow-list must strip hidden identity fields");
+    assert.equal(fowIsolation.beforeSharing[0].truePosition, undefined, "observation allow-list must strip ground-truth coordinates");
+    assert.equal(fowIsolation.beforeSharing[0].groundTruth, undefined, "observation allow-list must strip ground-truth payloads");
+    assert.equal(fowIsolation.denied.reason, "sharing_not_mutually_enabled", "intel must not be shared by default");
+    assert.equal(fowIsolation.shared.ok, true, "sharing should work only after both players explicitly opt in");
+    assert.equal(fowIsolation.receiver[0].status, "SHARED");
+    assert.equal(fowIsolation.receiver[0].sharedBy, "player-A");
+    assert.equal(fowIsolation.apiKeys.includes("getGroundTruth"), false, "player API must not expose a ground-truth accessor");
+
     const catalogUnits = await page.evaluate(() => window.vigilSimulationCatalog.getUnits());
     assert.ok(catalogUnits.some(unit => unit.domain === "air" && unit.id === "scout-drone"), "catalog must include a drone profile");
     const gagSub = catalogUnits.find(unit => unit.id === "prank-submersible");
