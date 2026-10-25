@@ -2479,21 +2479,26 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     // Conflict is a hard policy override, not merely one ranking feature. Resolve it
     // directly from authorized retained observations before considering sweep contacts.
     // This prevents scene-only candidates from winning due to projection/ranking drift.
-    var priorityTracks=picture.filter(function(item){
+    var conflictTracks=picture.filter(function(item){
       var p=item&&item.positionEstimate;
-      return item&&(item.status==='CONFLICT'||item.conflict===true||item.status==='LAST_KNOWN'||item.status==='STALE')&&p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
+      return item&&(item.status==='CONFLICT'||item.conflict===true)&&p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
     });
-    // Choose the freshest authorized priority track across conflicts and missed
-    // contacts. The picture can retain older conflicts ahead of newly seeded tracks;
-    // array order breaks equal simulation timestamps deterministically.
-    priorityTracks.sort(function(a,b){
-      var at=Number(a&&a.observedAt), bt=Number(b&&b.observedAt);
-      at=Number.isFinite(at)?at:-Infinity;
-      bt=Number.isFinite(bt)?bt:-Infinity;
-      return at-bt;
+    var staleTracks=picture.filter(function(item){
+      var p=item&&item.positionEstimate;
+      return item&&(item.status==='LAST_KNOWN'||item.status==='STALE')&&p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
     });
-    var priorityConflict=priorityTracks.length?priorityTracks[priorityTracks.length-1]:null;
-    if(priorityConflict){
+    function observationTime(item){
+      var t=Number(item&&item.observedAt);
+      return Number.isFinite(t)?t:-Infinity;
+    }
+    // A conflict is a hard override only while it is newer than missed-contact
+    // evidence. Equal-time transitions to LAST_KNOWN/STALE must be allowed to
+    // proceed through reacquisition ranking instead of being masked by old conflict.
+    conflictTracks.sort(function(a,b){return observationTime(a)-observationTime(b);});
+    staleTracks.sort(function(a,b){return observationTime(a)-observationTime(b);});
+    var priorityConflict=conflictTracks.length?conflictTracks[conflictTracks.length-1]:null;
+    var freshestStale=staleTracks.length?staleTracks[staleTracks.length-1]:null;
+    if(priorityConflict&&(!freshestStale||observationTime(priorityConflict)>observationTime(freshestStale))){
       var reports=Array.isArray(priorityConflict.sourceObservations)?priorityConflict.sourceObservations:[];
       var representedModes=Object.create(null);
       reports.forEach(function(report){
@@ -2593,7 +2598,13 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     });
     if(!candidates.length)return null;
     candidates.sort(function(a,b){
-      if(a.conflict!==b.conflict)return a.conflict?-1:1;
+      if(a.conflict!==b.conflict){
+        var at=observationTime(a.evidence),bt=observationTime(b.evidence);
+        if(at!==bt)return bt-at;
+        // If timestamps tie, a track that has just become stale needs reacquisition
+        // rather than letting a retained conflict monopolize the controller.
+        return a.stale?-1:1;
+      }
       if(a.stale!==b.stale)return a.stale?-1:1;
       if(a.uncertainty!==b.uncertainty)return b.uncertainty-a.uncertainty;
       var countA=Number(a.object.observation_count)||0,countB=Number(b.object.observation_count)||0;
