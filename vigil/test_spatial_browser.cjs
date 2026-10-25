@@ -71,6 +71,15 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     assert.equal(fowIsolation.receiver[0].status, "SHARED");
     assert.equal(fowIsolation.receiver[0].sharedBy, "player-A");
     assert.equal(fowIsolation.apiKeys.includes("getGroundTruth"), false, "player API must not expose a ground-truth accessor");
+    const trackAging = await page.evaluate(() => {
+      const api = window.vigilSimulationCatalog;
+      api.recordObservation("player-aging", { contactId: "LAST-SEEN-ONE", observedAt: -31, positionEstimate: { x: 0.2, y: 0.3 }, status: "CURRENT" });
+      const aged = api.markUnobserved("player-aging", []);
+      return { aged, picture: api.getPlayerPicture("player-aging") };
+    });
+    assert.deepEqual(trackAging.aged.agedContactIds, ["LAST-SEEN-ONE"], "a missed detection must preserve the contact as last-known rather than erase it");
+    assert.equal(trackAging.picture[0].status, "STALE", "old last-known tracks must age to stale");
+
 
     const catalogUnits = await page.evaluate(() => window.vigilSimulationCatalog.getUnits());
     assert.ok(catalogUnits.some(unit => unit.domain === "air" && unit.id === "scout-drone"), "catalog must include a drone profile");
