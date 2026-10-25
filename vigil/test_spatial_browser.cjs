@@ -79,7 +79,7 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     assert.equal(invalidTick.ok, false, "negative time steps must be rejected");
     await page.locator("#sim-level-select").selectOption("level-4");
     assert.match(await page.locator("#sim-level-brief").innerText(), /DEGRADED SENSORS/);
-    assert.equal(await page.locator("#sim-unit-roster [data-unit-id]").count(), 5, "scenario level should load its configured roster");
+    assert.equal(await page.locator("#sim-unit-roster [data-unit-id]").count(), 6, "scenario level should load its configured roster including the newly added MQ-9A profile");
 
 
     await page.locator('.nav-button[data-view="spatial"]').click();
