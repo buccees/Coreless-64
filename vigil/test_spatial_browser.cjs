@@ -38,6 +38,18 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     await page.locator("#sim-campaign-panel").waitFor({ state: "visible" });
     assert.equal(await page.locator("#sim-level-select option").count(), 5, "campaign must expose five data-driven levels");
     assert.match(await page.locator("#sim-fow-status").innerText(), /GROUND TRUTH: NOT EXPOSED/);
+    const integratedPicture = await page.evaluate(() => {
+      const api = window.vigilSimulationCatalog;
+      const contacts = Array.from(document.querySelectorAll("#sim-recon-contacts .sim-recon-contact"));
+      const picture = api.getPlayerPicture("vigil");
+      return { contactCount: contacts.length, picture, ids: contacts.map(node => node.getAttribute("data-contact-id")) };
+    });
+    assert.ok(integratedPicture.contactCount > 0, "initial sensor sweep should produce observations");
+    assert.ok(integratedPicture.picture.length > 0, "sensor sweep must feed VIGIL's player-scoped FOW picture");
+    assert.ok(integratedPicture.picture.every(item => integratedPicture.ids.includes(item.contactId)), "VIGIL picture must contain only observed contact IDs");
+    assert.ok(integratedPicture.picture.every(item => item.classificationEstimate === "unresolved"), "sensor bridge must not expose hidden contact classifications");
+    assert.ok(integratedPicture.picture.every(item => item.groundTruth === undefined && item.truePosition === undefined), "sensor bridge must not leak evaluator truth");
+
     const fowIsolation = await page.evaluate(() => {
       const api = window.vigilSimulationCatalog;
       const input = { contactId: "CONTACT-ALPHA", observedAt: 0, positionEstimate: { x: 10, y: 20, z: 3 }, classificationEstimate: "unknown-vessel", confidence: 0.62, modality: "radar", uncertaintyMeters: 85, status: "CURRENT", hiddenIdentity: "SECRET", truePosition: { x: 999, y: 999 }, groundTruth: { allegiance: "SECRET" } };
