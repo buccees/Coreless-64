@@ -2308,7 +2308,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     shotCount++;if(result.hit)hitCount++;
     if(result.hit)status.textContent='PLAYER '+activePlayer+' // HIT '+(result.sunk?'// '+result.ship+' SUNK':'// '+result.ship+' DAMAGED');
     else status.textContent='PLAYER '+activePlayer+' // MISS AT '+String.fromCharCode(65+c)+(r+1);
-    if(allSunk(target)){gameOver=true;status.textContent=mode.value==='hotseat'?'PLAYER '+activePlayer+' WINS // ALL ENEMY VESSELS SUNK':'VICTORY // ALL HOSTILE VESSELS SUNK';}
+    if(allSunk(target)){gameOver=true;status.textContent=(mode.value==='hotseat'?'PLAYER '+activePlayer+' WINS // ALL ENEMY VESSELS SUNK':'VICTORY // ALL HOSTILE VESSELS SUNK')+' // BONUS RECOVERY: I GOT MY DICK BACK';try{window.localStorage.setItem('vigil-phallus-victory-trophy-v1','true');}catch(e){}window.vigilPhallusTrophyUnlocked=true;window.dispatchEvent(new CustomEvent('vigil:game-victory',{detail:{trophy:'phallus-class',message:'I GOT MY DICK BACK'}}));}
     else if(mode.value==='hotseat'){activePlayer=activePlayer===1?2:1;status.textContent+=' // PASS DEVICE TO PLAYER '+activePlayer;}
     ownFleetView=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";renderBoard();updateMetrics();publish(true,true);
     if(!gameOver&&mode.value==='solo')computerTurn();
