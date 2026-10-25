@@ -2359,11 +2359,13 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   function publishPlayerObservations(data,playerId){
     var api=window.vigilSimulationCatalog;
     if(!api||typeof api.recordObservation!=='function'||!data||!Array.isArray(data.objects))return;
+    if(typeof api.markUnobserved==='function')api.markUnobserved(playerId,data.objects.map(function(object){return String(object.object_id);}));
+    var missionClock=api.getState?api.getState().clockMinutes:sweepCount;
     data.objects.forEach(function(object){
       var p=object.normalized_position||[];
       api.recordObservation(playerId,{
         contactId:String(object.object_id),
-        observedAt:sweepCount,
+        observedAt:missionClock,
         positionEstimate:{x:Number(p[0]),y:Number(p[1]),z:Number(p[2]||0)},
         classificationEstimate:'unresolved',
         confidence:Math.max(0.1,Math.min(0.99,1/(1+Number(object.uncertainty_m||1)/10))),
