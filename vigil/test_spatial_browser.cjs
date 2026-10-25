@@ -44,12 +44,16 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     const globalHawk = catalogUnits.find(unit => unit.id === "long-endurance-uav");
     const reaper = catalogUnits.find(unit => unit.id === "mq-9a-reaper");
     assert.ok(globalHawk && globalHawk.specification_source && globalHawk.model_asset_url.endsWith(".glb") && globalHawk.model_asset_page_url && globalHawk.dimensions_m.wingspan === 39.8, "Global Hawk must include sourced specifications, dimensions, and a direct GLB model asset");
-    assert.ok(reaper && reaper.specification_source && reaper.endurance_minutes === 1620 && reaper.model_asset_status === "model asset not yet sourced", "MQ-9A profile must distinguish verified specifications from missing model geometry");
+    assert.ok(reaper && reaper.specification_source && reaper.endurance_minutes === 1620 && reaper.model_asset_format === "sketchfab-embed" && reaper.model_asset_page_url && reaper.model_asset_attribution && /Creative Commons Attribution/.test(reaper.model_asset_license), "MQ-9A profile must expose an attributed, license-labelled remote 3D preview");
     await page.locator("#sim-level-select").selectOption("level-3");
     assert.ok(await page.locator("#sim-unit-roster").innerText().then(text => text.includes("model source") && text.includes("Specs: source") && text.includes("REMOTE LOAD")), "roster must expose source, geometry provenance, and remote-asset status");
     const globalHawkViewer = page.locator("#sim-unit-roster model-viewer");
     assert.equal(await globalHawkViewer.count(), 1, "Global Hawk roster entry must render an interactive 3D model viewer");
     assert.match(await globalHawkViewer.getAttribute("src"), /Global%20Hawk\.glb$/, "viewer must load the sourced NASA GLB asset");
+    const reaperViewer = page.locator("#sim-unit-roster iframe[title*=\"MQ-9A Reaper\"]");
+    assert.equal(await reaperViewer.count(), 1, "MQ-9A roster entry must render its interactive third-party 3D preview");
+    assert.match(await reaperViewer.getAttribute("src"), /sketchfab\.com\/models\/eff549610fee4f20904f7b388a3a0830\/embed$/, "MQ-9A viewer must use the attributed Sketchfab model");
+    assert.ok((await page.locator("#sim-unit-roster").innerText()).includes("REMOTE EMBED"), "third-party model must be clearly marked as remote and not bundled");
     const droneDeployments = await page.evaluate(() => {
       const first = window.vigilSimulationCatalog.deploy("scout-drone");
       let result = first;
