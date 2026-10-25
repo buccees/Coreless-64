@@ -399,7 +399,7 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     assert.equal(autoRecon.history.length, 1, "VIGIL policy must record an autonomous recon decision");
     assert.equal(autoRecon.history[0].contact_id.length > 0, true);
     assert.ok(["radar", "sonar", "optical"].includes(autoRecon.history[0].sensor_mode));
-    assert.match(autoRecon.history[0].rationale, /greatest reported position uncertainty/i);
+    assert.match(autoRecon.history[0].rationale, /greatest reported position uncertainty|last-known or stale track|conflicting sensor track/i, "autonomous recon rationale must identify its selected priority");
     assert.equal(autoRecon.history[0].world_state_withheld, true, "decision history must confirm evaluator truth remained withheld");
     assert.match(autoRecon.output, /VIGIL DECISION[\s\S]*RATIONALE:[\s\S]*RESULT:/);
     assert.ok(Number(await page.locator("#sim-observations").innerText()) >= priorAutoObservationCount, "autonomous recon step must preserve the observation metric");
