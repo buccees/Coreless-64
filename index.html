@@ -2476,6 +2476,46 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var picture=api&&typeof api.getPlayerPicture==='function'?api.getPlayerPicture('vigil'):[];
     var evidenceById=Object.create(null);
     picture.forEach(function(item){evidenceById[item.contactId]=item;});
+    // Conflict is a hard policy override, not merely one ranking feature. Resolve it
+    // directly from authorized retained observations before considering sweep contacts.
+    // This prevents scene-only candidates from winning due to projection/ranking drift.
+    var priorityConflict=picture.find(function(item){
+      var p=item&&item.positionEstimate;
+      return item&&(item.status==='CONFLICT'||item.conflict===true)&&p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
+    });
+    if(priorityConflict){
+      var reports=Array.isArray(priorityConflict.sourceObservations)?priorityConflict.sourceObservations:[];
+      var representedModes=Object.create(null);
+      reports.forEach(function(report){
+        String(report&&report.modality||'').toLowerCase().split(/[^a-z]+/).forEach(function(token){
+          if(token==='optical'||token==='radar'||token==='sonar')representedModes[token]=true;
+        });
+      });
+      String(priorityConflict.modality||'').toLowerCase().split(/[^a-z]+/).forEach(function(token){
+        if(token==='optical'||token==='radar'||token==='sonar')representedModes[token]=true;
+      });
+      var conflictMode=['optical','radar','sonar'].sort(function(a,b){
+        if(Boolean(representedModes[a])!==Boolean(representedModes[b]))return representedModes[a]?1:-1;
+        return ['optical','radar','sonar'].indexOf(a)-['optical','radar','sonar'].indexOf(b);
+      })[0];
+      var conflictClock=api&&typeof api.getState==='function'&&api.getState()?Number(api.getState().clockMinutes):NaN;
+      var conflictObserved=Number(priorityConflict.observedAt);
+      var conflictElapsed=Number.isFinite(conflictClock)&&Number.isFinite(conflictObserved)?Math.max(0,conflictClock-conflictObserved):0;
+      var conflictUncertainty=Number(priorityConflict.uncertaintyMeters);
+      if(!Number.isFinite(conflictUncertainty))conflictUncertainty=Infinity;
+      return {
+        action:'focused_observation',
+        contact_id:priorityConflict.contactId,
+        sensor_mode:conflictMode,
+        requested_by:'VIGIL',
+        request_id:'VIGIL-AUTO-REQ-'+sequence+'-'+(sweepCount+1),
+        elapsed_since_last_seen_min:conflictElapsed,
+        base_uncertainty_m:conflictUncertainty,
+        search_uncertainty_m:conflictUncertainty+conflictElapsed*2,
+        simulated_mobility_growth_m_per_min:2,
+        rationale:'Prioritized a conflicting sensor track and requested '+conflictMode.toUpperCase()+' from a different modality to independently re-check the estimate; source evidence is retained and evaluator truth remains withheld.'
+      };
+    }
     // Keep authorized conflict and last-known tracks eligible even when the latest sweep
     // contains a malformed/partial copy of the same ID. Only a usable position estimate
     // should suppress the authorized retained estimate below.
