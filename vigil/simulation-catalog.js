@@ -66,6 +66,23 @@
       return item;
     });
   }
+  function markUnobserved(playerId, observedContactIds) {
+    if (typeof playerId !== 'string' || !playerId.trim()) return {ok:false,reason:'invalid_player'};
+    var picture = playerPictures[playerId] || (playerPictures[playerId] = Object.create(null));
+    var visible = Object.create(null);
+    (Array.isArray(observedContactIds) ? observedContactIds : []).forEach(function(id) {
+      if (typeof id === 'string') visible[id] = true;
+    });
+    var aged = [];
+    Object.keys(picture).forEach(function(id) {
+      var item = picture[id];
+      if (!visible[id] && item.status === 'CURRENT') {
+        item.status = 'LAST_KNOWN';
+        aged.push(id);
+      }
+    });
+    return {ok:true,agedContactIds:aged};
+  }
   function setIntelSharing(playerId, enabled) {
     if (typeof playerId !== 'string' || !playerId.trim() || typeof enabled !== 'boolean') return {ok:false,reason:'invalid_policy'};
     playerSharing[playerId] = enabled;
@@ -154,7 +171,8 @@
   }
   function renderFow(){
     var contacts=el('sim-recon-contacts'),n=contacts?contacts.querySelectorAll('button.sim-recon-contact').length:0;
-    el('sim-fow-status').textContent='FOG OF WAR // PLAYER OBSERVATION VIEW\nCURRENT OBSERVED CONTACTS: '+n+'\nGROUND TRUTH: NOT EXPOSED TO PLAYER-FACING POLICY\nTRACK RULE: DISAPPEARING CONTACTS SHOULD AGE TO LAST-KNOWN / STALE, NOT BE ASSUMED DESTROYED\nINTELLIGENCE SHARING: PLAYER-SCOPED PERMISSION REQUIRED; THIS LOCAL PROTOTYPE DOES NOT BROADCAST DATA.';
+    var api=window.vigilSimulationCatalog,picture=api&&api.getPlayerPicture?api.getPlayerPicture('vigil'):[],lastKnown=picture.filter(function(item){return item.status==='LAST_KNOWN';}).length,stale=picture.filter(function(item){return item.status==='STALE';}).length;
+    el('sim-fow-status').textContent='FOG OF WAR // PLAYER OBSERVATION VIEW\nCURRENT OBSERVED CONTACTS: '+n+'\nLAST-KNOWN TRACKS: '+lastKnown+' · STALE TRACKS: '+stale+'\nGROUND TRUTH: NOT EXPOSED TO PLAYER-FACING POLICY\nTRACK RULE: DISAPPEARING CONTACTS SHOULD AGE TO LAST-KNOWN / STALE, NOT BE ASSUMED DESTROYED\nINTELLIGENCE SHARING: PLAYER-SCOPED PERMISSION REQUIRED; THIS LOCAL PROTOTYPE DOES NOT BROADCAST DATA.';
   }
   function init(){
     try{window.vigilPhallusTrophyUnlocked=window.localStorage.getItem('vigil-phallus-victory-trophy-v1')==='true';}catch(e){window.vigilPhallusTrophyUnlocked=false;}
@@ -172,6 +190,7 @@
       getState:getState,deploy:deploy,recover:recover,advanceTime:advanceTime,
       observeFow:function(observations){return {observed_contact_count:Array.isArray(observations)?observations.length:0,ground_truth_included:false,information_scope:'authorized_observations_only'};},
       recordObservation:recordObservation,
+      markUnobserved:markUnobserved,
       getPlayerPicture:getPlayerPicture,
       setIntelSharing:setIntelSharing,
       shareObservation:shareObservation
