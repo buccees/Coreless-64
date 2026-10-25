@@ -34,6 +34,7 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     const page = await context.newPage();
     page.on("pageerror", error => errors.push(error.message));
     await page.goto("http://127.0.0.1:" + address.port + "/", { waitUntil: "load" });
+    await page.locator('.nav-button[data-view="simulation"]').click();
     await page.locator("#sim-campaign-panel").waitFor({ state: "visible" });
     assert.equal(await page.locator("#sim-level-select option").count(), 5, "campaign must expose five data-driven levels");
     assert.match(await page.locator("#sim-fow-status").innerText(), /GROUND TRUTH: NOT EXPOSED/);
