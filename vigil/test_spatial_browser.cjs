@@ -262,6 +262,22 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     assert.equal(eventSensorResponse.ok, true, "VIGIL event-based sensor requests must return a response");
     assert.equal(eventSensorResponse.request_id, "BROWSER-EVENT-REQ");
     assert.equal(eventSensorResponse.observation.modalities[0], "radar");
+    const priorAutoObservationCount = Number(await page.locator("#sim-observations").innerText());
+    await page.locator("#sim-recon-autopilot").click();
+    await page.waitForFunction(() => document.querySelector("#sim-vigil-decision").textContent.includes("WORLD STATE: WITHHELD"));
+    const autoRecon = await page.evaluate(() => ({
+      history: window.vigilReconController.getHistory(),
+      next: window.vigilReconController.chooseNextAction(),
+      output: document.querySelector("#sim-vigil-decision").textContent
+    }));
+    assert.equal(autoRecon.history.length, 1, "VIGIL policy must record an autonomous recon decision");
+    assert.equal(autoRecon.history[0].contact_id.length > 0, true);
+    assert.ok(["radar", "sonar", "optical"].includes(autoRecon.history[0].sensor_mode));
+    assert.match(autoRecon.history[0].rationale, /greatest reported position uncertainty/i);
+    assert.equal(autoRecon.history[0].world_state_withheld, true, "decision history must confirm evaluator truth remained withheld");
+    assert.match(autoRecon.output, /VIGIL DECISION[\s\S]*RATIONALE:[\s\S]*RESULT:/);
+    assert.ok(Number(await page.locator("#sim-observations").innerText()) >= priorAutoObservationCount, "autonomous recon step must preserve the observation metric");
+    assert.equal(Object.hasOwn(autoRecon.history[0], "ground_truth"), false, "decision history must not expose evaluator truth");
     await page.locator("#sim-view-fleet").click();
     assert.equal(await page.locator("#sim-view-fleet").getAttribute("aria-pressed"), "true", "own-fleet inspection must expose its active state");
     assert.ok(await page.locator("#sim-board .sim-cell.ship").count() >= 17, "own-fleet view must render all 17 vessel cells");

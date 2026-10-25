@@ -998,7 +998,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <div class="sim-metrics"><div class="stat"><b id="sim-shots">0</b><span>YOUR ENGAGEMENTS</span></div><div class="stat"><b id="sim-hits">0</b><span>CONFIRMED HITS</span></div><div class="stat"><b id="sim-afloat">5</b><span>VESSELS AFLOAT</span></div><div class="stat"><b id="sim-observations">0</b><span>SENSOR OBSERVATIONS</span></div></div>
 <div class="sim-layout"><div class="sim-board-wrap"><div class="sim-board-head"><strong>TACTICAL GRID // OWN FIRING SOLUTION</strong><span id="sim-turn-status" role="status" aria-live="polite">READY // SELECT A CELL TO ENGAGE</span></div><div id="sim-board" class="sim-board" role="grid" aria-label="Battleship tactical grid"></div><div class="sim-controls"><button type="button" id="sim-new-game">INITIALIZE NEW EXERCISE</button><button type="button" id="sim-manual-setup">MANUAL FLEET SETUP</button><button type="button" id="sim-rotate" disabled>ORIENTATION: HORIZONTAL</button><button type="button" id="sim-view-fleet" aria-pressed="false">VIEW OWN FLEET</button><button type="button" id="sim-publish">PUBLISH SENSOR ESTIMATES TO SPATIAL INTELLIGENCE</button><button type="button" id="sim-export">EXPORT OBSERVATION JSON</button></div><p class="muted">Grid legend: hit = confirmed impact; miss = no contact. Hidden vessel positions are never drawn on the firing grid.</p></div>
 <div class="sim-side"><h3>SIMULATED SENSOR ARRAY</h3><label for="sim-sensor">SENSOR MODE</label><select id="sim-sensor"><option value="radar">RADAR // broad-area, ±1.2 cells</option><option value="sonar">SONAR // maritime, ±0.6 cells</option><option value="optical">OPTICAL // narrow field, ±0.25 cells</option></select><label for="sim-noise">OBSERVATION NOISE <span id="sim-noise-value">1.2</span></label><input id="sim-noise" type="range" min="0" max="2" step="0.1" value="1.2"><label for="sim-clutter-count">CONTROLLED CLUTTER RETURNS</label><select id="sim-clutter-count"><option value="0">NONE // BASELINE</option><option value="1">LOW // 1 FALSE RETURN</option><option value="3" selected>MEDIUM // 3 FALSE RETURNS</option><option value="5">HIGH // 5 FALSE RETURNS</option></select><label for="sim-detection-rate">DETECTION RELIABILITY</label><select id="sim-detection-rate"><option value="100" selected>100% // BASELINE</option><option value="75">75% // DEGRADED</option><option value="50">50% // INTERMITTENT</option><option value="25">25% // SEVERE DEGRADATION</option><option value="0">0% // SENSOR OUTAGE</option></select><div class="sim-telemetry" id="sim-telemetry" aria-live="polite">SENSOR STANDBY // NO OBSERVATIONS GENERATED</div><div class="sim-telemetry-note">Sensor returns include noisy vessel estimates plus configurable clutter. Return identifiers are opaque; evaluator-only labels remain separate from the observation payload sent to VIGIL. This is a local simulation, not a live sensor connection.</div>
-<div id="sim-recon-panel" class="sim-recon-panel"><h3>RECONNAISSANCE // CONTACT REGISTER</h3><p class="muted">Select a contact to inspect its sensor evidence. Evaluator-only truth comparison is kept separate from the observation payload sent to VIGIL.</p><div class="sim-recon-actions"><button type="button" id="sim-recon-sweep">RUN RECON SWEEP + PUBLISH</button><button type="button" id="sim-recon-investigate" disabled>REQUEST FOCUSED FOLLOW-UP</button><button type="button" id="sim-recon-evaluate">EVALUATE CURRENT OBSERVATIONS</button></div><div id="sim-recon-contacts" class="sim-recon-contacts" role="list" aria-label="Observed sensor contacts">NO CONTACTS // SENSOR STANDBY</div><div id="sim-recon-detail" class="sim-telemetry" aria-live="polite">CONTACT EVIDENCE // SELECT A CONTACT TO INSPECT</div><div id="sim-recon-results" class="sim-telemetry" aria-live="polite">EVALUATION STANDBY // RUN A SWEEP TO COLLECT OBSERVATIONS</div></div></div></div>
+<div id="sim-recon-panel" class="sim-recon-panel"><h3>RECONNAISSANCE // CONTACT REGISTER</h3><p class="muted">Select a contact to inspect its sensor evidence. Evaluator-only truth comparison is kept separate from the observation payload sent to VIGIL.</p><div class="sim-recon-actions"><button type="button" id="sim-recon-sweep">RUN RECON SWEEP + PUBLISH</button><button type="button" id="sim-recon-investigate" disabled>REQUEST FOCUSED FOLLOW-UP</button><button type="button" id="sim-recon-autopilot">VIGIL AUTONOMOUS RECON STEP</button><button type="button" id="sim-recon-evaluate">EVALUATE CURRENT OBSERVATIONS</button></div><div id="sim-recon-contacts" class="sim-recon-contacts" role="list" aria-label="Observed sensor contacts">NO CONTACTS // SENSOR STANDBY</div><div id="sim-recon-detail" class="sim-telemetry" aria-live="polite">CONTACT EVIDENCE // SELECT A CONTACT TO INSPECT</div><div id="sim-vigil-decision" class="sim-telemetry" aria-live="polite">VIGIL POLICY STANDBY // RUN A RECON SWEEP TO REVIEW SENSOR EVIDENCE</div><div id="sim-recon-results" class="sim-telemetry" aria-live="polite">EVALUATION STANDBY // RUN A SWEEP TO COLLECT OBSERVATIONS</div></div></div></div>
 </div></section><footer><span>WEYLAND–YUTANI / XENOBIOLOGY</span><span>VIGIL SPATIAL INTELLIGENCE // CORELESS-64</span><span>DOC-XB-VIG-0917</span><a class="messenger-contact" href="https://m.me/61593167613019" target="_blank" rel="noopener noreferrer" aria-label="Contact VIGIL through Facebook Messenger">CONTACT / CORPORATE LIAISON ↗</a></footer>
 </main><script>
 (function(){
@@ -2428,6 +2428,68 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var response=window.vigilRequestSensorAction(request);
     window.dispatchEvent(new CustomEvent('vigil:sensor-response',{detail:response}));
   });
+
+  // First closed-loop recon controller: choose only from public observations, never evaluator truth.
+  var vigilReconDecisionHistory=[];
+  function chooseVigilReconAction(data){
+    var objects=data&&Array.isArray(data.objects)?data.objects:[];
+    if(!objects.length)return null;
+    var candidates=objects.filter(function(object){
+      return object&&typeof object.object_id==='string'&&Array.isArray(object.normalized_position);
+    });
+    if(!candidates.length)return null;
+    candidates.sort(function(a,b){
+      var uncertaintyB=Number.isFinite(Number(b.uncertainty_m))?Number(b.uncertainty_m):Infinity;
+      var uncertaintyA=Number.isFinite(Number(a.uncertainty_m))?Number(a.uncertainty_m):Infinity;
+      if(uncertaintyB!==uncertaintyA)return uncertaintyB-uncertaintyA;
+      var countA=Number(a.observation_count)||0,countB=Number(b.observation_count)||0;
+      if(countA!==countB)return countA-countB;
+      return String(a.object_id).localeCompare(String(b.object_id));
+    });
+    var target=candidates[0];
+    var uncertainty=Number(target.uncertainty_m);
+    var mode=!Number.isFinite(uncertainty)||uncertainty>=4?'optical':uncertainty>=1.5?'sonar':'radar';
+    var reason='Selected the contact with the greatest reported position uncertainty (±'+(Number.isFinite(uncertainty)?uncertainty.toFixed(2):'unknown')+' m); requested '+mode.toUpperCase()+' as the policy\'s follow-up modality.';
+    return {
+      action:'focused_observation',
+      contact_id:target.object_id,
+      sensor_mode:mode,
+      requested_by:'VIGIL',
+      request_id:'VIGIL-AUTO-REQ-'+sequence+'-'+(sweepCount+1),
+      rationale:reason
+    };
+  }
+  function runVigilReconStep(){
+    var output=document.getElementById('sim-vigil-decision');
+    var decision=chooseVigilReconAction(lastObservationData);
+    if(!decision){
+      if(output)output.textContent='VIGIL DECISION // NO OBSERVATION REGISTER AVAILABLE. RUN RECON SWEEP FIRST.';
+      return {ok:false,reason:'no_observations'};
+    }
+    if(output)output.textContent='VIGIL DECISION // '+decision.contact_id+'\nRATIONALE: '+decision.rationale+'\nACTION: REQUEST '+decision.sensor_mode.toUpperCase()+' FOLLOW-UP';
+    var response=window.vigilSensorBridge.requestObservation(decision);
+    var entry={
+      request_id:decision.request_id,
+      contact_id:decision.contact_id,
+      sensor_mode:decision.sensor_mode,
+      rationale:decision.rationale,
+      response_ok:response.ok===true,
+      response_reason:response.reason||'observation_received',
+      world_state_withheld:response.world_state_withheld===true
+    };
+    vigilReconDecisionHistory.push(entry);
+    if(vigilReconDecisionHistory.length>12)vigilReconDecisionHistory.shift();
+    if(output)output.textContent+='\nRESULT: '+(response.ok?'OBSERVATION RECEIVED':'NO DETECTION // '+String(response.reason||'request_not_completed').toUpperCase())+'\nWORLD STATE: WITHHELD';
+    return {ok:response.ok===true,decision:decision,response:response};
+  }
+  var autoReconButton=document.getElementById('sim-recon-autopilot');
+  if(autoReconButton)autoReconButton.addEventListener('click',runVigilReconStep);
+  window.vigilReconController={
+    chooseNextAction:function(){var action=chooseVigilReconAction(lastObservationData);return action?Object.assign({},action):null;},
+    step:runVigilReconStep,
+    getHistory:function(){return vigilReconDecisionHistory.map(function(entry){return Object.assign({},entry);});}
+  };
+
   function evaluateRecon(){
     var result=document.getElementById('sim-recon-results');
     if(!result||!lastObservationData){if(result)result.textContent='EVALUATION UNAVAILABLE // RUN A RECON SWEEP FIRST';return;}
