@@ -591,3 +591,12 @@ The code path and regression tests are in GitHub; check the latest runs for curr
 - The user prefers a collaborative partner approach and concrete execution, not unsupported assurances.
 - **Check status/tests before every push.** State clearly what is committed, what CI passed, what deployment passed, and what has or has not been verified on the actual live page.
 - Do not call the whole system “done” just because a workflow is green; hardware/live integration and autonomous reasoning are separate milestones.
+
+## Resume checkpoint — 2026-10-25: Simulation Bay closed-loop recon
+
+- Validated implementation branch: `vigil-autonomous-recon-loop`, currently at `eb65b40f79f38fff53bda2afaae51a6fc255daa5`. Do not merge to `main`; after checking the latest workflow result, fast-forward `vigil-spatial-awareness` to the validated commit.
+- Added a **VIGIL AUTONOMOUS RECON STEP** control to Simulation Bay. It reads only the current public observation register, selects the contact with the greatest reported position uncertainty (ties prefer fewer observations, then stable ID order), chooses a follow-up sensor mode from uncertainty bands, requests a focused observation through the existing sensor bridge, and records whether a return or miss came back.
+- The on-screen decision/event trail preserves the latest 12 steps with contact ID, uncertainty-based rationale, requested modality, result, and explicit `WORLD STATE: WITHHELD`. The controller and decision history do not read evaluator truth or vessel indices. The evaluator remains separate.
+- The new browser test exercises the autonomous step and checks that consecutive decisions remain visible and no hidden-truth fields appear. Full workflow [40192971412](https://github.com/buccees/Coreless-64/actions/runs/40192971412) passed for `eb65b40`, including reference tests, spatial/Qwen3 tests, review-logic scenarios, and Playwright browser integration.
+- **Scope boundary:** this is an initial deterministic, evidence-guided policy loop, not yet a call into the trained Qwen3/Coreless reasoning runtime. The next reasoning milestone is to connect the actual existing agent/runtime path to this request/response contract without creating a second AI runtime.
+- Navigation source on this branch lists `04 // SIMULATION BAY` and `05 // SENSOR INPUTS`. The public Pages URL could not be fetched from the repository connector, so visible live-browser verification remains outstanding; a successful Pages workflow alone does not prove the phone browser shows the intended navigation.
