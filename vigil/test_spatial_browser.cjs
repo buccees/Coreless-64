@@ -209,10 +209,24 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     await page.locator("#sim-new-game").click();
     assert.equal(await page.locator("#sim-shots").innerText(), "0", "new exercise must reset engagement count");
     assert.equal(await page.locator("#sim-board .sim-cell").count(), 100, "reset must rebuild a complete grid");
+    await page.locator("#sim-manual-setup").click();
+    assert.match(await page.locator("#sim-turn-status").innerText(), /PLACE CARRIER/);
+    await page.locator("#sim-board .sim-cell").nth(0).click();
+    assert.match(await page.locator("#sim-turn-status").innerText(), /PLACE BATTLESHIP/);
+    await page.locator("#sim-board .sim-cell").nth(5).click();
+    await page.locator("#sim-board .sim-cell").nth(20).click();
+    await page.locator("#sim-board .sim-cell").nth(24).click();
+    await page.locator("#sim-board .sim-cell").nth(28).click();
+    assert.match(await page.locator("#sim-turn-status").innerText(), /FLEETS READY/);
+    assert.equal(await page.locator("#sim-board .sim-cell.ship").count(), 0, "completed setup returns to the concealed firing grid");
+    await page.locator("#sim-view-fleet").click();
+    assert.equal(await page.locator("#sim-board .sim-cell.ship").count(), 17, "manual setup must place all 17 vessel cells");
+    await page.locator("#sim-new-game").click();
+    assert.deepEqual(errors, [], "simulation interactions must not throw uncaught JavaScript errors");
     assert.notEqual(await page.locator("#sim-shots").innerText(), resetBefore, "new exercise resets shot state");
     assert.deepEqual(errors, [], "simulation interactions must not throw uncaught JavaScript errors");
 
-    console.log("VIGIL browser integration: import, marker states, review filters, decision persistence, audit export/clear, runtime errors, and mobile layout passed.");
+    console.log("VIGIL browser integration: import, marker states, review filters, audit export/clear, Simulation Bay mechanics, manual fleet placement, runtime errors, and mobile layout passed.");
     await context.close();
   } finally {
     await browser.close();
