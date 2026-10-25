@@ -998,6 +998,8 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <h3 id="sim-campaign-title">CAMPAIGN / FOG OF WAR / UNIT ROSTER</h3>
 <p class="muted">Scenario progression and unit specifications are data-driven. Definitions describe capability; deployed state and sensor observations are tracked separately. Training-profile limits are explicit and finite.</p>
 <div class="sim-recon-actions"><label for="sim-level-select">SCENARIO LEVEL</label><select id="sim-level-select" aria-label="Scenario level"></select></div>
+<div class="sim-recon-actions" aria-label="Mission clock controls"><label for="sim-time-step">ADVANCE MISSION TIME</label><select id="sim-time-step"><option value="5">+5 MIN</option><option value="15" selected>+15 MIN</option><option value="30">+30 MIN</option><option value="60">+60 MIN</option></select><button type="button" id="sim-advance-time">ADVANCE CLOCK</button></div>
+<div id="sim-clock-status" class="sim-telemetry" aria-live="polite">MISSION CLOCK: T+0 MIN</div>
 <div id="sim-level-brief" class="sim-telemetry" aria-live="polite"></div>
 <div id="sim-unit-roster" class="sim-recon-contacts" aria-label="Available unit roster"></div>
 <div id="sim-fow-status" class="sim-telemetry" aria-live="polite">FOG OF WAR // WAITING FOR SENSOR OBSERVATIONS</div>

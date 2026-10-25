@@ -50,6 +50,27 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     assert.equal(droneDeployments.first.ok, true);
     assert.equal(droneDeployments.state.deployed["scout-drone"], 6, "drone deployment must respect the configured max-deployed limit");
     assert.equal(droneDeployments.result.ok, false, "deploying beyond capacity must be rejected");
+    const enduranceCheck = await page.evaluate(() => {
+      const api = window.vigilSimulationCatalog;
+      const before = api.getState().clockMinutes;
+      const tick = api.advanceTime(15);
+      const after = api.getState();
+      return { tick, before, after };
+    });
+    assert.equal(enduranceCheck.tick.ok, true, "mission clock should advance by a valid step");
+    assert.equal(enduranceCheck.after.clockMinutes, enduranceCheck.before + 15);
+    assert.equal(enduranceCheck.after.sorties.filter(s => s.unitId === "scout-drone" && s.status === "DEPLOYED").every(s => s.remainingMinutes === 75), true, "deployed drones must burn 15 minutes of endurance");
+    const recoveryCheck = await page.evaluate(() => {
+      const api = window.vigilSimulationCatalog;
+      const recovery = api.recover("scout-drone");
+      const state = api.getState();
+      return { recovery, state };
+    });
+    assert.equal(recoveryCheck.recovery.ok, true, "active sortie should be recoverable");
+    assert.equal(recoveryCheck.state.recovering["scout-drone"], 1, "recovered unit must enter turnaround instead of becoming instantly available");
+    assert.equal(recoveryCheck.state.ready["scout-drone"], 6, "recovering unit must remain unavailable from fleet inventory");
+    const invalidTick = await page.evaluate(() => window.vigilSimulationCatalog.advanceTime(-5));
+    assert.equal(invalidTick.ok, false, "negative time steps must be rejected");
     await page.locator("#sim-level-select").selectOption("level-4");
     assert.match(await page.locator("#sim-level-brief").innerText(), /DEGRADED SENSORS/);
     assert.equal(await page.locator("#sim-unit-roster [data-unit-id]").count(), 5, "scenario level should load its configured roster");
