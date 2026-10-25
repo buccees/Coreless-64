@@ -559,3 +559,35 @@ The code path and regression tests are in GitHub; check the latest runs for curr
 - `SpatialRegistryStore` now stores source assets as immutable, size-bounded byte records tied to a model revision, with media type, name, metadata, and SHA-256 checksums. Workspace blueprint import automatically preserves the exact original JSON manifest; tests cover checksum round-trip, immutability, size limits, and restart persistence. Newest source-asset CI runs are pending at the time of this checkpoint.
 
 **Do not claim hardware proof.** Passing CI verifies software behavior, not actual object coverage, ranging accuracy, sensor calibration, universal detection, or physical unplug/replug. The desired view keeps stationary and moving targets represented; missing contact becomes stale/last-known, not silently “gone.”
+
+## End-of-session handoff — 2026-10-24 evening / 2026-10-25 UTC
+
+### Current branch and verified state
+- Working branch: `vigil-spatial-awareness`. Do not merge to `main` unless the user explicitly asks.
+- Current HEAD at handoff update: `5d82edd82c7e1af8c4a83059de16d9671f120531` — “Place Simulation Bay as section 04 in navigation.”
+- Website: https://buccees.github.io/Coreless-64/
+- Latest Pages deployment passed: [run 40148942978](https://github.com/buccees/Coreless-64/actions/runs/40148942978), for HEAD `5d82edd`.
+- Latest automated test workflow passed: [run 40148943014](https://github.com/buccees/Coreless-64/actions/runs/40148943014), for the same HEAD.
+- The navigation source now puts **04 // SIMULATION BAY** fourth and **05 // SENSOR INPUTS** after it. This fixes the source ordering/numbering. The user previously reported that the live phone page still showed Sensor Inputs fourth and no Simulation Bay; deployment success alone is not proof of what the browser serves. Independently confirm the live page on the next session before claiming the visible UI is fixed.
+- The sensor request/response bridge is implemented in `index.html` and automated browser integration tests passed on earlier source commit `2d64c02` / test commit `3aa701a`. It supports focused radar/sonar/optical observation requests through `window.vigilSensorBridge.requestObservation(request)`, `window.vigilRequestSensorAction(request)`, or the `vigil:sensor-request` / `vigil:sensor-response` event pair. Responses withhold hidden ground truth.
+- **Important boundary:** this proves the bridge and its tests, not that VIGIL autonomously decides when to request observations. Actual reasoning-loop integration is the next major task. The user wants a sensor simulation that works with VIGIL as a system demonstration/evaluation, not an isolated game.
+
+### Next session — do these in order
+1. Open the live website and independently verify the visible navigation on mobile and desktop. If the Simulation Bay tab still does not appear fourth, diagnose the deployed source/Pages configuration/cache rather than assuming a green workflow means the user sees it.
+2. Inspect the actual VIGIL reasoning/agent path and identify the correct place to connect the existing sensor bridge. Avoid adding a second competing control path or inventing an autonomous loop without checking the current code.
+3. Implement the smallest end-to-end loop: VIGIL reviews current contacts/evidence, identifies uncertainty, requests one follow-up observation using a suitable modality, receives the observation or miss, updates its assessment/track, and exposes a readable decision/event trail.
+4. Keep simulation truth isolated to evaluator code; do not send hidden truth labels or internal vessel indices to VIGIL.
+5. Run relevant browser tests and the full applicable test workflow. Inspect actual Actions results before pushing/claiming completion, per the user's explicit preference. Confirm deployment workflow success separately from live UI verification.
+
+### Current simulation capabilities noted
+- Sensor modes: radar, sonar, optical.
+- Controlled clutter/false returns and evaluator-only truth mapping.
+- Configurable detection probability (100%, 75%, 50%, 25%, 0%) and evaluation of misses/detection rate.
+- Contact register and focused follow-up observations; observations can be published to Spatial Intelligence.
+- Scene import/publish integration via `window.vigilImportScene(data)` is part of the existing work; validate it in the actual browser before claiming user-facing behavior.
+- Existing implementation and earlier details are documented in the prior handoff sections above; inspect current code before changing anything.
+
+### User workflow / communication
+- The user prefers a collaborative partner approach and concrete execution, not unsupported assurances.
+- **Check status/tests before every push.** State clearly what is committed, what CI passed, what deployment passed, and what has or has not been verified on the actual live page.
+- Do not call the whole system “done” just because a workflow is green; hardware/live integration and autonomous reasoning are separate milestones.
