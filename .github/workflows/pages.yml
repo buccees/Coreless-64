@@ -7,6 +7,7 @@ on:
     paths:
       - "index.html"
       - "operator-display.html"
+      - "vigil/simulation-catalog.js"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -33,6 +34,8 @@ jobs:
           mkdir -p site
           cp index.html site/index.html
           cp operator-display.html site/operator-display.html
+          mkdir -p site/vigil
+          cp vigil/simulation-catalog.js site/vigil/simulation-catalog.js
           test -s site/index.html
           test -s site/operator-display.html
 

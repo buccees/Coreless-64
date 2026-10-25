@@ -18,6 +18,11 @@ const fixture = require("./fixtures/vigil-test-scene.json");
       res.end(html);
       return;
     }
+    if (req.url === "/vigil/simulation-catalog.js") {
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      res.end(fs.readFileSync(path.join(__dirname, "simulation-catalog.js")));
+      return;
+    }
     res.writeHead(404); res.end("not found");
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
@@ -29,6 +34,25 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     const page = await context.newPage();
     page.on("pageerror", error => errors.push(error.message));
     await page.goto("http://127.0.0.1:" + address.port + "/", { waitUntil: "load" });
+    await page.locator("#sim-campaign-panel").waitFor({ state: "visible" });
+    assert.equal(await page.locator("#sim-level-select option").count(), 5, "campaign must expose five data-driven levels");
+    assert.match(await page.locator("#sim-fow-status").innerText(), /GROUND TRUTH: NOT EXPOSED/);
+    const catalogUnits = await page.evaluate(() => window.vigilSimulationCatalog.getUnits());
+    assert.ok(catalogUnits.some(unit => unit.domain === "air" && unit.id === "scout-drone"), "catalog must include a drone profile");
+    assert.ok(catalogUnits.every(unit => unit.inventory > 0 && unit.max_deployed > 0 && unit.max_deployed <= unit.inventory && unit.endurance_minutes > 0), "unit definitions must have finite, valid capacity and endurance");
+    const droneDeployments = await page.evaluate(() => {
+      const first = window.vigilSimulationCatalog.deploy("scout-drone");
+      let result = first;
+      for (let i = 0; i < 12; i++) result = window.vigilSimulationCatalog.deploy("scout-drone");
+      return { first, result, state: window.vigilSimulationCatalog.getState() };
+    });
+    assert.equal(droneDeployments.first.ok, true);
+    assert.equal(droneDeployments.state.deployed["scout-drone"], 6, "drone deployment must respect the configured max-deployed limit");
+    assert.equal(droneDeployments.result.ok, false, "deploying beyond capacity must be rejected");
+    await page.locator("#sim-level-select").selectOption("level-4");
+    assert.match(await page.locator("#sim-level-brief").innerText(), /DEGRADED SENSORS/);
+    assert.equal(await page.locator("#sim-unit-roster [data-unit-id]").count(), 5, "scenario level should load its configured roster");
+
 
     await page.locator('.nav-button[data-view="spatial"]').click();
     await page.locator("#spatial-panel .spatial-stage").waitFor({ state: "visible" });
