@@ -52,7 +52,7 @@
     if (!clean) return {ok:false,reason:'invalid_observation'};
     var picture = playerPictures[playerId] || (playerPictures[playerId] = Object.create(null));
     var previous = picture[clean.contactId];
-    var threshold = Number.isFinite(options.conflictThreshold) ? Math.max(0, options.conflictThresholdMeters) : 0.18;
+    var threshold = Number.isFinite(options.conflictThreshold) ? Math.max(0, options.conflictThreshold) : 0.18;
     var distance = null, conflict = false;
     if (previous && previous.positionEstimate && clean.positionEstimate) {
       var a = previous.positionEstimate, b = clean.positionEstimate;
