@@ -25,6 +25,7 @@ The automated workflow also confirmed that the booted carrier reached multi-user
 - [Latest successful UEFI carrier and recovery workflow](https://github.com/buccees/Coreless-64/actions/runs/40100765232)
 - [Latest successful reference test workflow](https://github.com/buccees/Coreless-64/actions/runs/40100765455)
 - [Carrier build and test specification](specification/bootable_carrier.md)
+- [Step-by-step guide: fork Coreless-64 and build a disk image](specification/fork_and_disk_image.md)
 - [Project roadmap](ROADMAP.md)
 
 **What this proves:** the current Linux-based UEFI carrier can launch the Coreless reference runtime, open its persistent machine image, and recover the tested virtual CPU and RAM state across a simulated power cycle.
