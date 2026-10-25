@@ -514,7 +514,26 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     assert.match(await page.locator("#sim-combat-log").innerText(), /HIT|MISS|CRITICAL HIT|NATURAL 1/);
     assert.deepEqual(errors, [], "ship roster and D20 combat must not throw uncaught JavaScript errors");
 
-    console.log("VIGIL browser integration: import, marker states, review filters, audit export/clear, Simulation Bay mechanics, manual fleet placement, ship dossiers, D20 combat, runtime errors, and mobile layout passed.");
+    const movementPage = await context.newPage();
+    await movementPage.goto("http://127.0.0.1:" + address.port + "/", { waitUntil: "load" });
+    await movementPage.locator('.nav-button[data-view="simulation"]').click();
+    await movementPage.locator("#sim-campaign-panel").waitFor({ state: "visible" });
+    const movementAware = await movementPage.evaluate(() => {
+      const api = window.vigilSimulationCatalog;
+      const now = api.getState().clockMinutes;
+      api.recordObservation("vigil", { contactId: "TEST-MOVEMENT-AWARE-TRACK", observedAt: now - 10,
+        positionEstimate: { x: 0.42, y: 0.58, z: 0 }, classificationEstimate: "unresolved",
+        confidence: 0.4, modality: "radar", uncertaintyMeters: 500, status: "CURRENT", sourceUnitId: "TEST-SENSOR" });
+      api.markUnobserved("vigil", []);
+      return window.vigilReconController.chooseNextAction();
+    });
+    assert.equal(movementAware.contact_id, "TEST-MOVEMENT-AWARE-TRACK");
+    assert.equal(movementAware.elapsed_since_last_seen_min, 10);
+    assert.equal(movementAware.search_uncertainty_m, 520);
+    assert.equal(movementAware.simulated_mobility_growth_m_per_min, 2);
+    await movementPage.close();
+
+    console.log("VIGIL browser integration: import, marker states, review filters, audit export/clear, Simulation Bay mechanics, movement-aware reacquisition, manual fleet placement, ship dossiers, D20 combat, runtime errors, and mobile layout passed.");
     await context.close();
   } finally {
     await browser.close();
