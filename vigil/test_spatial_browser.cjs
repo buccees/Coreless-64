@@ -412,6 +412,34 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     }));
     assert.equal(decisionTrail.history.length, 2, "the visible decision trail must preserve consecutive VIGIL steps");
     assert.match(decisionTrail.output, /STEP 01[\s\S]*STEP 02[\s\S]*WORLD STATE: WITHHELD/);
+    // Isolate the reacquisition rule before introducing a conflict: a missed
+    // contact must remain eligible, and the policy should actively choose it.
+    const stalePolicy = await page.evaluate(() => {
+      const api = window.vigilSimulationCatalog;
+      const contactId = "TEST-AUTONOMOUS-LAST-KNOWN";
+      api.recordObservation("vigil", {
+        contactId,
+        observedAt: api.getState().clockMinutes,
+        positionEstimate: { x: 0.17, y: 0.83, z: 0 },
+        classificationEstimate: "unresolved",
+        confidence: 0.4,
+        modality: "radar",
+        uncertaintyMeters: 12,
+        status: "CURRENT",
+        sourceUnitId: "TEST-LAST-KNOWN-POLICY-SENSOR"
+      });
+      api.markUnobserved("vigil", []);
+      const evidence = api.getPlayerPicture("vigil").find(item => item.contactId === contactId);
+      const next = window.vigilReconController.chooseNextAction();
+      return { evidence, next, contactId };
+    });
+    assert.ok(stalePolicy.evidence && ["STALE", "LAST_KNOWN"].includes(stalePolicy.evidence.status),
+      "a missed contact should remain in the authorized picture as last-known evidence");
+    assert.equal(stalePolicy.next.contact_id, stalePolicy.contactId,
+      "the autonomous policy must prioritize a last-known contact for reacquisition");
+    assert.match(stalePolicy.next.rationale, /last-known or stale track/i,
+      "reacquisition decisions must explain that the contact is no longer current");
+
     const conflictPolicy = await page.evaluate(() => {
       const api = window.vigilSimulationCatalog;
       const picture = api.getPlayerPicture("vigil");
