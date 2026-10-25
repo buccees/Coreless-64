@@ -2476,9 +2476,10 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var picture=api&&typeof api.getPlayerPicture==='function'?api.getPlayerPicture('vigil'):[];
     var evidenceById=Object.create(null);
     picture.forEach(function(item){evidenceById[item.contactId]=item;});
-    // Include authorized last-known tracks even when a later sweep no longer detects them.
+    // Include authorized conflict and last-known tracks even when a later sweep does not include them.
+    // A conflicting track must remain eligible for independent follow-up until a new observation resolves it.
     picture.forEach(function(item){
-      if((item.status==='LAST_KNOWN'||item.status==='STALE')&&!objects.some(function(object){return object&&object.object_id===item.contactId;})){
+      if((item.status==='CONFLICT'||item.conflict===true||item.status==='LAST_KNOWN'||item.status==='STALE')&&!objects.some(function(object){return object&&object.object_id===item.contactId;})){
         var estimate=item.positionEstimate||{};
         if(Number.isFinite(estimate.x)&&Number.isFinite(estimate.y)){
           objects.push({object_id:item.contactId,normalized_position:[estimate.x,estimate.y,Number(estimate.z)||0],
