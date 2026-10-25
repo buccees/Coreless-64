@@ -442,11 +442,23 @@ const fixture = require("./fixtures/vigil-test-scene.json");
 
     const conflictPolicy = await page.evaluate(() => {
       const api = window.vigilSimulationCatalog;
-      const picture = api.getPlayerPicture("vigil");
-      const target = picture.find(item => item.positionEstimate && item.status === "CURRENT");
-      if (!target) return { skipped: true };
+      // Make this scenario self-contained: earlier autonomous steps may age all
+      // initial tracks, so seed a fresh authorized track before injecting conflict.
+      const targetId = "TEST-AUTONOMOUS-CONFLICT-PRIORITY";
+      api.recordObservation("vigil", {
+        contactId: targetId,
+        observedAt: api.getState().clockMinutes,
+        positionEstimate: { x: 0.24, y: 0.34, z: 0 },
+        classificationEstimate: "unresolved",
+        confidence: 0.6,
+        modality: "radar",
+        uncertaintyMeters: 3,
+        status: "CURRENT",
+        sourceUnitId: "TEST-CONFLICT-BASELINE"
+      });
+      const target = api.getPlayerPicture("vigil").find(item => item.contactId === targetId);
       api.fuseObservation("vigil", {
-        contactId: target.contactId,
+        contactId: targetId,
         observedAt: api.getState().clockMinutes,
         positionEstimate: { x: 0.99, y: 0.99, z: 0 },
         confidence: 0.99,
@@ -457,9 +469,8 @@ const fixture = require("./fixtures/vigil-test-scene.json");
       const next = window.vigilReconController.chooseNextAction();
       const evidence = api.getPlayerPicture("vigil").find(item => item.contactId === target.contactId);
       const sourceModes = (evidence.sourceObservations || []).flatMap(report => String(report.modality || "").toLowerCase().split(/[^a-z]+/)).filter(mode => ["optical", "radar", "sonar"].includes(mode));
-      return { targetId: target.contactId, next, evidence, sourceModes };
+      return { targetId, next, evidence, sourceModes };
     });
-    assert.equal(conflictPolicy.skipped, undefined, "autonomous policy conflict test needs at least one current FOW track");
     assert.equal(conflictPolicy.evidence.status, "CONFLICT", "test must establish a conflicting track in authorized observations");
     assert.equal(conflictPolicy.next.contact_id, conflictPolicy.targetId, "autonomous recon must prioritize a conflicting track");
     assert.match(conflictPolicy.next.rationale, /conflicting sensor track/i, "decision rationale must explain the conflict-driven follow-up");
