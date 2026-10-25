@@ -2479,10 +2479,20 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     // Conflict is a hard policy override, not merely one ranking feature. Resolve it
     // directly from authorized retained observations before considering sweep contacts.
     // This prevents scene-only candidates from winning due to projection/ranking drift.
-    var priorityConflict=picture.find(function(item){
+    var priorityConflicts=picture.filter(function(item){
       var p=item&&item.positionEstimate;
       return item&&(item.status==='CONFLICT'||item.conflict===true)&&p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
     });
+    // getPlayerPicture may return older retained conflicts before newly fused ones.
+    // Prefer the freshest authorized conflict; use list order as a stable tie-breaker
+    // when the simulation clock gives multiple observations the same timestamp.
+    priorityConflicts.sort(function(a,b){
+      var at=Number(a&&a.observedAt), bt=Number(b&&b.observedAt);
+      at=Number.isFinite(at)?at:-Infinity;
+      bt=Number.isFinite(bt)?bt:-Infinity;
+      return at-bt;
+    });
+    var priorityConflict=priorityConflicts.length?priorityConflicts[priorityConflicts.length-1]:null;
     if(priorityConflict){
       var reports=Array.isArray(priorityConflict.sourceObservations)?priorityConflict.sourceObservations:[];
       var representedModes=Object.create(null);
