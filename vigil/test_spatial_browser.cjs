@@ -442,6 +442,35 @@ const fixture = require("./fixtures/vigil-test-scene.json");
       }
     }
 
+    const reacquisition = await page.evaluate(() => {
+      const api = window.vigilSimulationCatalog;
+      api.recordObservation("vigil", {
+        contactId: "TEST-LAST-KNOWN-REACQUIRE",
+        observedAt: api.getState().clockMinutes,
+        positionEstimate: { x: 0.31, y: 0.72, z: 0 },
+        classificationEstimate: "unresolved",
+        confidence: 0.4,
+        modality: "radar",
+        uncertaintyMeters: 12,
+        status: "CURRENT",
+        sourceUnitId: "TEST-LAST-KNOWN-SENSOR"
+      });
+      api.markUnobserved("vigil", []);
+      const decision = window.vigilReconController.chooseNextAction();
+      const response = window.vigilRequestSensorAction({
+        action: "focused_observation",
+        contact_id: "TEST-LAST-KNOWN-REACQUIRE",
+        sensor_mode: "optical",
+        requested_by: "VIGIL",
+        request_id: "TEST-REACQUIRE-REQUEST"
+      });
+      return { decision, response };
+    });
+    assert.equal(reacquisition.decision.contact_id, "TEST-LAST-KNOWN-REACQUIRE", "autonomous recon should include authorized last-known tracks absent from current detections");
+    assert.match(reacquisition.decision.rationale, /last-known or stale track/i, "last-known reacquisition rationale must be explicit");
+    assert.notEqual(reacquisition.response.reason, "contact_not_in_authorized_tracks", "a last-known contact must be eligible for a reacquisition request");
+    assert.equal(reacquisition.response.world_state_withheld, true, "reacquisition must preserve Fog of War");
+
     await page.locator("#sim-view-fleet").click();
     assert.equal(await page.locator("#sim-view-fleet").getAttribute("aria-pressed"), "true", "own-fleet inspection must expose its active state");
     assert.ok(await page.locator("#sim-board .sim-cell.ship").count() >= 17, "own-fleet view must render all 17 vessel cells");
