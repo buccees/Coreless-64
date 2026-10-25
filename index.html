@@ -722,6 +722,19 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <div class="stat"><b id="machine-hardware-state" class="confidence-mid">NOT SCANNED</b><span>HOST HARDWARE // NO LIVE PROBE</span></div>
 </div>
 <p class="fluid-note"><strong class="green">HONEST STATUS:</strong> these cards are example values only. This website cannot verify the physical SSD, firmware, detected devices, or a real boot. The current carrier prototype is an image-build milestone; physical boot and hardware compatibility still require testing.</p>
+<div class="panel" style="margin-top:10px" id="disk-image-guide"><h2>BUILD YOUR OWN CORELESS-64 DISK IMAGE</h2><div class="content">
+<p>Start from your own GitHub fork, build the image file on an x86-64 Ubuntu or Windows/WSL2 system, then validate it before deciding whether to write it to a physical drive.</p>
+<ol>
+<li><strong class="green">Fork:</strong> open <a href="https://github.com/buccees/Coreless-64" target="_blank" rel="noopener noreferrer">Coreless-64 on GitHub</a> and select <strong>Fork</strong>.</li>
+<li><strong class="green">Prepare Ubuntu / WSL2:</strong> install the tools with <code>sudo apt-get update</code> and <code>sudo apt-get install -y git debootstrap parted util-linux dosfstools e2fsprogs rsync</code>.</li>
+<li><strong class="green">Clone your fork:</strong> run <code>git clone https://github.com/YOUR-ACCOUNT/Coreless-64.git</code>, replacing <code>YOUR-ACCOUNT</code> with your GitHub username, then <code>cd Coreless-64</code>.</li>
+<li><strong class="green">Build:</strong> run <code>bash scripts/build-bootable-ssd.sh</code> from the repository root. The default image is <code>dist/coreless-uefi-x86_64.img</code>.</li>
+<li><strong class="green">Validate:</strong> run <code>bash scripts/validate-bootable-ssd.sh dist/coreless-uefi-x86_64.img</code>. Record the source revision with <code>git rev-parse HEAD</code> and the image checksum with <code>sha256sum dist/coreless-uefi-x86_64.img</code>.</li>
+</ol>
+<p class="fluid-note"><strong class="green">SAFETY:</strong> building creates an image file; it does not erase a USB drive. Writing the image to a physical SSD is a separate destructive operation that erases the selected destination. Double-check the drive and never select your computer's internal system disk.</p>
+<p><a href="https://github.com/buccees/Coreless-64/blob/vigil-spatial-awareness/specification/fork_and_disk_image.md" target="_blank" rel="noopener noreferrer">OPEN THE COMPLETE STEP-BY-STEP GUIDE ON GITHUB →</a></p>
+<p class="muted">Current target: x86-64 UEFI carrier using a Linux bootstrap to launch the Coreless reference engine. Native bare-metal Coreless-only boot and broad physical-hardware compatibility are not yet established.</p>
+</div></div>
 <div class="panel" style="margin-top:10px"><h2>EXAMPLE OBJECT TRACK // CART-07</h2><div class="content">
 <p>A fake cart moves across a local coordinate grid. Start, pause, and reset it to see how a screen could expose position, velocity, timestamps, and track state. All readings below are generated in this browser; no sensor or real-world object is involved.</p>
 <div class="sensor-toolbar" role="group" aria-label="Synthetic object controls"><button type="button" id="demo-track-toggle" aria-pressed="false">START DEMO TRACK</button><button type="button" id="demo-track-reset">RESET TRACK</button><span class="sensor-status" id="demo-track-state" aria-live="polite">PAUSED // SYNTHETIC</span></div>
