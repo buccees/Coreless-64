@@ -41,6 +41,11 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     const catalogUnits = await page.evaluate(() => window.vigilSimulationCatalog.getUnits());
     assert.ok(catalogUnits.some(unit => unit.domain === "air" && unit.id === "scout-drone"), "catalog must include a drone profile");
     assert.ok(catalogUnits.every(unit => unit.inventory > 0 && unit.max_deployed > 0 && unit.max_deployed <= unit.inventory && unit.endurance_minutes > 0), "unit definitions must have finite, valid capacity and endurance");
+    const globalHawk = catalogUnits.find(unit => unit.id === "long-endurance-uav");
+    const reaper = catalogUnits.find(unit => unit.id === "mq-9a-reaper");
+    assert.ok(globalHawk && globalHawk.specification_source && globalHawk.model_asset_url && globalHawk.dimensions_m.wingspan === 39.8, "Global Hawk must include sourced specifications, dimensions, and a 3D model reference");
+    assert.ok(reaper && reaper.specification_source && reaper.endurance_minutes === 1620 && reaper.model_asset_status === "model asset not yet sourced", "MQ-9A profile must distinguish verified specifications from missing model geometry");
+    assert.ok(await page.locator("#sim-unit-roster").innerText().then(text => text.includes("model reference") && text.includes("specification source") || text.includes("Specs: source")), "roster must expose source and geometry provenance");
     const droneDeployments = await page.evaluate(() => {
       const first = window.vigilSimulationCatalog.deploy("scout-drone");
       let result = first;
