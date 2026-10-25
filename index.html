@@ -2479,8 +2479,24 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     };
     vigilReconDecisionHistory.push(entry);
     if(vigilReconDecisionHistory.length>12)vigilReconDecisionHistory.shift();
-    if(output)output.textContent+='\nRESULT: '+(response.ok?'OBSERVATION RECEIVED':'NO DETECTION // '+String(response.reason||'request_not_completed').toUpperCase())+'\nWORLD STATE: WITHHELD';
+    renderVigilReconHistory();
     return {ok:response.ok===true,decision:decision,response:response};
+  }
+  function renderVigilReconHistory(){
+    var output=document.getElementById('sim-vigil-decision');
+    if(!output)return;
+    if(!vigilReconDecisionHistory.length){
+      output.textContent='VIGIL POLICY STANDBY // RUN A RECON SWEEP TO REVIEW SENSOR EVIDENCE';
+      return;
+    }
+    output.textContent='VIGIL DECISION / EVENT TRAIL // '+vigilReconDecisionHistory.length+' RECENT STEP(S)\n\n'+vigilReconDecisionHistory.map(function(entry,index){
+      return 'STEP '+String(index+1).padStart(2,'0')+' // '+entry.contact_id+
+        '\nRATIONALE: '+entry.rationale+
+        '\nACTION: REQUEST '+entry.sensor_mode.toUpperCase()+' FOLLOW-UP'+
+        '\nRESULT: '+(entry.response_ok?'OBSERVATION RECEIVED':'NO DETECTION // '+String(entry.response_reason).toUpperCase())+
+        '\nWORLD STATE: WITHHELD';
+    }).join('\n\n');
+  }
   }
   var autoReconButton=document.getElementById('sim-recon-autopilot');
   if(autoReconButton)autoReconButton.addEventListener('click',runVigilReconStep);

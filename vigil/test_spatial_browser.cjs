@@ -278,6 +278,14 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     assert.match(autoRecon.output, /VIGIL DECISION[\s\S]*RATIONALE:[\s\S]*RESULT:/);
     assert.ok(Number(await page.locator("#sim-observations").innerText()) >= priorAutoObservationCount, "autonomous recon step must preserve the observation metric");
     assert.equal(Object.hasOwn(autoRecon.history[0], "ground_truth"), false, "decision history must not expose evaluator truth");
+    await page.locator("#sim-recon-autopilot").click();
+    await page.waitForFunction(() => document.querySelector("#sim-vigil-decision").textContent.includes("STEP 02"));
+    const decisionTrail = await page.evaluate(() => ({
+      history: window.vigilReconController.getHistory(),
+      output: document.querySelector("#sim-vigil-decision").textContent
+    }));
+    assert.equal(decisionTrail.history.length, 2, "the visible decision trail must preserve consecutive VIGIL steps");
+    assert.match(decisionTrail.output, /STEP 01[\s\S]*STEP 02[\s\S]*WORLD STATE: WITHHELD/);
     await page.locator("#sim-view-fleet").click();
     assert.equal(await page.locator("#sim-view-fleet").getAttribute("aria-pressed"), "true", "own-fleet inspection must expose its active state");
     assert.ok(await page.locator("#sim-board .sim-cell.ship").count() >= 17, "own-fleet view must render all 17 vessel cells");
