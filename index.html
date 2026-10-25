@@ -2483,17 +2483,16 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       if(item.status==='CONFLICT'||item.conflict===true||item.status==='LAST_KNOWN'||item.status==='STALE'){
         var estimate=item.positionEstimate||{};
         var hasUsablePosition=Number.isFinite(estimate.x)&&Number.isFinite(estimate.y);
-        var hasUsableSweepObject=objects.some(function(object){
-          return object&&object.object_id===item.contactId&&Array.isArray(object.normalized_position)&&
-            Number.isFinite(object.normalized_position[0])&&Number.isFinite(object.normalized_position[1]);
-        });
-        if(hasUsablePosition&&!hasUsableSweepObject){
+        // Authorized retained evidence is authoritative for conflict/stale priority.
+        // Always replace a same-ID sweep object so its geometry/metadata cannot mask
+        // a conflict record or leave the policy ranking a stale sweep-only copy.
+        if(hasUsablePosition){
           objects=objects.filter(function(object){
             return !(object&&object.object_id===item.contactId);
           });
           objects.push({object_id:item.contactId,normalized_position:[estimate.x,estimate.y,Number(estimate.z)||0],
             uncertainty_m:Number.isFinite(item.uncertaintyMeters)?item.uncertaintyMeters:Infinity,observation_count:0,
-            modalities:[],sensor_ids:[],last_known_only:true});
+            modalities:[],sensor_ids:[],last_known_only:item.status==='LAST_KNOWN'||item.status==='STALE'});
         }
       }
     });
