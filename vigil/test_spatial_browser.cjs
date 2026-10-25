@@ -45,7 +45,8 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     const reaper = catalogUnits.find(unit => unit.id === "mq-9a-reaper");
     assert.ok(globalHawk && globalHawk.specification_source && globalHawk.model_asset_url && globalHawk.dimensions_m.wingspan === 39.8, "Global Hawk must include sourced specifications, dimensions, and a 3D model reference");
     assert.ok(reaper && reaper.specification_source && reaper.endurance_minutes === 1620 && reaper.model_asset_status === "model asset not yet sourced", "MQ-9A profile must distinguish verified specifications from missing model geometry");
-    assert.ok(await page.locator("#sim-unit-roster").innerText().then(text => text.includes("model reference") && text.includes("specification source") || text.includes("Specs: source")), "roster must expose source and geometry provenance");
+    await page.locator("#sim-level-select").selectOption("level-3");
+    assert.ok(await page.locator("#sim-unit-roster").innerText().then(text => text.includes("model reference") && text.includes("Specs: source")), "roster must expose source and geometry provenance for real-world units");
     const droneDeployments = await page.evaluate(() => {
       const first = window.vigilSimulationCatalog.deploy("scout-drone");
       let result = first;
