@@ -997,7 +997,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 </div><div class="sim-mode-row"><label for="sim-mode">ENGAGEMENT MODE</label><select id="sim-mode"><option value="solo">SOLO // PLAYER VS COMPUTER</option><option value="hotseat">LOCAL TWO-PLAYER // PASS-AND-PLAY</option></select><span class="muted">Fleet placement is collision-checked; each player’s target history is tracked independently.</span></div>
 <div class="sim-metrics"><div class="stat"><b id="sim-shots">0</b><span>YOUR ENGAGEMENTS</span></div><div class="stat"><b id="sim-hits">0</b><span>CONFIRMED HITS</span></div><div class="stat"><b id="sim-afloat">5</b><span>VESSELS AFLOAT</span></div><div class="stat"><b id="sim-observations">0</b><span>SENSOR OBSERVATIONS</span></div></div>
 <div class="sim-layout"><div class="sim-board-wrap"><div class="sim-board-head"><strong>TACTICAL GRID // OWN FIRING SOLUTION</strong><span id="sim-turn-status" role="status" aria-live="polite">READY // SELECT A CELL TO ENGAGE</span></div><div id="sim-board" class="sim-board" role="grid" aria-label="Battleship tactical grid"></div><div class="sim-controls"><button type="button" id="sim-new-game">INITIALIZE NEW EXERCISE</button><button type="button" id="sim-manual-setup">MANUAL FLEET SETUP</button><button type="button" id="sim-rotate" disabled>ORIENTATION: HORIZONTAL</button><button type="button" id="sim-view-fleet" aria-pressed="false">VIEW OWN FLEET</button><button type="button" id="sim-publish">PUBLISH SENSOR ESTIMATES TO SPATIAL INTELLIGENCE</button><button type="button" id="sim-export">EXPORT OBSERVATION JSON</button></div><p class="muted">Grid legend: hit = confirmed impact; miss = no contact. Hidden vessel positions are never drawn on the firing grid.</p></div>
-<div class="sim-side"><h3>SIMULATED SENSOR ARRAY</h3><label for="sim-sensor">SENSOR MODE</label><select id="sim-sensor"><option value="radar">RADAR // broad-area, ±1.2 cells</option><option value="sonar">SONAR // maritime, ±0.6 cells</option><option value="optical">OPTICAL // narrow field, ±0.25 cells</option></select><label for="sim-noise">OBSERVATION NOISE <span id="sim-noise-value">1.2</span></label><input id="sim-noise" type="range" min="0" max="2" step="0.1" value="1.2"><div class="sim-telemetry" id="sim-telemetry" aria-live="polite">SENSOR STANDBY // NO OBSERVATIONS GENERATED</div><div class="sim-telemetry-note">Sensor contacts are generated from surviving vessels with bounded positional noise and explicit uncertainty metadata. This is a local gameplay simulation, not a live sensor connection.</div>
+<div class="sim-side"><h3>SIMULATED SENSOR ARRAY</h3><label for="sim-sensor">SENSOR MODE</label><select id="sim-sensor"><option value="radar">RADAR // broad-area, ±1.2 cells</option><option value="sonar">SONAR // maritime, ±0.6 cells</option><option value="optical">OPTICAL // narrow field, ±0.25 cells</option></select><label for="sim-noise">OBSERVATION NOISE <span id="sim-noise-value">1.2</span></label><input id="sim-noise" type="range" min="0" max="2" step="0.1" value="1.2"><label for="sim-clutter-count">CONTROLLED CLUTTER RETURNS</label><select id="sim-clutter-count"><option value="0">NONE // BASELINE</option><option value="1">LOW // 1 FALSE RETURN</option><option value="3" selected>MEDIUM // 3 FALSE RETURNS</option><option value="5">HIGH // 5 FALSE RETURNS</option></select><div class="sim-telemetry" id="sim-telemetry" aria-live="polite">SENSOR STANDBY // NO OBSERVATIONS GENERATED</div><div class="sim-telemetry-note">Sensor returns include noisy vessel estimates plus configurable clutter. Return identifiers are opaque; evaluator-only labels remain separate from the observation payload sent to VIGIL. This is a local simulation, not a live sensor connection.</div>
 <div id="sim-recon-panel" class="sim-recon-panel"><h3>RECONNAISSANCE // CONTACT REGISTER</h3><p class="muted">Select a contact to inspect its sensor evidence. Evaluator-only truth comparison is kept separate from the observation payload sent to VIGIL.</p><div class="sim-recon-actions"><button type="button" id="sim-recon-sweep">RUN RECON SWEEP + PUBLISH</button><button type="button" id="sim-recon-investigate" disabled>REQUEST FOCUSED FOLLOW-UP</button><button type="button" id="sim-recon-evaluate">EVALUATE CURRENT OBSERVATIONS</button></div><div id="sim-recon-contacts" class="sim-recon-contacts" role="list" aria-label="Observed sensor contacts">NO CONTACTS // SENSOR STANDBY</div><div id="sim-recon-detail" class="sim-telemetry" aria-live="polite">CONTACT EVIDENCE // SELECT A CONTACT TO INSPECT</div><div id="sim-recon-results" class="sim-telemetry" aria-live="polite">EVALUATION STANDBY // RUN A SWEEP TO COLLECT OBSERVATIONS</div></div></div></div>
 </div></section><footer><span>WEYLAND–YUTANI / XENOBIOLOGY</span><span>VIGIL SPATIAL INTELLIGENCE // CORELESS-64</span><span>DOC-XB-VIG-0917</span><a class="messenger-contact" href="https://m.me/61593167613019" target="_blank" rel="noopener noreferrer" aria-label="Contact VIGIL through Facebook Messenger">CONTACT / CORPORATE LIAISON ↗</a></footer>
 </main><script>
@@ -2221,7 +2221,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   var sizes=[['CARRIER',5],['BATTLESHIP',4],['CRUISER',3],['SUBMARINE',3],['DESTROYER',2]];
   var mode=document.getElementById('sim-mode'),status=document.getElementById('sim-turn-status');
   var sensor=document.getElementById('sim-sensor'),noise=document.getElementById('sim-noise');
-  var enemyFleet=[],playerFleet={},shotsByPlayer={},aiShots={},activePlayer=1,shotCount=0,hitCount=0,observationCount=0,gameOver=false,sequence=0,aiHitCount=0,ownFleetView=false,placementMode=false,placementIndex=0,placementVertical=false,sweepCount=0,reconTracks=Object.create(null),lastObservationData=null,selectedReconTrackId=null;
+  var enemyFleet=[],playerFleet={},shotsByPlayer={},aiShots={},activePlayer=1,shotCount=0,hitCount=0,observationCount=0,gameOver=false,sequence=0,aiHitCount=0,ownFleetView=false,placementMode=false,placementIndex=0,placementVertical=false,sweepCount=0,reconTracks=Object.create(null),lastObservationData=null,selectedReconTrackId=null,reconTruthById=Object.create(null),reconIdentityBySource=Object.create(null);
   function key(r,c){return r+','+c;}
   function randomInt(n){return Math.floor(Math.random()*n);}
   function occupied(fleet,r,c){return fleet.some(function(v){return v.cells.some(function(p){return p[0]===r&&p[1]===c;});});}
@@ -2247,13 +2247,13 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   function allSunk(fleet){return afloat(fleet)===0;}
   function initialize(){
     enemyFleet=makeFleet();playerFleet={1:makeFleet(),2:makeFleet()};shotsByPlayer={1:{},2:{}};aiShots={};
-    activePlayer=1;placementMode=false;placementIndex=0;placementVertical=false;document.getElementById("sim-manual-setup").textContent="MANUAL FLEET SETUP";document.getElementById("sim-rotate").disabled=true;document.getElementById("sim-rotate").textContent="ORIENTATION: HORIZONTAL";ownFleetView=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;sweepCount=0;reconTracks=Object.create(null);lastObservationData=null;selectedReconTrackId=null;document.getElementById("sim-recon-investigate").disabled=true;gameOver=false;sequence++;
+    activePlayer=1;placementMode=false;placementIndex=0;placementVertical=false;document.getElementById("sim-manual-setup").textContent="MANUAL FLEET SETUP";document.getElementById("sim-rotate").disabled=true;document.getElementById("sim-rotate").textContent="ORIENTATION: HORIZONTAL";ownFleetView=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;sweepCount=0;reconTracks=Object.create(null);lastObservationData=null;selectedReconTrackId=null;reconTruthById=Object.create(null);reconIdentityBySource=Object.create(null);document.getElementById("sim-recon-investigate").disabled=true;gameOver=false;sequence++;
     renderBoard();updateMetrics();status.textContent=mode.value==='hotseat'?'PLAYER 1 // SELECT A CELL TO FIRE':'SOLO ENGAGEMENT // SELECT A CELL TO FIRE';
     document.getElementById('sim-telemetry').textContent='SENSOR STANDBY // NEW EXERCISE '+sequence+'\nCOMPUTER DEFENSE: '+(mode.value==='solo'?'ARMED':'DISABLED');
     publish(false,false);
   }
   function startManualSetup(){
-    placementMode=true;placementIndex=0;placementVertical=false;activePlayer=1;gameOver=false;ownFleetView=false;enemyFleet=makeFleet();playerFleet={1:[],2:[]};if(mode.value==="solo")playerFleet[2]=makeFleet();shotsByPlayer={1:{},2:{}};aiShots={};shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;sweepCount=0;reconTracks=Object.create(null);lastObservationData=null;selectedReconTrackId=null;document.getElementById("sim-recon-investigate").disabled=true;sequence++;
+    placementMode=true;placementIndex=0;placementVertical=false;activePlayer=1;gameOver=false;ownFleetView=false;enemyFleet=makeFleet();playerFleet={1:[],2:[]};if(mode.value==="solo")playerFleet[2]=makeFleet();shotsByPlayer={1:{},2:{}};aiShots={};shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;sweepCount=0;reconTracks=Object.create(null);lastObservationData=null;selectedReconTrackId=null;reconTruthById=Object.create(null);reconIdentityBySource=Object.create(null);document.getElementById("sim-recon-investigate").disabled=true;sequence++;
     document.getElementById("sim-manual-setup").textContent="CANCEL MANUAL SETUP";document.getElementById("sim-rotate").disabled=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";
     status.textContent="MANUAL SETUP // PLACE "+sizes[0][0]+" ("+sizes[0][1]+" CELLS)";document.getElementById("sim-telemetry").textContent="FLEET CONFIGURATION // "+(mode.value==="hotseat"?"PLAYER 1":"YOUR FLEET")+"\nSelect the first cell for each vessel. Rotate orientation as needed.";renderBoard();updateMetrics();
   }
@@ -2313,18 +2313,33 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     else{status.textContent+=' // YOUR TURN';}
     updateMetrics();
   }
+  function contactIdentity(sourceKey){
+    if(!reconIdentityBySource[sourceKey]){
+      var candidate;
+      do{candidate='SIM-EXERCISE-'+sequence+'-CONTACT-'+String(100+Math.floor(Math.random()*900));}
+      while(Object.keys(reconIdentityBySource).some(function(key){return reconIdentityBySource[key]===candidate;}));
+      reconIdentityBySource[sourceKey]=candidate;
+    }
+    return reconIdentityBySource[sourceKey];
+  }
   function generateScene(){
     var modeName=sensor.value,base=Number(noise.value),sigma=modeName==='sonar'?.6:modeName==='optical'?.25:1.2;
     sigma=Math.max(0,base*(modeName==='sonar'?.5:modeName==='optical'?.22:1));
-    var objects=[];
+    var objects=[];reconTruthById=Object.create(null);
     enemyFleet.forEach(function(v,trackIndex){
       var alive=v.cells.filter(function(p){return !v.hits[key(p[0],p[1])];});
       if(!alive.length)return;
       var rr=alive.reduce(function(a,p){return a+p[0];},0)/alive.length,cc=alive.reduce(function(a,p){return a+p[1];},0)/alive.length;
       var jx=(Math.random()*2-1)*sigma,jy=(Math.random()*2-1)*sigma;
-      var trackId='SIM-EXERCISE-'+sequence+'-TRACK-'+String(trackIndex+1).padStart(2,'0');
+      var trackId=contactIdentity('vessel-'+trackIndex);
+      reconTruthById[trackId]={kind:'genuine',vesselIndex:trackIndex};
       objects.push({object_id:trackId,normalized_position:[Math.max(0,Math.min(1,(cc+jx+.5)/10)),Math.max(0,Math.min(1,(rr+jy+.5)/10)),0],inferred_level:'0',uncertainty_m:Number((sigma*10/Math.sqrt(3)).toFixed(2)),calibration_status:'verified',calibration_ids:['SIM-CAL-'+modeName.toUpperCase()],lineage_declared:true,observation_count:(reconTracks[trackId]?reconTracks[trackId].observations:0)+1,sensor_ids:['SIM-'+modeName.toUpperCase()+'-01'],modalities:[modeName],independence_groups:['simulation-sensor-'+modeName],conflict:false});
     });
+    var clutterCount=Number(document.getElementById('sim-clutter-count').value)||0;
+    for(var ci=0;ci<clutterCount;ci++){
+      var clutterId=contactIdentity('clutter-'+ci);reconTruthById[clutterId]={kind:'clutter'};
+      objects.push({object_id:clutterId,normalized_position:[Number(Math.random().toFixed(4)),Number(Math.random().toFixed(4)),0],inferred_level:'0',uncertainty_m:Number(Math.max(0.5,sigma*10).toFixed(2)),calibration_status:'verified',calibration_ids:['SIM-CAL-'+modeName.toUpperCase()],lineage_declared:true,observation_count:(reconTracks[clutterId]?reconTracks[clutterId].observations:0)+1,sensor_ids:['SIM-'+modeName.toUpperCase()+'-01'],modalities:[modeName],independence_groups:['simulation-sensor-'+modeName],conflict:false});
+    }
     return{model_id:'VIGIL-SIMULATION-BAY',revision:'r'+sequence+'-s'+sweepCount,frame_id:'sim-grid-10x10',features:[],objects:objects,metadata:{source:'local simulation',sensor_mode:modeName,world_state_withheld:true,generated_at:new Date().toISOString()}};
   }
   function recordReconObservation(data){
@@ -2384,27 +2399,29 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var result=document.getElementById('sim-recon-results');
     if(!result||!lastObservationData){if(result)result.textContent='EVALUATION UNAVAILABLE // RUN A RECON SWEEP FIRST';return;}
     var activeTruth=enemyFleet.filter(function(v){return v.cells.some(function(p){return !v.hits[key(p[0],p[1])];});});
-    var errors=[],repeatTracks=0;
+    var errors=[],repeatTracks=0,falseReturns=0,represented=Object.create(null);
     lastObservationData.objects.forEach(function(object){
-      var match=String(object.object_id||'').match(/TRACK-(\d+)$/);
-      var vessel=match?enemyFleet[Number(match[1])-1]:null;
-      if(!vessel)return;
+      var truth=reconTruthById[object.object_id],track=reconTracks[object.object_id];
+      if(track&&track.observations>1)repeatTracks++;
+      if(!truth||truth.kind!=='genuine'){falseReturns++;return;}
+      represented[truth.vesselIndex]=true;
+      var vessel=enemyFleet[truth.vesselIndex];if(!vessel)return;
       var alive=vessel.cells.filter(function(p){return !vessel.hits[key(p[0],p[1])];});
       if(!alive.length)return;
       var row=alive.reduce(function(total,p){return total+p[0];},0)/alive.length;
       var col=alive.reduce(function(total,p){return total+p[1];},0)/alive.length;
       var estimate=object.normalized_position||[];
       errors.push(Math.hypot(Number(estimate[0])*10-(col+.5),Number(estimate[1])*10-(row+.5)));
-      var track=reconTracks[object.object_id];if(track&&track.observations>1)repeatTracks++;
     });
     var meanError=errors.length?errors.reduce(function(total,value){return total+value;},0)/errors.length:null;
+    var falseRate=lastObservationData.objects.length?100*falseReturns/lastObservationData.objects.length:0;
     result.textContent='RECONNAISSANCE EVALUATION // SWEEP '+sweepCount+
-      '\nACTIVE VESSELS REPRESENTED: '+lastObservationData.objects.length+' / '+activeTruth.length+
-      '\nMEAN POSITION ERROR: '+(meanError===null?'NOT AVAILABLE':meanError.toFixed(2)+' GRID CELLS')+
+      '\nGENUINE CONTACTS REPRESENTED: '+Object.keys(represented).length+' / '+activeTruth.length+
+      '\nMEAN GENUINE-CONTACT POSITION ERROR: '+(meanError===null?'NOT AVAILABLE':meanError.toFixed(2)+' GRID CELLS')+
+      '\nFALSE RETURNS: '+falseReturns+' / '+lastObservationData.objects.length+' ('+falseRate.toFixed(1)+'% of observed returns)'+
       '\nREPEATED SENSOR TRACKS: '+repeatTracks+' / '+lastObservationData.objects.length+
-      '\nFALSE CONTACT RATE: NOT EVALUATED // CLUTTER / DECOY MODEL NOT IMPLEMENTED'+
-      '\nLIMITATION: CURRENT GENERATOR EMITS ONE CONTACT PER SURVIVING VESSEL; COVERAGE IS NOT A DETECTION-CHALLENGE SCORE.'+
-      '\nGROUND TRUTH: USED ONLY INSIDE THIS EVALUATOR; EXCLUDED FROM VIGIL OBSERVATION PAYLOAD.';
+      '\nLIMITATION: EVERY SURVIVING VESSEL IS STILL EMITTED; MISSED-DETECTION RATE IS NOT EVALUATED.'+
+      '\nGROUND TRUTH: USED ONLY INSIDE THIS EVALUATOR; CLUTTER LABELS AND HIDDEN WORLD STATE ARE EXCLUDED FROM VIGIL PAYLOAD.';
   }
   function publish(sendToSpatial,countObservation){
     if(countObservation)sweepCount++;
