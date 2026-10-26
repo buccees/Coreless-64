@@ -4,6 +4,7 @@
   "ships": [
     {
       "ship_id": "player-destroyer",
+      "faction_id": "maritime-coalition",
       "name": "PLAYER DESTROYER",
       "ship_class": "destroyer",
       "x": 0.22,
@@ -15,6 +16,7 @@
     },
     {
       "ship_id": "ai-frigate",
+      "faction_id": "extraction-directorate",
       "name": "AI FRIGATE",
       "ship_class": "frigate",
       "x": 0.76,
