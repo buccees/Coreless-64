@@ -79,6 +79,8 @@ class SensorEventTests(unittest.TestCase):
             "status": "late_within_tolerance",
             "reason": "event arrived behind the sensor watermark; retained with warning",
             "lateness_ns": 25,
+            "clock_offset_ns": 0,
+            "aligned_timestamp_ns": 175,
         })
         self.assertEqual(ledger.alignment_for("newer")["status"], "aligned")
 
