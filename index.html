@@ -3159,7 +3159,7 @@ function updateFactionStation(){
  var oldRecipient=recipient.value;
  recipient.textContent='';
  [{value:'CONTROL',label:profile.prefix+' CONTROL'},{value:profile.prefix+'-ESCORT-01',label:profile.prefix+'-ESCORT-01 // ESCORT'},{value:profile.prefix+'-02',label:profile.prefix+'-02 // CIC'},{value:'ALL STATIONS',label:'ALL '+profile.name+' STATIONS'}].forEach(function(item){var option=document.createElement('option');option.value=item.value;option.textContent=item.label;recipient.appendChild(option);});
- recipient.value=oldRecipient==='ALL STATIONS'?'ALL STATIONS':profile.prefix+'-ESCORT-01';
+ recipient.value=oldRecipient==='ALL STATIONS'?'ALL STATIONS':oldRecipient==='CONTROL'?'CONTROL':profile.prefix+'-ESCORT-01';
  var netGroup=channel.querySelector('optgroup:last-of-type');
  if(netGroup){netGroup.label=profile.name+' // FICTIONAL TRAINING NETS — NOT REAL FREQUENCIES';Array.prototype.forEach.call(netGroup.options,function(option){var role=option.value.replace('NAVY-','');var names={'GUARD':'GUARD / DISTRESS DRILL','CMD':'COMMAND NET','TAC-1':'TACTICAL NET 1','TAC-2':'TACTICAL NET 2','LOG':'LOGISTICS NET'};option.textContent=profile.prefix+' // '+(names[role]||role);});}
  var title=document.getElementById('vigil-cb-title');
