@@ -8,11 +8,11 @@ def make_game():
     world = RegionalWorld([
         RegionalShip.from_class(
             ship_id="blue", name="Blue Ship", ship_class="destroyer",
-            x=0.2, y=0.3, speed=0.01,
+            x=0.2, y=0.3, speed=0.01, max_speed=0.03,
         ),
         RegionalShip.from_class(
             ship_id="red", name="Red Ship", ship_class="frigate",
-            x=0.8, y=0.7, speed=0.01,
+            x=0.8, y=0.7, speed=0.01, max_speed=0.02,
         ),
     ])
     game = RegionalGame(world)
@@ -56,6 +56,44 @@ def test_command_path_enforces_ownership_and_validates_heading():
                 "host-secret", "set_heading",
                 {"ship_id": "blue", "heading_deg": invalid},
             )
+
+
+def test_helm_can_stop_slow_and_accelerate_within_max_speed():
+    game = make_game()
+    stopped = game.command(
+        "host-secret", "set_speed", {"ship_id": "blue", "speed": 0}
+    )
+    assert stopped["stopped"] is True
+    assert stopped["speed"] == 0
+    game.advance_tick(2)
+    assert game.world.ships["blue"].x == pytest.approx(0.2)
+    assert game.world.ships["blue"].y == pytest.approx(0.3)
+
+    accelerated = game.command(
+        "host-secret", "set_speed", {"ship_id": "blue", "speed": 0.025}
+    )
+    assert accelerated["previous_speed"] == 0
+    assert accelerated["speed"] == pytest.approx(0.025)
+    assert accelerated["max_speed"] == pytest.approx(0.03)
+    game.advance_tick(2)
+    assert game.world.ships["blue"].y == pytest.approx(0.35)
+
+
+def test_set_speed_rejects_invalid_values_and_enforces_ownership_and_limit():
+    game = make_game()
+    for invalid in (-0.01, float("inf"), float("nan"), True, "fast"):
+        with pytest.raises(RegionalGameError, match="speed must be a finite non-negative"):
+            game.command(
+                "host-secret", "set_speed", {"ship_id": "blue", "speed": invalid}
+            )
+    with pytest.raises(RegionalGameError, match="max_speed"):
+        game.command(
+            "host-secret", "set_speed", {"ship_id": "blue", "speed": 0.031}
+        )
+    with pytest.raises(RegionalGameError, match="does not control"):
+        game.command(
+            "host-secret", "set_speed", {"ship_id": "red", "speed": 0}
+        )
 
 
 def test_campaign_move_uses_existing_world_movement_allowance():
