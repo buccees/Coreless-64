@@ -447,6 +447,8 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     });
     assert.equal(conflictPolicy.evidence.status, "CONFLICT", "test must establish a conflicting track in authorized observations");
     assert.equal(conflictPolicy.next.contact_id, conflictPolicy.targetId, "autonomous recon must prioritize a conflicting track; diagnostics=" + JSON.stringify({targetId:conflictPolicy.targetId,next:conflictPolicy.next,evidence:{status:conflictPolicy.evidence.status,conflict:conflictPolicy.evidence.conflict,positionEstimate:conflictPolicy.evidence.positionEstimate,uncertaintyMeters:conflictPolicy.evidence.uncertaintyMeters,observedAt:conflictPolicy.evidence.observedAt},sourceModes:conflictPolicy.sourceModes}));
+    assert.deepEqual(Object.keys(conflictPolicy.next).filter(key => /ground.?truth|true.?position|hidden.?identity/i.test(key)), [],
+      "autonomous decisions must not expose evaluator truth or hidden identity fields");
     assert.match(conflictPolicy.next.rationale, /conflicting sensor track/i, "decision rationale must explain the conflict-driven follow-up");
     if (conflictPolicy.sourceModes.some(mode => ["optical", "radar", "sonar"].includes(mode))) {
       const availableIndependentModes = ["optical", "radar", "sonar"].filter(mode => !conflictPolicy.sourceModes.includes(mode));
@@ -481,6 +483,8 @@ const fixture = require("./fixtures/vigil-test-scene.json");
       "a missed contact should remain in the authorized picture as last-known evidence");
     assert.equal(stalePolicy.next.contact_id, stalePolicy.contactId,
       "the autonomous policy must prioritize a last-known contact for reacquisition");
+    assert.deepEqual(Object.keys(stalePolicy.next).filter(key => /ground.?truth|true.?position|hidden.?identity/i.test(key)), [],
+      "last-known reacquisition actions must not expose evaluator truth or hidden identity fields");
     assert.match(stalePolicy.next.rationale, /last-known or stale track/i,
       "reacquisition decisions must explain that the contact is no longer current");
     const reacquisition = await page.evaluate(() => {
