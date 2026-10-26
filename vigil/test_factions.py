@@ -13,11 +13,11 @@ def test_regional_snapshot_exposes_core_factions_without_hidden_ships():
     world = RegionalWorld([
         RegionalShip.from_class(
             ship_id="visible", name="Visible", ship_class="destroyer",
-            x=0.2, y=0.3, speed=0.001, faction_id="prodigy",
+            x=0.2, y=0.3, speed=0, faction_id="prodigy",
         ),
         RegionalShip.from_class(
             ship_id="hidden", name="Hidden", ship_class="frigate",
-            x=0.8, y=0.7, speed=0.001, faction_id="weyland-yutani",
+            x=0.8, y=0.7, speed=0, faction_id="weyland-yutani",
         ),
     ])
     game = RegionalGame(world)
