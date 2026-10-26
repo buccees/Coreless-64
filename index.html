@@ -2534,10 +2534,11 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   }
   // Shared illustrative fleet state: normalized regional coordinates and degrees clockwise from north.
   var regionalTrainingFleet=[
-    {id:'DDG-51',name:'ARLEIGH BURKE-CLASS',x:.35,y:.44,lengthM:153.92,beamM:18.0,heading:28,speed:.018,source:'U.S. Navy DDG-51 fact sheet'},
-    {id:'CVN',name:'NIMITZ-CLASS',x:.66,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,source:'U.S. Navy Nimitz-class fact sheet'}
+    {id:'DDG-51',name:'ARLEIGH BURKE-CLASS',x:.35,y:.44,lengthM:153.92,beamM:18.0,heading:28,speed:.018,maxSpeed:.04,weaponRange:.23,weaponDamage:2,weaponReloadSeconds:8,weaponCooldownRemaining:0,hull:6,maxHull:6,shipClass:'destroyer',side:'friendly',afloat:true,source:'U.S. Navy DDG-51 fact sheet'},
+    {id:'CVN',name:'NIMITZ-CLASS',x:.66,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.025,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
   ];
-  var regionalWorldSnapshotActive=false;
+  var regionalTrainingFleetDemo=regionalTrainingFleet.map(function(ship){return Object.assign({},ship);});
+  var regionalWorldSnapshotActive=false,regionalAiNextDecision=0,regionalDemoTicks=0;
   var regionalFleetTimer=null;
   var regionalFleetLastTick=0;
   // API integration seam: accepts only already-authorized public snapshots.
@@ -2553,10 +2554,17 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       if(!s||typeof s.ship_id!=='string'||!Array.isArray(p)||p.length!==2)continue;
       if(!p.every(function(v){return typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1;}))continue;
       if(typeof s.heading_deg!=='number'||!Number.isFinite(s.heading_deg))continue;
+      var isControlled=Array.isArray(snapshot.controlled_ship_ids)&&snapshot.controlled_ship_ids.indexOf(s.ship_id)>=0;
       next.push({id:s.ship_id,name:String(s.name||s.ship_id),x:p[0],y:p[1],
         lengthM:Number(s.length_m)||18,beamM:Number(s.beam_m)||4,
         heading:s.heading_deg,source:String(s.blueprint_source||''),
-        speed:Number(s.speed)||0,shipClass:String(s.ship_class||'unknown'),
+        speed:Number(s.speed)||0,maxSpeed:Number.isFinite(Number(s.max_speed))?Number(s.max_speed):(Number(s.speed)||0),
+        shipClass:String(s.ship_class||'unknown'),side:isControlled?'friendly':'contact',
+        weaponRange:Number(s.weapon_range)||.15,weaponDamage:Number(s.weapon_damage)||1,
+        weaponReloadSeconds:Number(s.weapon_reload_seconds)||5,
+        weaponCooldownRemaining:Number(s.weapon_cooldown_remaining)||0,
+        hull:Number.isFinite(Number(s.hull))?Number(s.hull):null,
+        maxHull:Number.isFinite(Number(s.max_hull))?Number(s.max_hull):null,
         afloat:s.afloat!==false});
     }
     pauseRegionalFleet();regionalWorldSnapshotActive=true;regionalTrainingFleet=next;
