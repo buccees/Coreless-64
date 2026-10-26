@@ -1064,7 +1064,28 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     <div class="vigil-cb-config">
       <label>YOUR STATION<select id="vigil-cb-sender"><option value="VIGIL-01">VIGIL-01 // BRIDGE</option><option value="VIGIL-02">VIGIL-02 // CIC</option><option value="TRAINING-01">TRAINING-01 // TRAINEE</option></select></label>
       <label>STATION TO CALL<select id="vigil-cb-recipient"><option value="CONTROL">CONTROL</option><option value="ESCORT-01">ESCORT-01</option><option value="VIGIL-02">VIGIL-02 // CIC</option><option value="ALL STATIONS">ALL STATIONS</option></select></label>
-      <label>CHANNEL<select id="vigil-cb-channel"><option value="09">09 // EMERGENCY / TRAVELER ASSISTANCE (TRAINING)</option><option value="19">19 // HIGHWAY / TRAVELER INFORMATION (TRAINING)</option><option value="14">14 // GENERAL PRACTICE (TRAINING)</option></select></label>
+      <label>CHANNEL / NET<select id="vigil-cb-channel">
+        <optgroup label="U.S. CB RADIO — TRAINING">
+          <option value="CB-09">CB 09 // EMERGENCY / TRAVELER ASSISTANCE</option>
+          <option value="CB-19">CB 19 // HIGHWAY / TRAVELER INFORMATION</option>
+          <option value="CB-14">CB 14 // GENERAL PRACTICE</option>
+        </optgroup>
+        <optgroup label="MARINE VHF — PUBLIC CHANNEL DESIGNATIONS">
+          <option value="VHF-16">VHF 16 // DISTRESS, SAFETY & CALLING</option>
+          <option value="VHF-13">VHF 13 // BRIDGE-TO-BRIDGE NAVIGATION SAFETY</option>
+          <option value="VHF-06">VHF 06 // INTERSHIP SAFETY</option>
+          <option value="VHF-09">VHF 09 // BOATER CALLING</option>
+          <option value="VHF-22A">VHF 22A // COAST GUARD LIAISON (AFTER INITIAL CALL)</option>
+          <option value="VHF-70">VHF 70 // DSC DIGITAL ONLY — NO VOICE</option>
+        </optgroup>
+        <optgroup label="NAVY-STYLE TRAINING NETS — SIMULATED, NOT REAL FREQUENCIES">
+          <option value="NAVY-GUARD">NAVY TRAINING // GUARD / DISTRESS DRILL</option>
+          <option value="NAVY-CMD">NAVY TRAINING // COMMAND NET</option>
+          <option value="NAVY-TAC-1">NAVY TRAINING // TACTICAL NET 1</option>
+          <option value="NAVY-TAC-2">NAVY TRAINING // TACTICAL NET 2</option>
+          <option value="NAVY-LOG">NAVY TRAINING // LOGISTICS NET</option>
+        </optgroup>
+      </select></label>
     </div>
     <div class="vigil-cb-actions" aria-label="Approved etiquette actions">
       <button type="button" data-cb-action="call">CALL STATION</button>
@@ -3098,7 +3119,7 @@ var procedures={
  distress:{label:'EMERGENCY DRILL',ending:'OVER',build:function(to,from){return 'MAYDAY, MAYDAY, MAYDAY. THIS IS '+from+', '+from+', '+from+'. SIMULATED DISTRESS DRILL ONLY. NO REAL EMERGENCY. REQUESTING TRAINING RESPONSE. OVER.';},lesson:'This is a simulator-only classroom drill and must never be transmitted as a false distress call. In real life, use distress procedure only for a genuine grave and imminent danger; real CB operating rules and equipment requirements still apply.'}
 };
 function addLog(kind,message){
- history.unshift(kind+' // CH '+channel.value+' // '+message);
+ history.unshift(kind+' // '+channel.options[channel.selectedIndex].text+' // '+message);
  if(history.length>8)history.length=8;
  log.textContent='';
  history.forEach(function(line){var li=document.createElement('li');li.textContent=line;log.appendChild(li);});
@@ -3109,7 +3130,7 @@ root.querySelectorAll('[data-cb-action]').forEach(function(button){
   if(!action)return;
   var from=sender.value,to=recipient.value;
   var message=action.build(to,from);
-  output.textContent='TX // CH '+channel.value+'\n'+message;
+  if(channel.value==='VHF-70'){output.textContent='TRANSMISSION BLOCKED // VHF CHANNEL 70 IS FOR DIGITAL SELECTIVE CALLING (DSC), NOT VOICE.';feedback.textContent='INSTRUCTOR // Channel 70 is reserved for DSC calling, distress, and safety. Choose a voice channel appropriate to the scenario.';addLog('BLOCKED VOICE TX','VHF Channel 70 is DSC-only.');return;}\n  output.textContent='SIMULATED TX // '+channel.options[channel.selectedIndex].text+'\n'+message;
   feedback.textContent='INSTRUCTOR // '+action.label+': '+action.lesson;
   addLog('TX '+action.label,message);
   if(action.ending==='OVER'&&this.getAttribute('data-cb-action')!=='distress'){
