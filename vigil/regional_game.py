@@ -108,12 +108,27 @@ class RegionalGame:
         with self._lock:
             session = self.session_for_token(token)
             ship_id = arguments.get("ship_id")
-            if operation in {"set_heading", "campaign_move"}:
+            if operation in {"set_heading", "set_speed", "campaign_move"}:
                 if not isinstance(ship_id, str) or ship_id not in session.controlled_ship_ids:
                     raise RegionalGameError("player does not control that ship")
                 ship = self.world.ships[ship_id]
                 if not ship.afloat:
                     raise RegionalGameError("a sunk ship cannot receive commands")
+
+                if operation == "set_speed":
+                    speed = arguments.get("speed")
+                    if (type(speed) not in (int, float) or not isfinite(speed) or speed < 0):
+                        raise RegionalGameError("speed must be a finite non-negative number")
+                    if ship.max_speed is None or speed > ship.max_speed:
+                        raise RegionalGameError("speed cannot exceed this ship's max_speed")
+                    previous_speed = float(ship.speed)
+                    ship.speed = float(speed)
+                    return {
+                        "ok": True, "operation": operation, "ship_id": ship_id,
+                        "previous_speed": previous_speed, "speed": ship.speed,
+                        "max_speed": ship.max_speed, "stopped": ship.speed == 0,
+                        "movement_remaining": ship.movement_remaining,
+                    }
 
                 if operation == "set_heading":
                     heading = arguments.get("heading_deg")
