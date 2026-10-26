@@ -16,6 +16,20 @@ class RegionalWorldError(ValueError):
     """Raised when a movement or damage action is invalid."""
 
 
+# Game-balance starting values: one ship occupies one map/board location.
+# With one damage per successful hit, these values are hits-to-sink.
+SHIP_CLASS_HULL = {
+    "patrol": 3,
+    "corvette": 4,
+    "submarine": 4,
+    "frigate": 5,
+    "destroyer": 6,
+    "cruiser": 8,
+    "battleship": 10,
+    "carrier": 12,
+}
+
+
 @dataclass
 class RegionalShip:
     ship_id: str
@@ -29,6 +43,27 @@ class RegionalShip:
     movement_spent: float = 0.0
     damage_by_system: dict[str, int] = field(default_factory=dict)
     sunk: bool = False
+    ship_class: str = "custom"
+
+    @classmethod
+    def from_class(
+        cls, *, ship_id: str, name: str, ship_class: str, x: float, y: float,
+        speed: float, weapon_damage: int = 1
+    ) -> "RegionalShip":
+        """Create a ship whose hull points are determined by its class."""
+        key = ship_class.strip().lower()
+        if key not in SHIP_CLASS_HULL:
+            raise RegionalWorldError(f"unknown ship class: {ship_class}")
+        return cls(
+            ship_id=ship_id, name=name, x=x, y=y, speed=speed,
+            max_hull=SHIP_CLASS_HULL[key], weapon_damage=weapon_damage,
+            ship_class=key,
+        )
+
+    @property
+    def hits_to_sink_at_one_damage(self) -> int:
+        """Number of additional one-point hits needed to sink this ship."""
+        return int(self.hull or 0)
 
     def __post_init__(self) -> None:
         if not self.ship_id or not self.name:
@@ -149,6 +184,9 @@ class RegionalWorld:
                 "x": ship.x,
                 "y": ship.y,
                 "afloat": ship.afloat,
+                "hull": ship.hull,
+                "max_hull": ship.max_hull,
+                "ship_class": ship.ship_class,
             }
             for ship in self.ships.values()
             if ship.ship_id in visible_ship_ids
