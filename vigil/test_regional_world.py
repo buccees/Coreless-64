@@ -89,3 +89,33 @@ def test_unknown_ship_class_is_rejected():
             ship_id="x", name="Mystery", ship_class="super-ship",
             x=0, y=0, speed=2,
         )
+
+
+
+def test_blueprint_dimensions_preserve_real_length_to_beam_aspect_ratio():
+    vessel = RegionalShip.from_blueprint(
+        ship_id="ddg-example", name="Example Destroyer", ship_class="destroyer",
+        x=10, y=20, speed=4, length_m=155.0, beam_m=20.0,
+        blueprint_source="Example naval architecture plan, drawing sheet 2",
+        max_hull=6, heading_deg=90,
+    )
+    assert vessel.aspect_ratio == 7.75
+    assert vessel.length_m == 155.0
+    assert vessel.beam_m == 20.0
+    assert vessel.heading_deg == 90
+    assert vessel.blueprint_source
+
+
+def test_blueprint_ship_requires_sourced_dimensions_and_valid_ratio():
+    with pytest.raises(RegionalWorldError, match="blueprint_source is required"):
+        RegionalShip.from_blueprint(
+            ship_id="x", name="Unsourced", ship_class="custom", x=0, y=0,
+            speed=1, length_m=100, beam_m=20, blueprint_source="",
+            max_hull=5,
+        )
+    with pytest.raises(RegionalWorldError, match="length >= beam"):
+        RegionalShip.from_blueprint(
+            ship_id="x", name="Invalid", ship_class="custom", x=0, y=0,
+            speed=1, length_m=10, beam_m=20, blueprint_source="source",
+            max_hull=5,
+        )
