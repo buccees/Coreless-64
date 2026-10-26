@@ -2485,16 +2485,16 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var objects=[];
     var detectionRate=Number(document.getElementById('sim-detection-rate').value);
     if(regionalWorldSnapshotActive){
-      // Sensor returns are generated from the active regional snapshot, not the
-      // separate grid-game fleet. Only uncontrolled, afloat contacts are observable.
-      regionalTrainingFleet.forEach(function(v){
-        if(v.side==='friendly'||v.afloat===false)return;
+      // Reconnaissance consumes only explicitly authorized observation estimates.
+      // It never reads a hidden vessel's authoritative position or identity.
+      regionalAuthorizedObservations.forEach(function(v){
+        if(v.afloat===false)return;
         if(Math.random()*100>=detectionRate)return;
-        var p=Array.isArray(v.normalizedPosition)?v.normalizedPosition:[v.x,v.y];
+        var p=v.normalizedPosition;
         var jx=(Math.random()*2-1)*sigma/10,jy=(Math.random()*2-1)*sigma/10;
-        var trackId=contactIdentity('regional-vessel-'+v.id);
+        var trackId=contactIdentity('authorized-contact-'+v.contactId);
         reconTruthById[trackId]={kind:'regional-observation'};
-        objects.push({object_id:trackId,normalized_position:[Math.max(0,Math.min(1,p[0]+jx)),Math.max(0,Math.min(1,p[1]+jy)),0],inferred_level:'0',uncertainty_m:Number((sigma*10/Math.sqrt(3)).toFixed(2)),calibration_status:'verified',calibration_ids:['SIM-CAL-'+modeName.toUpperCase()],lineage_declared:true,observation_count:(reconTracks[trackId]?reconTracks[trackId].observations:0)+1,sensor_ids:['SIM-'+modeName.toUpperCase()+'-01'],modalities:[modeName],independence_groups:['simulation-sensor-'+modeName],conflict:false});
+        objects.push({object_id:trackId,normalized_position:[Math.max(0,Math.min(1,p[0]+jx)),Math.max(0,Math.min(1,p[1]+jy)),0],inferred_level:'0',uncertainty_m:Number((Math.max(0,v.uncertaintyM||0)+sigma*10/Math.sqrt(3)).toFixed(2)),calibration_status:'verified',calibration_ids:['SIM-CAL-'+modeName.toUpperCase()],lineage_declared:true,observation_count:(reconTracks[trackId]?reconTracks[trackId].observations:0)+1,sensor_ids:['SIM-'+modeName.toUpperCase()+'-01'],modalities:[modeName],independence_groups:['simulation-sensor-'+modeName],conflict:false});
       });
     }else{
       enemyFleet.forEach(function(v,trackIndex){
@@ -2668,7 +2668,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     {id:'CVN',name:'NIMITZ-CLASS',x:.66,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.025,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
   ];
   var regionalTrainingFleetDemo=regionalTrainingFleet.map(function(ship){return Object.assign({},ship);});
-  var regionalWorldSnapshotActive=false,regionalAiNextDecision=0,regionalDemoTicks=0;
+  var regionalWorldSnapshotActive=false,regionalAuthorizedObservations=[],regionalAiNextDecision=0,regionalDemoTicks=0;
   var regionalFleetTimer=null;
   var regionalFleetLastTick=0;
   // API integration seam: accepts only already-authorized public snapshots.
@@ -2679,17 +2679,22 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var next=[];
     if(typeof refreshRegionalCommandChoices==='function')refreshRegionalCommandChoices(snapshot);
     if(typeof regionalUiStatus==='function')regionalUiStatus('ONLINE // PLAYER '+String(snapshot.player_id||'SESSION')+' // TICK '+String(snapshot.simulation_tick||0),false);
+    var controlledIds=Array.isArray(snapshot.controlled_ship_ids)?snapshot.controlled_ship_ids:[];
     for(var i=0;i<snapshot.ships.length;i++){
-      var s=snapshot.ships[i],p=s.normalized_position;
-      if(!s||typeof s.ship_id!=='string'||!Array.isArray(p)||p.length!==2)continue;
-      if(!p.every(function(v){return typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1;}))continue;
+      var s=snapshot.ships[i];
+      if(!s||typeof s.ship_id!=='string')continue;
+      var isControlled=controlledIds.indexOf(s.ship_id)>=0;
+      // Exact coordinates are accepted only for vessels this session controls.
+      // Enemy/contact positions must arrive through authorized_observations.
+      if(!isControlled)continue;
+      var p=s.normalized_position;
+      if(!Array.isArray(p)||p.length!==2||!p.every(function(v){return typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1;}))continue;
       if(typeof s.heading_deg!=='number'||!Number.isFinite(s.heading_deg))continue;
-      var isControlled=Array.isArray(snapshot.controlled_ship_ids)&&snapshot.controlled_ship_ids.indexOf(s.ship_id)>=0;
       next.push({id:s.ship_id,name:String(s.name||s.ship_id),x:p[0],y:p[1],
         lengthM:Number(s.length_m)||18,beamM:Number(s.beam_m)||4,
         heading:s.heading_deg,source:String(s.blueprint_source||''),
         speed:Number(s.speed)||0,maxSpeed:Number.isFinite(Number(s.max_speed))?Number(s.max_speed):(Number(s.speed)||0),
-        shipClass:String(s.ship_class||'unknown'),side:isControlled?'friendly':'contact',
+        shipClass:String(s.ship_class||'unknown'),side:'friendly',
         weaponRange:Number(s.weapon_range)||.15,weaponDamage:Number(s.weapon_damage)||1,
         weaponReloadSeconds:Number(s.weapon_reload_seconds)||5,
         weaponCooldownRemaining:Number(s.weapon_cooldown_remaining)||0,
@@ -2697,7 +2702,21 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         maxHull:Number.isFinite(Number(s.max_hull))?Number(s.max_hull):null,
         afloat:s.afloat!==false});
     }
-    pauseRegionalFleet();regionalWorldSnapshotActive=true;regionalTrainingFleet=next;
+    var authorized=[];
+    (Array.isArray(snapshot.authorized_observations)?snapshot.authorized_observations:[]).forEach(function(o){
+      if(!o||typeof o.contact_id!=='string'||!o.contact_id||!Array.isArray(o.normalized_position)||o.normalized_position.length!==2)return;
+      var p=o.normalized_position;
+      if(!p.every(function(v){return typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1;}))return;
+      authorized.push({contactId:o.contact_id,normalizedPosition:[p[0],p[1]],
+        uncertaintyM:Number.isFinite(Number(o.uncertainty_m))&&Number(o.uncertainty_m)>=0?Number(o.uncertainty_m):0,
+        afloat:o.afloat!==false});
+      next.push({id:'OBS-'+o.contact_id,name:'AUTHORIZED CONTACT',x:p[0],y:p[1],
+        lengthM:18,beamM:4,heading:Number.isFinite(Number(o.heading_deg))?Number(o.heading_deg):0,
+        source:'authorized sensor observation',speed:0,maxSpeed:0,shipClass:'contact',side:'contact',
+        weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,
+        hull:null,maxHull:null,afloat:o.afloat!==false});
+    });
+    pauseRegionalFleet();regionalWorldSnapshotActive=true;regionalAuthorizedObservations=authorized;regionalTrainingFleet=next;
     renderBathymetry(lastObservationData);return true;
   };
   window.clearVigilRegionalWorldSnapshot=function(){regionalWorldSnapshotActive=false;resetRegionalFleet();};
