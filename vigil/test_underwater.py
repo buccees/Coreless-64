@@ -60,3 +60,36 @@ def test_invalid_environment_noise_is_rejected():
         pass
     else:
         raise AssertionError("invalid sea-state noise was accepted")
+
+
+def test_sonar_sweep_flows_into_normalized_sensor_event_ledger_without_truth_leak():
+    from vigil.sensor_event import SensorEventLedger
+    from vigil.underwater import append_sonar_sweep_to_ledger
+
+    sweep = simulate_sonar_sweep(sensor(), [target()], sensor_position_m=(0, 0), timestamp_ns=25)
+    ledger = SensorEventLedger()
+    assert append_sonar_sweep_to_ledger(sweep, ledger) == 1
+    events = ledger.snapshot(now_ns=25)
+    assert len(events) == 1
+    event = events[0]
+    assert event.modality == "acoustic_sonar"
+    assert event.event_kind == "sonar_contact"
+    assert event.calibration_status == "simulation_only"
+    assert event.uncertainty_m is not None
+    assert "hidden-sub-1" not in str(event.to_dict())
+    assert "x_m" not in event.to_dict()
+
+
+def test_empty_sonar_sweep_is_still_recorded_as_context():
+    from vigil.sensor_event import SensorEventLedger, SensorEventStatus
+    from vigil.underwater import append_sonar_sweep_to_ledger
+
+    short = SonarSensor("short", SonarMode.ACTIVE, max_range_m=10, sensitivity=1.0,
+                        environmental_noise=0.0)
+    sweep = simulate_sonar_sweep(short, [target()], sensor_position_m=(0, 0), timestamp_ns=26)
+    ledger = SensorEventLedger()
+    assert append_sonar_sweep_to_ledger(sweep, ledger) == 1
+    events = ledger.snapshot(now_ns=26)
+    assert len(events) == 1
+    assert events[0].event_kind == "sonar_sweep_no_contact"
+    assert events[0].status is SensorEventStatus.CONTEXT
