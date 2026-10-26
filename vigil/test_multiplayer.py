@@ -50,7 +50,7 @@ def test_players_get_isolated_views_and_turns_are_server_authoritative():
     assert after_miss["outgoing_shots"] == [{"row": 9, "column": 9, "hit": False}]
     assert after_miss["turn"] == 1
     with pytest.raises(MultiplayerError, match="already been targeted"):
-        rooms.fire(second["player_token"], 9, 9)
+        rooms.fire(first["player_token"], 0, 0)
 
 
 def test_room_rejects_invalid_fleets_and_unknown_sessions():
