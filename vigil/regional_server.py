@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import secrets
 import ssl
 import threading
 from pathlib import Path
@@ -18,10 +19,13 @@ from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server
 
 from vigil.regional_game import RegionalGame
 from vigil.regional_game_http import create_regional_game_app
+from vigil.regional_ai import RegionalOpponent, RegionalOpponentRunner
 from vigil.regional_world import RegionalShip, RegionalWorld, SHIP_CLASS_HULL
 
 
-def load_game_config(path: str | Path) -> RegionalGame:
+def load_game_config(
+    path: str | Path, *, ai_tokens: dict[str, str] | None = None
+) -> RegionalGame:
     """Load a version-1 game roster and player grants from a local JSON file."""
     try:
         config = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -85,16 +89,24 @@ def load_game_config(path: str | Path) -> RegionalGame:
         if not isinstance(item, dict):
             raise ValueError("each player config must be an object")
         player_id, token_env = item.get("player_id"), item.get("token_env")
-        if not isinstance(token_env, str) or not token_env:
-            raise ValueError("each player must specify token_env")
-        token = os.environ.get(token_env)
-        if not token:
-            raise ValueError(f"required player token environment variable is missing: {token_env}")
+        is_ai = item.get("ai", False)
+        if type(is_ai) is not bool:
+            raise ValueError("player ai flag must be a boolean")
+        if is_ai:
+            token = secrets.token_urlsafe(32)
+        else:
+            if not isinstance(token_env, str) or not token_env:
+                raise ValueError("each human player must specify token_env")
+            token = os.environ.get(token_env)
+            if not token:
+                raise ValueError(f"required player token environment variable is missing: {token_env}")
         game.register_player(
             player_id=player_id, token=token,
             controlled_ship_ids=item.get("controlled_ship_ids", []),
             visible_ship_ids=item.get("visible_ship_ids"),
         )
+        if is_ai and ai_tokens is not None:
+            ai_tokens[player_id] = token
     return game
 
 
@@ -163,8 +175,12 @@ def main() -> int:
     if not args.cert or not args.key:
         parser.error("TLS is required; provide --cert/--key or VIGIL_TLS_CERT/VIGIL_TLS_KEY")
     try:
-        game = load_game_config(args.config)
+        ai_tokens: dict[str, str] = {}
+        game = load_game_config(args.config, ai_tokens=ai_tokens)
         ticks = RegionalTickRunner(game, args.tick_rate)
+        ai_runner = RegionalOpponentRunner(
+            game, {token: RegionalOpponent() for token in ai_tokens.values()}
+        )
         app = create_regional_game_app(game=game, allowed_origins=origins)
     except (OSError, TypeError, ValueError) as exc:
         parser.error(str(exc))
@@ -179,12 +195,16 @@ def main() -> int:
     print(f"VIGIL regional API listening at https://{args.host}:{args.port}/")
     print(f"Authoritative regional simulation: {args.tick_rate:g} fixed ticks/second.")
     print("Development/LAN only; configure production WSGI, TLS proxy, identity, and persistence separately.")
+    if ai_tokens:
+        print(f"Started {len(ai_tokens)} AI opponent(s) using deterministic fallback policy.")
     ticks.start()
+    ai_runner.start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        ai_runner.stop()
         ticks.stop()
         server.server_close()
     return 0
