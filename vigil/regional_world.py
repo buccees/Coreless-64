@@ -265,7 +265,18 @@ class RegionalWorld:
             if ship.ship_id in visible_ship_ids
         ]
 
-    def public_snapshot(self, visible_ship_ids: set[str]) -> dict[str, object]:\n        """Return a versioned browser/API snapshot of authorized ship observations.\n\n        Coordinates retain the world model units. A renderer must establish its\n        coordinate transform; this method never reveals ships outside the allowlist.\n        """\n        return {\n            "schema_version": 1,\n            "turn": self.turn,\n            "ships": self.public_map(visible_ship_ids),\n        }\n\n    def _ship(self, ship_id: str) -> RegionalShip:
+    def public_snapshot(self, visible_ship_ids: set[str]) -> dict[str, object]:
+        """Return a versioned browser/API snapshot of authorized ship observations.
+
+        Coordinates retain the world model units. A renderer must establish its
+        coordinate transform; this method never reveals ships outside the allowlist.
+        """
+        return {
+            "schema_version": 1,
+            "turn": self.turn,
+            "ships": self.public_map(visible_ship_ids),
+        }
+    def _ship(self, ship_id: str) -> RegionalShip:
         try:
             return self.ships[ship_id]
         except KeyError as exc:
