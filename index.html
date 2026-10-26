@@ -2853,8 +2853,8 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       var angle=ship.heading*Math.PI/180;
       ship.x+=Math.sin(angle)*ship.speed*dt;
       ship.y-=Math.cos(angle)*ship.speed*dt;
-      if(ship.x<.04||ship.x>.96){ship.heading=(360-ship.heading+180)%360;ship.x=Math.max(.04,Math.min(.96,ship.x));}
-      if(ship.y<.05||ship.y>.95){ship.heading=(360-ship.heading)%360;ship.y=Math.max(.05,Math.min(.95,ship.y));}
+      if(ship.x<.04||ship.x>.96){ship.heading=(360-ship.heading)%360;ship.x=Math.max(.04,Math.min(.96,ship.x));}
+      if(ship.y<.05||ship.y>.95){ship.heading=(180-ship.heading+360)%360;ship.y=Math.max(.05,Math.min(.95,ship.y));}
     });
     renderBathymetry(lastObservationData);
     if(regionalFleetTimer!==null)regionalFleetTimer=requestAnimationFrame(stepRegionalFleet);
