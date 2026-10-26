@@ -40,6 +40,7 @@ class RegionalShip:
     max_hull: int
     hull: int | None = None
     weapon_damage: int = 1
+    weapon_range: float = 0.15
     movement_spent: float = 0.0
     damage_by_system: dict[str, int] = field(default_factory=dict)
     sunk: bool = False
@@ -52,7 +53,7 @@ class RegionalShip:
     @classmethod
     def from_class(
         cls, *, ship_id: str, name: str, ship_class: str, x: float, y: float,
-        speed: float, weapon_damage: int = 1
+        speed: float, weapon_damage: int = 1, weapon_range: float = 0.15
     ) -> "RegionalShip":
         """Create a ship whose hull points are determined by its class."""
         key = ship_class.strip().lower()
@@ -61,14 +62,15 @@ class RegionalShip:
         return cls(
             ship_id=ship_id, name=name, x=x, y=y, speed=speed,
             max_hull=SHIP_CLASS_HULL[key], weapon_damage=weapon_damage,
-            ship_class=key,
+            weapon_range=weapon_range, ship_class=key,
         )
 
     @classmethod
     def from_blueprint(
         cls, *, ship_id: str, name: str, ship_class: str, x: float, y: float,
         speed: float, length_m: float, beam_m: float, blueprint_source: str,
-        max_hull: int, weapon_damage: int = 1, heading_deg: float = 0.0
+        max_hull: int, weapon_damage: int = 1, weapon_range: float = 0.15,
+        heading_deg: float = 0.0
     ) -> "RegionalShip":
         """Create a dimensioned ship from a cited blueprint/specification source.
 
@@ -83,8 +85,8 @@ class RegionalShip:
             raise RegionalWorldError("heading_deg must be in [0, 360)")
         return cls(
             ship_id=ship_id, name=name, x=x, y=y, speed=speed,
-            max_hull=max_hull, weapon_damage=weapon_damage, ship_class=ship_class,
-            length_m=length_m, beam_m=beam_m,
+            max_hull=max_hull, weapon_damage=weapon_damage, weapon_range=weapon_range,
+            ship_class=ship_class, length_m=length_m, beam_m=beam_m,
             blueprint_source=blueprint_source.strip(), heading_deg=heading_deg,
         )
 
@@ -109,6 +111,8 @@ class RegionalShip:
             raise RegionalWorldError("max_hull must be positive")
         if self.weapon_damage <= 0:
             raise RegionalWorldError("weapon_damage must be positive")
+        if not isinstance(self.weapon_range, (int, float)) or not isfinite(self.weapon_range) or self.weapon_range <= 0:
+            raise RegionalWorldError("weapon_range must be a finite positive number")
         if self.hull is None:
             self.hull = self.max_hull
         if not 0 <= self.hull <= self.max_hull:
@@ -259,6 +263,7 @@ class RegionalWorld:
                 "aspect_ratio": ship.aspect_ratio,
                 "heading_deg": ship.heading_deg,
                 "speed": ship.speed,
+                "weapon_range": ship.weapon_range,
                 "blueprint_source": ship.blueprint_source,
             }
             for ship in self.ships.values()
