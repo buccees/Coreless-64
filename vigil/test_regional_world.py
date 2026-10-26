@@ -158,3 +158,16 @@ def test_public_snapshot_is_versioned_and_contains_only_authorized_ships():
     assert visible["x"] == 0.25 and visible["y"] == 0.75
     assert visible["speed"] == 2.5 and visible["heading_deg"] == 90
     assert "Hidden Enemy" not in repr(snapshot)
+
+
+def test_public_snapshot_normalizes_world_coordinates_for_map():
+    world = RegionalWorld([ship("visible", x=50, y=25), ship("outside", x=150, y=25)])
+    snapshot = world.public_snapshot({"visible", "outside"}, world_bounds=(0, 0, 100, 100))
+    assert snapshot["ships"][0]["normalized_position"] == [0.5, 0.25]
+    assert [s["ship_id"] for s in snapshot["ships"]] == ["visible"]
+
+
+def test_public_snapshot_rejects_invalid_map_bounds():
+    world = RegionalWorld([ship()])
+    with pytest.raises(RegionalWorldError, match="world_bounds"):
+        world.public_snapshot({"blue"}, world_bounds=(0, 0, 0, 1))
