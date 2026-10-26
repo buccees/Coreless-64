@@ -99,6 +99,31 @@ def test_tick_runner_advances_authoritative_world():
         RegionalTickRunner(game, tick_rate=100)
 
 
+def test_ship_faction_id_survives_config_and_authorized_snapshot(tmp_path):
+    config = {
+        "schema_version": 1,
+        "ships": [
+            {"ship_id": "blue", "name": "Blue Ship", "ship_class": "destroyer",
+             "faction_id": "maritime-coalition", "x": 0.2, "y": 0.3, "speed": 0.01},
+            {"ship_id": "red", "name": "Red Ship", "ship_class": "frigate",
+             "faction_id": "extraction-directorate", "x": 0.7, "y": 0.8, "speed": 0.01},
+        ],
+        "players": [
+            {"player_id": "host", "token_env": "VIGIL_TEST_HOST_TOKEN",
+             "controlled_ship_ids": ["blue"], "visible_ship_ids": ["blue"]},
+        ],
+    }
+    import os
+    os.environ["VIGIL_TEST_HOST_TOKEN"] = "test-faction-token"
+    try:
+        game = load_game_config(write_config(tmp_path, config))
+        snapshot = game.snapshot("test-faction-token")
+    finally:
+        os.environ.pop("VIGIL_TEST_HOST_TOKEN", None)
+    assert [ship["faction_id"] for ship in snapshot["ships"]] == ["maritime-coalition"]
+    assert "red" not in [ship["ship_id"] for ship in snapshot["ships"]]
+
+
 def test_ai_player_gets_private_token_and_can_be_scheduled(tmp_path):
     config = {
         "schema_version": 1,
