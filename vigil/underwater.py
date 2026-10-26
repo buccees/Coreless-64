@@ -112,7 +112,10 @@ def simulate_sonar_sweep(
             missed += 1
             continue
         noise = min(1.0, sensor.environmental_noise + sea_state_noise)
-        mode_factor = 0.12 if sensor.mode is SonarMode.ACTIVE else (0.38 if target.moving else 0.12)
+        # Active mode models a returned pulse; passive mode depends on the
+        # target's own acoustic activity. These are gameplay coefficients,
+        # not calibrated physical sonar-performance values.
+        mode_factor = 0.55 if sensor.mode is SonarMode.ACTIVE else (0.38 if target.moving else 0.12)
         signal = target.acoustic_signature * mode_factor
         threshold = max(0.0, noise + (1.0 - sensor.sensitivity) * 0.25)
         # Stable pseudo-noise ensures the same scenario replays identically.
