@@ -110,7 +110,7 @@ def create_multiplayer_app(
         if origin not in origins:
             return response(start_response, "403 Forbidden", {"error": "origin_not_allowed"})
         if method == "OPTIONS":
-            return response(start_response, "204 No Content", {}, origin, preflight=True)
+            return response(start_response, "200 OK", {}, origin, preflight=True)
 
         try:
             if path == "/api/multiplayer/create":
