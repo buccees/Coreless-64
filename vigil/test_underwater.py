@@ -42,6 +42,18 @@ def test_active_and_passive_sonar_are_distinct_sensor_modes():
     assert passive.mode is SonarMode.PASSIVE
     assert active.contacts[0].mode is SonarMode.ACTIVE
     assert passive.contacts[0].mode is SonarMode.PASSIVE
+    # The game model should make the mode choice observably meaningful,
+    # rather than merely changing the label shown to the operator.
+    assert active.contacts[0].confidence > passive.contacts[0].confidence
+
+    stationary = UnderwaterTarget("quiet-sub-2", 1000, 0, 200,
+                                  acoustic_signature=1.0, moving=False)
+    quiet_passive = simulate_sonar_sweep(
+        sensor(SonarMode.PASSIVE), [stationary],
+        sensor_position_m=(0, 0), timestamp_ns=12,
+    )
+    assert len(quiet_passive.contacts) == 1
+    assert passive.contacts[0].confidence > quiet_passive.contacts[0].confidence
 
 
 def test_terminal_renders_estimated_sensor_returns_not_hidden_target_identity():
