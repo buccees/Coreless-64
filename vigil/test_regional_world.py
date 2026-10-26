@@ -119,3 +119,26 @@ def test_blueprint_ship_requires_sourced_dimensions_and_valid_ratio():
             speed=1, length_m=10, beam_m=20, blueprint_source="source",
             max_hull=5,
         )
+
+
+def test_realtime_tick_moves_all_afloat_ships_by_heading_and_elapsed_time():
+    north = ship("north", x=0, y=0, speed=2, heading_deg=0)
+    east = ship("east", x=5, y=5, speed=3, heading_deg=90)
+    wreck = ship("wreck", x=9, y=9, speed=4, heading_deg=0, hull=0)
+    world = RegionalWorld([north, east, wreck])
+    results = world.advance_realtime_tick(2)
+    assert [r.ship_id for r in results] == ["north", "east"]
+    assert north.x == pytest.approx(0)
+    assert north.y == pytest.approx(4)
+    assert east.x == pytest.approx(11)
+    assert east.y == pytest.approx(5)
+    assert wreck.x == 9 and wreck.y == 9
+    # Real-time movement does not consume the separate campaign allowance.
+    assert north.movement_remaining == 2
+
+
+@pytest.mark.parametrize("delta", [0, -1, float("inf"), float("nan")])
+def test_realtime_tick_rejects_invalid_elapsed_time(delta):
+    world = RegionalWorld([ship()])
+    with pytest.raises(RegionalWorldError, match="finite positive number"):
+        world.advance_realtime_tick(delta)
