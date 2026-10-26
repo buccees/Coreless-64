@@ -1070,13 +1070,40 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
           <option value="CB-19">CB 19 // HIGHWAY / TRAVELER INFORMATION</option>
           <option value="CB-14">CB 14 // GENERAL PRACTICE</option>
         </optgroup>
-        <optgroup label="MARINE VHF — PUBLIC CHANNEL DESIGNATIONS">
+        <optgroup label="MARINE VHF — SAFETY & CALLING">
           <option value="VHF-16">VHF 16 // DISTRESS, SAFETY & CALLING</option>
-          <option value="VHF-13">VHF 13 // BRIDGE-TO-BRIDGE NAVIGATION SAFETY</option>
-          <option value="VHF-06">VHF 06 // INTERSHIP SAFETY</option>
-          <option value="VHF-09">VHF 09 // BOATER CALLING</option>
-          <option value="VHF-22A">VHF 22A // COAST GUARD LIAISON (AFTER INITIAL CALL)</option>
+          <option value="VHF-09">VHF 09 // SUPPLEMENTARY BOATER CALLING</option>
+          <option value="VHF-06">VHF 06 // INTERSHIP SAFETY / SAR</option>
+          <option value="VHF-13">VHF 13 // BRIDGE-TO-BRIDGE / NAVIGATION SAFETY</option>
+          <option value="VHF-22A">VHF 22A // COAST GUARD LIAISON / MARITIME SAFETY INFO</option>
           <option value="VHF-70">VHF 70 // DSC DIGITAL ONLY — NO VOICE</option>
+        </optgroup>
+        <optgroup label="MARINE VHF — RECREATIONAL WORKING CHANNELS">
+          <option value="VHF-68">VHF 68 // NONCOMMERCIAL WORKING</option>
+          <option value="VHF-69">VHF 69 // NONCOMMERCIAL WORKING</option>
+          <option value="VHF-71">VHF 71 // NONCOMMERCIAL WORKING</option>
+          <option value="VHF-72">VHF 72 // SHIP-TO-SHIP ONLY</option>
+          <option value="VHF-78A">VHF 78A // NONCOMMERCIAL WORKING</option>
+        </optgroup>
+        <optgroup label="MARINE VHF — PORTS & INLAND WATERWAYS">
+          <option value="VHF-12">VHF 12 // PORT OPERATIONS — LOCAL RULES APPLY</option>
+          <option value="VHF-14">VHF 14 // PORT OPERATIONS — LOCAL RULES APPLY</option>
+          <option value="VHF-17">VHF 17 // STATE / LOCAL MARITIME CONTROL</option>
+          <option value="VHF-20">VHF 20 // SHIP-TO-COAST PORT OPERATIONS</option>
+          <option value="VHF-65">VHF 65 // PORT OPERATIONS</option>
+          <option value="VHF-66">VHF 66 // PORT OPERATIONS</option>
+          <option value="VHF-73">VHF 73 // PORT OPERATIONS</option>
+          <option value="VHF-74">VHF 74 // PORT OPERATIONS</option>
+          <option value="VHF-77">VHF 77 // INTERSHIP / PILOT OPERATIONS</option>
+        </optgroup>
+        <optgroup label="NOAA WEATHER — RECEIVE ONLY">
+          <option value="WX-1">WX 1 // NOAA WEATHER 162.550 MHz — RX ONLY</option>
+          <option value="WX-2">WX 2 // NOAA WEATHER 162.400 MHz — RX ONLY</option>
+          <option value="WX-3">WX 3 // NOAA WEATHER 162.475 MHz — RX ONLY</option>
+          <option value="WX-4">WX 4 // NOAA WEATHER 162.425 MHz — RX ONLY</option>
+          <option value="WX-5">WX 5 // NOAA WEATHER 162.450 MHz — RX ONLY</option>
+          <option value="WX-6">WX 6 // NOAA WEATHER 162.500 MHz — RX ONLY</option>
+          <option value="WX-7">WX 7 // NOAA WEATHER 162.525 MHz — RX ONLY</option>
         </optgroup>
         <optgroup label="NAVY-STYLE TRAINING NETS — SIMULATED, NOT REAL FREQUENCIES">
           <option value="NAVY-GUARD">NAVY TRAINING // GUARD / DISTRESS DRILL</option>
@@ -3130,7 +3157,7 @@ root.querySelectorAll('[data-cb-action]').forEach(function(button){
   if(!action)return;
   var from=sender.value,to=recipient.value;
   var message=action.build(to,from);
-  if(channel.value==='VHF-70'){output.textContent='TRANSMISSION BLOCKED // VHF CHANNEL 70 IS FOR DIGITAL SELECTIVE CALLING (DSC), NOT VOICE.';feedback.textContent='INSTRUCTOR // Channel 70 is reserved for DSC calling, distress, and safety. Choose a voice channel appropriate to the scenario.';addLog('BLOCKED VOICE TX','VHF Channel 70 is DSC-only.');return;}
+  if(channel.value==='VHF-70'||channel.value.indexOf('WX-')===0){output.textContent='TRANSMISSION BLOCKED // SELECTED CHANNEL IS RECEIVE-ONLY OR DIGITAL-ONLY; VOICE TRANSMISSION IS NOT AVAILABLE.';feedback.textContent='INSTRUCTOR // Channel 70 is reserved for DSC calling, distress, and safety. Choose a voice channel appropriate to the scenario.';addLog('BLOCKED VOICE TX','VHF Channel 70 is DSC-only.');return;}
   output.textContent='SIMULATED TX // '+channel.options[channel.selectedIndex].text+'\\n'+message;
   feedback.textContent='INSTRUCTOR // '+action.label+': '+action.lesson;
   addLog('TX '+action.label,message);
