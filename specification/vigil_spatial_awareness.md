@@ -210,3 +210,17 @@ The runtime snapshot exposes derived `sensor_health_alerts` for provider errors/
 - Acknowledgement records are stored in SQLite with integrity-checked JSON payloads, UTC timestamp, and actor label. The snapshot exposes acknowledgement status and metadata to the operator display.
 - Acknowledgements are cleared when a subsequent snapshot observes that the corresponding alert is no longer active, so a later recurrence can require a new acknowledgement. If no snapshot observes the recovery interval, the system cannot infer that a distinct incident occurred; incident identity is limited by the currently available state-transition evidence.
 - Acknowledgement is an operator workflow marker, not a repair action and not proof that the sensor has recovered. Without a persistent registry, the acknowledgement endpoint returns an explicit unavailable response.
+
+
+## VIGIL shared-campaign MMO sign-in contract
+
+The browser client no longer exposes local pass-and-play. Solo remains a local training mode; shared campaigns require a server-authoritative HTTPS service.
+
+The regional link panel is login-first:
+- The player enters the HTTPS regional snapshot endpoint, username, and password.
+- The client sends credentials only to `POST /api/auth/login` over HTTPS with a JSON body `{ "username": "...", "password": "..." }`.
+- A successful login returns an opaque bearer token as `access_token` (or the compatibility field `token`). The browser keeps it in memory only, clears the password after success, and uses the token for the authenticated regional snapshot and command endpoints.
+- Sign-out disconnects polling, clears the in-memory token, and attempts `POST /api/auth/logout` with the bearer token.
+- Credentials and tokens are not written to localStorage, query strings, or URLs. A non-HTTPS login endpoint is rejected.
+
+**Server implementation contract:** this client flow is not, by itself, an MMO backend. Before public multiplayer deployment, the HTTPS server must implement account creation/credential verification, password hashing, login throttling, session/token expiry and revocation, per-player authorization, and the authenticated regional snapshot/command API. Game state, movement, combat resolution, vessel ownership, and contact visibility must be authoritative on the server; clients must never submit authoritative enemy positions or resolve their own hits. Server responses should provide each player only their authorized controlled vessels and explicitly authorized contact estimates. Cross-origin access must be restricted to the intended game origin, and transport must use a publicly trusted TLS certificate for internet players.
