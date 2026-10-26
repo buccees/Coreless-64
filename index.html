@@ -2760,10 +2760,14 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       var distance=Math.hypot(target.x-shooter.x,target.y-shooter.y);
       if(distance>shooter.weaponRange){regionalUiStatus('NO FIRE SOLUTION // RANGE '+distance.toFixed(3)+' / MAX '+shooter.weaponRange.toFixed(3),true);return;}
       var damage=Number(shooter.weaponDamage||1);applyLocalWeaponHit(shooter,target);
+      var localEncounter={source:'local-training',shooter_id:shipId,target_id:targetId,damage:damage,hull_after:target.hull,sunk:!target.afloat,occurred_at:new Date().toISOString()};
+      window.dispatchEvent(new CustomEvent('vigil:regional-encounter',{detail:localEncounter}));
       populateLocalRegionalCommandChoices();renderBathymetry(lastObservationData);
       regionalUiStatus((target.afloat?'LOCAL WEAPON HIT':'CONTACT SUNK')+' // '+targetId+' // DAMAGE '+damage+' // HULL '+target.hull+'/'+target.maxHull+' // RELOAD '+shooter.weaponCooldownRemaining.toFixed(1)+'s',false);return;
     }
-    try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'fire_weapon',{ship_id:shipId,target_id:targetId});var cooldown=Number(r.weapon_cooldown_remaining)||0;var fireButton=document.getElementById('vigil-regional-fire');if(cooldown>0){fireButton.disabled=true;fireButton.textContent='RELOADING '+cooldown.toFixed(1)+'s';}regionalUiStatus((r.sunk?'CONTACT SUNK':'WEAPON HIT')+' // '+targetId+' // DAMAGE '+r.damage+' // HULL '+r.hull_after+' // RELOAD '+cooldown.toFixed(1)+'s',false);}
+    try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'fire_weapon',{ship_id:shipId,target_id:targetId});var cooldown=Number(r.weapon_cooldown_remaining)||0;var fireButton=document.getElementById('vigil-regional-fire');if(cooldown>0){fireButton.disabled=true;fireButton.textContent='RELOADING '+cooldown.toFixed(1)+'s';}
+      window.dispatchEvent(new CustomEvent('vigil:regional-encounter',{detail:{source:'authoritative-backend',shooter_id:shipId,target_id:targetId,damage:Number(r.damage)||0,hull_after:Number(r.hull_after),sunk:!!r.sunk,occurred_at:new Date().toISOString()}}));
+      regionalUiStatus((r.sunk?'CONTACT SUNK':'WEAPON HIT')+' // '+targetId+' // DAMAGE '+r.damage+' // HULL '+r.hull_after+' // RELOAD '+cooldown.toFixed(1)+'s',false);}
     catch(e){regionalUiStatus('FIRE SOLUTION REJECTED // '+String(e.message||e),true);}
   });
   window.addEventListener('vigil:regional-snapshot-error',function(e){regionalUiStatus('LINK ERROR // '+String(e.detail&&e.detail.message||'Regional snapshot unavailable'),true);});
