@@ -55,3 +55,37 @@ def test_public_map_only_returns_authorized_observations():
     assert len(view) == 1
     assert view[0]["ship_id"] == "friendly"
     assert "hidden" not in repr(view)
+
+
+
+def test_ship_class_sets_hits_to_sink_for_single_spot_rts_ships():
+    from vigil.regional_world import SHIP_CLASS_HULL
+
+    expected = {
+        "patrol": 3, "corvette": 4, "submarine": 4, "frigate": 5,
+        "destroyer": 6, "cruiser": 8, "battleship": 10, "carrier": 12,
+    }
+    assert SHIP_CLASS_HULL == expected
+    for ship_class, hits in expected.items():
+        vessel = RegionalShip.from_class(
+            ship_id=ship_class, name=ship_class.title(), ship_class=ship_class,
+            x=0, y=0, speed=2,
+        )
+        assert vessel.max_hull == hits
+        assert vessel.hits_to_sink_at_one_damage == hits
+        world = RegionalWorld([vessel])
+        for remaining in range(hits - 1, 0, -1):
+            result = world.apply_hit(ship_class, damage=1)
+            assert result.hull_after == remaining
+            assert result.sunk is False
+        result = world.apply_hit(ship_class, damage=1)
+        assert result.hull_after == 0
+        assert result.sunk is True
+
+
+def test_unknown_ship_class_is_rejected():
+    with pytest.raises(RegionalWorldError, match="unknown ship class"):
+        RegionalShip.from_class(
+            ship_id="x", name="Mystery", ship_class="super-ship",
+            x=0, y=0, speed=2,
+        )
