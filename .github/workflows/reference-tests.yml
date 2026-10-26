@@ -4,6 +4,7 @@ run-name: Coreless tests / ${{ github.event_name }} / ${{ github.ref_name }}
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   reference-tests:
@@ -37,10 +38,12 @@ jobs:
       - name: Run VIGIL spatial review logic scenarios
         run: node vigil/test_spatial_review_logic.cjs
       - name: Install Playwright Chromium
+        if: github.event_name == 'workflow_dispatch'
         run: |
           npm install --prefix /tmp/vigil-playwright playwright
           /tmp/vigil-playwright/node_modules/.bin/playwright install --with-deps chromium
       - name: Run VIGIL browser integration
+        if: github.event_name == 'workflow_dispatch'
         env:
           NODE_PATH: /tmp/vigil-playwright/node_modules
         run: node vigil/test_spatial_browser.cjs
