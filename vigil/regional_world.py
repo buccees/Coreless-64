@@ -44,6 +44,10 @@ class RegionalShip:
     damage_by_system: dict[str, int] = field(default_factory=dict)
     sunk: bool = False
     ship_class: str = "custom"
+    length_m: float | None = None
+    beam_m: float | None = None
+    blueprint_source: str | None = None
+    heading_deg: float = 0.0
 
     @classmethod
     def from_class(
@@ -59,6 +63,37 @@ class RegionalShip:
             max_hull=SHIP_CLASS_HULL[key], weapon_damage=weapon_damage,
             ship_class=key,
         )
+
+    @classmethod
+    def from_blueprint(
+        cls, *, ship_id: str, name: str, ship_class: str, x: float, y: float,
+        speed: float, length_m: float, beam_m: float, blueprint_source: str,
+        max_hull: int, weapon_damage: int = 1, heading_deg: float = 0.0
+    ) -> "RegionalShip":
+        """Create a dimensioned ship from a cited blueprint/specification source.
+
+        Dimensions are real-world metres; map rendering must preserve length:beam
+        ratio rather than stretching each ship to fit a generic icon.
+        """
+        if length_m <= 0 or beam_m <= 0 or length_m < beam_m:
+            raise RegionalWorldError("ship dimensions must be positive and length >= beam")
+        if not blueprint_source or not blueprint_source.strip():
+            raise RegionalWorldError("blueprint_source is required for sourced ship geometry")
+        if not 0 <= heading_deg < 360:
+            raise RegionalWorldError("heading_deg must be in [0, 360)")
+        return cls(
+            ship_id=ship_id, name=name, x=x, y=y, speed=speed,
+            max_hull=max_hull, weapon_damage=weapon_damage, ship_class=ship_class,
+            length_m=length_m, beam_m=beam_m,
+            blueprint_source=blueprint_source.strip(), heading_deg=heading_deg,
+        )
+
+    @property
+    def aspect_ratio(self) -> float | None:
+        """True plan-view length-to-beam ratio; None until sourced dimensions exist."""
+        if self.length_m is None or self.beam_m is None:
+            return None
+        return self.length_m / self.beam_m
 
     @property
     def hits_to_sink_at_one_damage(self) -> int:
@@ -79,6 +114,14 @@ class RegionalShip:
         if not 0 <= self.hull <= self.max_hull:
             raise RegionalWorldError("hull must be between zero and max_hull")
         self.sunk = self.hull == 0
+        if (self.length_m is None) != (self.beam_m is None):
+            raise RegionalWorldError("length and beam must be supplied together")
+        if self.length_m is not None and (
+            self.length_m <= 0 or self.beam_m is None or self.beam_m <= 0 or self.length_m < self.beam_m
+        ):
+            raise RegionalWorldError("ship dimensions must be positive and length >= beam")
+        if not 0 <= self.heading_deg < 360:
+            raise RegionalWorldError("heading_deg must be in [0, 360)")
 
     @property
     def movement_remaining(self) -> float:
@@ -187,6 +230,11 @@ class RegionalWorld:
                 "hull": ship.hull,
                 "max_hull": ship.max_hull,
                 "ship_class": ship.ship_class,
+                "length_m": ship.length_m,
+                "beam_m": ship.beam_m,
+                "aspect_ratio": ship.aspect_ratio,
+                "heading_deg": ship.heading_deg,
+                "blueprint_source": ship.blueprint_source,
             }
             for ship in self.ships.values()
             if ship.ship_id in visible_ship_ids
