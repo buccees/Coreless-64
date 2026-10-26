@@ -102,7 +102,7 @@ class RegionalOpponent:
         if not isinstance(proposal, dict):
             return None
         operation, arguments = proposal.get("operation"), proposal.get("arguments")
-        if operation not in {"fire_weapon", "set_heading", "campaign_move"} or not isinstance(arguments, dict):
+        if operation not in {"fire_weapon", "set_heading", "set_speed", "campaign_move"} or not isinstance(arguments, dict):
             return None
         return operation, arguments
 
@@ -125,6 +125,8 @@ class RegionalOpponent:
         try:
             # Fire whenever an authorized visible target is in the ship's configured range.
             for ship in own:
+                if float(ship.get("weapon_cooldown_remaining", 0.0)) > 0:
+                    continue
                 sx, sy = float(ship["x"]), float(ship["y"])
                 for target in contacts:
                     tx, ty = float(target["x"]), float(target["y"])
