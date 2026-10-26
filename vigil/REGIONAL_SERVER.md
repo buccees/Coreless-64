@@ -67,3 +67,8 @@ poller to the server to render server-authoritative positions.
 - AI recommendations are untrusted and pass through the same ownership/range
   checks as human commands.
 - The sample plan/specification metadata is not a verified blueprint silhouette.
+
+
+## Campaign factions (foundation)
+
+Ships may declare an optional `faction_id` in the campaign JSON. The affiliation is carried through authorized regional snapshots, so the campaign layer can distinguish forces belonging to the Maritime Coalition, Extraction Directorate, or other original VIGIL factions. The example roster demonstrates two opposing affiliations. This is faction-identity groundwork only: diplomatic relations, formal war declarations, faction objectives, territory control, and faction-wide logistics are not implemented yet. Weapon commands still use the existing visibility/range rules rather than a faction diplomacy model.
