@@ -2377,7 +2377,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
         var jx=(Math.random()*2-1)*sigma/10,jy=(Math.random()*2-1)*sigma/10;
         var trackId=contactIdentity('regional-vessel-'+v.id);
         reconTruthById[trackId]={kind:'regional-observation'};
-        objects.push({object_id:trackId,normalized_position:[Math.max(0,Math.min(1,p[0]+jx)),Math.max(0,Math.min(1,p[1]+jy)),0],inferred_level:'0',uncertainty_m:Number((sigma/Math.sqrt(3)).toFixed(3)),calibration_status:'verified',calibration_ids:['SIM-CAL-'+modeName.toUpperCase()],lineage_declared:true,observation_count:(reconTracks[trackId]?reconTracks[trackId].observations:0)+1,sensor_ids:['SIM-'+modeName.toUpperCase()+'-01'],modalities:[modeName],independence_groups:['simulation-sensor-'+modeName],conflict:false});
+        objects.push({object_id:trackId,normalized_position:[Math.max(0,Math.min(1,p[0]+jx)),Math.max(0,Math.min(1,p[1]+jy)),0],inferred_level:'0',uncertainty_m:Number((sigma*10/Math.sqrt(3)).toFixed(2)),calibration_status:'verified',calibration_ids:['SIM-CAL-'+modeName.toUpperCase()],lineage_declared:true,observation_count:(reconTracks[trackId]?reconTracks[trackId].observations:0)+1,sensor_ids:['SIM-'+modeName.toUpperCase()+'-01'],modalities:[modeName],independence_groups:['simulation-sensor-'+modeName],conflict:false});
       });
     }else{
       enemyFleet.forEach(function(v,trackIndex){
