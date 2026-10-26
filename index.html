@@ -2906,6 +2906,29 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     return {stop:function(){stopped=true;window.disconnectVigilRegionalSnapshot();},refresh:function(){if(!stopped){if(regionalSnapshotPollTimer!==null)clearTimeout(regionalSnapshotPollTimer);regionalSnapshotPollTimer=null;poll();}}};
   };
   
+  // Send a validated player command to the authoritative regional game API.
+  // The bearer token remains in memory and is never stored or placed in a URL.
+  window.sendVigilRegionalCommand=async function(options,operation,argumentsObject){
+    if(!options||typeof options.url!=='string'||typeof options.token!=='string'||!options.token.trim())
+      throw new Error('A regional API URL and bearer token are required');
+    if(typeof operation!=='string'||!operation||!argumentsObject||typeof argumentsObject!=='object'||Array.isArray(argumentsObject))
+      throw new Error('A command operation and arguments object are required');
+    var endpoint;
+    try{endpoint=new URL(options.url,window.location.href);}catch(e){throw new Error('Invalid regional API URL');}
+    if(endpoint.protocol!=='https:'||endpoint.pathname!=='/api/regional/snapshot'||endpoint.search||endpoint.hash)
+      throw new Error('API URL must be HTTPS and end at /api/regional/snapshot');
+    endpoint.pathname='/api/regional/command';
+    var response=await fetch(endpoint.href,{
+      method:'POST',cache:'no-store',credentials:'omit',
+      headers:{'Authorization':'Bearer '+options.token,'Content-Type':'application/json'},
+      body:JSON.stringify({operation:operation,arguments:argumentsObject})
+    });
+    var payload;
+    try{payload=await response.json();}catch(e){throw new Error('Regional API returned invalid JSON');}
+    if(!response.ok)throw new Error(String(payload&&payload.message||payload&&payload.error||('Regional command failed ('+response.status+')')));
+    return payload;
+  };
+
   function stepRegionalFleet(now){
     if(!regionalFleetLastTick)regionalFleetLastTick=now;
     var dt=Math.min(.25,Math.max(0,(now-regionalFleetLastTick)/1000));
