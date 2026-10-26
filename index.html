@@ -3165,7 +3165,6 @@ function updateFactionStation(){
  var profile=factionProfiles[faction.value]||factionProfiles.WYCF;
  if(rank){var previousRank=rank.value;rank.textContent='';profile.ranks.forEach(function(title){var option=document.createElement('option');option.value=title.toUpperCase();option.textContent=title.toUpperCase();rank.appendChild(option);});rank.value=profile.ranks.some(function(title){return title.toUpperCase()===previousRank;})?previousRank:profile.ranks[0].toUpperCase();}
  var oobFaction=document.getElementById('vigil-oob-faction');if(oobFaction&&oobFaction.value!==faction.value)oobFaction.value=faction.value;
- renderOrderOfBattle(faction.value);
  var currentSender=sender.value.slice(sender.value.indexOf('-')+1);
  var senderRole=currentSender==='02'?'02':currentSender.indexOf('TRAIN')===0?'TRAIN-01':'01';
  var senderOptions=[
