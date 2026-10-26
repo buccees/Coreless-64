@@ -69,6 +69,6 @@ poller to the server to render server-authoritative positions.
 - The sample plan/specification metadata is not a verified blueprint silhouette.
 
 
-## Campaign factions (foundation)
+## Factions in the simulation
 
-Ships may declare an optional `faction_id` in the campaign JSON. The affiliation is carried through authorized regional snapshots. The example roster uses `prodigy` and `weyland-yutani` from the optional unofficial Alien: Earth crossover scenario. The complete five-corporation roster lives in `vigil/alien_earth_campaign.py`: Prodigy, Weyland-Yutani, Lynch, Dynamic, and Threshold. This is fan-made scenario data, not an official franchise product. The core VIGIL campaign can continue using original faction IDs. Faction identity is implemented; diplomacy, formal war declarations, faction objectives, territory control, and faction-wide logistics are not implemented yet. Weapon commands still use existing visibility/range rules rather than a faction diplomacy model.
+The shared simulation exposes a faction catalog in every authorized regional snapshot. It includes the corporate factions Prodigy, Weyland-Yutani, Lynch, Dynamic, and Threshold alongside the existing Maritime Coalition, Extraction Directorate, and Unknown factions. Ship configurations can assign the corresponding `faction_id` values (for example, `prodigy` or `weyland-yutani`). These are ordinary factions in the game simulation, not a separate campaign mode. Faction identity is present; diplomacy, formal war declarations, territory control, and faction-wide logistics remain future simulation systems.
