@@ -2324,7 +2324,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   function allSunk(fleet){return afloat(fleet)===0;}
   function initialize(){
     enemyFleet=mode.value==='online'?[]:makeFleet();playerFleet={1:mode.value==='online'?[]:makeFleet()};shotsByPlayer={1:{}};aiShots={};
-    activePlayer=1;placementMode=false;placementIndex=0;placementVertical=false;document.getElementById("sim-publish").disabled=mode.value==='online';document.getElementById("sim-manual-setup").textContent="MANUAL FLEET SETUP";document.getElementById("sim-rotate").disabled=true;document.getElementById("sim-rotate").textContent="ORIENTATION: HORIZONTAL";ownFleetView=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;sweepCount=0;reconTracks=Object.create(null);lastObservationData=null;selectedReconTrackId=null;reconTruthById=Object.create(null);reconIdentityBySource=Object.create(null);document.getElementById("sim-recon-investigate").disabled=true;gameOver=false;sequence++;
+    activePlayer=1;placementMode=false;placementIndex=0;placementVertical=false;document.getElementById("sim-publish").disabled=mode.value==='online';document.getElementById("sim-manual-setup").textContent="MANUAL FLEET SETUP";document.getElementById("sim-rotate").disabled=true;document.getElementById("sim-rotate").textContent="ORIENTATION: HORIZONTAL";ownFleetView=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;sweepCount=0;sonarWaterfallHistory=[];reconTracks=Object.create(null);lastObservationData=null;selectedReconTrackId=null;reconTruthById=Object.create(null);reconIdentityBySource=Object.create(null);document.getElementById("sim-recon-investigate").disabled=true;gameOver=false;sequence++;
     renderBoard();updateMetrics();status.textContent=mode.value==='online'?'ONLINE MODE // PLACE YOUR FLEET, THEN CREATE OR JOIN A ROOM':'SOLO ENGAGEMENT // SELECT A CELL TO FIRE';
     document.getElementById('sim-telemetry').textContent='SENSOR STANDBY // NEW EXERCISE '+sequence+'\nCOMPUTER DEFENSE: '+(mode.value==='solo'?'ARMED':'DISABLED');
     publish(false,false);
@@ -2346,7 +2346,14 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       var k=key(r,c),b=document.createElement('button');b.type='button';b.className='sim-cell';b.setAttribute('role','gridcell');b.setAttribute('aria-label',String.fromCharCode(65+c)+(r+1));b.dataset.row=r;b.dataset.col=c;
       if(placementMode||ownFleetView){var vessel=vesselAt(displayFleet,r,c);if(vessel){b.classList.add("ship");b.textContent=vessel.name.charAt(0);b.setAttribute("aria-label",b.getAttribute("aria-label")+" "+vessel.name);}if(ownFleetView&&displayShots[k]){b.classList.add(displayShots[k]);if(displayShots[k]==="hit")b.classList.add("incoming-hit");b.textContent=displayShots[k]==="hit"?"X":(vessel?vessel.name.charAt(0):"·");b.setAttribute("aria-label",b.getAttribute("aria-label")+(displayShots[k]==="hit"?" incoming hit":" incoming miss"));}if(placementMode){b.disabled=false;b.addEventListener("pointerenter",function(event){previewPlacement(Number(event.currentTarget.dataset.row),Number(event.currentTarget.dataset.col));});b.addEventListener("focus",function(event){previewPlacement(Number(event.currentTarget.dataset.row),Number(event.currentTarget.dataset.col));});b.addEventListener("click",function(event){placeManualCell(Number(event.currentTarget.dataset.row),Number(event.currentTarget.dataset.col));});}else b.disabled=true;}
       else if(shots[k]){b.disabled=true;b.classList.add(shots[k]);b.textContent=shots[k]==='hit'?'X':'·';b.setAttribute('aria-label',b.getAttribute('aria-label')+(shots[k]==='hit'?' confirmed hit':' miss'));}
-      else{b.textContent=String.fromCharCode(65+c)+(r+1);if(mode.value==='online'&&(!onlineSession||!onlineState||!onlineState.ready||onlineState.turn!==onlineSession.player||gameOver))b.disabled=true;else b.addEventListener('click',fire);}
+      else{
+        b.textContent=String.fromCharCode(65+c)+(r+1);
+        var sensorObjects=lastObservationData&&Array.isArray(lastObservationData.objects)?lastObservationData.objects:[];
+        var cue=null,cueDistance=Infinity;
+        sensorObjects.forEach(function(contact){var p=contact.normalized_position||[];if(p.length<2)return;var dx=((c+.5)/10)-Number(p[0]),dy=((r+.5)/10)-Number(p[1]),distance=Math.sqrt(dx*dx+dy*dy),radius=Math.max(.55,Number(contact.uncertainty_m||0)/10)/10;if(distance<=radius&&distance<cueDistance){cue=contact;cueDistance=distance;}});
+        if(cue){b.style.backgroundColor=cueDistance<.025?'rgba(75,230,170,.28)':'rgba(75,230,170,.10)';b.style.borderColor='#54d9a0';b.title='SENSOR ESTIMATE ONLY // '+sensor.value.toUpperCase()+' // uncertainty ±'+cue.uncertainty_m+' m';b.setAttribute('aria-label',b.getAttribute('aria-label')+' estimated sensor contact; uncertain, not a confirmed target');if(cueDistance<.025){b.textContent='◉';b.style.color='#a7ffd8';}}
+        if(mode.value==='online'&&(!onlineSession||!onlineState||!onlineState.ready||onlineState.turn!==onlineSession.player||gameOver))b.disabled=true;else b.addEventListener('click',fire);
+      }
       board.appendChild(b);
     }
     var head=board.parentElement.querySelector('.sim-board-head strong');
@@ -2833,7 +2840,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   }
   function publish(sendToSpatial,countObservation){
     if(countObservation)sweepCount++;
-    var data=generateScene();recordReconObservation(data);publishPlayerObservations(data,'vigil',true);publishPlayerObservations(data,'operator',true);lastObservationData=data;renderReconContacts(data);renderNavalSonar(data);
+    var data=generateScene();recordReconObservation(data);publishPlayerObservations(data,'vigil',true);publishPlayerObservations(data,'operator',true);lastObservationData=data;renderReconContacts(data);renderNavalSonar(data);renderBoard();
     if(countObservation)observationCount+=data.objects.length;updateMetrics();
     if(countObservation){var result=document.getElementById('sim-recon-results');if(result)result.textContent='NEW OBSERVATIONS AVAILABLE // RUN EVALUATION TO COMPARE ESTIMATES WITH HIDDEN TRUTH.';}
     document.getElementById('sim-noise-value').textContent=Number(noise.value).toFixed(1);
@@ -2848,7 +2855,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   document.getElementById("sim-rotate").addEventListener("click",function(){placementVertical=!placementVertical;this.textContent="ORIENTATION: "+(placementVertical?"VERTICAL":"HORIZONTAL");if(placementMode)renderBoard();});
   document.getElementById("sim-view-fleet").addEventListener("click",function(){ownFleetView=!ownFleetView;this.setAttribute("aria-pressed",String(ownFleetView));this.textContent=ownFleetView?"RETURN TO FIRING GRID":"VIEW OWN FLEET";renderBoard();status.textContent=ownFleetView?"OWN FLEET VIEW // SHIPS AND INCOMING DAMAGE":"FIRING GRID // SELECT A CELL TO ENGAGE";});
   document.getElementById('sim-publish').addEventListener('click',function(){publish(true,true);});
-  document.getElementById('sim-recon-sweep').addEventListener('click',function(){publish(true,true);status.textContent='RECON SWEEP '+sweepCount+' // OBSERVATIONS PUBLISHED TO SPATIAL INTELLIGENCE';});
+  document.getElementById('sim-recon-sweep').addEventListener('click',function(){publish(true,true);status.textContent='RECON SWEEP '+sweepCount+' // SENSOR ESTIMATES UPDATED ON FIRING GRID // OBSERVATIONS PUBLISHED TO SPATIAL INTELLIGENCE';});
   document.getElementById('sim-recon-investigate').addEventListener('click',investigateReconContact);
   document.getElementById('sim-recon-evaluate').addEventListener('click',evaluateRecon);
   document.getElementById('sim-export').addEventListener('click',function(){var data=publish(false,true),blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='vigil-simulation-observations.json';document.body.appendChild(a);a.click();a.remove();window.setTimeout(function(){URL.revokeObjectURL(url);},1000);});
