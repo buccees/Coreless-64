@@ -23,6 +23,7 @@ jobs:
         run: |
           bash -n scripts/build-bootable-ssd.sh
           python -m py_compile scripts/coreless-console.py
+          python -m py_compile vigil/multiplayer.py vigil/multiplayer_http.py vigil/multiplayer_server.py
       - name: Run reference tests
         working-directory: reference
         env:
