@@ -107,3 +107,40 @@ def test_player_cannot_register_visibility_for_unknown_ships():
             player_id="host", token="secret", controlled_ship_ids={"blue"},
             visible_ship_ids={"blue", "hidden"},
         )
+
+
+def test_weapon_command_requires_visible_in_range_target_and_applies_hull_damage():
+    world = RegionalWorld([
+        RegionalShip.from_class(
+            ship_id="blue", name="Blue Ship", ship_class="destroyer",
+            x=0.2, y=0.3, speed=0.01, weapon_damage=2, weapon_range=0.2,
+        ),
+        RegionalShip.from_class(
+            ship_id="red", name="Red Ship", ship_class="frigate",
+            x=0.3, y=0.3, speed=0.01,
+        ),
+        RegionalShip.from_class(
+            ship_id="hidden", name="Hidden Ship", ship_class="frigate",
+            x=0.21, y=0.3, speed=0.01,
+        ),
+    ])
+    game = RegionalGame(world)
+    game.register_player(
+        player_id="host", token="host-secret", controlled_ship_ids={"blue"},
+        visible_ship_ids={"blue", "red"},
+    )
+    result = game.command(
+        "host-secret", "fire_weapon", {"ship_id": "blue", "target_id": "red"}
+    )
+    assert result["damage"] == 2
+    assert result["hull_after"] == world.ships["red"].max_hull - 2
+    assert world.ships["red"].damage_by_system["hull"] == 2
+    with pytest.raises(RegionalGameError, match="visible contact"):
+        game.command(
+            "host-secret", "fire_weapon", {"ship_id": "blue", "target_id": "hidden"}
+        )
+    world.ships["red"].x = 0.9
+    with pytest.raises(RegionalGameError, match="outside weapon range"):
+        game.command(
+            "host-secret", "fire_weapon", {"ship_id": "blue", "target_id": "red"}
+        )
