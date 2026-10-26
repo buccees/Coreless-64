@@ -268,3 +268,54 @@ console.log("VIGIL track inspector and review filters: 2 scenario groups passed.
   assert.equal(inspected[0].suppressAudit, true);
 }
 console.log("VIGIL audit retention and review decision scenarios: 2 scenario groups passed.");
+
+
+// Regional reconnaissance must consume authorized estimates, never exact hidden
+// ship positions from the authoritative snapshot's vessel roster.
+{
+  const source = html;
+  const setterStart = source.indexOf("window.setVigilRegionalWorldSnapshot=function(snapshot){");
+  assert.notEqual(setterStart, -1, "regional snapshot setter must exist");
+  const setter = extractFunction("function(snapshot){",);
+  // Extract the production function body at its exact assignment site.
+  let depth = 0, quote = null, escaped = false, end = -1;
+  for (let i = setterStart + "window.setVigilRegionalWorldSnapshot=".length + "function(snapshot)".length; i < source.length; i += 1) {
+    const ch = source[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (ch.charCodeAt(0) === 92) escaped = true;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"') quote = ch;
+    else if (ch === "{") depth += 1;
+    else if (ch === "}" && --depth === 0) { end = i + 1; break; }
+  }
+  assert.notEqual(end, -1, "regional snapshot setter body must be balanced");
+  const functionSource = source.slice(setterStart + "window.setVigilRegionalWorldSnapshot=".length, end);
+  const context = {
+    window: {}, regionalTrainingFleet: [], regionalAuthorizedObservations: [],
+    regionalWorldSnapshotActive: false, lastObservationData: null,
+    pauseRegionalFleet: () => {}, renderBathymetry: () => {},
+    refreshRegionalCommandChoices: () => {}, regionalUiStatus: () => {},
+    Array, Number, String, Object
+  };
+  vm.runInNewContext("window.setVigilRegionalWorldSnapshot = " + functionSource, context);
+  const accepted = context.window.setVigilRegionalWorldSnapshot({
+    schema_version: 1, player_id: "test", simulation_tick: 7,
+    controlled_ship_ids: ["OWN-1"],
+    ships: [
+      { ship_id: "OWN-1", normalized_position: [0.1, 0.2], heading_deg: 90, speed: 0.01 },
+      { ship_id: "HIDDEN-ENEMY", normalized_position: [0.99, 0.98], heading_deg: 270, speed: 0.04 }
+    ],
+    authorized_observations: [
+      { contact_id: "OPAQUE-7", normalized_position: [0.4, 0.6], uncertainty_m: 12 }
+    ]
+  });
+  assert.equal(accepted, true);
+  assert.deepEqual(context.regionalTrainingFleet.map(v => v.id), ["OWN-1", "OBS-OPAQUE-7"]);
+  assert.deepEqual(context.regionalAuthorizedObservations.map(v => v.contactId), ["OPAQUE-7"]);
+  assert.equal(context.regionalTrainingFleet.some(v => v.id === "HIDDEN-ENEMY"), false);
+  assert.equal(context.regionalTrainingFleet.some(v => v.x === 0.99 && v.y === 0.98), false);
+}
+console.log("VIGIL regional visibility boundary: 1 scenario group passed.");
