@@ -29,6 +29,23 @@ def test_ship_rejects_negative_or_nonfinite_speed(speed):
         ship(speed=speed)
 
 
+def test_max_speed_must_be_finite_and_not_below_current_speed():
+    for invalid in (-1, float("inf"), float("nan"), True):
+        with pytest.raises(RegionalWorldError, match="max_speed must be finite"):
+            ship(speed=0.5, max_speed=invalid)
+    with pytest.raises(RegionalWorldError, match="max_speed must be finite"):
+        ship(speed=0.5, max_speed=0.4)
+
+
+def test_zero_speed_ship_can_be_configured_with_positive_top_speed():
+    vessel = RegionalShip.from_class(
+        ship_id="idle", name="Idle Ship", ship_class="destroyer",
+        x=0, y=0, speed=0, max_speed=0.8,
+    )
+    assert vessel.speed == 0
+    assert vessel.max_speed == pytest.approx(0.8)
+
+
 def test_stationary_ship_with_zero_speed_is_valid_and_does_not_drift():
     stationary = ship("stationary", speed=0, heading_deg=90)
     assert stationary.movement_remaining == 0
