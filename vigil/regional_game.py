@@ -95,7 +95,8 @@ class RegionalGame:
             snapshot = self.world.public_snapshot(
                 set(session.visible_ship_ids), world_bounds=self.world_bounds
             )
-            snapshot["factions"] = public_faction_catalog()\n            snapshot["simulation_tick"] = self.simulation_tick
+            snapshot["factions"] = public_faction_catalog()
+            snapshot["simulation_tick"] = self.simulation_tick
             snapshot["player_id"] = session.player_id
             snapshot["controlled_ship_ids"] = sorted(session.controlled_ship_ids)
             return snapshot
