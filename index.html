@@ -2741,7 +2741,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if(countObservation)observationCount+=data.objects.length;updateMetrics();
     if(countObservation){var result=document.getElementById('sim-recon-results');if(result)result.textContent='NEW OBSERVATIONS AVAILABLE // RUN EVALUATION TO COMPARE ESTIMATES WITH HIDDEN TRUTH.';}
     document.getElementById('sim-noise-value').textContent=Number(noise.value).toFixed(1);
-    document.getElementById('sim-telemetry').textContent='SENSOR: '+sensor.value.toUpperCase()+'\nCONTACT ESTIMATES: '+data.objects.length+'\nPOSITION UNCERTAINTY: '+data.objects.map(function(o){return o.object_id.split('-').slice(-1)[0]+': ±'+o.uncertainty_m+' m';}).join(' | ')+'\nWORLD-STATE ACCESS: DENIED TO VIGIL\nSOURCE: SIMULATED SENSOR OBSERVATIONS';
+    document.getElementById('sim-telemetry').textContent='SENSOR: '+sensor.value.toUpperCase()+(data.metadata.sonar_posture!=='not_applicable'?' // '+data.metadata.sonar_posture.toUpperCase()+' POSTURE':'')+'\nCONTACT ESTIMATES: '+data.objects.length+'\nPOSITION UNCERTAINTY: '+data.objects.map(function(o){return o.object_id.split('-').slice(-1)[0]+': ±'+o.uncertainty_m+' m';}).join(' | ')+'\nWORLD-STATE ACCESS: DENIED TO VIGIL\nSOURCE: SIMULATED SENSOR OBSERVATIONS';
     if(sendToSpatial&&typeof window.vigilImportScene==='function'){window.vigilImportScene(data);if(!gameOver)status.textContent+=' // SENSOR ESTIMATES PUBLISHED TO SPATIAL INTELLIGENCE';}
     return data;
   }
