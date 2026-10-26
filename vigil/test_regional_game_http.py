@@ -13,7 +13,7 @@ def make_app():
     world = RegionalWorld([
         RegionalShip.from_class(
             ship_id="blue", name="Blue Ship", ship_class="destroyer",
-            x=0.2, y=0.3, speed=0.01,
+            x=0.2, y=0.3, speed=0.01, max_speed=0.03,
         ),
         RegionalShip.from_class(
             ship_id="red", name="Red Ship", ship_class="frigate",
@@ -70,6 +70,28 @@ def test_command_endpoint_applies_owned_ship_command():
     assert response["status"] == "200 OK"
     assert response["body"]["heading_deg"] == 180
     assert game.world.ships["blue"].heading_deg == 180
+
+
+def test_command_endpoint_stops_and_accelerates_owned_ship():
+    app, game = make_app()
+    stopped = request(
+        app, "/api/regional/command", method="POST",
+        body={"operation": "set_speed", "arguments": {"ship_id": "blue", "speed": 0}},
+    )
+    assert stopped["status"] == "200 OK"
+    assert stopped["body"]["stopped"] is True
+    before = (game.world.ships["blue"].x, game.world.ships["blue"].y)
+    game.advance_tick(2)
+    assert (game.world.ships["blue"].x, game.world.ships["blue"].y) == before
+
+    accelerated = request(
+        app, "/api/regional/command", method="POST",
+        body={"operation": "set_speed", "arguments": {"ship_id": "blue", "speed": 0.025}},
+    )
+    assert accelerated["status"] == "200 OK"
+    assert accelerated["body"]["speed"] == 0.025
+    game.advance_tick(2)
+    assert game.world.ships["blue"].y > before[1]
 
 
 def test_command_endpoint_rejects_cross_player_control():
