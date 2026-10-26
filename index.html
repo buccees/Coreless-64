@@ -2668,15 +2668,61 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     syncRegionalSpeedInput(snapshot);
     syncRegionalWeaponReadiness(snapshot);
   }
+  function localRegionalDemoSnapshot(){
+    return {
+      schema_version:1,player_id:'local-training',simulation_tick:regionalDemoTicks,
+      controlled_ship_ids:['DDG-51'],
+      ships:regionalTrainingFleet.map(function(s){return {
+        ship_id:s.id,name:s.name,x:s.x,y:s.y,speed:s.speed,max_speed:s.maxSpeed,
+        heading_deg:s.heading,afloat:s.afloat!==false,ship_class:s.shipClass,
+        length_m:s.lengthM,beam_m:s.beamM,blueprint_source:s.source,
+        weapon_range:s.weaponRange,weapon_damage:s.weaponDamage,
+        weapon_reload_seconds:s.weaponReloadSeconds,
+        weapon_cooldown_remaining:s.weaponCooldownRemaining,
+        hull:s.hull,max_hull:s.maxHull,normalized_position:[s.x,s.y]
+      };})
+    };
+  }
+  function populateLocalRegionalCommandChoices(){
+    if(regionalWorldSnapshotActive)return;
+    refreshRegionalCommandChoices(localRegionalDemoSnapshot());
+    regionalUiStatus('LOCAL TRAINING MODE // DDG-51 HELM // CVN OPPONENT',false);
+  }
+  function localRegionalShip(id){return regionalTrainingFleet.find(function(s){return s.id===id;});}
+  function syncLocalRegionalReadiness(){
+    if(regionalWorldSnapshotActive)return;
+    regionalUiLastSnapshot=localRegionalDemoSnapshot();
+    syncRegionalWeaponReadiness(regionalUiLastSnapshot);
+  }
+  function applyLocalWeaponHit(shooter,target){
+    target.hull=Math.max(0,Number(target.hull||0)-Number(shooter.weaponDamage||1));
+    target.afloat=target.hull>0;
+    shooter.weaponCooldownRemaining=Number(shooter.weaponReloadSeconds||5);
+  }
   document.getElementById('vigil-regional-ship').addEventListener('change',function(){regionalSpeedInputDirty=false;syncRegionalSpeedInput(regionalUiLastSnapshot);syncRegionalWeaponReadiness(regionalUiLastSnapshot);});
   document.getElementById('vigil-regional-speed').addEventListener('input',function(){regionalSpeedInputDirty=true;});
   document.getElementById('vigil-regional-connect').addEventListener('click',function(){var url=document.getElementById('vigil-regional-url').value.trim(),token=document.getElementById('vigil-regional-token').value;try{vigilRegionalUiOptions={url:url,token:token};window.connectVigilRegionalSnapshot({url:url,token:token,intervalMs:2000});regionalUiStatus('CONNECTING // Waiting for authorized snapshot…',false);}catch(e){vigilRegionalUiOptions=null;regionalUiStatus(String(e.message||e),true);}});
-  document.getElementById('vigil-regional-disconnect').addEventListener('click',function(){window.disconnectVigilRegionalSnapshot();vigilRegionalUiOptions=null;document.getElementById('vigil-regional-token').value='';window.clearVigilRegionalWorldSnapshot();refreshRegionalCommandChoices({ships:[],controlled_ship_ids:[]});regionalUiStatus('DISCONNECTED // Token cleared from this page.',false);});
-  document.getElementById('vigil-regional-set-heading').addEventListener('click',async function(){var ship=document.getElementById('vigil-regional-ship').value,h=Number(document.getElementById('vigil-regional-heading').value);if(!vigilRegionalUiOptions||!ship){regionalUiStatus('Connect and select a controlled vessel first.',true);return;}if(!Number.isFinite(h)||h<0||h>=360){regionalUiStatus('Heading must be between 0° and 359.9°.',true);return;}try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'set_heading',{ship_id:ship,heading_deg:h});regionalUiStatus('COURSE SET // '+ship+' → '+Number(r.heading_deg).toFixed(1)+'°',false);}catch(e){regionalUiStatus('COMMAND REJECTED // '+String(e.message||e),true);}});
+  document.getElementById('vigil-regional-disconnect').addEventListener('click',function(){window.disconnectVigilRegionalSnapshot();vigilRegionalUiOptions=null;document.getElementById('vigil-regional-token').value='';window.clearVigilRegionalWorldSnapshot();populateLocalRegionalCommandChoices();regionalUiStatus('DISCONNECTED // LOCAL TRAINING MODE RESTORED // TOKEN CLEARED',false);});
+  document.getElementById('vigil-regional-set-heading').addEventListener('click',async function(){
+    var shipId=document.getElementById('vigil-regional-ship').value,h=Number(document.getElementById('vigil-regional-heading').value);
+    if(!shipId){regionalUiStatus('Select a controlled vessel first.',true);return;}
+    if(!Number.isFinite(h)||h<0||h>=360){regionalUiStatus('Heading must be between 0° and 359.9°.',true);return;}
+    if(!vigilRegionalUiOptions){
+      var local=localRegionalShip(shipId);if(!local||local.side!=='friendly'){regionalUiStatus('LOCAL HELM // Select the friendly DDG-51.',true);return;}
+      local.heading=h;renderBathymetry(lastObservationData);regionalUiStatus('LOCAL COURSE SET // '+shipId+' → '+h.toFixed(1)+'°',false);return;
+    }
+    try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'set_heading',{ship_id:shipId,heading_deg:h});regionalUiStatus('COURSE SET // '+shipId+' → '+Number(r.heading_deg).toFixed(1)+'°',false);}
+    catch(e){regionalUiStatus('COMMAND REJECTED // '+String(e.message||e),true);}
+  });
   async function regionalSetSpeed(speed,ship){
-    if(!vigilRegionalUiOptions||!ship){regionalUiStatus('Connect and select a controlled vessel first.',true);return;}
+    if(!ship){regionalUiStatus('Select a controlled vessel first.',true);return;}
     var input=document.getElementById('vigil-regional-speed'),limit=Number(input.max);
     if(!Number.isFinite(speed)||speed<0||speed>limit){regionalUiStatus('Speed must be between 0 and the selected vessel max speed ('+limit+').',true);return;}
+    if(!vigilRegionalUiOptions){
+      var local=localRegionalShip(ship);if(!local||local.side!=='friendly'){regionalUiStatus('LOCAL HELM // Select the friendly DDG-51.',true);return;}
+      local.speed=speed;input.value=String(speed);regionalSpeedInputDirty=false;
+      renderBathymetry(lastObservationData);regionalUiStatus(speed===0?'LOCAL ALL STOP // '+ship:'LOCAL SPEED SET // '+ship+' // '+speed.toFixed(4)+' / MAX '+Number(local.maxSpeed).toFixed(4),false);return;
+    }
     try{
       var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'set_speed',{ship_id:ship,speed:speed});
       input.value=String(r.speed);regionalSpeedInputDirty=false;
@@ -2690,8 +2736,25 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var input=document.getElementById('vigil-regional-speed');input.value='0';
     regionalSetSpeed(0,document.getElementById('vigil-regional-ship').value);
   });
-  document.getElementById('vigil-regional-fire').addEventListener('click',async function(){var ship=document.getElementById('vigil-regional-ship').value,target=document.getElementById('vigil-regional-target').value;if(!vigilRegionalUiOptions||!ship||!target){regionalUiStatus('Connect, select your vessel, and choose a visible target first.',true);return;}try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'fire_weapon',{ship_id:ship,target_id:target});var cooldown=Number(r.weapon_cooldown_remaining)||0;var fireButton=document.getElementById('vigil-regional-fire');if(cooldown>0){fireButton.disabled=true;fireButton.textContent='RELOADING '+cooldown.toFixed(1)+'s';}regionalUiStatus((r.sunk?'CONTACT SUNK':'WEAPON HIT')+' // '+target+' // DAMAGE '+r.damage+' // HULL '+r.hull_after+' // RELOAD '+cooldown.toFixed(1)+'s',false);}catch(e){regionalUiStatus('FIRE SOLUTION REJECTED // '+String(e.message||e),true);}});
+  document.getElementById('vigil-regional-fire').addEventListener('click',async function(){
+    var shipId=document.getElementById('vigil-regional-ship').value,targetId=document.getElementById('vigil-regional-target').value;
+    if(!shipId||!targetId){regionalUiStatus('Select your vessel and an authorized visible target.',true);return;}
+    if(!vigilRegionalUiOptions){
+      var shooter=localRegionalShip(shipId),target=localRegionalShip(targetId);
+      if(!shooter||shooter.side!=='friendly'){regionalUiStatus('LOCAL WEAPONS // Select the friendly DDG-51.',true);return;}
+      if(!target||target.afloat===false){regionalUiStatus('TARGET UNAVAILABLE // No afloat target selected.',true);return;}
+      if(shooter.weaponCooldownRemaining>0.01){regionalUiStatus('RELOADING // '+shooter.weaponCooldownRemaining.toFixed(1)+'s remaining.',true);return;}
+      var distance=Math.hypot(target.x-shooter.x,target.y-shooter.y);
+      if(distance>shooter.weaponRange){regionalUiStatus('NO FIRE SOLUTION // RANGE '+distance.toFixed(3)+' / MAX '+shooter.weaponRange.toFixed(3),true);return;}
+      var damage=Number(shooter.weaponDamage||1);applyLocalWeaponHit(shooter,target);
+      populateLocalRegionalCommandChoices();renderBathymetry(lastObservationData);
+      regionalUiStatus((target.afloat?'LOCAL WEAPON HIT':'CONTACT SUNK')+' // '+targetId+' // DAMAGE '+damage+' // HULL '+target.hull+'/'+target.maxHull+' // RELOAD '+shooter.weaponCooldownRemaining.toFixed(1)+'s',false);return;
+    }
+    try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'fire_weapon',{ship_id:shipId,target_id:targetId});var cooldown=Number(r.weapon_cooldown_remaining)||0;var fireButton=document.getElementById('vigil-regional-fire');if(cooldown>0){fireButton.disabled=true;fireButton.textContent='RELOADING '+cooldown.toFixed(1)+'s';}regionalUiStatus((r.sunk?'CONTACT SUNK':'WEAPON HIT')+' // '+targetId+' // DAMAGE '+r.damage+' // HULL '+r.hull_after+' // RELOAD '+cooldown.toFixed(1)+'s',false);}
+    catch(e){regionalUiStatus('FIRE SOLUTION REJECTED // '+String(e.message||e),true);}
+  });
   window.addEventListener('vigil:regional-snapshot-error',function(e){regionalUiStatus('LINK ERROR // '+String(e.detail&&e.detail.message||'Regional snapshot unavailable'),true);});
+  populateLocalRegionalCommandChoices();
   function stepRegionalFleet(now){
     if(!regionalFleetLastTick)regionalFleetLastTick=now;
     var dt=Math.min(.25,Math.max(0,(now-regionalFleetLastTick)/1000));
