@@ -108,8 +108,12 @@ class RegionalShip:
     def __post_init__(self) -> None:
         if not self.ship_id or not self.name:
             raise RegionalWorldError("ship id and name are required")
-        if self.speed <= 0:
-            raise RegionalWorldError("speed must be positive")
+        if (
+            not isinstance(self.speed, (int, float))
+            or not isfinite(self.speed)
+            or self.speed < 0
+        ):
+            raise RegionalWorldError("speed must be a finite non-negative number")
         if self.max_hull <= 0:
             raise RegionalWorldError("max_hull must be positive")
         if self.weapon_damage <= 0:
