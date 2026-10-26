@@ -1063,7 +1063,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     <p class="vigil-cb-intro">Choose an approved communication action. VIGIL builds and “transmits” the correctly structured practice message automatically, then explains the procedure. No free-typing or manual message sending.</p>
     <div class="vigil-cb-config">
       <label>FACTION / FLEET<select id="vigil-cb-faction"><option value="WYCF">WEYLAND-YUTANI COLONIAL FLEET</option><option value="PRO">PRODIGY</option><option value="LYN">LYNCH</option><option value="DYN">DYNAMIC</option><option value="THR">THRESHOLD</option></select></label>
-      <label>YOUR STATION<select id="vigil-cb-sender"><option value="WYCF-01">WYCF-01 // BRIDGE</option><option value="WYCF-02">WYCF-02 // CIC</option><option value="WYCF-TRAIN-01">WYCF-TRAIN-01 // TRAINEE</option></select></label>
+      <label>NAVAL MILITARY RANK<select id="vigil-cb-rank"><optgroup label="ENLISTED"><option value="SEAMAN RECRUIT">SEAMAN RECRUIT</option><option value="SEAMAN APPRENTICE">SEAMAN APPRENTICE</option><option value="SEAMAN">SEAMAN</option><option value="PETTY OFFICER THIRD CLASS">PETTY OFFICER THIRD CLASS</option><option value="PETTY OFFICER SECOND CLASS">PETTY OFFICER SECOND CLASS</option><option value="PETTY OFFICER FIRST CLASS">PETTY OFFICER FIRST CLASS</option><option value="CHIEF PETTY OFFICER">CHIEF PETTY OFFICER</option><option value="SENIOR CHIEF PETTY OFFICER">SENIOR CHIEF PETTY OFFICER</option><option value="MASTER CHIEF PETTY OFFICER">MASTER CHIEF PETTY OFFICER</option></optgroup><optgroup label="WARRANT OFFICERS"><option value="CHIEF WARRANT OFFICER 2">CHIEF WARRANT OFFICER 2</option><option value="CHIEF WARRANT OFFICER 3">CHIEF WARRANT OFFICER 3</option><option value="CHIEF WARRANT OFFICER 4">CHIEF WARRANT OFFICER 4</option><option value="CHIEF WARRANT OFFICER 5">CHIEF WARRANT OFFICER 5</option></optgroup><optgroup label="COMMISSIONED OFFICERS"><option value="ENSIGN">ENSIGN</option><option value="LIEUTENANT JUNIOR GRADE">LIEUTENANT JUNIOR GRADE</option><option value="LIEUTENANT">LIEUTENANT</option><option value="LIEUTENANT COMMANDER">LIEUTENANT COMMANDER</option><option value="COMMANDER">COMMANDER</option><option value="CAPTAIN">CAPTAIN</option><option value="REAR ADMIRAL LOWER HALF">REAR ADMIRAL LOWER HALF</option><option value="REAR ADMIRAL">REAR ADMIRAL</option><option value="VICE ADMIRAL">VICE ADMIRAL</option><option value="ADMIRAL">ADMIRAL</option></optgroup></select></label>\n      <label>YOUR STATION<select id="vigil-cb-sender"><option value="WYCF-01">WYCF-01 // BRIDGE</option><option value="WYCF-02">WYCF-02 // CIC</option><option value="WYCF-TRAIN-01">WYCF-TRAIN-01 // TRAINEE</option></select></label>
       <label>STATION TO CALL<select id="vigil-cb-recipient"><option value="CONTROL">CONTROL</option><option value="WYCF-ESCORT-01">WYCF-ESCORT-01</option><option value="WYCF-02">WYCF-02 // CIC</option><option value="ALL STATIONS">ALL STATIONS</option></select></label>
       <label>CHANNEL / NET<select id="vigil-cb-channel">
         <optgroup label="U.S. CB RADIO — TRAINING">
@@ -3130,7 +3130,7 @@ update();
 var root=document.getElementById('vigil-cb-instructor');
 if(!root)return;
 var faction=document.getElementById('vigil-cb-faction');
-var sender=document.getElementById('vigil-cb-sender');
+var sender=document.getElementById('vigil-cb-sender');\nvar rank=document.getElementById('vigil-cb-rank');
 var recipient=document.getElementById('vigil-cb-recipient');
 var channel=document.getElementById('vigil-cb-channel');
 var output=document.getElementById('vigil-cb-last-message');
@@ -3189,7 +3189,7 @@ root.querySelectorAll('[data-cb-action]').forEach(function(button){
  button.addEventListener('click',function(){
   var action=procedures[this.getAttribute('data-cb-action')];
   if(!action)return;
-  var from=sender.value,to=recipient.value;
+  var from=rank.value+' '+sender.value,to=recipient.value;
   var message=action.build(to,from);
   if(channel.value==='VHF-70'||channel.value.indexOf('WX-')===0){output.textContent='TRANSMISSION BLOCKED // SELECTED CHANNEL IS RECEIVE-ONLY OR DIGITAL-ONLY; VOICE TRANSMISSION IS NOT AVAILABLE.';feedback.textContent='INSTRUCTOR // Channel 70 is reserved for DSC calling, distress, and safety. Choose a voice channel appropriate to the scenario.';addLog('BLOCKED VOICE TX','VHF Channel 70 is DSC-only.');return;}
   output.textContent='SIMULATED TX // '+channel.options[channel.selectedIndex].text+'\n'+message;
