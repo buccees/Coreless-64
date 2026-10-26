@@ -7,7 +7,7 @@ network transport, or a continuously running production server yet.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import isfinite
+from math import hypot, isfinite
 from threading import RLock
 from typing import Iterable, Mapping
 
@@ -133,6 +133,31 @@ class RegionalGame:
                     "ok": True, "operation": operation, "ship_id": ship_id,
                     "position": [result.end[0], result.end[1]],
                     "movement_remaining": result.movement_remaining,
+                }
+
+            if operation == "fire_weapon":
+                if not isinstance(ship_id, str) or ship_id not in session.controlled_ship_ids:
+                    raise RegionalGameError("player does not control that ship")
+                shooter = self.world.ships[ship_id]
+                if not shooter.afloat:
+                    raise RegionalGameError("a sunk ship cannot fire")
+                target_id = arguments.get("target_id")
+                if not isinstance(target_id, str) or target_id not in session.visible_ship_ids:
+                    raise RegionalGameError("target is not an authorized visible contact")
+                if target_id == ship_id:
+                    raise RegionalGameError("a ship cannot target itself")
+                target = self.world.ships.get(target_id)
+                if target is None or not target.afloat:
+                    raise RegionalGameError("target is unavailable")
+                distance = hypot(target.x - shooter.x, target.y - shooter.y)
+                if distance > shooter.weapon_range:
+                    raise RegionalGameError("target is outside weapon range")
+                damage = self.world.apply_hit(target_id, shooter.weapon_damage, system="hull")
+                return {
+                    "ok": True, "operation": operation, "ship_id": ship_id,
+                    "target_id": target_id, "distance": distance,
+                    "damage": damage.damage, "hull_after": damage.hull_after,
+                    "sunk": damage.sunk,
                 }
 
             if operation == "end_campaign_turn":
