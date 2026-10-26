@@ -22,7 +22,7 @@ class SensorEventRunnerTests(unittest.TestCase):
                  "baseline": [[1, 0], [1, 0]], "current": [[1.4, 0.2], [0.8, -0.1]],
                  "signal_dbm": -48.0},
             ]
-            path.write_text("\\n".join(json.dumps(row) for row in rows) + "\\n", encoding="utf-8")
+            path.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
             ledger = SensorEventLedger()
             self.assertEqual(load_csi_jsonl(path, ledger), 2)
             events = ledger.snapshot(now_ns=20, limit=10)
@@ -35,7 +35,7 @@ class SensorEventRunnerTests(unittest.TestCase):
     def test_invalid_row_reports_line_number(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "bad.jsonl"
-            path.write_text('{"timestamp_ns": 1}\\n', encoding="utf-8")
+            path.write_text('{"timestamp_ns": 1}\n', encoding="utf-8")
             with self.assertRaisesRegex(ValueError, r":1: sensor_id"):
                 load_csi_jsonl(path, SensorEventLedger())
 
