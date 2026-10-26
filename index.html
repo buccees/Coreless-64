@@ -2931,7 +2931,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     return payload;
   };
 
-  var vigilRegionalUiOptions=null,regionalUiLastSnapshot=null;
+  var vigilRegionalUiOptions=null,regionalUiLastSnapshot=null,regionalSpeedInputDirty=false;
   function regionalUiStatus(message,isError){var el=document.getElementById('vigil-regional-status');if(el){el.textContent=message;el.style.color=isError?'#e5a18b':'#8bb99b';}}
   function syncRegionalSpeedInput(snapshot){
     var ss=document.getElementById('vigil-regional-ship'),input=document.getElementById('vigil-regional-speed');
@@ -2942,7 +2942,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var current=Number(ship.speed),limit=Number(ship.max_speed);
     if(!Number.isFinite(limit)||limit<0)limit=Number.isFinite(current)&&current>=0?current:0;
     input.max=String(limit);
-    if(document.activeElement!==input)input.value=String(Number.isFinite(current)&&current>=0?current:0);
+    if(!regionalSpeedInputDirty&&document.activeElement!==input)input.value=String(Number.isFinite(current)&&current>=0?current:0);
   }
   function refreshRegionalCommandChoices(snapshot){
     regionalUiLastSnapshot=snapshot;
@@ -2956,7 +2956,8 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if(!ss.options.length)ss.add(new Option('No controlled vessels',''));if(!ts.options.length)ts.add(new Option('No visible targets',''));
     syncRegionalSpeedInput(snapshot);
   }
-  document.getElementById('vigil-regional-ship').addEventListener('change',function(){syncRegionalSpeedInput(regionalUiLastSnapshot);});
+  document.getElementById('vigil-regional-ship').addEventListener('change',function(){regionalSpeedInputDirty=false;syncRegionalSpeedInput(regionalUiLastSnapshot);});
+  document.getElementById('vigil-regional-speed').addEventListener('input',function(){regionalSpeedInputDirty=true;});
   document.getElementById('vigil-regional-connect').addEventListener('click',function(){var url=document.getElementById('vigil-regional-url').value.trim(),token=document.getElementById('vigil-regional-token').value;try{vigilRegionalUiOptions={url:url,token:token};window.connectVigilRegionalSnapshot({url:url,token:token,intervalMs:2000});regionalUiStatus('CONNECTING // Waiting for authorized snapshot…',false);}catch(e){vigilRegionalUiOptions=null;regionalUiStatus(String(e.message||e),true);}});
   document.getElementById('vigil-regional-disconnect').addEventListener('click',function(){window.disconnectVigilRegionalSnapshot();vigilRegionalUiOptions=null;document.getElementById('vigil-regional-token').value='';window.clearVigilRegionalWorldSnapshot();refreshRegionalCommandChoices({ships:[],controlled_ship_ids:[]});regionalUiStatus('DISCONNECTED // Token cleared from this page.',false);});
   document.getElementById('vigil-regional-set-heading').addEventListener('click',async function(){var ship=document.getElementById('vigil-regional-ship').value,h=Number(document.getElementById('vigil-regional-heading').value);if(!vigilRegionalUiOptions||!ship){regionalUiStatus('Connect and select a controlled vessel first.',true);return;}if(!Number.isFinite(h)||h<0||h>=360){regionalUiStatus('Heading must be between 0° and 359.9°.',true);return;}try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'set_heading',{ship_id:ship,heading_deg:h});regionalUiStatus('COURSE SET // '+ship+' → '+Number(r.heading_deg).toFixed(1)+'°',false);}catch(e){regionalUiStatus('COMMAND REJECTED // '+String(e.message||e),true);}});
@@ -2966,7 +2967,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if(!Number.isFinite(speed)||speed<0||speed>limit){regionalUiStatus('Speed must be between 0 and the selected vessel max speed ('+limit+').',true);return;}
     try{
       var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'set_speed',{ship_id:ship,speed:speed});
-      input.value=String(r.speed);
+      input.value=String(r.speed);regionalSpeedInputDirty=false;
       regionalUiStatus(r.stopped?'ALL STOP // '+ship+' // SPEED 0':'SPEED SET // '+ship+' // '+Number(r.speed).toFixed(5)+' / MAX '+Number(r.max_speed).toFixed(5),false);
     }catch(e){regionalUiStatus('SPEED COMMAND REJECTED // '+String(e.message||e),true);}
   }
