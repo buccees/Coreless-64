@@ -1062,6 +1062,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     <div class="vigil-cb-heading"><div><div class="vigil-cb-kicker">COMMUNICATIONS TRAINER // AUTO-INSTRUCTION</div><h3 id="vigil-cb-title">CB / RADIOTELEPHONE ETIQUETTE STATION</h3></div><span class="vigil-cb-mode">SIMULATION ONLY · NO RF TRANSMISSION</span></div>
     <p class="vigil-cb-intro">Choose an approved communication action. VIGIL builds and “transmits” the correctly structured practice message automatically, then explains the procedure. No free-typing or manual message sending.</p>
     <div class="vigil-cb-config">
+      <label>FACTION / FLEET<select id="vigil-cb-faction"><option value="WYCF">WEYLAND-YUTANI COLONIAL FLEET</option><option value="PRO">PRODIGY</option><option value="LYN">LYNCH</option><option value="DYN">DYNAMIC</option><option value="THR">THRESHOLD</option></select></label>
       <label>YOUR STATION<select id="vigil-cb-sender"><option value="WYCF-01">WYCF-01 // BRIDGE</option><option value="WYCF-02">WYCF-02 // CIC</option><option value="WYCF-TRAIN-01">WYCF-TRAIN-01 // TRAINEE</option></select></label>
       <label>STATION TO CALL<select id="vigil-cb-recipient"><option value="CONTROL">CONTROL</option><option value="WYCF-ESCORT-01">WYCF-ESCORT-01</option><option value="WYCF-02">WYCF-02 // CIC</option><option value="ALL STATIONS">ALL STATIONS</option></select></label>
       <label>CHANNEL / NET<select id="vigil-cb-channel">
@@ -3128,6 +3129,7 @@ update();
 'use strict';
 var root=document.getElementById('vigil-cb-instructor');
 if(!root)return;
+var faction=document.getElementById('vigil-cb-faction');
 var sender=document.getElementById('vigil-cb-sender');
 var recipient=document.getElementById('vigil-cb-recipient');
 var channel=document.getElementById('vigil-cb-channel');
@@ -3135,6 +3137,38 @@ var output=document.getElementById('vigil-cb-last-message');
 var feedback=document.getElementById('vigil-cb-instructor-feedback');
 var log=document.getElementById('vigil-cb-log');
 var history=[];
+var factionProfiles={
+ WYCF:{name:'WEYLAND-YUTANI COLONIAL FLEET',prefix:'WYCF'},
+ PRO:{name:'PRODIGY FLEET',prefix:'PRO'},
+ LYN:{name:'LYNCH FLEET',prefix:'LYN'},
+ DYN:{name:'DYNAMIC FLEET',prefix:'DYN'},
+ THR:{name:'THRESHOLD FLEET',prefix:'THR'}
+};
+function updateFactionStation(){
+ var profile=factionProfiles[faction.value]||factionProfiles.WYCF;
+ var currentSender=sender.value.slice(sender.value.indexOf('-')+1);
+ var senderRole=currentSender==='02'?'02':currentSender.indexOf('TRAIN')===0?'TRAIN-01':'01';
+ var senderOptions=[
+  {value:profile.prefix+'-01',label:profile.prefix+'-01 // BRIDGE'},
+  {value:profile.prefix+'-02',label:profile.prefix+'-02 // CIC'},
+  {value:profile.prefix+'-TRAIN-01',label:profile.prefix+'-TRAIN-01 // TRAINEE'}
+ ];
+ sender.textContent='';
+ senderOptions.forEach(function(item){var option=document.createElement('option');option.value=item.value;option.textContent=item.label;sender.appendChild(option);});
+ sender.value=senderOptions.some(function(item){return item.value===profile.prefix+'-'+senderRole;})?profile.prefix+'-'+senderRole:profile.prefix+'-01';
+ var oldRecipient=recipient.value;
+ recipient.textContent='';
+ [{value:'CONTROL',label:profile.prefix+' CONTROL'},{value:profile.prefix+'-ESCORT-01',label:profile.prefix+'-ESCORT-01 // ESCORT'},{value:profile.prefix+'-02',label:profile.prefix+'-02 // CIC'},{value:'ALL STATIONS',label:'ALL '+profile.name+' STATIONS'}].forEach(function(item){var option=document.createElement('option');option.value=item.value;option.textContent=item.label;recipient.appendChild(option);});
+ recipient.value=oldRecipient==='ALL STATIONS'?'ALL STATIONS':profile.prefix+'-ESCORT-01';
+ var netGroup=channel.querySelector('optgroup:last-of-type');
+ if(netGroup){netGroup.label=profile.name+' // FICTIONAL TRAINING NETS — NOT REAL FREQUENCIES';Array.prototype.forEach.call(netGroup.options,function(option){var role=option.value.replace('NAVY-','');var names={'GUARD':'GUARD / DISTRESS DRILL','CMD':'COMMAND NET','TAC-1':'TACTICAL NET 1','TAC-2':'TACTICAL NET 2','LOG':'LOGISTICS NET'};option.textContent=profile.prefix+' // '+(names[role]||role);});}
+ var title=document.getElementById('vigil-cb-title');
+ if(title)title.textContent=profile.name+' // CB / RADIOTELEPHONE TRAINER';
+ var intro=root.querySelector('.vigil-cb-intro');
+ if(intro)intro.textContent='Faction profile: '+profile.name+'. Choose an approved communication action. VIGIL builds and “transmits” the correctly structured practice message automatically, then explains the procedure. No free-typing or manual message sending.';
+}
+faction.addEventListener('change',updateFactionStation);
+updateFactionStation();
 var procedures={
  call:{label:'CALL STATION',ending:'OVER',build:function(to,from){return to+', '+to+', THIS IS '+from+'. REQUESTING COMMUNICATION. OVER.';},lesson:'A call names the station being called first, then identifies the calling station. OVER indicates that a reply is expected.'},
  check:{label:'RADIO CHECK',ending:'OVER',build:function(to,from){return to+', THIS IS '+from+'. RADIO CHECK. HOW DO YOU READ? OVER.';},lesson:'A radio check asks for a response about readability. Pause and allow the called station to answer; do not keep repeating the call without reason.'},
