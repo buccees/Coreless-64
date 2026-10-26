@@ -2848,7 +2848,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       var basin=.48+.19*Math.sin(x*10+y*4)+.13*Math.cos(y*12-x*3)+.08*Math.sin(x*27+y*19);
       return Math.max(0,Math.min(1,basin+trench*.39-ridge*.36-shelf*.48));
     }
-    var viewW=1/mapCamera.zoom,viewH=viewW*h/w,x0=mapCamera.x-viewW/2,y0=mapCamera.y-viewH/2;
+    var viewW=1/mapCamera.zoom,viewH=1/mapCamera.zoom,x0=mapCamera.x-viewW/2,y0=mapCamera.y-viewH/2;
     for(var gy=0;gy<=ny;gy++){values[gy]=[];for(var gx=0;gx<=nx;gx++)values[gy][gx]=depthAt(x0+gx/nx*viewW,y0+gy/ny*viewH);}
     var colors=['#8fc7b2','#4d9b9c','#286b83','#194b70','#102f56'];
     function colorFor(v){return colors[v<.16?0:v<.34?1:v<.56?2:v<.76?3:4];}
@@ -2874,7 +2874,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   var mapCamera={x:.5,y:.5,zoom:1},mapDrag=null;
   function clampMapCamera(){
     mapCamera.zoom=Math.max(1,Math.min(5,mapCamera.zoom));
-    var vw=1/mapCamera.zoom,vh=vw*430/900;
+    var vw=1/mapCamera.zoom,vh=1/mapCamera.zoom;
     mapCamera.x=Math.max(vw/2,Math.min(1-vw/2,mapCamera.x));
     mapCamera.y=Math.max(vh/2,Math.min(1-vh/2,mapCamera.y));
   }
@@ -2885,7 +2885,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     document.getElementById('sim-map-zoom-out').addEventListener('click',function(){mapCamera.zoom=Math.max(1,mapCamera.zoom-.5);refreshMapView();});
     document.getElementById('sim-map-reset').addEventListener('click',function(){mapCamera={x:.5,y:.5,zoom:1};refreshMapView();});
     canvas.addEventListener('pointerdown',function(e){mapDrag={x:e.clientX,y:e.clientY,cx:mapCamera.x,cy:mapCamera.y};canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing';});
-    canvas.addEventListener('pointermove',function(e){if(!mapDrag)return;var rect=canvas.getBoundingClientRect(),vw=1/mapCamera.zoom,vh=vw*430/900;mapCamera.x=mapDrag.cx-(e.clientX-mapDrag.x)/rect.width*vw;mapCamera.y=mapDrag.cy-(e.clientY-mapDrag.y)/rect.height*vh;refreshMapView();});
+    canvas.addEventListener('pointermove',function(e){if(!mapDrag)return;var rect=canvas.getBoundingClientRect(),vw=1/mapCamera.zoom,vh=1/mapCamera.zoom;mapCamera.x=mapDrag.cx-(e.clientX-mapDrag.x)/rect.width*vw;mapCamera.y=mapDrag.cy-(e.clientY-mapDrag.y)/rect.height*vh;refreshMapView();});
     function stopDrag(){mapDrag=null;canvas.style.cursor='grab';}
     canvas.addEventListener('pointerup',stopDrag);canvas.addEventListener('pointercancel',stopDrag);
     canvas.addEventListener('wheel',function(e){e.preventDefault();mapCamera.zoom=Math.max(1,Math.min(5,mapCamera.zoom+(e.deltaY<0?.25:-.25)));refreshMapView();},{passive:false});
