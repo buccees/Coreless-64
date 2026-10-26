@@ -56,16 +56,25 @@ def create_multiplayer_app(
     game = rooms or BattleshipRooms()
     rate_limit = _RateLimit()
 
-    def response(start_response, status: str, payload: dict):
+    def response(start_response, status: str, payload: dict, origin: str | None = None, preflight: bool = False):
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-        start_response(status, [
+        headers = [
             ("Content-Type", "application/json; charset=utf-8"),
             ("Content-Length", str(len(body))),
             ("Cache-Control", "no-store"),
             ("X-Content-Type-Options", "nosniff"),
             ("Referrer-Policy", "no-referrer"),
             ("Vary", "Origin"),
-        ])
+        ]
+        if origin in origins:
+            headers.append(("Access-Control-Allow-Origin", origin))
+        if preflight:
+            headers.extend([
+                ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
+                ("Access-Control-Allow-Headers", "Authorization, Content-Type"),
+                ("Access-Control-Max-Age", "600"),
+            ])
+        start_response(status, headers)
         return [body]
 
     def read_json(environ):
@@ -100,6 +109,8 @@ def create_multiplayer_app(
             return response(start_response, "404 Not Found", {"error": "not_found"})
         if origin not in origins:
             return response(start_response, "403 Forbidden", {"error": "origin_not_allowed"})
+        if method == "OPTIONS":
+            return response(start_response, "204 No Content", {}, origin, preflight=True)
 
         try:
             if path == "/api/multiplayer/create":
