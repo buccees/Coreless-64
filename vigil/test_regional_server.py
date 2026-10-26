@@ -97,3 +97,37 @@ def test_tick_runner_advances_authoritative_world():
     assert runner.last_error is None
     with pytest.raises(ValueError, match="between 0.1 and 60"):
         RegionalTickRunner(game, tick_rate=100)
+
+
+def test_ai_player_gets_private_token_and_can_be_scheduled(tmp_path):
+    config = {
+        "schema_version": 1,
+        "ships": [
+            {"ship_id": "red", "name": "Red Ship", "ship_class": "frigate",
+             "x": 0.2, "y": 0.3, "speed": 0.01},
+        ],
+        "players": [
+            {"player_id": "computer", "ai": True, "controlled_ship_ids": ["red"],
+             "visible_ship_ids": ["red"]},
+        ],
+    }
+    ai_tokens = {}
+    game = load_game_config(write_config(tmp_path, config), ai_tokens=ai_tokens)
+    assert set(ai_tokens) == {"computer"}
+    token = ai_tokens["computer"]
+    assert len(token) >= 32
+    assert game.snapshot(token)["player_id"] == "computer"
+
+    from vigil.regional_ai import RegionalOpponent, RegionalOpponentRunner
+    runner = RegionalOpponentRunner(
+        game, {token: RegionalOpponent()}, decision_interval_seconds=0.1
+    )
+    runner.start()
+    try:
+        import time
+        deadline = time.monotonic() + 1
+        while not runner.last_results and time.monotonic() < deadline:
+            time.sleep(0.005)
+    finally:
+        runner.stop()
+    assert runner.last_results[token]["reason"] == "no_visible_contact"
