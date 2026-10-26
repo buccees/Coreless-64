@@ -276,7 +276,6 @@ console.log("VIGIL audit retention and review decision scenarios: 2 scenario gro
   const source = html;
   const setterStart = source.indexOf("window.setVigilRegionalWorldSnapshot=function(snapshot){");
   assert.notEqual(setterStart, -1, "regional snapshot setter must exist");
-  const setter = extractFunction("function(snapshot){",);
   // Extract the production function body at its exact assignment site.
   let depth = 0, quote = null, escaped = false, end = -1;
   for (let i = setterStart + "window.setVigilRegionalWorldSnapshot=".length + "function(snapshot)".length; i < source.length; i += 1) {
