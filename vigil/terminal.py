@@ -16,6 +16,7 @@ from .object_tracking import ObjectTrack
 from .spatial_scene import SpatialScene
 from .spatial_query import SpatialQueryResult
 from .spatial_regions import RegionQueryResult
+from .underwater import SonarSweep
 
 
 _GREEN = "\\033[92m"
@@ -77,6 +78,7 @@ class VigilTerminal:
         spatial_scene: SpatialScene | None = None,
         spatial_query: SpatialQueryResult | None = None,
         region_results: Sequence[RegionQueryResult] = (),
+        sonar_sweeps: Sequence[SonarSweep] = (),
     ) -> str:
         """Return terminal text; missing/stale data is shown explicitly as unknown."""
         if now_ns < 0:
@@ -145,6 +147,27 @@ class VigilTerminal:
                 lines.append(f"║ {self._fit(detail, 60)}║")
             if len(sensor_lines) > 4:
                 lines.append(f"║ + {len(sensor_lines) - 4} additional sensor sources                                  ║")
+        if sonar_sweeps:
+            lines.append("╟────────────────── UNDERWATER / SONAR ──────────────────────────╢")
+            for sweep in sorted(sonar_sweeps, key=lambda item: (item.timestamp_ns, item.sensor_id), reverse=True)[:3]:
+                age_ns = max(0, now_ns - sweep.timestamp_ns)
+                state = "CURRENT" if age_ns <= self.max_sensor_age_ns else "STALE"
+                mode = sweep.mode.value.upper()
+                summary = f"{sweep.sensor_id} {mode}: {len(sweep.contacts)} contact(s), {sweep.detections_missed} missed; {state}"
+                lines.append(f"║ {self._fit(summary, 60)}║")
+                for contact in sweep.contacts[:3]:
+                    age = max(0, now_ns - contact.timestamp_ns)
+                    contact_state = "CURRENT" if age <= self.max_sensor_age_ns else "STALE"
+                    detail = (
+                        f"{contact.contact_id}: range~{contact.estimated_range_m:.0f}m "
+                        f"+/-{contact.range_uncertainty_m:.0f}m bearing~"
+                        f"{contact.estimated_bearing_deg:.0f}deg conf={contact.confidence:.2f} {contact_state}"
+                    )
+                    lines.append(f"║ {self._fit(detail, 60)}║")
+                if len(sweep.contacts) > 3:
+                    lines.append(f"║ + {len(sweep.contacts) - 3} additional sonar contacts                      ║")
+            if len(sonar_sweeps) > 3:
+                lines.append(f"║ + {len(sonar_sweeps) - 3} additional sonar sensors                         ║")
         lines.append("╟──────────────────── OBJECT TRACKING ──────────────────────────╢")
         if not object_tracks:
             lines.append("║ No object tracks available                                    ║")
