@@ -2235,7 +2235,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   
   var mode=document.getElementById('sim-mode'),status=document.getElementById('sim-turn-status');
   var sensor=document.getElementById('sim-sensor'),noise=document.getElementById('sim-noise');
-  var onlineSession=null,onlineState=null,onlinePollTimer=null,onlineRequestBusy=false;
+  var onlineSession=null,onlineState=null,onlinePollTimer=null,onlineRequestBusy=false,onlineRoomRequestBusy=false;
   var multiplayerApi=String(window.VIGIL_MULTIPLAYER_API||'').replace(/\/+$/ ,'');
   var onlineModeOption=mode.querySelector('option[value="online"]');
   var onlineStatus=document.getElementById('sim-online-status');
@@ -2288,23 +2288,23 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       else if(state.turn===onlineSession.player)status.textContent='ROOM '+state.room_code+' // YOUR TURN';
       else status.textContent='ROOM '+state.room_code+' // WAITING FOR OPPONENT';
       onlineStatus.textContent='ROOM '+state.room_code+' // PLAYER '+onlineSession.player+' // '+(state.ready?'CONNECTED':'WAITING FOR OPPONENT');
-      renderBoard();updateMetrics();
+      renderBoard();updateMetrics();if(state.game_over&&onlinePollTimer){clearInterval(onlinePollTimer);onlinePollTimer=null;}
     }).catch(function(error){onlineStatus.textContent='ONLINE SESSION ERROR // '+error.message;status.textContent='NETWORK SESSION ERROR // CHECK API CONNECTION';}).finally(function(){onlineRequestBusy=false;});
   }
   function beginOnlineSession(session){
-    onlineSession=session;onlineState=null;enemyFleet=[];placementMode=false;ownFleetView=false;shotsByPlayer={1:{}};aiShots={};gameOver=false;document.getElementById('sim-manual-setup').textContent='MANUAL FLEET SETUP';document.getElementById('sim-rotate').disabled=true;
+    onlineSession=session;onlineState=null;enemyFleet=[];placementMode=false;ownFleetView=false;shotsByPlayer={1:{}};aiShots={};gameOver=false;onlineCreateButton.disabled=true;onlineJoinButton.disabled=true;document.getElementById('sim-manual-setup').textContent='MANUAL FLEET SETUP';document.getElementById('sim-rotate').disabled=true;
     onlineCodeInput.value=session.room_code;onlineStatus.textContent='ROOM '+session.room_code+' // CONNECTING';onlineSync();
     if(onlinePollTimer)clearInterval(onlinePollTimer);onlinePollTimer=setInterval(onlineSync,2500);
   }
   function createOnlineRoom(){
-    if(!multiplayerApi){onlineStatus.textContent='ONLINE API NOT CONFIGURED';return;}
-    try{var fleet=onlineFleetPayload();onlineStatus.textContent='CREATING ROOM...';onlineRequest('/api/multiplayer/create','POST',{fleet:fleet}).then(function(result){beginOnlineSession({token:result.player_token,room_code:result.room_code,player:1});}).catch(function(error){onlineStatus.textContent='CREATE FAILED // '+error.message;});}
+    if(!multiplayerApi){onlineStatus.textContent='ONLINE API NOT CONFIGURED';return;}if(onlineRoomRequestBusy)return;
+    try{var fleet=onlineFleetPayload();onlineRoomRequestBusy=true;onlineStatus.textContent='CREATING ROOM...';onlineRequest('/api/multiplayer/create','POST',{fleet:fleet}).then(function(result){onlineRoomRequestBusy=false;beginOnlineSession({token:result.player_token,room_code:result.room_code,player:1});}).catch(function(error){onlineRoomRequestBusy=false;onlineStatus.textContent='CREATE FAILED // '+error.message;});}
     catch(error){onlineStatus.textContent=error.message;status.textContent=error.message;}
   }
   function joinOnlineRoom(){
-    if(!multiplayerApi){onlineStatus.textContent='ONLINE API NOT CONFIGURED';return;}
+    if(!multiplayerApi){onlineStatus.textContent='ONLINE API NOT CONFIGURED';return;}if(onlineRoomRequestBusy)return;
     var code=onlineCodeInput.value.trim().toUpperCase();if(!/^[A-Z0-9]{6}$/.test(code)){onlineStatus.textContent='ENTER THE SIX-CHARACTER ROOM CODE';return;}
-    try{var fleet=onlineFleetPayload();onlineStatus.textContent='JOINING ROOM '+code+'...';onlineRequest('/api/multiplayer/join','POST',{room_code:code,fleet:fleet}).then(function(result){beginOnlineSession({token:result.player_token,room_code:result.room_code,player:2});}).catch(function(error){onlineStatus.textContent='JOIN FAILED // '+error.message;});}
+    try{var fleet=onlineFleetPayload();onlineRoomRequestBusy=true;onlineStatus.textContent='JOINING ROOM '+code+'...';onlineRequest('/api/multiplayer/join','POST',{room_code:code,fleet:fleet}).then(function(result){onlineRoomRequestBusy=false;beginOnlineSession({token:result.player_token,room_code:result.room_code,player:2});}).catch(function(error){onlineRoomRequestBusy=false;onlineStatus.textContent='JOIN FAILED // '+error.message;});}
     catch(error){onlineStatus.textContent=error.message;status.textContent=error.message;}
   }
   function onlineFire(row,column){
@@ -2820,10 +2820,10 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   document.getElementById('sim-recon-investigate').addEventListener('click',investigateReconContact);
   document.getElementById('sim-recon-evaluate').addEventListener('click',evaluateRecon);
   document.getElementById('sim-export').addEventListener('click',function(){var data=publish(false,true),blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='vigil-simulation-observations.json';document.body.appendChild(a);a.click();a.remove();window.setTimeout(function(){URL.revokeObjectURL(url);},1000);});
-  mode.addEventListener('change',function(){if(onlinePollTimer){clearInterval(onlinePollTimer);onlinePollTimer=null;}onlineSession=null;onlineState=null;onlineRequestBusy=false;initialize();if(mode.value==='online')onlineStatus.textContent='PLACE YOUR FLEET, THEN CREATE OR JOIN A ROOM';else onlineStatus.textContent=multiplayerApi?'ONLINE SESSION CLOSED':'ONLINE API NOT CONFIGURED';});
+  mode.addEventListener('change',function(){if(onlinePollTimer){clearInterval(onlinePollTimer);onlinePollTimer=null;}onlineSession=null;onlineState=null;onlineRequestBusy=false;onlineRoomRequestBusy=false;onlineCreateButton.disabled=!multiplayerApi;onlineJoinButton.disabled=!multiplayerApi;initialize();if(mode.value==='online')onlineStatus.textContent='PLACE YOUR FLEET, THEN CREATE OR JOIN A ROOM';else onlineStatus.textContent=multiplayerApi?'ONLINE SESSION CLOSED':'ONLINE API NOT CONFIGURED';});
   onlineCreateButton.addEventListener('click',createOnlineRoom);
   onlineJoinButton.addEventListener('click',joinOnlineRoom);
-  document.getElementById('sim-new-game').addEventListener('click',function(){if(onlinePollTimer){clearInterval(onlinePollTimer);onlinePollTimer=null;}onlineSession=null;onlineState=null;onlineRequestBusy=false;initialize();});
+  document.getElementById('sim-new-game').addEventListener('click',function(){if(onlinePollTimer){clearInterval(onlinePollTimer);onlinePollTimer=null;}onlineSession=null;onlineState=null;onlineRequestBusy=false;onlineRoomRequestBusy=false;onlineCreateButton.disabled=!multiplayerApi;onlineJoinButton.disabled=!multiplayerApi;initialize();});
   sensor.addEventListener('change',function(){publish(false,false);});
   noise.addEventListener('input',function(){document.getElementById('sim-noise-value').textContent=Number(noise.value).toFixed(1);});
   initialize();
