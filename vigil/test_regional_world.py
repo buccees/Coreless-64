@@ -23,6 +23,28 @@ def test_ship_moves_by_speed_allowance_and_refreshes_each_campaign_turn():
     assert world.ships["blue"].x == 6
 
 
+@pytest.mark.parametrize("speed", [-1, float("inf"), float("nan")])
+def test_ship_rejects_negative_or_nonfinite_speed(speed):
+    with pytest.raises(RegionalWorldError, match="finite non-negative number"):
+        ship(speed=speed)
+
+
+def test_stationary_ship_with_zero_speed_is_valid_and_does_not_drift():
+    stationary = ship("stationary", speed=0, heading_deg=90)
+    assert stationary.movement_remaining == 0
+    world = RegionalWorld([stationary])
+
+    tick_results = world.advance_realtime_tick(10)
+    assert len(tick_results) == 1
+    assert tick_results[0].distance == 0
+    assert (stationary.x, stationary.y) == (0, 0)
+
+    same_position = world.move("stationary", 0, 0)
+    assert same_position.distance == 0
+    with pytest.raises(RegionalWorldError, match="remaining movement"):
+        world.move("stationary", 0.01, 0)
+
+
 def test_ship_sinking_depends_on_accumulated_weapon_damage_not_encounters():
     world = RegionalWorld([ship(max_hull=5, weapon_damage=2)])
     # Merely being present on the map does not cause damage.
