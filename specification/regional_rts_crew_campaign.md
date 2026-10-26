@@ -89,3 +89,17 @@ Campaign records should link mission objectives, faction intent, weather/environ
 - The same world tick and action sequence produces reproducible outcomes in tests.
 - Client observation payloads contain no hidden enemy coordinates or truth-only identifiers.
 - Every RPG-style check exposes its inputs and affects an in-bounds task outcome rather than bypassing the simulation.
+
+
+## Blueprint-faithful ship silhouettes and scale
+
+Ship markers must not be generic same-sized icons. Each vessel should have a distinct plan-view silhouette based on a traceable real ship blueprint or naval-architecture drawing, with the source recorded in the vessel data. Where a blueprint cannot be redistributed, use its verified dimensions and a permitted/reference-derived outline; do not claim an invented silhouette is a real blueprint.
+
+- Store overall length and beam in metres, heading, vessel class/name, and blueprint/specification source.
+- Preserve the source plan-view length-to-beam aspect ratio at every zoom level. Scaling may change overall rendered size, but must never stretch length and beam independently.
+- Render hull outlines in world coordinates with the vessel's bow aligned to its heading; use the same geometry for collision footprint, range/closest-approach calculations, and visualization.
+- At regional zoom, show scale-appropriate symbols while retaining the real hull dimensions in world state. At tactical zoom, reveal the detailed blueprint-derived outline.
+- Distinguish known vessel identity from uncertain sensor classification: an unknown contact must not reveal the hidden ship's true class or blueprint to an unauthorized player.
+- Keep combat HP as a separate gameplay value. Real length/beam and blueprint geometry determine appearance and spatial footprint; size-based hull HP is a balance rule and must be tuned independently.
+
+Acceptance: two vessel classes with different dimensions render at different physical scales; their measured on-screen length:beam ratios match their stored ratios within rendering tolerance; rotation changes heading but does not distort the hull; sensor-only contacts reveal only authorized estimated geometry.
