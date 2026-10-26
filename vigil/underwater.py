@@ -124,7 +124,7 @@ def simulate_sonar_sweep(
         if signal < threshold or sample < noise * 0.2:
             missed += 1
             continue
-        confidence = max(0.05, min(0.99, signal / max(0.01, signal + noise)))
+        confidence = max(0.05, min(0.99, signal / max(0.01, signal + noise + 0.05)))
         range_error = (sample - 0.5) * 2 * sensor.range_uncertainty_fraction * slant_range
         estimated_range = max(0.0, slant_range + range_error)
         bearing = (degrees(atan2(target.y_m - sy, target.x_m - sx)) + 360.0) % 360.0
