@@ -3130,7 +3130,8 @@ root.querySelectorAll('[data-cb-action]').forEach(function(button){
   if(!action)return;
   var from=sender.value,to=recipient.value;
   var message=action.build(to,from);
-  if(channel.value==='VHF-70'){output.textContent='TRANSMISSION BLOCKED // VHF CHANNEL 70 IS FOR DIGITAL SELECTIVE CALLING (DSC), NOT VOICE.';feedback.textContent='INSTRUCTOR // Channel 70 is reserved for DSC calling, distress, and safety. Choose a voice channel appropriate to the scenario.';addLog('BLOCKED VOICE TX','VHF Channel 70 is DSC-only.');return;}\n  output.textContent='SIMULATED TX // '+channel.options[channel.selectedIndex].text+'\n'+message;
+  if(channel.value==='VHF-70'){output.textContent='TRANSMISSION BLOCKED // VHF CHANNEL 70 IS FOR DIGITAL SELECTIVE CALLING (DSC), NOT VOICE.';feedback.textContent='INSTRUCTOR // Channel 70 is reserved for DSC calling, distress, and safety. Choose a voice channel appropriate to the scenario.';addLog('BLOCKED VOICE TX','VHF Channel 70 is DSC-only.');return;}
+  output.textContent='SIMULATED TX // '+channel.options[channel.selectedIndex].text+'\\n'+message;
   feedback.textContent='INSTRUCTOR // '+action.label+': '+action.lesson;
   addLog('TX '+action.label,message);
   if(action.ending==='OVER'&&this.getAttribute('data-cb-action')!=='distress'){
