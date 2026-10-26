@@ -2944,6 +2944,15 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     input.max=String(limit);
     if(!regionalSpeedInputDirty&&document.activeElement!==input)input.value=String(Number.isFinite(current)&&current>=0?current:0);
   }
+  function syncRegionalWeaponReadiness(snapshot){
+    var ss=document.getElementById('vigil-regional-ship'),button=document.getElementById('vigil-regional-fire');
+    if(!ss||!button)return;
+    var ships=snapshot&&Array.isArray(snapshot.ships)?snapshot.ships:[];
+    var ship=ships.find(function(s){return s.ship_id===ss.value;});
+    var cooldown=ship&&Number.isFinite(Number(ship.weapon_cooldown_remaining))?Math.max(0,Number(ship.weapon_cooldown_remaining)):0;
+    if(cooldown>0.01){button.disabled=true;button.textContent='RELOADING '+cooldown.toFixed(1)+'s';}
+    else{button.disabled=false;button.textContent='FIRE WEAPON';}
+  }
   function refreshRegionalCommandChoices(snapshot){
     regionalUiLastSnapshot=snapshot;
     var ships=Array.isArray(snapshot.ships)?snapshot.ships:[],controlled=Array.isArray(snapshot.controlled_ship_ids)?snapshot.controlled_ship_ids:[];
@@ -2955,8 +2964,9 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     if(Array.from(ts.options).some(function(o){return o.value===oldTarget;}))ts.value=oldTarget;
     if(!ss.options.length)ss.add(new Option('No controlled vessels',''));if(!ts.options.length)ts.add(new Option('No visible targets',''));
     syncRegionalSpeedInput(snapshot);
+    syncRegionalWeaponReadiness(snapshot);
   }
-  document.getElementById('vigil-regional-ship').addEventListener('change',function(){regionalSpeedInputDirty=false;syncRegionalSpeedInput(regionalUiLastSnapshot);});
+  document.getElementById('vigil-regional-ship').addEventListener('change',function(){regionalSpeedInputDirty=false;syncRegionalSpeedInput(regionalUiLastSnapshot);syncRegionalWeaponReadiness(regionalUiLastSnapshot);});
   document.getElementById('vigil-regional-speed').addEventListener('input',function(){regionalSpeedInputDirty=true;});
   document.getElementById('vigil-regional-connect').addEventListener('click',function(){var url=document.getElementById('vigil-regional-url').value.trim(),token=document.getElementById('vigil-regional-token').value;try{vigilRegionalUiOptions={url:url,token:token};window.connectVigilRegionalSnapshot({url:url,token:token,intervalMs:2000});regionalUiStatus('CONNECTING // Waiting for authorized snapshot…',false);}catch(e){vigilRegionalUiOptions=null;regionalUiStatus(String(e.message||e),true);}});
   document.getElementById('vigil-regional-disconnect').addEventListener('click',function(){window.disconnectVigilRegionalSnapshot();vigilRegionalUiOptions=null;document.getElementById('vigil-regional-token').value='';window.clearVigilRegionalWorldSnapshot();refreshRegionalCommandChoices({ships:[],controlled_ship_ids:[]});regionalUiStatus('DISCONNECTED // Token cleared from this page.',false);});
@@ -2978,7 +2988,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     var input=document.getElementById('vigil-regional-speed');input.value='0';
     regionalSetSpeed(0,document.getElementById('vigil-regional-ship').value);
   });
-  document.getElementById('vigil-regional-fire').addEventListener('click',async function(){var ship=document.getElementById('vigil-regional-ship').value,target=document.getElementById('vigil-regional-target').value;if(!vigilRegionalUiOptions||!ship||!target){regionalUiStatus('Connect, select your vessel, and choose a visible target first.',true);return;}try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'fire_weapon',{ship_id:ship,target_id:target});regionalUiStatus((r.sunk?'CONTACT SUNK':'WEAPON HIT')+' // '+target+' // DAMAGE '+r.damage+' // HULL '+r.hull_after,false);}catch(e){regionalUiStatus('FIRE SOLUTION REJECTED // '+String(e.message||e),true);}});
+  document.getElementById('vigil-regional-fire').addEventListener('click',async function(){var ship=document.getElementById('vigil-regional-ship').value,target=document.getElementById('vigil-regional-target').value;if(!vigilRegionalUiOptions||!ship||!target){regionalUiStatus('Connect, select your vessel, and choose a visible target first.',true);return;}try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'fire_weapon',{ship_id:ship,target_id:target});var cooldown=Number(r.weapon_cooldown_remaining)||0;var fireButton=document.getElementById('vigil-regional-fire');if(cooldown>0){fireButton.disabled=true;fireButton.textContent='RELOADING '+cooldown.toFixed(1)+'s';}regionalUiStatus((r.sunk?'CONTACT SUNK':'WEAPON HIT')+' // '+target+' // DAMAGE '+r.damage+' // HULL '+r.hull_after+' // RELOAD '+cooldown.toFixed(1)+'s',false);}catch(e){regionalUiStatus('FIRE SOLUTION REJECTED // '+String(e.message||e),true);}});
   window.addEventListener('vigil:regional-snapshot-error',function(e){regionalUiStatus('LINK ERROR // '+String(e.detail&&e.detail.message||'Regional snapshot unavailable'),true);});
   function stepRegionalFleet(now){
     if(!regionalFleetLastTick)regionalFleetLastTick=now;
