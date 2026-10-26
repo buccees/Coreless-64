@@ -13,7 +13,8 @@
       "max_speed": 0.004,
       "heading_deg": 90,
       "weapon_damage": 1,
-      "weapon_range": 0.18
+      "weapon_range": 0.18,
+      "weapon_reload_seconds": 8.0
     },
     {
       "ship_id": "ai-frigate",
@@ -26,7 +27,8 @@
       "max_speed": 0.003,
       "heading_deg": 225,
       "weapon_damage": 1,
-      "weapon_range": 0.15
+      "weapon_range": 0.15,
+      "weapon_reload_seconds": 6.0
     }
   ],
   "players": [
