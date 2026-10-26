@@ -7,9 +7,10 @@ as a human command. No model output directly mutates simulation state.
 from __future__ import annotations
 
 import json
-from math import atan2, degrees
+import threading
+from time import monotonic
 from typing import Mapping
-
+from math import atan2, degrees
 from ai.interfaces import AIRequest, AuthorityLevel
 from ai.registry import AICoreRegistry
 
@@ -142,3 +143,53 @@ class RegionalOpponent:
             return "set_heading", {"ship_id": ship["ship_id"], "heading_deg": heading}
         except (KeyError, TypeError, ValueError, OverflowError):
             return None
+
+
+
+class RegionalOpponentRunner:
+    """Run AI decisions on a separate cadence/thread so inference cannot stall world ticks."""
+
+    def __init__(
+        self,
+        game: RegionalGame,
+        opponents: Mapping[str, RegionalOpponent],
+        *,
+        decision_interval_seconds: float = 2.0,
+    ) -> None:
+        if (isinstance(decision_interval_seconds, bool)
+                or not isinstance(decision_interval_seconds, (int, float))
+                or not 0.1 <= decision_interval_seconds <= 300):
+            raise ValueError("decision interval must be between 0.1 and 300 seconds")
+        self.game = game
+        self.opponents = dict(opponents)
+        self.interval = float(decision_interval_seconds)
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self.last_results: dict[str, dict[str, object]] = {}
+
+    def start(self) -> None:
+        if self._thread is not None and self._thread.is_alive():
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._run, name="vigil-regional-ai", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=3.0)
+
+    def _run(self) -> None:
+        deadline = monotonic() + self.interval
+        while not self._stop.wait(max(0.0, deadline - monotonic())):
+            for token, opponent in self.opponents.items():
+                if self._stop.is_set():
+                    break
+                try:
+                    self.last_results[token] = opponent.take_turn(self.game, token)
+                except Exception:
+                    # AI failure must not terminate the authoritative simulation.
+                    self.last_results[token] = {"ok": False, "source": "runner", "reason": "opponent_error"}
+            deadline += self.interval
+            if deadline < monotonic() - self.interval:
+                deadline = monotonic() + self.interval
