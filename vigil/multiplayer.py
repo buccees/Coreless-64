@@ -48,7 +48,7 @@ def _validate_fleet(fleet: object) -> tuple[frozenset[tuple[int, int]], ...]:
         cols = {c for _, c in cells}
         if len(rows) != 1 and len(cols) != 1:
             raise MultiplayerError("each ship must be straight")
-        ordered = sorted(r for r, _ in cells) if len(rows) == 1 else sorted(c for _, c in cells)
+        ordered = sorted(c for _, c in cells) if len(rows) == 1 else sorted(r for r, _ in cells)
         if ordered != list(range(ordered[0], ordered[0] + expected_length)):
             raise MultiplayerError("ship cells must be contiguous")
         occupied.update(cells)
