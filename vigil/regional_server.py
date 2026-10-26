@@ -52,6 +52,7 @@ def load_game_config(path: str | Path) -> RegionalGame:
             ship_id=item.get("ship_id"), name=item.get("name"),
             ship_class=ship_class, x=item.get("x"), y=item.get("y"),
             speed=item.get("speed"), weapon_damage=item.get("weapon_damage", 1),
+            weapon_range=item.get("weapon_range", 0.15),
         )
         if all(dimensions):
             ship = RegionalShip.from_blueprint(
