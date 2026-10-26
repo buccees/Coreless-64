@@ -99,6 +99,13 @@ class RegionalGame:
             snapshot["simulation_tick"] = self.simulation_tick
             snapshot["player_id"] = session.player_id
             snapshot["controlled_ship_ids"] = sorted(session.controlled_ship_ids)
+            # Reload state is private to the player's own ships, not visible contacts.
+            for observation in snapshot["ships"]:
+                observed_id = observation["ship_id"]
+                if observed_id in session.controlled_ship_ids:
+                    own_ship = self.world.ships[observed_id]
+                    observation["weapon_reload_seconds"] = own_ship.weapon_reload_seconds
+                    observation["weapon_cooldown_remaining"] = own_ship.weapon_cooldown_remaining
             return snapshot
 
     def command(self, token: str, operation: str, arguments: Mapping[str, object]) -> dict[str, object]:
@@ -169,12 +176,19 @@ class RegionalGame:
                 distance = hypot(target.x - shooter.x, target.y - shooter.y)
                 if distance > shooter.weapon_range:
                     raise RegionalGameError("target is outside weapon range")
+                if shooter.weapon_cooldown_remaining > 1e-9:
+                    raise RegionalGameError(
+                        f"weapon is reloading ({shooter.weapon_cooldown_remaining:.2f}s remaining)"
+                    )
                 damage = self.world.apply_hit(target_id, shooter.weapon_damage, system="hull")
+                shooter.weapon_cooldown_remaining = shooter.weapon_reload_seconds
                 return {
                     "ok": True, "operation": operation, "ship_id": ship_id,
                     "target_id": target_id, "distance": distance,
                     "damage": damage.damage, "hull_after": damage.hull_after,
                     "sunk": damage.sunk,
+                    "weapon_reload_seconds": shooter.weapon_reload_seconds,
+                    "weapon_cooldown_remaining": shooter.weapon_cooldown_remaining,
                 }
 
             if operation == "end_campaign_turn":
