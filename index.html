@@ -1032,6 +1032,10 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     <label style="display:grid;gap:4px">Authorized visible target<select id="vigil-regional-target" style="background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"><option value="">No contacts loaded</option></select></label>
     <div style="display:flex;align-items:end"><button type="button" id="vigil-regional-fire">FIRE WEAPON</button></div>
     <div id="vigil-regional-status" role="status" aria-live="polite" style="grid-column:1/-1;color:#8bb99b">LOCAL TRAINING VIEW // Connect to an HTTPS regional server for authoritative multiplayer state.</div>
+    <div style="grid-column:1/-1;border-top:1px solid #315b40;padding-top:7px">
+      <div style="color:#9bd58a;letter-spacing:.1em;margin-bottom:5px">ENCOUNTER LOG // LATEST 6</div>
+      <ol id="vigil-regional-encounter-log" aria-live="polite" aria-relevant="additions" style="margin:0;padding-left:22px;color:#c5e8b4;line-height:1.7"><li>NO ENCOUNTERS RECORDED</li></ol>
+    </div>
   </div>
   <div style="display:flex;gap:12px;flex-wrap:wrap;font:10px monospace;line-height:1.6;margin-top:7px;color:#c5e8b4"><span>■ SHALLOW SHELF</span><span>■ CONTINENTAL SLOPE</span><span>■ DEEP BASIN</span><span>— DEPTH CONTOURS</span><span>◇ SENSOR ESTIMATE · UNCERTAIN</span><span>▱ SHIP DIMENSION ENVELOPE</span></div>
   <div style="font-size:10px;color:#7ba997;margin-top:5px">The map's green bathymetry is an illustrative procedural training layer, not a navigational chart. Ship positions and contact estimates come from the local exercise or the authorized regional snapshot.</div>
@@ -2648,6 +2652,18 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 
   var vigilRegionalUiOptions=null,regionalUiLastSnapshot=null,regionalSpeedInputDirty=false;
   function regionalUiStatus(message,isError){var el=document.getElementById('vigil-regional-status');if(el){el.textContent=message;el.style.color=isError?'#e5a18b':'#8bb99b';}}
+  var regionalEncounterHistory=[];
+  window.addEventListener('vigil:regional-encounter',function(event){
+    var e=event&&event.detail;if(!e||typeof e!=='object')return;
+    var damage=Number(e.damage),hull=Number(e.hull_after);
+    var summary=String(e.source==='authoritative-backend'?'SERVER':'LOCAL')+' // '+String(e.shooter_id||'UNKNOWN')+' → '+String(e.target_id||'UNKNOWN')+
+      ' // DAMAGE '+(Number.isFinite(damage)?damage:'—')+' // HULL '+(Number.isFinite(hull)?hull:'—')+(e.sunk?' // SUNK':'')+
+      ' // '+new Date(e.occurred_at||Date.now()).toLocaleTimeString();
+    regionalEncounterHistory.unshift(summary);regionalEncounterHistory=regionalEncounterHistory.slice(0,6);
+    var log=document.getElementById('vigil-regional-encounter-log');if(!log)return;
+    log.replaceChildren();
+    regionalEncounterHistory.forEach(function(line){var item=document.createElement('li');item.textContent=line;log.appendChild(item);});
+  });
   function syncRegionalSpeedInput(snapshot){
     var ss=document.getElementById('vigil-regional-ship'),input=document.getElementById('vigil-regional-speed');
     if(!ss||!input)return;
