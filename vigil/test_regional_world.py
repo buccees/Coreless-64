@@ -160,6 +160,15 @@ def test_blueprint_ship_requires_sourced_dimensions_and_valid_ratio():
         )
 
 
+def test_weapon_reload_interval_must_be_finite_and_positive():
+    for invalid in (0, -1, float("inf"), float("nan"), True):
+        with pytest.raises(RegionalWorldError, match="weapon_reload_seconds"):
+            RegionalShip.from_class(
+                ship_id="invalid-reload", name="Invalid", ship_class="destroyer",
+                x=0, y=0, speed=0, weapon_reload_seconds=invalid,
+            )
+
+
 def test_realtime_tick_moves_all_afloat_ships_by_heading_and_elapsed_time():
     north = ship("north", x=0, y=0, speed=2, heading_deg=0)
     east = ship("east", x=5, y=5, speed=3, heading_deg=90)
