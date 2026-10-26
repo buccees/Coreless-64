@@ -11,7 +11,8 @@ from math import hypot, isfinite
 from threading import RLock
 from typing import Iterable, Mapping
 
-from .regional_world import RegionalWorld, RegionalWorldError\nfrom .factions import public_faction_catalog
+from .regional_world import RegionalWorld, RegionalWorldError
+from .factions import public_faction_catalog
 
 
 class RegionalGameError(ValueError):
