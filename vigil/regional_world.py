@@ -49,11 +49,13 @@ class RegionalShip:
     beam_m: float | None = None
     blueprint_source: str | None = None
     heading_deg: float = 0.0
+    faction_id: str | None = None
 
     @classmethod
     def from_class(
         cls, *, ship_id: str, name: str, ship_class: str, x: float, y: float,
-        speed: float, weapon_damage: int = 1, weapon_range: float = 0.15
+        speed: float, weapon_damage: int = 1, weapon_range: float = 0.15,
+        faction_id: str | None = None
     ) -> "RegionalShip":
         """Create a ship whose hull points are determined by its class."""
         key = ship_class.strip().lower()
@@ -62,7 +64,7 @@ class RegionalShip:
         return cls(
             ship_id=ship_id, name=name, x=x, y=y, speed=speed,
             max_hull=SHIP_CLASS_HULL[key], weapon_damage=weapon_damage,
-            weapon_range=weapon_range, ship_class=key,
+            weapon_range=weapon_range, ship_class=key, faction_id=faction_id,
         )
 
     @classmethod
@@ -70,7 +72,7 @@ class RegionalShip:
         cls, *, ship_id: str, name: str, ship_class: str, x: float, y: float,
         speed: float, length_m: float, beam_m: float, blueprint_source: str,
         max_hull: int, weapon_damage: int = 1, weapon_range: float = 0.15,
-        heading_deg: float = 0.0
+        heading_deg: float = 0.0, faction_id: str | None = None
     ) -> "RegionalShip":
         """Create a dimensioned ship from a cited blueprint/specification source.
 
@@ -88,6 +90,7 @@ class RegionalShip:
             max_hull=max_hull, weapon_damage=weapon_damage, weapon_range=weapon_range,
             ship_class=ship_class, length_m=length_m, beam_m=beam_m,
             blueprint_source=blueprint_source.strip(), heading_deg=heading_deg,
+            faction_id=faction_id,
         )
 
     @property
@@ -251,6 +254,7 @@ class RegionalWorld:
         return [
             {
                 "ship_id": ship.ship_id,
+                "faction_id": ship.faction_id,
                 "name": ship.name,
                 "x": ship.x,
                 "y": ship.y,
