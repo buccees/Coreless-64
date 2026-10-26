@@ -32,7 +32,7 @@ jobs:
         working-directory: reference
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: python -m pytest -q ../vigil/test_blueprint.py ../vigil/test_positioning.py ../vigil/test_gps.py ../vigil/test_ai.py ../vigil/test_terminal.py ../vigil/test_workspace.py ../vigil/test_blueprint_view.py ../vigil/test_building.py ../vigil/test_object_tracking.py ../vigil/test_sensor_adapters.py ../vigil/test_underwater.py ../vigil/test_sensor_event.py ../vigil/test_sensor_event_adapter.py ../vigil/test_sensor_event_api.py ../vigil/test_sensor_event_runner.py ../vigil/test_sensor_fusion.py ../vigil/test_sensor_time_alignment.py ../vigil/test_raster_calibration.py ../vigil/test_infrared_floor_mapping.py ../vigil/test_multimodal_fusion.py ../vigil/test_spatial_import_contract.py ../vigil/test_multiplayer.py
+        run: python -m pytest -q ../vigil/test_blueprint.py ../vigil/test_positioning.py ../vigil/test_gps.py ../vigil/test_ai.py ../vigil/test_terminal.py ../vigil/test_workspace.py ../vigil/test_blueprint_view.py ../vigil/test_building.py ../vigil/test_object_tracking.py ../vigil/test_sensor_adapters.py ../vigil/test_underwater.py ../vigil/test_sensor_event.py ../vigil/test_sensor_event_adapter.py ../vigil/test_sensor_event_api.py ../vigil/test_sensor_event_runner.py ../vigil/test_sensor_fusion.py ../vigil/test_sensor_time_alignment.py ../vigil/test_raster_calibration.py ../vigil/test_infrared_floor_mapping.py ../vigil/test_multimodal_fusion.py ../vigil/test_spatial_import_contract.py ../vigil/test_multiplayer.py ../vigil/test_multiplayer_http.py
       - name: Run VIGIL spatial review logic scenarios
         run: node vigil/test_spatial_review_logic.cjs
       - name: Install Playwright Chromium
