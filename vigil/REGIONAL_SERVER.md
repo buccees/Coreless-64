@@ -44,8 +44,13 @@ All requests require an allowed HTTPS Origin and a bearer token.
       "arguments": {"ship_id": "player-destroyer", "heading_deg": 135}
     }
 
-Other currently supported operations are campaign_move, fire_weapon, and
-host-only end_campaign_turn. Weapon fire requires a visible target in range.
+Other currently supported operations are set_speed, campaign_move, fire_weapon, and
+host-only end_campaign_turn. The set_speed operation accepts a finite value from
+zero through the configured max_speed; zero means all stop. Configure max_speed
+per ship in the JSON roster to permit acceleration above its starting speed.
+For backward compatibility, omitting max_speed makes the starting speed its
+maximum. The same speed value also defines the ship's campaign movement allowance.
+Weapon fire requires a visible target in range.
 This initial weapon model applies configured damage directly; it does not yet
 simulate sensors, detection probability, weapon flight, reloads, countermeasures,
 or damage-control tasks.
