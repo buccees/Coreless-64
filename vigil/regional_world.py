@@ -50,12 +50,13 @@ class RegionalShip:
     blueprint_source: str | None = None
     heading_deg: float = 0.0
     faction_id: str | None = None
+    max_speed: float | None = None
 
     @classmethod
     def from_class(
         cls, *, ship_id: str, name: str, ship_class: str, x: float, y: float,
         speed: float, weapon_damage: int = 1, weapon_range: float = 0.15,
-        faction_id: str | None = None
+        faction_id: str | None = None, max_speed: float | None = None
     ) -> "RegionalShip":
         """Create a ship whose hull points are determined by its class."""
         key = ship_class.strip().lower()
@@ -65,6 +66,7 @@ class RegionalShip:
             ship_id=ship_id, name=name, x=x, y=y, speed=speed,
             max_hull=SHIP_CLASS_HULL[key], weapon_damage=weapon_damage,
             weapon_range=weapon_range, ship_class=key, faction_id=faction_id,
+            max_speed=max_speed,
         )
 
     @classmethod
@@ -72,7 +74,8 @@ class RegionalShip:
         cls, *, ship_id: str, name: str, ship_class: str, x: float, y: float,
         speed: float, length_m: float, beam_m: float, blueprint_source: str,
         max_hull: int, weapon_damage: int = 1, weapon_range: float = 0.15,
-        heading_deg: float = 0.0, faction_id: str | None = None
+        heading_deg: float = 0.0, faction_id: str | None = None,
+        max_speed: float | None = None
     ) -> "RegionalShip":
         """Create a dimensioned ship from a cited blueprint/specification source.
 
@@ -90,7 +93,7 @@ class RegionalShip:
             max_hull=max_hull, weapon_damage=weapon_damage, weapon_range=weapon_range,
             ship_class=ship_class, length_m=length_m, beam_m=beam_m,
             blueprint_source=blueprint_source.strip(), heading_deg=heading_deg,
-            faction_id=faction_id,
+            faction_id=faction_id, max_speed=max_speed,
         )
 
     @property
@@ -108,12 +111,13 @@ class RegionalShip:
     def __post_init__(self) -> None:
         if not self.ship_id or not self.name:
             raise RegionalWorldError("ship id and name are required")
-        if (
-            not isinstance(self.speed, (int, float))
-            or not isfinite(self.speed)
-            or self.speed < 0
-        ):
+        if (type(self.speed) not in (int, float) or not isfinite(self.speed) or self.speed < 0):
             raise RegionalWorldError("speed must be a finite non-negative number")
+        if self.max_speed is None:
+            self.max_speed = float(self.speed)
+        if (type(self.max_speed) not in (int, float) or not isfinite(self.max_speed)
+                or self.max_speed < 0 or self.max_speed < self.speed):
+            raise RegionalWorldError("max_speed must be finite and at least the current speed")
         if self.max_hull <= 0:
             raise RegionalWorldError("max_hull must be positive")
         if self.weapon_damage <= 0:
@@ -271,6 +275,7 @@ class RegionalWorld:
                 "aspect_ratio": ship.aspect_ratio,
                 "heading_deg": ship.heading_deg,
                 "speed": ship.speed,
+                "max_speed": ship.max_speed,
                 "weapon_range": ship.weapon_range,
                 "blueprint_source": ship.blueprint_source,
             }
