@@ -1045,7 +1045,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 <article class="sim-ship-card" data-ship="balao"><h4>BALAO CLASS // SS-285</h4><div class="sim-hull-frame"><svg viewBox="0 0 300 60" role="img" aria-label="Schematic top-view Balao-class submarine silhouette with tapered bow and stern, conning tower, and deck gun"><path d="M8 30 Q18 21 39 21 L244 21 Q274 22 292 30 Q274 38 244 39 L39 39 Q18 39 8 30 Z"/><path d="M35 26 L262 26 M35 34 L262 34" fill="none"/><path d="M112 23 L143 23 L150 26 L150 34 L143 37 L112 37 L105 34 L105 26 Z"/><path d="M119 23 L119 18 L135 18 L135 23 M126 18 L126 14 M145 28 L160 28 L160 32 L145 32 Z" fill="none"/><path d="M48 24 L48 36 M76 23 L76 37 M184 23 L184 37 M213 23 L213 37 M244 23 L244 37" fill="none"/></svg></div><p>Fleet submarine · 95.0 m × 8.3 m · approx. 2,400 t submerged</p><details><summary>EXPAND VESSEL DOSSIER</summary><dl><dt>Armor Class</dt><dd>16 submerged</dd><dt>Hull HP</dt><dd>105</dd><dt>Speed</dt><dd>20.25 knots submerged</dd><dt>Main battery</dt><dd>10 torpedo tubes</dd><dt>Attack</dt><dd>+9 · 5d10 torpedo damage</dd><dt>Traits</dt><dd>Concealment, first-strike, vulnerable when detected</dd></dl><p><a href="https://www.archives.gov/research/cartographic/ship-plans" target="_blank" rel="noopener noreferrer">National Archives ship plans</a></p></details><button type="button" class="sim-select-attacker" data-ship="balao">SELECT ATTACKER</button><button type="button" class="sim-select-target" data-ship="balao">SELECT TARGET</button></article>
 </div>
 <div class="sim-dnd-combat"><h4>ENGAGEMENT RESOLUTION // D20 SYSTEM</h4><p id="sim-combat-selection" aria-live="polite">Attacker: Iowa-class · Target: Fletcher-class</p><button type="button" id="sim-roll-attack">ROLL ATTACK</button><div id="sim-combat-log" class="sim-telemetry" aria-live="polite">Roll d20 + attacker attack bonus against target Armor Class. Natural 20 is a critical hit; natural 1 misses. Damage reduces target hull HP.</div></div>
-</div><div class="sim-mode-row"><label for="sim-mode">ENGAGEMENT MODE</label><select id="sim-mode"><option value="solo">SOLO // PLAYER VS COMPUTER</option><option value="hotseat">LOCAL TWO-PLAYER // PASS-AND-PLAY</option></select><span class="muted">Fleet placement is collision-checked; each player’s target history is tracked independently.</span></div>
+</div><div class="sim-mode-row"><strong>ENGAGEMENT MODE // SOLO TRAINING</strong><span class="muted">Local pass-and-play has been removed. Shared multiplayer requires an authenticated HTTPS game server.</span></div>
 <div class="sim-metrics" hidden aria-hidden="true"><div class="stat"><b id="sim-shots">0</b><span>YOUR ENGAGEMENTS</span></div><div class="stat"><b id="sim-hits">0</b><span>CONFIRMED HITS</span></div><div class="stat"><b id="sim-afloat">5</b><span>VESSELS AFLOAT</span></div><div class="stat"><b id="sim-observations">0</b><span>SENSOR OBSERVATIONS</span></div></div>
 <div class="sim-layout">
 <div class="sim-board-wrap sim-regional-map-wrap" id="sim-regional-theater">
@@ -1060,7 +1060,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   <div id="vigil-regional-command" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;padding:10px;margin-top:8px;background:#07150f;border:1px solid #315b40;color:#c5e8b4;font-size:11px">
     <div style="grid-column:1/-1;letter-spacing:.12em;color:#9bd58a">REGIONAL LINK // SERVER-AUTHORITATIVE CAMPAIGN CONTROLS</div>
     <label style="display:grid;gap:4px">Snapshot endpoint<input id="vigil-regional-url" type="url" value="https://localhost:8445/api/regional/snapshot" autocomplete="url" style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label>
-    <label style="display:grid;gap:4px">Session bearer token<input id="vigil-regional-token" type="password" autocomplete="off" spellcheck="false" placeholder="Paste player token" style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label>
+    <label style="display:grid;gap:4px">Player username<input id="vigil-regional-username" type="text" autocomplete="username" placeholder="Player name" style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label><label style="display:grid;gap:4px">Password<input id="vigil-regional-password" type="password" autocomplete="current-password" placeholder="Server account password" style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label><div style="display:flex;gap:6px;align-items:end;flex-wrap:wrap"><button type="button" id="vigil-regional-login">LOGIN TO SERVER</button><button type="button" id="vigil-regional-logout" disabled>LOG OUT</button></div><label style="display:grid;gap:4px">Session token <span class="muted">Filled by login; kept in memory only</span><input id="vigil-regional-token" type="password" autocomplete="off" spellcheck="false" placeholder="Not signed in" readonly style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label>
     <div style="display:flex;gap:6px;align-items:end;flex-wrap:wrap"><button type="button" id="vigil-regional-connect">CONNECT</button><button type="button" id="vigil-regional-disconnect">DISCONNECT</button></div>
     <label style="display:grid;gap:4px">Controlled vessel<select id="vigil-regional-ship" style="background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"><option value="">Connect to load vessels</option></select></label>
     <label style="display:grid;gap:4px">Course · degrees<input id="vigil-regional-heading" type="number" min="0" max="359.9" step="1" value="90" style="background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label>
@@ -1069,7 +1069,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     <div style="display:flex;gap:6px;align-items:end;flex-wrap:wrap"><button type="button" id="vigil-regional-set-speed">SET SPEED</button><button type="button" id="vigil-regional-stop-speed">ALL STOP</button></div>
     <label style="display:grid;gap:4px">Authorized visible target<select id="vigil-regional-target" style="background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"><option value="">No contacts loaded</option></select></label>
     <div style="display:flex;align-items:end"><button type="button" id="vigil-regional-fire">FIRE WEAPON</button></div>
-    <div id="vigil-regional-status" role="status" aria-live="polite" style="grid-column:1/-1;color:#8bb99b">LOCAL TRAINING VIEW // Connect to an HTTPS regional server for authoritative multiplayer state.</div>
+    <div id="vigil-regional-status" role="status" aria-live="polite" style="grid-column:1/-1;color:#8bb99b">NOT SIGNED IN // Enter the HTTPS server URL, then log in. The server must implement /api/auth/login and the VIGIL regional game API.</div>
     <div style="grid-column:1/-1;border-top:1px solid #315b40;padding-top:7px">
       <div style="color:#9bd58a;letter-spacing:.1em;margin-bottom:5px">ENCOUNTER LOG // LATEST 6</div>
       <ol id="vigil-regional-encounter-log" aria-live="polite" aria-relevant="additions" style="margin:0;padding-left:22px;color:#c5e8b4;line-height:1.7"><li>NO ENCOUNTERS RECORDED</li></ol>
@@ -2376,7 +2376,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   var board=document.getElementById('sim-board');
   if(!board)return;
   var sizes=[['CARRIER',5],['BATTLESHIP',4],['CRUISER',3],['SUBMARINE',3],['DESTROYER',2]];
-  var mode=document.getElementById('sim-mode'),status=document.getElementById('sim-turn-status');
+  var mode={value:'solo',addEventListener:function(){}};var status=document.getElementById('sim-turn-status');
   var sensor=document.getElementById('sim-sensor'),noise=document.getElementById('sim-noise');
   var enemyFleet=[],playerFleet={},shotsByPlayer={},aiShots={},activePlayer=1,shotCount=0,hitCount=0,observationCount=0,gameOver=false,sequence=0,aiHitCount=0,ownFleetView=false,placementMode=false,placementIndex=0,placementVertical=false,sweepCount=0,reconTracks=Object.create(null),lastObservationData=null,selectedReconTrackId=null,reconTruthById=Object.create(null),reconIdentityBySource=Object.create(null);
   function key(r,c){return r+','+c;}
@@ -2399,29 +2399,29 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   function vesselAt(fleet,r,c){return fleet.find(function(v){return v.cells.some(function(p){return p[0]===r&&p[1]===c;});});}
   function placeAt(fleet,name,size,r,c,vertical){if(!canPlace(fleet,r,c,size,vertical))return false;var cells=[];for(var i=0;i<size;i++)cells.push([r+(vertical?i:0),c+(vertical?0:i)]);fleet.push({name:name,size:size,cells:cells,hits:{}});return true;}
   function activeShots(){return shotsByPlayer[activePlayer]||{};}
-  function targetFleet(){return mode.value==='hotseat' ? playerFleet[activePlayer===1?2:1] : enemyFleet;}
+  function targetFleet(){return false ? playerFleet[activePlayer===1?2:1] : enemyFleet;}
   function afloat(fleet){return fleet.filter(function(v){return Object.keys(v.hits).length<v.size;}).length;}
   function allSunk(fleet){return afloat(fleet)===0;}
   function initialize(){
     enemyFleet=makeFleet();playerFleet={1:makeFleet(),2:makeFleet()};shotsByPlayer={1:{},2:{}};aiShots={};
     activePlayer=1;placementMode=false;placementIndex=0;placementVertical=false;document.getElementById("sim-manual-setup").textContent="MANUAL FLEET SETUP";document.getElementById("sim-rotate").disabled=true;document.getElementById("sim-rotate").textContent="ORIENTATION: HORIZONTAL";ownFleetView=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;sweepCount=0;reconTracks=Object.create(null);lastObservationData=null;selectedReconTrackId=null;reconTruthById=Object.create(null);reconIdentityBySource=Object.create(null);document.getElementById("sim-recon-investigate").disabled=true;gameOver=false;sequence++;
-    renderBoard();updateMetrics();status.textContent=mode.value==='hotseat'?'PLAYER 1 // SELECT A CELL TO FIRE':'SOLO ENGAGEMENT // SELECT A CELL TO FIRE';
+    renderBoard();updateMetrics();status.textContent=false?'PLAYER 1 // SELECT A CELL TO FIRE':'SOLO ENGAGEMENT // SELECT A CELL TO FIRE';
     document.getElementById('sim-telemetry').textContent='SENSOR STANDBY // NEW EXERCISE '+sequence+'\nCOMPUTER DEFENSE: '+(mode.value==='solo'?'ARMED':'DISABLED');
     publish(false,false);
   }
   function startManualSetup(){
     placementMode=true;placementIndex=0;placementVertical=false;activePlayer=1;gameOver=false;ownFleetView=false;enemyFleet=makeFleet();playerFleet={1:[],2:[]};if(mode.value==="solo")playerFleet[2]=makeFleet();shotsByPlayer={1:{},2:{}};aiShots={};shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;sweepCount=0;reconTracks=Object.create(null);lastObservationData=null;selectedReconTrackId=null;reconTruthById=Object.create(null);reconIdentityBySource=Object.create(null);document.getElementById("sim-recon-investigate").disabled=true;sequence++;
     document.getElementById("sim-manual-setup").textContent="CANCEL MANUAL SETUP";document.getElementById("sim-rotate").disabled=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";
-    status.textContent="MANUAL SETUP // PLACE "+sizes[0][0]+" ("+sizes[0][1]+" CELLS)";document.getElementById("sim-telemetry").textContent="FLEET CONFIGURATION // "+(mode.value==="hotseat"?"PLAYER 1":"YOUR FLEET")+"\nSelect the first cell for each vessel. Rotate orientation as needed.";renderBoard();updateMetrics();
+    status.textContent="MANUAL SETUP // PLACE "+sizes[0][0]+" ("+sizes[0][1]+" CELLS)";document.getElementById("sim-telemetry").textContent="FLEET CONFIGURATION // "+(false?"PLAYER 1":"YOUR FLEET")+"\nSelect the first cell for each vessel. Rotate orientation as needed.";renderBoard();updateMetrics();
   }
   function previewPlacement(r,c){if(!placementMode)return;var pair=sizes[placementIndex],fleet=playerFleet[activePlayer],valid=canPlace(fleet,r,c,pair[1],placementVertical);board.querySelectorAll(".sim-cell").forEach(function(cell){cell.classList.remove("placement-preview","placement-invalid");});for(var i=0;i<pair[1];i++){var y=r+(placementVertical?i:0),x=c+(placementVertical?0:i);if(y<0||y>=10||x<0||x>=10)continue;var cell=board.querySelector('[data-row="'+y+'"][data-col="'+x+'"]');if(cell)cell.classList.add(valid?"placement-preview":"placement-invalid");}}
   function placeManualCell(r,c){var pair=sizes[placementIndex],fleet=playerFleet[activePlayer];if(!placeAt(fleet,pair[0],pair[1],r,c,placementVertical)){status.textContent="INVALID PLACEMENT // OUT OF BOUNDS OR OVERLAPPING VESSEL";return;}placementIndex++;
-    if(placementIndex>=sizes.length){if(mode.value==="hotseat"&&activePlayer===1){activePlayer=2;placementIndex=0;status.textContent="PASS DEVICE // PLAYER 2 PLACE "+sizes[0][0];document.getElementById("sim-telemetry").textContent="PLAYER 1 FLEET LOCKED.\nPASS DEVICE TO PLAYER 2; PLACE THEIR FLEET WITHOUT REVEALING PLAYER 1.";renderBoard();return;}placementMode=false;document.getElementById("sim-manual-setup").textContent="MANUAL FLEET SETUP";document.getElementById("sim-rotate").disabled=true;status.textContent="FLEETS READY // SELECT A CELL TO ENGAGE";document.getElementById("sim-telemetry").textContent="MANUAL FLEET CONFIGURATION COMPLETE\n"+(mode.value==="solo"?"COMPUTER DEFENSE: ARMED":"BOTH PLAYER FLEETS LOCKED")+"\nWORLD-STATE ACCESS: DENIED TO VIGIL";renderBoard();updateMetrics();publish(false,false);return;}
-    pair=sizes[placementIndex];status.textContent=(mode.value==="hotseat"?"PLAYER "+activePlayer:"YOUR FLEET")+" // PLACE "+pair[0]+" ("+pair[1]+" CELLS)";renderBoard();updateMetrics();
+    if(placementIndex>=sizes.length){placementMode=false;document.getElementById("sim-manual-setup").textContent="MANUAL FLEET SETUP";document.getElementById("sim-rotate").disabled=true;status.textContent="FLEETS READY // SELECT A CELL TO ENGAGE";document.getElementById("sim-telemetry").textContent="MANUAL FLEET CONFIGURATION COMPLETE\n"+(mode.value==="solo"?"COMPUTER DEFENSE: ARMED":"BOTH PLAYER FLEETS LOCKED")+"\nWORLD-STATE ACCESS: DENIED TO VIGIL";renderBoard();updateMetrics();publish(false,false);return;}
+    pair=sizes[placementIndex];status.textContent=(false?"PLAYER "+activePlayer:"YOUR FLEET")+" // PLACE "+pair[0]+" ("+pair[1]+" CELLS)";renderBoard();updateMetrics();
   }
   function renderBoard(){
     board.innerHTML='';
-    var shots=activeShots(),displayFleet=(placementMode||ownFleetView)?(mode.value==="hotseat"?playerFleet[activePlayer]:playerFleet[1]):null,displayShots=ownFleetView?(mode.value==="solo"?aiShots:{}):shots;
+    var shots=activeShots(),displayFleet=(placementMode||ownFleetView)?(false?playerFleet[activePlayer]:playerFleet[1]):null,displayShots=ownFleetView?(mode.value==="solo"?aiShots:{}):shots;
     for(var r=0;r<10;r++)for(var c=0;c<10;c++){
       var k=key(r,c),b=document.createElement('button');b.type='button';b.className='sim-cell';b.setAttribute('role','gridcell');b.setAttribute('aria-label',String.fromCharCode(65+c)+(r+1));b.dataset.row=r;b.dataset.col=c;
       if(placementMode||ownFleetView){var vessel=vesselAt(displayFleet,r,c);if(vessel){b.classList.add("ship");b.textContent=vessel.name.charAt(0);b.setAttribute("aria-label",b.getAttribute("aria-label")+" "+vessel.name);}if(ownFleetView&&displayShots[k]){b.classList.add(displayShots[k]);if(displayShots[k]==="hit")b.classList.add("incoming-hit");b.textContent=displayShots[k]==="hit"?"X":(vessel?vessel.name.charAt(0):"·");b.setAttribute("aria-label",b.getAttribute("aria-label")+(displayShots[k]==="hit"?" incoming hit":" incoming miss"));}if(placementMode){b.disabled=false;b.addEventListener("pointerenter",function(event){previewPlacement(Number(event.currentTarget.dataset.row),Number(event.currentTarget.dataset.col));});b.addEventListener("focus",function(event){previewPlacement(Number(event.currentTarget.dataset.row),Number(event.currentTarget.dataset.col));});b.addEventListener("click",function(event){placeManualCell(Number(event.currentTarget.dataset.row),Number(event.currentTarget.dataset.col));});}else b.disabled=true;}
@@ -2430,7 +2430,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       board.appendChild(b);
     }
     var head=board.parentElement.querySelector('.sim-board-head strong');
-    if(head)head.textContent=placementMode?((mode.value==="hotseat"?"PLAYER "+activePlayer:"YOUR")+" // PLACE "+sizes[placementIndex][0]+" ("+sizes[placementIndex][1]+" CELLS)"+(placementVertical?" // VERTICAL":" // HORIZONTAL")):ownFleetView?((mode.value==="hotseat"?"PLAYER "+activePlayer:"YOUR")+" // OWN FLEET STATUS"):(mode.value==='hotseat'?'PLAYER '+activePlayer+' // FIRING SOLUTION':'TACTICAL GRID // OWN FIRING SOLUTION');
+    if(head)head.textContent=placementMode?((false?"PLAYER "+activePlayer:"YOUR")+" // PLACE "+sizes[placementIndex][0]+" ("+sizes[placementIndex][1]+" CELLS)"+(placementVertical?" // VERTICAL":" // HORIZONTAL")):ownFleetView?((false?"PLAYER "+activePlayer:"YOUR")+" // OWN FLEET STATUS"):(false?'PLAYER '+activePlayer+' // FIRING SOLUTION':'TACTICAL GRID // OWN FIRING SOLUTION');
   }
   function updateMetrics(){
     document.getElementById('sim-shots').textContent=shotCount;
@@ -2453,8 +2453,8 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     shotCount++;if(result.hit)hitCount++;
     if(result.hit)status.textContent='PLAYER '+activePlayer+' // HIT '+(result.sunk?'// '+result.ship+' SUNK':'// '+result.ship+' DAMAGED');
     else status.textContent='PLAYER '+activePlayer+' // MISS AT '+String.fromCharCode(65+c)+(r+1);
-    if(allSunk(target)){gameOver=true;status.textContent=mode.value==='hotseat'?'PLAYER '+activePlayer+' WINS // ALL ENEMY VESSELS SUNK':'VICTORY // ALL HOSTILE VESSELS SUNK';}
-    else if(mode.value==='hotseat'){activePlayer=activePlayer===1?2:1;status.textContent+=' // PASS DEVICE TO PLAYER '+activePlayer;}
+    if(allSunk(target)){gameOver=true;status.textContent=false?'PLAYER '+activePlayer+' WINS // ALL ENEMY VESSELS SUNK':'VICTORY // ALL HOSTILE VESSELS SUNK';}
+    else if(false){activePlayer=activePlayer===1?2:1;status.textContent+=' // PASS DEVICE TO PLAYER '+activePlayer;}
     ownFleetView=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";renderBoard();updateMetrics();publish(true,true);
     if(!gameOver&&mode.value==='solo')computerTurn();
   }
@@ -2864,7 +2864,43 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   }
   document.getElementById('vigil-regional-ship').addEventListener('change',function(){regionalSpeedInputDirty=false;syncRegionalSpeedInput(regionalUiLastSnapshot);syncRegionalWeaponReadiness(regionalUiLastSnapshot);});
   document.getElementById('vigil-regional-speed').addEventListener('input',function(){regionalSpeedInputDirty=true;});
-  document.getElementById('vigil-regional-connect').addEventListener('click',function(){var url=document.getElementById('vigil-regional-url').value.trim(),token=document.getElementById('vigil-regional-token').value;try{vigilRegionalUiOptions={url:url,token:token};window.connectVigilRegionalSnapshot({url:url,token:token,intervalMs:2000});regionalUiStatus('CONNECTING // Waiting for authorized snapshot…',false);}catch(e){vigilRegionalUiOptions=null;regionalUiStatus(String(e.message||e),true);}});
+
+  // MMO sign-in contract: POST /api/auth/login with {username,password};
+  // server returns {access_token} (or {token}). Credentials are never persisted.
+  document.getElementById('vigil-regional-login').addEventListener('click',async function(){
+    var base=document.getElementById('vigil-regional-url').value.trim();
+    var username=document.getElementById('vigil-regional-username').value.trim();
+    var password=document.getElementById('vigil-regional-password').value;
+    var button=document.getElementById('vigil-regional-login');
+    if(!username||!password){regionalUiStatus('LOGIN REQUIRED // Enter username and password.',true);return;}
+    var endpoint;
+    try{endpoint=new URL(base,window.location.href);if(endpoint.protocol!=='https:')throw new Error('Server login requires HTTPS.');endpoint.pathname='/api/auth/login';endpoint.search='';endpoint.hash='';}
+    catch(e){regionalUiStatus(String(e.message||'Invalid HTTPS server URL'),true);return;}
+    button.disabled=true;
+    try{
+      var response=await fetch(endpoint.href,{method:'POST',cache:'no-store',credentials:'omit',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({username:username,password:password})});
+      var payload=await response.json().catch(function(){return {};});
+      if(!response.ok)throw new Error(payload.message||payload.error||('Login failed ('+response.status+')'));
+      var token=payload.access_token||payload.token;
+      if(typeof token!=='string'||!token.trim())throw new Error('Server response did not include an access_token.');
+      window.disconnectVigilRegionalSnapshot();vigilRegionalUiOptions={url:base,token:token};
+      document.getElementById('vigil-regional-token').value=token;
+      document.getElementById('vigil-regional-password').value='';
+      document.getElementById('vigil-regional-logout').disabled=false;
+      window.connectVigilRegionalSnapshot({url:base,token:token,intervalMs:2000});
+      regionalUiStatus('LOGIN ACCEPTED // Connecting to the shared authoritative campaign…',false);
+    }catch(e){regionalUiStatus('LOGIN FAILED // '+String(e.message||e),true);}
+    finally{button.disabled=false;}
+  });
+  document.getElementById('vigil-regional-logout').addEventListener('click',async function(){
+    var base=document.getElementById('vigil-regional-url').value.trim(),token=document.getElementById('vigil-regional-token').value;
+    window.disconnectVigilRegionalSnapshot();vigilRegionalUiOptions=null;
+    if(token){try{var endpoint=new URL(base,window.location.href);endpoint.pathname='/api/auth/logout';endpoint.search='';endpoint.hash='';if(endpoint.protocol==='https:')await fetch(endpoint.href,{method:'POST',cache:'no-store',credentials:'omit',headers:{'Authorization':'Bearer '+token,'Accept':'application/json'}});}catch(e){}}
+    document.getElementById('vigil-regional-token').value='';document.getElementById('vigil-regional-password').value='';
+    document.getElementById('vigil-regional-logout').disabled=true;window.clearVigilRegionalWorldSnapshot();populateLocalRegionalCommandChoices();
+    regionalUiStatus('SIGNED OUT // Session token cleared from this page.',false);
+  });
+  document.getElementById('vigil-regional-connect').addEventListener('click',function(){var url=document.getElementById('vigil-regional-url').value.trim(),token=document.getElementById('vigil-regional-token').value;if(!token){regionalUiStatus('LOGIN REQUIRED // Sign in before connecting to the shared campaign.',true);return;}try{vigilRegionalUiOptions={url:url,token:token};window.connectVigilRegionalSnapshot({url:url,token:token,intervalMs:2000});regionalUiStatus('CONNECTING // Waiting for authorized server snapshot…',false);}catch(e){vigilRegionalUiOptions=null;regionalUiStatus(String(e.message||e),true);}});
   document.getElementById('vigil-regional-disconnect').addEventListener('click',function(){window.disconnectVigilRegionalSnapshot();vigilRegionalUiOptions=null;document.getElementById('vigil-regional-token').value='';window.clearVigilRegionalWorldSnapshot();populateLocalRegionalCommandChoices();regionalUiStatus('DISCONNECTED // LOCAL TRAINING MODE RESTORED // TOKEN CLEARED',false);});
   document.getElementById('vigil-regional-set-heading').addEventListener('click',async function(){
     var shipId=document.getElementById('vigil-regional-ship').value,h=Number(document.getElementById('vigil-regional-heading').value);
