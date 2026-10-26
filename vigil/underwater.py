@@ -155,3 +155,53 @@ def render_sonar_terminal(sweep: SonarSweep) -> str:
             f"confidence={contact.confidence:.2f}; {age}"
         )
     return "\n".join(lines)
+
+def append_sonar_sweep_to_ledger(sweep, ledger) -> int:
+    """Bridge simulated sonar returns into VIGIL's normalized sensor-event ledger.
+
+    Only estimated contact measurements and aggregate sweep status cross this
+    boundary; simulation target IDs and coordinates are never serialized.
+    """
+    from .sensor_event import SensorEventRecord, SensorEventStatus, SensorEventLedger
+
+    if not isinstance(sweep, SonarSweep):
+        raise TypeError("sweep must be a SonarSweep")
+    if not isinstance(ledger, SensorEventLedger):
+        raise TypeError("ledger must be a SensorEventLedger")
+    count = 0
+    for contact in sweep.contacts:
+        event = SensorEventRecord(
+            event_id=f"sonar:{contact.sensor_id}:{contact.timestamp_ns}:{contact.contact_id}",
+            sensor_id=contact.sensor_id,
+            timestamp_ns=contact.timestamp_ns,
+            modality="acoustic_sonar",
+            event_kind="sonar_contact",
+            status=SensorEventStatus.ACCEPTED,
+            reason="Simulated sonar return; estimated range and bearing only, not target identity or ground truth.",
+            confidence=contact.confidence,
+            evidence_score=contact.confidence,
+            uncertainty_m=contact.range_uncertainty_m,
+            calibration_status="simulation_only",
+            model_id="vigil-underwater-simulation",
+            model_revision="1",
+        )
+        ledger.append(event)
+        count += 1
+    # Keep a sweep-level status even when no contact was detected.
+    if not sweep.contacts:
+        ledger.append(SensorEventRecord(
+            event_id=f"sonar:{sweep.sensor_id}:{sweep.timestamp_ns}:empty-sweep",
+            sensor_id=sweep.sensor_id,
+            timestamp_ns=sweep.timestamp_ns,
+            modality="acoustic_sonar",
+            event_kind="sonar_sweep_no_contact",
+            status=SensorEventStatus.CONTEXT,
+            reason=f"No contact reported; {sweep.detections_missed} target(s) missed or outside range.",
+            confidence=0.0,
+            evidence_score=0.0,
+            calibration_status="simulation_only",
+            model_id="vigil-underwater-simulation",
+            model_revision="1",
+        ))
+        count += 1
+    return count
