@@ -71,6 +71,11 @@ def test_api_rejects_wrong_origin_missing_token_and_bad_methods():
                            payload={"fleet": FLEET}, origin="https://attacker.test")
     assert wrong_origin["status"] == "403 Forbidden"
 
+    preflight = request(app, "/api/multiplayer/fire", method="OPTIONS")
+    assert preflight["status"] == "200 OK"
+    assert preflight["headers"]["Access-Control-Allow-Origin"] == ORIGIN
+    assert "Authorization" in preflight["headers"]["Access-Control-Allow-Headers"]
+
     no_token = request(app, "/api/multiplayer/state")
     assert no_token["status"] == "401 Unauthorized"
 
