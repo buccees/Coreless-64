@@ -997,7 +997,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 </div>
 </section>
 <section id="simulation-panel" class="panel report-panel" data-category="simulation"><h2>VIGIL SIMULATION BAY // NAVAL CONTACT EXERCISE</h2><div class="content">
-<p class="muted">TACTICAL SIMULATION // 10×10 operational grid. Collision rules enforce bounds and non-overlapping vessel placement. VIGIL receives noisy sensor estimates, not the hidden world-state coordinates.</p>
+<p class="muted">CONTINUOUS REGIONAL SIMULATION // Move through a shared battlespace, track authorized contacts, and command vessel course and speed. Hidden contacts remain governed by authorized observations.</p>
 <div id="sim-shipyard" class="sim-shipyard">
 <h3>SHIPYARD // BLUEPRINT-DERIVED SCALE ROSTER</h3>
 <p class="muted">Historical hull proportions are drawn from published principal dimensions; linked archival plans are the reference set for later geometry refinement. Scale diagrams preserve length-to-beam ratio, not every hull contour.</p>
@@ -1008,9 +1008,36 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 </div>
 <div class="sim-dnd-combat"><h4>ENGAGEMENT RESOLUTION // D20 SYSTEM</h4><p id="sim-combat-selection" aria-live="polite">Attacker: Iowa-class · Target: Fletcher-class</p><button type="button" id="sim-roll-attack">ROLL ATTACK</button><div id="sim-combat-log" class="sim-telemetry" aria-live="polite">Roll d20 + attacker attack bonus against target Armor Class. Natural 20 is a critical hit; natural 1 misses. Damage reduces target hull HP.</div></div>
 </div><div class="sim-mode-row"><label for="sim-mode">ENGAGEMENT MODE</label><select id="sim-mode"><option value="solo">SOLO // PLAYER VS COMPUTER</option><option value="hotseat">LOCAL TWO-PLAYER // PASS-AND-PLAY</option></select><span class="muted">Fleet placement is collision-checked; each player’s target history is tracked independently.</span></div>
-<div class="sim-metrics"><div class="stat"><b id="sim-shots">0</b><span>YOUR ENGAGEMENTS</span></div><div class="stat"><b id="sim-hits">0</b><span>CONFIRMED HITS</span></div><div class="stat"><b id="sim-afloat">5</b><span>VESSELS AFLOAT</span></div><div class="stat"><b id="sim-observations">0</b><span>SENSOR OBSERVATIONS</span></div></div>
-<div class="sim-layout"><div class="sim-board-wrap"><div class="sim-board-head"><strong>TACTICAL GRID // OWN FIRING SOLUTION</strong><span id="sim-turn-status" role="status" aria-live="polite">READY // SELECT A CELL TO ENGAGE</span></div><div id="sim-board" class="sim-board" role="grid" aria-label="Battleship tactical grid"></div><div class="sim-controls"><button type="button" id="sim-new-game">INITIALIZE NEW EXERCISE</button><button type="button" id="sim-manual-setup">MANUAL FLEET SETUP</button><button type="button" id="sim-rotate" disabled>ORIENTATION: HORIZONTAL</button><button type="button" id="sim-view-fleet" aria-pressed="false">VIEW OWN FLEET</button><button type="button" id="sim-publish">PUBLISH SENSOR ESTIMATES TO SPATIAL INTELLIGENCE</button><button type="button" id="sim-export">EXPORT OBSERVATION JSON</button></div><p class="muted">Grid legend: hit = confirmed impact; miss = no contact. Hidden vessel positions are never drawn on the firing grid.</p></div>
-<div class="sim-side"><h3>SIMULATED SENSOR ARRAY</h3><label for="sim-sensor">SENSOR MODE</label><select id="sim-sensor"><option value="radar">RADAR // broad-area, ±1.2 cells</option><option value="sonar">SONAR // maritime, ±0.6 cells</option><option value="optical">OPTICAL // narrow field, ±0.25 cells</option></select><label for="sim-noise">OBSERVATION NOISE <span id="sim-noise-value">1.2</span></label><input id="sim-noise" type="range" min="0" max="2" step="0.1" value="1.2"><label for="sim-clutter-count">CONTROLLED CLUTTER RETURNS</label><select id="sim-clutter-count"><option value="0">NONE // BASELINE</option><option value="1">LOW // 1 FALSE RETURN</option><option value="3" selected>MEDIUM // 3 FALSE RETURNS</option><option value="5">HIGH // 5 FALSE RETURNS</option></select><label for="sim-detection-rate">DETECTION RELIABILITY</label><select id="sim-detection-rate"><option value="100" selected>100% // BASELINE</option><option value="75">75% // DEGRADED</option><option value="50">50% // INTERMITTENT</option><option value="25">25% // SEVERE DEGRADATION</option><option value="0">0% // SENSOR OUTAGE</option></select><div class="sim-telemetry" id="sim-telemetry" aria-live="polite">SENSOR STANDBY // NO OBSERVATIONS GENERATED</div><div class="sim-telemetry-note">Sensor returns include noisy vessel estimates plus configurable clutter. Return identifiers are opaque; evaluator-only labels remain separate from the observation payload sent to VIGIL. This is a local simulation, not a live sensor connection.</div>
+<div class="sim-metrics" hidden aria-hidden="true"><div class="stat"><b id="sim-shots">0</b><span>YOUR ENGAGEMENTS</span></div><div class="stat"><b id="sim-hits">0</b><span>CONFIRMED HITS</span></div><div class="stat"><b id="sim-afloat">5</b><span>VESSELS AFLOAT</span></div><div class="stat"><b id="sim-observations">0</b><span>SENSOR OBSERVATIONS</span></div></div>
+<div class="sim-layout">
+<div class="sim-board-wrap sim-regional-map-wrap" id="sim-regional-theater">
+  <div class="sim-board-head"><strong>REGIONAL THEATER // CONTINUOUS BATTLESPACE</strong><span id="sim-regional-turn-status" role="status" aria-live="polite">LOCAL DEMO // REGIONAL VIEW</span></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font:10px monospace;letter-spacing:.08em;margin:8px 0">
+    <span>WORLD MAP // BATHYMETRY + SHIP TRACKS</span>
+    <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+      <button type="button" id="sim-map-zoom-out" aria-label="Zoom out on regional map">−</button><button type="button" id="sim-map-zoom-in" aria-label="Zoom in on regional map">+</button><button type="button" id="sim-map-reset">RESET VIEW</button><button type="button" id="sim-fleet-start">START MOTION</button><button type="button" id="sim-fleet-pause">PAUSE</button><button type="button" id="sim-fleet-reset">RESET SHIPS</button><span id="sim-map-scale">REGIONAL VIEW · 1.0×</span>
+    </span>
+  </div>
+  <canvas id="sim-bathymetry-map" width="900" height="430" aria-label="Continuous regional naval map showing illustrative bathymetry, moving vessels, and authorized contact estimates" style="display:block;width:100%;height:auto;background:#06150e;border:1px solid #47734a;touch-action:none"></canvas>
+  <div id="vigil-regional-command" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;padding:10px;margin-top:8px;background:#07150f;border:1px solid #315b40;color:#c5e8b4;font-size:11px">
+    <div style="grid-column:1/-1;letter-spacing:.12em;color:#9bd58a">REGIONAL LINK // SERVER-AUTHORITATIVE CAMPAIGN CONTROLS</div>
+    <label style="display:grid;gap:4px">Snapshot endpoint<input id="vigil-regional-url" type="url" value="https://localhost:8445/api/regional/snapshot" autocomplete="url" style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label>
+    <label style="display:grid;gap:4px">Session bearer token<input id="vigil-regional-token" type="password" autocomplete="off" spellcheck="false" placeholder="Paste player token" style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label>
+    <div style="display:flex;gap:6px;align-items:end;flex-wrap:wrap"><button type="button" id="vigil-regional-connect">CONNECT</button><button type="button" id="vigil-regional-disconnect">DISCONNECT</button></div>
+    <label style="display:grid;gap:4px">Controlled vessel<select id="vigil-regional-ship" style="background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"><option value="">Connect to load vessels</option></select></label>
+    <label style="display:grid;gap:4px">Course · degrees<input id="vigil-regional-heading" type="number" min="0" max="359.9" step="1" value="90" style="background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label>
+    <div style="display:flex;align-items:end"><button type="button" id="vigil-regional-set-heading">SET COURSE</button></div>
+    <label style="display:grid;gap:4px">Desired speed · world units/s<input id="vigil-regional-speed" type="number" min="0" max="0.004" step="any" value="0.002" style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label>
+    <div style="display:flex;gap:6px;align-items:end;flex-wrap:wrap"><button type="button" id="vigil-regional-set-speed">SET SPEED</button><button type="button" id="vigil-regional-stop-speed">ALL STOP</button></div>
+    <label style="display:grid;gap:4px">Authorized visible target<select id="vigil-regional-target" style="background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"><option value="">No contacts loaded</option></select></label>
+    <div style="display:flex;align-items:end"><button type="button" id="vigil-regional-fire">FIRE WEAPON</button></div>
+    <div id="vigil-regional-status" role="status" aria-live="polite" style="grid-column:1/-1;color:#8bb99b">LOCAL TRAINING VIEW // Connect to an HTTPS regional server for authoritative multiplayer state.</div>
+  </div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;font:10px monospace;line-height:1.6;margin-top:7px;color:#c5e8b4"><span>■ SHALLOW SHELF</span><span>■ CONTINENTAL SLOPE</span><span>■ DEEP BASIN</span><span>— DEPTH CONTOURS</span><span>◇ SENSOR ESTIMATE · UNCERTAIN</span><span>▱ SHIP DIMENSION ENVELOPE</span></div>
+  <div style="font-size:10px;color:#7ba997;margin-top:5px">The map's green bathymetry is an illustrative procedural training layer, not a navigational chart. Ship positions and contact estimates come from the local exercise or the authorized regional snapshot.</div>
+</div>
+<div id="sim-legacy-grid-engine" hidden aria-hidden="true" style="display:none"><div class="sim-board-wrap"><div class="sim-board-head"><strong>TACTICAL GRID // OWN FIRING SOLUTION</strong><span id="sim-turn-status" role="status" aria-live="polite">READY // SELECT A CELL TO ENGAGE</span></div><div id="sim-board" class="sim-board" role="grid" aria-label="Battleship tactical grid"></div><div class="sim-controls"><button type="button" id="sim-new-game">INITIALIZE NEW EXERCISE</button><button type="button" id="sim-manual-setup">MANUAL FLEET SETUP</button><button type="button" id="sim-rotate" disabled>ORIENTATION: HORIZONTAL</button><button type="button" id="sim-view-fleet" aria-pressed="false">VIEW OWN FLEET</button><button type="button" id="sim-publish">PUBLISH SENSOR ESTIMATES TO SPATIAL INTELLIGENCE</button><button type="button" id="sim-export">EXPORT OBSERVATION JSON</button></div><p class="muted">Grid legend: hit = confirmed impact; miss = no contact. Hidden vessel positions are never drawn on the firing grid.</p></div>
+</div><div class="sim-side"><h3>SIMULATED SENSOR ARRAY</h3><label for="sim-sensor">SENSOR MODE</label><select id="sim-sensor"><option value="radar">RADAR // broad-area, ±1.2 cells</option><option value="sonar">SONAR // maritime, ±0.6 cells</option><option value="optical">OPTICAL // narrow field, ±0.25 cells</option></select><label for="sim-noise">OBSERVATION NOISE <span id="sim-noise-value">1.2</span></label><input id="sim-noise" type="range" min="0" max="2" step="0.1" value="1.2"><label for="sim-clutter-count">CONTROLLED CLUTTER RETURNS</label><select id="sim-clutter-count"><option value="0">NONE // BASELINE</option><option value="1">LOW // 1 FALSE RETURN</option><option value="3" selected>MEDIUM // 3 FALSE RETURNS</option><option value="5">HIGH // 5 FALSE RETURNS</option></select><label for="sim-detection-rate">DETECTION RELIABILITY</label><select id="sim-detection-rate"><option value="100" selected>100% // BASELINE</option><option value="75">75% // DEGRADED</option><option value="50">50% // INTERMITTENT</option><option value="25">25% // SEVERE DEGRADATION</option><option value="0">0% // SENSOR OUTAGE</option></select><div class="sim-telemetry" id="sim-telemetry" aria-live="polite">SENSOR STANDBY // NO OBSERVATIONS GENERATED</div><div class="sim-telemetry-note">Sensor returns include noisy vessel estimates plus configurable clutter. Return identifiers are opaque; evaluator-only labels remain separate from the observation payload sent to VIGIL. This is a local simulation, not a live sensor connection.</div>
 <div id="sim-recon-panel" class="sim-recon-panel"><h3>RECONNAISSANCE // CONTACT REGISTER</h3><p class="muted">Select a contact to inspect its sensor evidence. Evaluator-only truth comparison is kept separate from the observation payload sent to VIGIL.</p><div class="sim-recon-actions"><button type="button" id="sim-recon-sweep">RUN RECON SWEEP + PUBLISH</button><button type="button" id="sim-recon-investigate" disabled>REQUEST FOCUSED FOLLOW-UP</button><button type="button" id="sim-recon-autopilot">VIGIL AUTONOMOUS RECON STEP</button><button type="button" id="sim-recon-evaluate">EVALUATE CURRENT OBSERVATIONS</button></div><div id="sim-recon-contacts" class="sim-recon-contacts" role="list" aria-label="Observed sensor contacts">NO CONTACTS // SENSOR STANDBY</div><div id="sim-recon-detail" class="sim-telemetry" aria-live="polite">CONTACT EVIDENCE // SELECT A CONTACT TO INSPECT</div><div id="sim-vigil-decision" class="sim-telemetry" aria-live="polite">VIGIL POLICY STANDBY // RUN A RECON SWEEP TO REVIEW SENSOR EVIDENCE</div><div id="sim-recon-results" class="sim-telemetry" aria-live="polite">EVALUATION STANDBY // RUN A SWEEP TO COLLECT OBSERVATIONS</div></div></div></div>
 </div></section><footer><span>WEYLAND–YUTANI / XENOBIOLOGY</span><span>VIGIL SPATIAL INTELLIGENCE // CORELESS-64</span><span>DOC-XB-VIG-0917</span><a class="messenger-contact" href="https://m.me/61593167613019" target="_blank" rel="noopener noreferrer" aria-label="Contact VIGIL through Facebook Messenger">CONTACT / CORPORATE LIAISON ↗</a></footer>
 </main><script>
@@ -2474,7 +2501,286 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   }
   function runVigilReconStep(){
     var output=document.getElementById('sim-vigil-decision');
-    var decision=chooseVigilReconAction(lastObservationData);
+    var decision=chooseVigilReconActvar sonarWaterfallHistory=[];
+  function renderNavalSonar(data){
+    var scope=document.getElementById('sim-sonar-scope'),waterfall=document.getElementById('sim-sonar-waterfall');if(!scope||!waterfall)return;
+    var sc=scope.getContext('2d'),wc=waterfall.getContext('2d'),sw=scope.width,sh=scope.height,cx=sw/2,cy=sh/2-2,r=Math.min(sw,sh)*.41;
+    sc.fillStyle='#020807';sc.fillRect(0,0,sw,sh);sc.strokeStyle='#1a5947';sc.lineWidth=1;
+    for(var ring=1;ring<=4;ring++){sc.beginPath();sc.arc(cx,cy,r*ring/4,0,Math.PI*2);sc.stroke();}
+    for(var deg=0;deg<360;deg+=30){var a=(deg-90)*Math.PI/180;sc.beginPath();sc.moveTo(cx,cy);sc.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r);sc.stroke();sc.fillStyle='#7cbfa4';sc.font='11px monospace';sc.fillText(String(deg).padStart(3,'0'),cx+Math.cos(a)*(r+13)-10,cy+Math.sin(a)*(r+13)+4);}
+    sc.strokeStyle='#3aa67d';sc.beginPath();sc.moveTo(cx-r,cy);sc.lineTo(cx+r,cy);sc.moveTo(cx,cy-r);sc.lineTo(cx,cy+r);sc.stroke();
+    var objects=data&&Array.isArray(data.objects)?data.objects:[],dots=[];
+    objects.forEach(function(o,i){var p=o.normalized_position||[.5,.5],dx=(Number(p[0])-.5)*1.8,dy=(Number(p[1])-.5)*1.8,dist=Math.min(.96,Math.sqrt(dx*dx+dy*dy)),ang=Math.atan2(dx,-dy),x=cx+Math.sin(ang)*r*dist,y=cy-Math.cos(ang)*r*dist;sc.fillStyle=o.conflict?'#f0b35c':'#8dffb9';sc.shadowColor=sc.fillStyle;sc.shadowBlur=8;sc.beginPath();sc.arc(x,y,4,0,Math.PI*2);sc.fill();sc.shadowBlur=0;sc.fillStyle='#b4f4d5';sc.font='10px monospace';sc.fillText('C'+String(i+1).padStart(2,'0'),x+6,y-5);dots.push({bearing:(Math.atan2(dx,dy)*180/Math.PI+360)%360,strength:Math.max(.15,1-Number(o.uncertainty_m||0)/30)});});
+    sc.fillStyle='#8ad8b5';sc.font='11px monospace';sc.fillText('CONTACTS '+objects.length,10,18);sc.fillText('RANGE SCALE: RELATIVE',10,sh-10);
+    // Generate one synthetic acoustic-energy row per sweep: a noise floor, drifting contact signatures, and intermittent clutter.
+    var bins=180,energy=new Array(bins),sweepIndex=sonarWaterfallHistory.length;
+    for(var bi=0;bi<bins;bi++)energy[bi]=0.035+Math.random()*0.11;
+    dots.forEach(function(d,di){
+      var center=Math.round(d.bearing/360*bins),width=2+Math.round((1-d.strength)*5),level=.35+d.strength*.55;
+      for(var offset=-width*3;offset<=width*3;offset++){var idx=(center+offset+bins)%bins,profile=Math.exp(-(offset*offset)/(2*width*width)),pulse=.78+.22*Math.sin((sweepIndex+di*7+offset)*.31);energy[idx]=Math.min(1,energy[idx]+level*profile*pulse);}
+    });
+    // Clutter is deliberately synthetic and may appear briefly without a persistent contact track.
+    for(var clutter=0;clutter<4;clutter++){var noiseBin=Math.floor(Math.random()*bins);energy[noiseBin]=Math.min(1,energy[noiseBin]+.18+Math.random()*.3);}
+    sonarWaterfallHistory.push(energy);if(sonarWaterfallHistory.length>90)sonarWaterfallHistory.shift();
+    wc.fillStyle='#020807';wc.fillRect(0,0,waterfall.width,waterfall.height);
+    var rowHeight=waterfall.height/90,binWidth=waterfall.width/bins;
+    sonarWaterfallHistory.forEach(function(row,ri){
+      var y=waterfall.height-(sonarWaterfallHistory.length-ri)*rowHeight;
+      row.forEach(function(value,bi){var e=Math.max(0,Math.min(1,value));if(e<.07)return;wc.fillStyle='rgba(105,255,175,'+(0.12+e*.82)+')';wc.fillRect(bi*binWidth,y,Math.ceil(binWidth),Math.max(2,rowHeight));});
+    });
+    wc.strokeStyle='#173d32';wc.lineWidth=1;for(var gx=0;gx<=6;gx++){var xx=gx*waterfall.width/6;wc.beginPath();wc.moveTo(xx,0);wc.lineTo(xx,waterfall.height);wc.stroke();}for(var gy=0;gy<=8;gy++){var yy=gy*waterfall.height/8;wc.beginPath();wc.moveTo(0,yy);wc.lineTo(waterfall.width,yy);wc.stroke();}
+    wc.fillStyle='#8ad8b5';wc.font='11px monospace';wc.fillText('BEARING →',8,14);wc.fillText('TIME ↓',8,waterfall.height-8);
+    var status=document.getElementById('sim-sonar-console-status'),readout=document.getElementById('sim-sonar-readout');if(status)status.textContent=(data&&data.metadata&&data.metadata.sonar_posture!=='not_applicable'?String(data.metadata.sonar_posture).toUpperCase():'SONAR SELECT MODE')+' · SWEEP '+(data&&data.revision?data.revision:'—');if(readout)readout.textContent=objects.length?objects.map(function(o,i){var p=o.normalized_position||[.5,.5],bearing=(Math.atan2(Number(p[0])-.5,Number(p[1])-.5)*180/Math.PI+360)%360;return 'CONTACT '+String(i+1).padStart(2,'0')+' // BEARING EST '+bearing.toFixed(0)+'° // UNCERTAINTY ±'+o.uncertainty_m+' m // '+Math.round(100/(1+Number(o.uncertainty_m||0)/10))+'% RELATIVE CONFIDENCE';}).join('\\n'):'NO CONTACTS DETECTED // BACKGROUND NOISE / SENSOR MISS POSSIBLE';
+  }
+  // Shared illustrative fleet state: normalized regional coordinates and degrees clockwise from north.
+  var regionalTrainingFleet=[
+    {id:'DDG-51',name:'ARLEIGH BURKE-CLASS',x:.35,y:.44,lengthM:153.92,beamM:18.0,heading:28,speed:.018,source:'U.S. Navy DDG-51 fact sheet'},
+    {id:'CVN',name:'NIMITZ-CLASS',x:.66,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,source:'U.S. Navy Nimitz-class fact sheet'}
+  ];
+  var regionalWorldSnapshotActive=false;
+  var regionalFleetTimer=null;
+  var regionalFleetLastTick=0;
+  // API integration seam: accepts only already-authorized public snapshots.
+  // normalized_position is [x,y] in map coordinates (0..1), supplied by the
+  // server's world-to-map transform; raw world coordinates are never guessed.
+  window.setVigilRegionalWorldSnapshot=function(snapshot){
+    if(!snapshot||snapshot.schema_version!==1||!Array.isArray(snapshot.ships))return false;
+    var next=[];
+    if(typeof refreshRegionalCommandChoices==='function')refreshRegionalCommandChoices(snapshot);
+    if(typeof regionalUiStatus==='function')regionalUiStatus('ONLINE // PLAYER '+String(snapshot.player_id||'SESSION')+' // TICK '+String(snapshot.simulation_tick||0),false);
+    for(var i=0;i<snapshot.ships.length;i++){
+      var s=snapshot.ships[i],p=s.normalized_position;
+      if(!s||typeof s.ship_id!=='string'||!Array.isArray(p)||p.length!==2)continue;
+      if(!p.every(function(v){return typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1;}))continue;
+      if(typeof s.heading_deg!=='number'||!Number.isFinite(s.heading_deg))continue;
+      next.push({id:s.ship_id,name:String(s.name||s.ship_id),x:p[0],y:p[1],
+        lengthM:Number(s.length_m)||18,beamM:Number(s.beam_m)||4,
+        heading:s.heading_deg,source:String(s.blueprint_source||''),
+        speed:Number(s.speed)||0,shipClass:String(s.ship_class||'unknown'),
+        afloat:s.afloat!==false});
+    }
+    pauseRegionalFleet();regionalWorldSnapshotActive=true;regionalTrainingFleet=next;
+    renderBathymetry(lastObservationData);return true;
+  };
+  window.clearVigilRegionalWorldSnapshot=function(){regionalWorldSnapshotActive=false;resetRegionalFleet();};
+  
+  // Poll the authenticated WSGI bridge. Tokens stay in memory only (never localStorage).
+  var regionalSnapshotPollTimer=null,regionalSnapshotPollOptions=null,regionalSnapshotPollBusy=false;
+  window.disconnectVigilRegionalSnapshot=function(){
+    if(regionalSnapshotPollTimer!==null)clearTimeout(regionalSnapshotPollTimer);
+    regionalSnapshotPollTimer=null;regionalSnapshotPollOptions=null;regionalSnapshotPollBusy=false;
+  };
+  window.connectVigilRegionalSnapshot=function(options){
+    if(!options||typeof options.url!=='string'||typeof options.token!=='string'||!options.token.trim())
+      throw new Error('A snapshot URL and bearer token are required');
+    var endpoint;
+    try{endpoint=new URL(options.url,window.location.href);}catch(e){throw new Error('Invalid regional snapshot URL');}
+    if(endpoint.protocol!=='https:'||endpoint.pathname!=='/api/regional/snapshot'||endpoint.search||endpoint.hash)
+      throw new Error('Snapshot URL must be HTTPS and end at /api/regional/snapshot');
+    var interval=Number(options.intervalMs||2000);
+    if(!Number.isFinite(interval)||interval<500||interval>30000)throw new Error('Polling interval must be 500–30000 ms');
+    window.disconnectVigilRegionalSnapshot();
+    regionalSnapshotPollOptions={url:endpoint.href,token:options.token,intervalMs:interval};
+    var stopped=false;
+    async function poll(){
+      if(stopped||!regionalSnapshotPollOptions||regionalSnapshotPollBusy)return;
+      regionalSnapshotPollBusy=true;
+      try{
+        var response=await fetch(regionalSnapshotPollOptions.url,{method:'GET',cache:'no-store',credentials:'omit',
+          headers:{'Authorization':'Bearer '+regionalSnapshotPollOptions.token,'Accept':'application/json'}});
+        if(!response.ok)throw new Error('Regional snapshot request failed ('+response.status+')');
+        var snapshot=await response.json();
+        if(!window.setVigilRegionalWorldSnapshot(snapshot))throw new Error('Unsupported or invalid regional snapshot payload');
+      }catch(error){
+        window.dispatchEvent(new CustomEvent('vigil:regional-snapshot-error',{detail:{message:String(error&&error.message||error)}}));
+      }finally{
+        regionalSnapshotPollBusy=false;
+        if(!stopped&&regionalSnapshotPollOptions)regionalSnapshotPollTimer=setTimeout(poll,regionalSnapshotPollOptions.intervalMs);
+      }
+    }
+    poll();
+    return {stop:function(){stopped=true;window.disconnectVigilRegionalSnapshot();},refresh:function(){if(!stopped){if(regionalSnapshotPollTimer!==null)clearTimeout(regionalSnapshotPollTimer);regionalSnapshotPollTimer=null;poll();}}};
+  };
+  
+  // Send a validated player command to the authoritative regional game API.
+  // The bearer token remains in memory and is never stored or placed in a URL.
+  window.sendVigilRegionalCommand=async function(options,operation,argumentsObject){
+    if(!options||typeof options.url!=='string'||typeof options.token!=='string'||!options.token.trim())
+      throw new Error('A regional API URL and bearer token are required');
+    if(typeof operation!=='string'||!operation||!argumentsObject||typeof argumentsObject!=='object'||Array.isArray(argumentsObject))
+      throw new Error('A command operation and arguments object are required');
+    var endpoint;
+    try{endpoint=new URL(options.url,window.location.href);}catch(e){throw new Error('Invalid regional API URL');}
+    if(endpoint.protocol!=='https:'||endpoint.pathname!=='/api/regional/snapshot'||endpoint.search||endpoint.hash)
+      throw new Error('API URL must be HTTPS and end at /api/regional/snapshot');
+    endpoint.pathname='/api/regional/command';
+    var response=await fetch(endpoint.href,{
+      method:'POST',cache:'no-store',credentials:'omit',
+      headers:{'Authorization':'Bearer '+options.token,'Content-Type':'application/json'},
+      body:JSON.stringify({operation:operation,arguments:argumentsObject})
+    });
+    var payload;
+    try{payload=await response.json();}catch(e){throw new Error('Regional API returned invalid JSON');}
+    if(!response.ok)throw new Error(String(payload&&payload.message||payload&&payload.error||('Regional command failed ('+response.status+')')));
+    return payload;
+  };
+
+  var vigilRegionalUiOptions=null,regionalUiLastSnapshot=null,regionalSpeedInputDirty=false;
+  function regionalUiStatus(message,isError){var el=document.getElementById('vigil-regional-status');if(el){el.textContent=message;el.style.color=isError?'#e5a18b':'#8bb99b';}}
+  function syncRegionalSpeedInput(snapshot){
+    var ss=document.getElementById('vigil-regional-ship'),input=document.getElementById('vigil-regional-speed');
+    if(!ss||!input)return;
+    var ships=snapshot&&Array.isArray(snapshot.ships)?snapshot.ships:[];
+    var ship=ships.find(function(s){return s.ship_id===ss.value;});
+    if(!ship){input.max='0';if(document.activeElement!==input)input.value='0';return;}
+    var current=Number(ship.speed),limit=Number(ship.max_speed);
+    if(!Number.isFinite(limit)||limit<0)limit=Number.isFinite(current)&&current>=0?current:0;
+    input.max=String(limit);
+    if(!regionalSpeedInputDirty&&document.activeElement!==input)input.value=String(Number.isFinite(current)&&current>=0?current:0);
+  }
+  function syncRegionalWeaponReadiness(snapshot){
+    var ss=document.getElementById('vigil-regional-ship'),button=document.getElementById('vigil-regional-fire');
+    if(!ss||!button)return;
+    var ships=snapshot&&Array.isArray(snapshot.ships)?snapshot.ships:[];
+    var ship=ships.find(function(s){return s.ship_id===ss.value;});
+    var cooldown=ship&&Number.isFinite(Number(ship.weapon_cooldown_remaining))?Math.max(0,Number(ship.weapon_cooldown_remaining)):0;
+    if(cooldown>0.01){button.disabled=true;button.textContent='RELOADING '+cooldown.toFixed(1)+'s';}
+    else{button.disabled=false;button.textContent='FIRE WEAPON';}
+  }
+  function refreshRegionalCommandChoices(snapshot){
+    regionalUiLastSnapshot=snapshot;
+    var ships=Array.isArray(snapshot.ships)?snapshot.ships:[],controlled=Array.isArray(snapshot.controlled_ship_ids)?snapshot.controlled_ship_ids:[];
+    var ss=document.getElementById('vigil-regional-ship'),ts=document.getElementById('vigil-regional-target');if(!ss||!ts)return;
+    var oldShip=ss.value,oldTarget=ts.value;ss.replaceChildren();ts.replaceChildren();
+    controlled.forEach(function(id){var s=ships.find(function(x){return x.ship_id===id;});var o=new Option(s?String(s.name||id)+' ['+id+']':id,id);ss.add(o);});
+    ships.forEach(function(s){if(controlled.indexOf(s.ship_id)>=0||s.afloat===false)return;ts.add(new Option(String(s.name||s.ship_id)+' ['+s.ship_id+']',s.ship_id));});
+    if(Array.from(ss.options).some(function(o){return o.value===oldShip;}))ss.value=oldShip;
+    if(Array.from(ts.options).some(function(o){return o.value===oldTarget;}))ts.value=oldTarget;
+    if(!ss.options.length)ss.add(new Option('No controlled vessels',''));if(!ts.options.length)ts.add(new Option('No visible targets',''));
+    syncRegionalSpeedInput(snapshot);
+    syncRegionalWeaponReadiness(snapshot);
+  }
+  document.getElementById('vigil-regional-ship').addEventListener('change',function(){regionalSpeedInputDirty=false;syncRegionalSpeedInput(regionalUiLastSnapshot);syncRegionalWeaponReadiness(regionalUiLastSnapshot);});
+  document.getElementById('vigil-regional-speed').addEventListener('input',function(){regionalSpeedInputDirty=true;});
+  document.getElementById('vigil-regional-connect').addEventListener('click',function(){var url=document.getElementById('vigil-regional-url').value.trim(),token=document.getElementById('vigil-regional-token').value;try{vigilRegionalUiOptions={url:url,token:token};window.connectVigilRegionalSnapshot({url:url,token:token,intervalMs:2000});regionalUiStatus('CONNECTING // Waiting for authorized snapshot…',false);}catch(e){vigilRegionalUiOptions=null;regionalUiStatus(String(e.message||e),true);}});
+  document.getElementById('vigil-regional-disconnect').addEventListener('click',function(){window.disconnectVigilRegionalSnapshot();vigilRegionalUiOptions=null;document.getElementById('vigil-regional-token').value='';window.clearVigilRegionalWorldSnapshot();refreshRegionalCommandChoices({ships:[],controlled_ship_ids:[]});regionalUiStatus('DISCONNECTED // Token cleared from this page.',false);});
+  document.getElementById('vigil-regional-set-heading').addEventListener('click',async function(){var ship=document.getElementById('vigil-regional-ship').value,h=Number(document.getElementById('vigil-regional-heading').value);if(!vigilRegionalUiOptions||!ship){regionalUiStatus('Connect and select a controlled vessel first.',true);return;}if(!Number.isFinite(h)||h<0||h>=360){regionalUiStatus('Heading must be between 0° and 359.9°.',true);return;}try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'set_heading',{ship_id:ship,heading_deg:h});regionalUiStatus('COURSE SET // '+ship+' → '+Number(r.heading_deg).toFixed(1)+'°',false);}catch(e){regionalUiStatus('COMMAND REJECTED // '+String(e.message||e),true);}});
+  async function regionalSetSpeed(speed,ship){
+    if(!vigilRegionalUiOptions||!ship){regionalUiStatus('Connect and select a controlled vessel first.',true);return;}
+    var input=document.getElementById('vigil-regional-speed'),limit=Number(input.max);
+    if(!Number.isFinite(speed)||speed<0||speed>limit){regionalUiStatus('Speed must be between 0 and the selected vessel max speed ('+limit+').',true);return;}
+    try{
+      var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'set_speed',{ship_id:ship,speed:speed});
+      input.value=String(r.speed);regionalSpeedInputDirty=false;
+      regionalUiStatus(r.stopped?'ALL STOP // '+ship+' // SPEED 0':'SPEED SET // '+ship+' // '+Number(r.speed).toFixed(5)+' / MAX '+Number(r.max_speed).toFixed(5),false);
+    }catch(e){regionalUiStatus('SPEED COMMAND REJECTED // '+String(e.message||e),true);}
+  }
+  document.getElementById('vigil-regional-set-speed').addEventListener('click',function(){
+    regionalSetSpeed(Number(document.getElementById('vigil-regional-speed').value),document.getElementById('vigil-regional-ship').value);
+  });
+  document.getElementById('vigil-regional-stop-speed').addEventListener('click',function(){
+    var input=document.getElementById('vigil-regional-speed');input.value='0';
+    regionalSetSpeed(0,document.getElementById('vigil-regional-ship').value);
+  });
+  document.getElementById('vigil-regional-fire').addEventListener('click',async function(){var ship=document.getElementById('vigil-regional-ship').value,target=document.getElementById('vigil-regional-target').value;if(!vigilRegionalUiOptions||!ship||!target){regionalUiStatus('Connect, select your vessel, and choose a visible target first.',true);return;}try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'fire_weapon',{ship_id:ship,target_id:target});var cooldown=Number(r.weapon_cooldown_remaining)||0;var fireButton=document.getElementById('vigil-regional-fire');if(cooldown>0){fireButton.disabled=true;fireButton.textContent='RELOADING '+cooldown.toFixed(1)+'s';}regionalUiStatus((r.sunk?'CONTACT SUNK':'WEAPON HIT')+' // '+target+' // DAMAGE '+r.damage+' // HULL '+r.hull_after+' // RELOAD '+cooldown.toFixed(1)+'s',false);}catch(e){regionalUiStatus('FIRE SOLUTION REJECTED // '+String(e.message||e),true);}});
+  window.addEventListener('vigil:regional-snapshot-error',function(e){regionalUiStatus('LINK ERROR // '+String(e.detail&&e.detail.message||'Regional snapshot unavailable'),true);});
+  function stepRegionalFleet(now){
+    if(!regionalFleetLastTick)regionalFleetLastTick=now;
+    var dt=Math.min(.25,Math.max(0,(now-regionalFleetLastTick)/1000));
+    regionalFleetLastTick=now;
+    regionalTrainingFleet.forEach(function(ship){
+      var angle=ship.heading*Math.PI/180;
+      ship.x+=Math.sin(angle)*ship.speed*dt;
+      ship.y-=Math.cos(angle)*ship.speed*dt;
+      if(ship.x<.04||ship.x>.96){ship.heading=(360-ship.heading)%360;ship.x=Math.max(.04,Math.min(.96,ship.x));}
+      if(ship.y<.05||ship.y>.95){ship.heading=(180-ship.heading+360)%360;ship.y=Math.max(.05,Math.min(.95,ship.y));}
+    });
+    renderBathymetry(lastObservationData);
+    if(regionalFleetTimer!==null)regionalFleetTimer=requestAnimationFrame(stepRegionalFleet);
+  }
+  function startRegionalFleet(){if(regionalWorldSnapshotActive||regionalFleetTimer!==null)return;regionalFleetLastTick=0;regionalFleetTimer=requestAnimationFrame(stepRegionalFleet);}
+  function pauseRegionalFleet(){if(regionalFleetTimer!==null)cancelAnimationFrame(regionalFleetTimer);regionalFleetTimer=null;regionalFleetLastTick=0;}
+  function resetRegionalFleet(){
+    pauseRegionalFleet();
+    regionalTrainingFleet[0].x=.35;regionalTrainingFleet[0].y=.44;regionalTrainingFleet[0].heading=28;
+    regionalTrainingFleet[1].x=.66;regionalTrainingFleet[1].y=.61;regionalTrainingFleet[1].heading=342;
+    renderBathymetry(lastObservationData);
+  }
+  function renderBathymetry(data){
+    var canvas=document.getElementById('sim-bathymetry-map');if(!canvas)return;
+    var ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height,nx=90,ny=43,values=[];
+    function depthAt(x,y){
+      var trench=Math.exp(-Math.pow((x-(.22+.13*Math.sin(y*5.4)))/.105,2))*Math.exp(-Math.pow((y-.54)/.58,2));
+      var ridge=Math.exp(-Math.pow((x-(.69+.055*Math.sin(y*8)))/.12,2))*Math.exp(-Math.pow((y-.47)/.7,2));
+      var shelf=Math.exp(-Math.pow((x-.09)/.17,2))*Math.exp(-Math.pow((y-.22)/.2,2));
+      var basin=.48+.19*Math.sin(x*10+y*4)+.13*Math.cos(y*12-x*3)+.08*Math.sin(x*27+y*19);
+      return Math.max(0,Math.min(1,basin+trench*.39-ridge*.36-shelf*.48));
+    }
+    var viewW=1/mapCamera.zoom,viewH=1/mapCamera.zoom,x0=mapCamera.x-viewW/2,y0=mapCamera.y-viewH/2;
+    for(var gy=0;gy<=ny;gy++){values[gy]=[];for(var gx=0;gx<=nx;gx++)values[gy][gx]=depthAt(x0+gx/nx*viewW,y0+gy/ny*viewH);}
+    var colors=['#b5d8a4','#79b77b','#438c68','#28684f','#143d35'];
+    function colorFor(v){return colors[v<.16?0:v<.34?1:v<.56?2:v<.76?3:4];}
+    ctx.fillStyle='#06131b';ctx.fillRect(0,0,w,h);
+    for(var y=0;y<ny;y++)for(var x=0;x<nx;x++){var v=(values[y][x]+values[y][x+1]+values[y+1][x]+values[y+1][x+1])/4;ctx.fillStyle=colorFor(v);ctx.fillRect(x*w/nx,y*h/ny,Math.ceil(w/nx)+1,Math.ceil(h/ny)+1);}
+    var levels=[.16,.34,.56,.76];
+    levels.forEach(function(level,li){
+      ctx.beginPath();ctx.strokeStyle=li%2?'rgba(191,235,239,.55)':'rgba(224,245,238,.7)';ctx.lineWidth=li===1?1.5:1;
+      for(var y=0;y<ny;y++)for(var x=0;x<nx;x++){
+        var v=[values[y][x],values[y][x+1],values[y+1][x+1],values[y+1][x]],pts=[];
+        var edges=[[0,1],[1,2],[2,3],[3,0]];
+        edges.forEach(function(e){var a=v[e[0]],b=v[e[1]];if((a<level&&b>=level)||(a>=level&&b<level)){var t=(level-a)/(b-a),corners=[[x*w/nx,y*h/ny],[(x+1)*w/nx,y*h/ny],[(x+1)*w/nx,(y+1)*h/ny],[x*w/nx,(y+1)*h/ny]];pts.push([corners[e[0]][0]+(corners[e[1]][0]-corners[e[0]][0])*t,corners[e[0]][1]+(corners[e[1]][1]-corners[e[0]][1])*t]);}});
+        if(pts.length>=2){ctx.moveTo(pts[0][0],pts[0][1]);ctx.lineTo(pts[1][0],pts[1][1]);if(pts.length===4){ctx.moveTo(pts[2][0],pts[2][1]);ctx.lineTo(pts[3][0],pts[3][1]);}}
+      }ctx.stroke();
+    });
+    ctx.strokeStyle='rgba(183,235,180,.22)';ctx.lineWidth=1;
+    for(var gx=0;gx<=6;gx++){var xx=gx*w/6;ctx.beginPath();ctx.moveTo(xx,0);ctx.lineTo(xx,h);ctx.stroke();ctx.fillStyle='#c7efbd';ctx.font='12px monospace';ctx.fillText(String.fromCharCode(65+gx),xx+5,16);}
+    for(var gy=0;gy<=4;gy++){var yy=gy*h/4;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke();ctx.fillStyle='#b6dce4';ctx.font='12px monospace';ctx.fillText(''+(gy+1),5,yy+14);}
+    ctx.fillStyle='rgba(4,22,14,.82)';ctx.fillRect(w-180,h-48,170,38);ctx.fillStyle='#e4f6d7';ctx.font='12px monospace';ctx.fillText('SECTOR 01 // NOT TO SCALE',w-170,h-32);ctx.fillStyle='#a9d99b';ctx.fillText('CONTOURS: SIMULATED',w-170,h-16);
+    var objects=data&&Array.isArray(data.objects)?data.objects:[];
+    objects.forEach(function(o,i){var p=o.normalized_position||[];if(p.length<2)return;var px=((Number(p[0])-x0)/viewW)*w,py=((Number(p[1])-y0)/viewH)*h;if(px<0||px>w||py<0||py>h)return;ctx.strokeStyle=o.conflict?'#ffca7a':'#f5f6ce';ctx.fillStyle=o.conflict?'#ffca7a':'#f5f6ce';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px,py-7);ctx.lineTo(px+7,py);ctx.lineTo(px,py+7);ctx.lineTo(px-7,py);ctx.closePath();ctx.stroke();ctx.fillText('E'+String(i+1).padStart(2,'0'),px+10,py-8);});
+    // These dimension envelopes now render from shared simulation state.
+    // They remain illustrative rectangles, not verified blueprint silhouettes.
+    regionalTrainingFleet.forEach(function(ship){
+      var px=((ship.x-x0)/viewW)*w,py=((ship.y-y0)/viewH)*h;
+      if(px< -240||px>w+240||py< -100||py>h+100)return;
+      var pxPerMeter=(10/18)*mapCamera.zoom;
+      var lengthPx=ship.lengthM*pxPerMeter,beamPx=ship.beamM*pxPerMeter;
+      var angle=ship.heading*Math.PI/180;
+      ctx.save();ctx.translate(px,py);ctx.rotate(angle);
+      ctx.fillStyle='rgba(11,43,24,.82)';ctx.strokeStyle='#d4f6a8';ctx.lineWidth=1.8;
+      ctx.beginPath();ctx.rect(-lengthPx/2,-beamPx/2,lengthPx,beamPx);ctx.fill();ctx.stroke();
+      ctx.beginPath();ctx.moveTo(-lengthPx*.42,0);ctx.lineTo(lengthPx*.42,0);ctx.strokeStyle='rgba(212,246,168,.65)';ctx.lineWidth=1;ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle='#edffd8';ctx.font='bold 12px monospace';ctx.fillText(ship.id,px+8,py-10);
+    });
+
+  }
+  var mapCamera={x:.5,y:.5,zoom:1},mapDrag=null;
+  function clampMapCamera(){
+    mapCamera.zoom=Math.max(1,Math.min(5,mapCamera.zoom));
+    var vw=1/mapCamera.zoom,vh=1/mapCamera.zoom;
+    mapCamera.x=Math.max(vw/2,Math.min(1-vw/2,mapCamera.x));
+    mapCamera.y=Math.max(vh/2,Math.min(1-vh/2,mapCamera.y));
+  }
+  function refreshMapView(){clampMapCamera();var scale=document.getElementById('sim-map-scale');if(scale)scale.textContent=(mapCamera.zoom<=1?'REGIONAL VIEW':'TACTICAL VIEW')+' · '+mapCamera.zoom.toFixed(1)+'×';renderBathymetry(lastObservationData);}
+  (function setupMapNavigation(){
+    var canvas=document.getElementById('sim-bathymetry-map');if(!canvas)return;
+    document.getElementById('sim-map-zoom-in').addEventListener('click',function(){mapCamera.zoom=Math.min(5,mapCamera.zoom+.5);refreshMapView();});
+    document.getElementById('sim-map-zoom-out').addEventListener('click',function(){mapCamera.zoom=Math.max(1,mapCamera.zoom-.5);refreshMapView();});
+    document.getElementById('sim-map-reset').addEventListener('click',function(){mapCamera={x:.5,y:.5,zoom:1};refreshMapView();});
+    document.getElementById('sim-fleet-start').addEventListener('click',startRegionalFleet);
+    document.getElementById('sim-fleet-pause').addEventListener('click',pauseRegionalFleet);
+    document.getElementById('sim-fleet-reset').addEventListener('click',resetRegionalFleet);
+    canvas.addEventListener('pointerdown',function(e){mapDrag={x:e.clientX,y:e.clientY,cx:mapCamera.x,cy:mapCamera.y};canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing';});
+    canvas.addEventListener('pointermove',function(e){if(!mapDrag)return;var rect=canvas.getBoundingClientRect(),vw=1/mapCamera.zoom,vh=1/mapCamera.zoom;mapCamera.x=mapDrag.cx-(e.clientX-mapDrag.x)/rect.width*vw;mapCamera.y=mapDrag.cy-(e.clientY-mapDrag.y)/rect.height*vh;refreshMapView();});
+    function stopDrag(){mapDrag=null;canvas.style.cursor='grab';}
+    canvas.addEventListener('pointerup',stopDrag);canvas.addEventListener('pointercancel',stopDrag);
+    canvas.addEventListener('wheel',function(e){e.preventDefault();mapCamera.zoom=Math.max(1,Math.min(5,mapCamera.zoom+(e.deltaY<0?.25:-.25)));refreshMapView();},{passive:false});
+    canvas.style.cursor='grab';canvas.style.touchAction='none';
+  })();
+
+  startRegionalFleet();
+ion(lastObservationData);
     if(!decision){
       if(output)output.textContent='VIGIL DECISION // NO OBSERVATION REGISTER AVAILABLE. RUN RECON SWEEP FIRST.';
       return {ok:false,reason:'no_observations'};
@@ -2551,7 +2857,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   }
   function publish(sendToSpatial,countObservation){
     if(countObservation)sweepCount++;
-    var data=generateScene();recordReconObservation(data);lastObservationData=data;renderReconContacts(data);
+    var data=generateScene();recordReconObservation(data);lastObservationData=data;renderReconContacts(data);renderBathymetry(data);
     if(countObservation)observationCount+=data.objects.length;updateMetrics();
     if(countObservation){var result=document.getElementById('sim-recon-results');if(result)result.textContent='NEW OBSERVATIONS AVAILABLE // RUN EVALUATION TO COMPARE ESTIMATES WITH HIDDEN TRUTH.';}
     document.getElementById('sim-noise-value').textContent=Number(noise.value).toFixed(1);
