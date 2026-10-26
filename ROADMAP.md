@@ -439,3 +439,13 @@ This is a side quest. It must not silently displace the current boot/host-I/O/ru
 - [ ] Verify the new commit's complete CI suite and bootable-carrier image workflow.
 - [ ] Validate state-partition formatting/mounting by building and booting the revised three-partition image.
 - [ ] Exercise a physical SSD reboot and confirm the registry survives power-off/reconnect on the target host.
+
+### VIGIL game modes and shared-campaign MMO
+
+- [x] Remove local pass-and-play / hotseat mode; keep solo training as the only local engagement mode.
+- [x] Add the client-side HTTPS login flow and document the expected `POST /api/auth/login` contract.
+- [ ] Implement the production HTTPS MMO server endpoints for account registration/management, credential verification, login throttling, token expiry/revocation, and logout.
+- [ ] Connect the game client to the server's authoritative shared campaign state after login; support multiple authenticated players joining the same hosted session.
+- [ ] Enforce server-side player authorization for commands, vessel ownership, movement, combat, territory control, and contact visibility; never trust client-submitted authoritative state.
+- [ ] Add deployment/configuration guidance for a publicly reachable HTTPS server with a valid TLS certificate, and verify the full login → join campaign → play → logout flow against a real hosted instance.
+- [ ] Add deterministic API/integration regression tests for authentication failures, expired/revoked tokens, unauthorized commands, concurrent players, and reconnect behavior. Keep Playwright/browser tests separate from the regular regression workflow and run them only when necessary.
