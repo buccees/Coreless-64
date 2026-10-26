@@ -2817,8 +2817,10 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     else{button.disabled=false;button.textContent='FIRE WEAPON';}
   }
   function refreshRegionalCommandChoices(snapshot){
-    regionalUiLastSnapshot=snapshot;
+    // Retain only command telemetry needed by the controls; never cache raw
+    // regional snapshots that may contain hidden authoritative positions.
     var ships=Array.isArray(snapshot.ships)?snapshot.ships:[],controlled=Array.isArray(snapshot.controlled_ship_ids)?snapshot.controlled_ship_ids:[];
+    regionalUiLastSnapshot={ships:ships.filter(function(s){return s&&controlled.indexOf(s.ship_id)>=0;}).map(function(s){return {ship_id:s.ship_id,speed:s.speed,max_speed:s.max_speed,weapon_cooldown_remaining:s.weapon_cooldown_remaining,afloat:s.afloat};}),controlled_ship_ids:controlled.slice()};
     var ss=document.getElementById('vigil-regional-ship'),ts=document.getElementById('vigil-regional-target');if(!ss||!ts)return;
     var oldShip=ss.value,oldTarget=ts.value;ss.replaceChildren();ts.replaceChildren();
     controlled.forEach(function(id){var s=ships.find(function(x){return x.ship_id===id;});var o=new Option(s?String(s.name||id)+' ['+id+']':id,id);ss.add(o);});
