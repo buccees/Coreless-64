@@ -96,6 +96,62 @@ def test_set_speed_rejects_invalid_values_and_enforces_ownership_and_limit():
         )
 
 
+def test_weapon_reload_blocks_repeat_fire_until_ticks_expire_and_is_private():
+    world = RegionalWorld([
+        RegionalShip.from_class(
+            ship_id="blue", name="Blue Ship", ship_class="destroyer",
+            x=0.2, y=0.3, speed=0, max_speed=0.02, weapon_range=0.2,
+            weapon_reload_seconds=4.0,
+        ),
+        RegionalShip.from_class(
+            ship_id="red", name="Red Ship", ship_class="frigate",
+            x=0.3, y=0.3, speed=0, max_speed=0.01, weapon_range=0.2,
+            weapon_reload_seconds=6.0,
+        ),
+    ])
+    game = RegionalGame(world)
+    game.register_player(
+        player_id="host", token="host-secret", controlled_ship_ids={"blue"},
+        visible_ship_ids={"blue", "red"},
+    )
+    game.register_player(
+        player_id="opponent", token="opponent-secret", controlled_ship_ids={"red"},
+        visible_ship_ids={"red", "blue"},
+    )
+
+    shot = game.command(
+        "host-secret", "fire_weapon", {"ship_id": "blue", "target_id": "red"}
+    )
+    assert shot["weapon_cooldown_remaining"] == 4.0
+    host_snapshot = game.snapshot("host-secret")
+    blue_view = next(s for s in host_snapshot["ships"] if s["ship_id"] == "blue")
+    red_view = next(s for s in host_snapshot["ships"] if s["ship_id"] == "red")
+    assert blue_view["weapon_cooldown_remaining"] == 4.0
+    assert "weapon_cooldown_remaining" not in red_view
+
+    with pytest.raises(RegionalGameError, match="weapon is reloading"):
+        game.command(
+            "host-secret", "fire_weapon", {"ship_id": "blue", "target_id": "red"}
+        )
+    game.advance_tick(3.5)
+    with pytest.raises(RegionalGameError, match="weapon is reloading"):
+        game.command(
+            "host-secret", "fire_weapon", {"ship_id": "blue", "target_id": "red"}
+        )
+    game.advance_tick(0.6)
+    final_shot = game.command(
+        "host-secret", "fire_weapon", {"ship_id": "blue", "target_id": "red"}
+    )
+    assert final_shot["damage"] == 1
+    assert final_shot["weapon_cooldown_remaining"] == 4.0
+
+    opponent_snapshot = game.snapshot("opponent-secret")
+    red_view = next(s for s in opponent_snapshot["ships"] if s["ship_id"] == "red")
+    blue_view = next(s for s in opponent_snapshot["ships"] if s["ship_id"] == "blue")
+    assert "weapon_cooldown_remaining" in red_view
+    assert "weapon_cooldown_remaining" not in blue_view
+
+
 def test_campaign_move_uses_existing_world_movement_allowance():
     game = make_game()
     moved = game.command(
