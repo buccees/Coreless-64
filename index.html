@@ -1019,6 +1019,23 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 </section>
 <section id="simulation-panel" class="panel report-panel" data-category="simulation"><h2>VIGIL SIMULATION BAY // NAVAL CONTACT EXERCISE</h2><div class="content">
 <p class="muted">CONTINUOUS REGIONAL SIMULATION // Move through a shared battlespace, track authorized contacts, and command vessel course and speed. Hidden contacts remain governed by authorized observations.</p>
+
+<section id="vigil-order-of-battle" class="sim-recon-panel" aria-labelledby="vigil-oob-title">
+  <h3 id="vigil-oob-title">CORPORATE MERCENARY ORDER OF BATTLE // RANK, UNIT &amp; LOCAL TERRITORY</h3>
+  <p class="muted">One shared VIGIL simulation and communications system. Each corporate faction has its own personnel rank titles, command culture, and motive. Rank establishes eligibility; a named billet and superior-command assignment establish actual authority.</p>
+  <div class="spatial-review-controls"><label for="vigil-oob-faction">FACTION</label><select id="vigil-oob-faction"><option value="WYCF">WEYLAND-YUTANI</option><option value="PRO">PRODIGY</option><option value="LYN">LYNCH</option><option value="DYN">DYNAMIC</option><option value="THR">THRESHOLD</option></select></div>
+  <div class="spatial-track-detail"><strong id="vigil-oob-motive">FACTION MOTIVE</strong><p id="vigil-oob-doctrine">Select a faction to inspect its rank ladder and command doctrine.</p></div>
+  <div class="sim-layout"><div class="sim-side"><h3>NUMBERED UNIT LADDER</h3><pre id="vigil-oob-units" class="sim-telemetry" aria-live="polite">SQUAD → PLATOON → COMPANY → BATTALION → LEGION</pre></div><div class="sim-side"><h3>RANKS &amp; COMMAND BILLETS</h3><pre id="vigil-oob-ranks" class="sim-telemetry" aria-live="polite">Faction rank structure loading…</pre></div></div>
+  <div class="spatial-track-detail"><strong>SHIP CREWS // GROUNDED COMPLEMENTS</strong><p>Patrol craft: 20–60 crew. Corvette / frigate: 80–200. Destroyer / cruiser: 200–500. Larger flagships require an explicitly configured complement rather than an assumed universal number. Departments and watch teams have numbered rosters; crew size is vessel-specific.</p></div>
+  <div class="spatial-track-detail"><strong>LOCAL TERRITORY ASSIGNMENT RULES</strong><ul>
+    <li><b>Squad:</b> one named installation section, access point, patrol route, or local zone; led by an appointed squad leader.</li>
+    <li><b>Platoon:</b> several squads coordinating one installation or adjacent local zones; led by an eligible platoon commander.</li>
+    <li><b>Company:</b> several platoons assigned to a site complex or group of nearby installations.</li>
+    <li><b>Battalion:</b> multiple companies coordinating a local district or installation cluster; no automatic ownership of a whole planet or star system.</li>
+    <li><b>Legion:</b> a faction-specific higher formation above battalions. It coordinates subordinate commands; local zones remain explicitly assigned to subordinate units.</li>
+  </ul><p>Every territory record needs a unique zone ID, location/type, owning faction, assigned unit ID, responsible commander/billet, superior unit ID, status (held / contested / unassigned), and assignment history. Rank alone never grants ownership. A reassignment requires an authorized superior command, a valid target unit, and an audit event; units cannot claim overlapping exclusive zones without a conflict flag.</p></div>
+  <div class="spatial-track-detail"><strong>NUMBERING CONVENTION</strong><p>Use faction prefix + formation number + echelon + subordinate number, for example <code>WYCF-01-BN-02-CO-03-PLT-01-SQD-02</code>. Ship IDs are separate from crew-unit IDs (for example <code>PRO-SS-014</code> and <code>PRO-SS-014-ENG-DIV-02</code>). IDs are stable across reassignment; territory and command billets are records, not encoded permanently into the unit ID.</p></div>
+</section>
 <div id="sim-shipyard" class="sim-shipyard">
 <h3>SHIPYARD // BLUEPRINT-DERIVED SCALE ROSTER</h3>
 <p class="muted">Historical hull proportions are drawn from published principal dimensions; linked archival plans are the reference set for later geometry refinement. Scale diagrams preserve length-to-beam ratio, not every hull contour.</p>
@@ -3138,14 +3155,17 @@ var feedback=document.getElementById('vigil-cb-instructor-feedback');
 var log=document.getElementById('vigil-cb-log');
 var history=[];
 var factionProfiles={
- WYCF:{name:'WEYLAND-YUTANI COLONIAL FLEET',prefix:'WYCF'},
- PRO:{name:'PRODIGY FLEET',prefix:'PRO'},
- LYN:{name:'LYNCH FLEET',prefix:'LYN'},
- DYN:{name:'DYNAMIC FLEET',prefix:'DYN'},
- THR:{name:'THRESHOLD FLEET',prefix:'THR'}
+ WYCF:{name:'WEYLAND-YUTANI COLONIAL FLEET',prefix:'WYCF',ranks:['Contract Recruit','Security Specialist','Senior Specialist','Team Sergeant','Chief Warrant Officer','Lieutenant','Commander','Director of Operations']},
+ PRO:{name:'PRODIGY EXPEDITIONARY SECURITY',prefix:'PRO',ranks:['Field Recruit','Technical Operator','Senior Research Escort','Team Lead','Mission Warrant','Research Lieutenant','Operations Commander','Director of Expeditionary Security']},
+ LYN:{name:'LYNCH MERCENARY COMMAND',prefix:'LYN',ranks:['Contract Trooper','Raider','Veteran Trooper','Squad Sergeant','Company Sergeant','Lieutenant','Commander','War Marshal']},
+ DYN:{name:'DYNAMIC SECURITY & LOGISTICS',prefix:'DYN',ranks:['Industrial Guard','Systems Specialist','Senior Systems Specialist','Shift Sergeant','Logistics Warrant','Operations Lieutenant','Facility Commander','Regional Security Director']},
+ THR:{name:'THRESHOLD CONTAINMENT COMMAND',prefix:'THR',ranks:['Containment Recruit','Hazard Operator','Senior Containment Specialist','Containment Sergeant','Quarantine Warrant','Containment Lieutenant','Site Commander','Theater Containment Director']}
 };
 function updateFactionStation(){
  var profile=factionProfiles[faction.value]||factionProfiles.WYCF;
+ if(rank){var previousRank=rank.value;rank.textContent='';profile.ranks.forEach(function(title){var option=document.createElement('option');option.value=title.toUpperCase();option.textContent=title.toUpperCase();rank.appendChild(option);});rank.value=profile.ranks.some(function(title){return title.toUpperCase()===previousRank;})?previousRank:profile.ranks[0].toUpperCase();}
+ var oobFaction=document.getElementById('vigil-oob-faction');if(oobFaction&&oobFaction.value!==faction.value)oobFaction.value=faction.value;
+ renderOrderOfBattle(faction.value);
  var currentSender=sender.value.slice(sender.value.indexOf('-')+1);
  var senderRole=currentSender==='02'?'02':currentSender.indexOf('TRAIN')===0?'TRAIN-01':'01';
  var senderOptions=[
@@ -3202,4 +3222,34 @@ root.querySelectorAll('[data-cb-action]').forEach(function(button){
 });
 })();
 </script>
+
+<script>
+(function(){
+'use strict';
+var profiles={
+ WYCF:{name:'WEYLAND-YUTANI',motive:'ACQUISITION AND EXPLOITATION',culture:'Contract performance, asset security, operational discipline, and loyalty to the corporate contract.',ranks:['Contract Recruit','Security Specialist','Senior Specialist','Team Sergeant','Chief Warrant Officer','Lieutenant','Commander','Director of Operations']},
+ PRO:{name:'PRODIGY',motive:'SCIENTIFIC SUPREMACY',culture:'Technical expertise, intelligence collection, specialist teams, and protection of research assets.',ranks:['Field Recruit','Technical Operator','Senior Research Escort','Team Lead','Mission Warrant','Research Lieutenant','Operations Commander','Director of Expeditionary Security']},
+ LYN:{name:'LYNCH',motive:'STRATEGIC DOMINANCE',culture:'Aggressive initiative, demonstrated operational success, disciplined force, and calculated intimidation.',ranks:['Contract Trooper','Raider','Veteran Trooper','Squad Sergeant','Company Sergeant','Lieutenant','Commander','War Marshal']},
+ DYN:{name:'DYNAMIC',motive:'INDUSTRIAL AND LOGISTICAL CONTROL',culture:'Engineering competence, sustainment, site protection, and reliable logistics.',ranks:['Industrial Guard','Systems Specialist','Senior Systems Specialist','Shift Sergeant','Logistics Warrant','Operations Lieutenant','Facility Commander','Regional Security Director']},
+ THR:{name:'THRESHOLD',motive:'CONTAINMENT AND FRONTIER SECURITY',culture:'Containment discipline, clearance controls, compartmentalized command, and mission-first security.',ranks:['Containment Recruit','Hazard Operator','Senior Containment Specialist','Containment Sergeant','Quarantine Warrant','Containment Lieutenant','Site Commander','Theater Containment Director']}
+};
+var selector=document.getElementById('vigil-oob-faction'),motive=document.getElementById('vigil-oob-motive'),doctrine=document.getElementById('vigil-oob-doctrine'),units=document.getElementById('vigil-oob-units'),ranks=document.getElementById('vigil-oob-ranks');
+function renderOrderOfBattle(key){
+ if(!selector||!motive||!doctrine||!units||!ranks)return;
+ var p=profiles[key]||profiles.WYCF;selector.value=key in profiles?key:'WYCF';
+ motive.textContent=p.name+' // '+p.motive;doctrine.textContent=p.culture;
+ units.textContent='01 SQUAD      6–10 personnel  | squad leader: rank tier 3+\n'+
+'   └─ 01 PLATOON  3 squads / 20–40 personnel | platoon leader: tier 5+\n'+
+'      └─ 01 COMPANY  3–4 platoons / 80–160 personnel | company commander: tier 6+\n'+
+'         └─ 01 BATTALION  3–5 companies / approx. 300–800 | battalion commander: tier 7+\n'+
+'            └─ 01 LEGION  variable battalions / higher formation | legion commander: tier 8\n\n'+
+'GROUND UNITS ARE NUMBERED WITHIN THEIR PARENT. LEGION IS A SETTING-SPECIFIC UPPER FORMATION, NOT A FIXED PERSONNEL COUNT.';
+ranks.textContent=p.ranks.map(function(rank,index){var tier=index+1,appointment=tier<=2?'crew / specialist; no independent unit command':tier===3?'fireteam or small squad leadership when appointed':tier===4?'squad leader / senior enlisted billet':tier===5?'platoon leader or technical warrant billet':tier===6?'company command or small-vessel command billet':tier===7?'battalion / larger-vessel command billet':'legion-level or top faction command billet';return 'T'+tier+'  '+rank.toUpperCase()+'\n    '+appointment;}).join('\n');
+}
+if(selector)selector.addEventListener('change',function(){var radioFaction=document.getElementById('vigil-cb-faction');if(radioFaction&&radioFaction.value!==selector.value){radioFaction.value=selector.value;radioFaction.dispatchEvent(new Event('change'));}renderOrderOfBattle(selector.value);});
+var radioFaction=document.getElementById('vigil-cb-faction');if(radioFaction)radioFaction.addEventListener('change',function(){if(selector)selector.value=this.value;renderOrderOfBattle(this.value);});
+renderOrderOfBattle(selector?selector.value:'WYCF');
+})();
+</script>
+
 </body></html>
