@@ -2499,9 +2499,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       rationale:reason
     };
   }
-  function runVigilReconStep(){
-    var output=document.getElementById('sim-vigil-decision');
-    var decision=chooseVigilReconAct  var sonarWaterfallHistory=[];
+  var sonarWaterfallHistory=[];
   function renderNavalSonar(data){
     var scope=document.getElementById('sim-sonar-scope'),waterfall=document.getElementById('sim-sonar-waterfall');if(!scope||!waterfall)return;
     var sc=scope.getContext('2d'),wc=waterfall.getContext('2d'),sw=scope.width,sh=scope.height,cx=sw/2,cy=sh/2-2,r=Math.min(sw,sh)*.41;
@@ -2532,6 +2530,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     wc.fillStyle='#8ad8b5';wc.font='11px monospace';wc.fillText('BEARING →',8,14);wc.fillText('TIME ↓',8,waterfall.height-8);
     var status=document.getElementById('sim-sonar-console-status'),readout=document.getElementById('sim-sonar-readout');if(status)status.textContent=(data&&data.metadata&&data.metadata.sonar_posture!=='not_applicable'?String(data.metadata.sonar_posture).toUpperCase():'SONAR SELECT MODE')+' · SWEEP '+(data&&data.revision?data.revision:'—');if(readout)readout.textContent=objects.length?objects.map(function(o,i){var p=o.normalized_position||[.5,.5],bearing=(Math.atan2(Number(p[0])-.5,Number(p[1])-.5)*180/Math.PI+360)%360;return 'CONTACT '+String(i+1).padStart(2,'0')+' // BEARING EST '+bearing.toFixed(0)+'° // UNCERTAINTY ±'+o.uncertainty_m+' m // '+Math.round(100/(1+Number(o.uncertainty_m||0)/10))+'% RELATIVE CONFIDENCE';}).join('\\n'):'NO CONTACTS DETECTED // BACKGROUND NOISE / SENSOR MISS POSSIBLE';
   }
+
   // Shared illustrative fleet state: normalized regional coordinates and degrees clockwise from north.
   var regionalTrainingFleet=[
     {id:'DDG-51',name:'ARLEIGH BURKE-CLASS',x:.35,y:.44,lengthM:153.92,beamM:18.0,heading:28,speed:.018,maxSpeed:.04,weaponRange:.23,weaponDamage:2,weaponReloadSeconds:8,weaponCooldownRemaining:0,hull:6,maxHull:6,shipClass:'destroyer',side:'friendly',afloat:true,source:'U.S. Navy DDG-51 fact sheet'},
@@ -2851,7 +2850,9 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   })();
 
   startRegionalFleet();
-ion(lastObservationData);
+  function runVigilReconStep(){
+    var output=document.getElementById('sim-vigil-decision');
+    var decision=chooseVigilReconAction(lastObservationData);
     if(!decision){
       if(output)output.textContent='VIGIL DECISION // NO OBSERVATION REGISTER AVAILABLE. RUN RECON SWEEP FIRST.';
       return {ok:false,reason:'no_observations'};
