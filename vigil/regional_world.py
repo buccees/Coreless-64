@@ -265,17 +265,35 @@ class RegionalWorld:
             if ship.ship_id in visible_ship_ids
         ]
 
-    def public_snapshot(self, visible_ship_ids: set[str]) -> dict[str, object]:
-        """Return a versioned browser/API snapshot of authorized ship observations.
+    def public_snapshot(
+        self, visible_ship_ids: set[str], *,
+        world_bounds: tuple[float, float, float, float] | None = None,
+    ) -> dict[str, object]:
+        """Return a versioned browser/API snapshot of authorized observations.
 
-        Coordinates retain the world model units. A renderer must establish its
-        coordinate transform; this method never reveals ships outside the allowlist.
+        ``world_bounds`` is (min_x, min_y, max_x, max_y). When supplied, the
+        snapshot includes normalized map positions only for ships inside bounds.
+        Without bounds, only already-normalized world coordinates in [0, 1] are
+        mapped. Hidden ships are never included.
         """
-        return {
-            "schema_version": 1,
-            "turn": self.turn,
-            "ships": self.public_map(visible_ship_ids),
-        }
+        if world_bounds is not None:
+            min_x, min_y, max_x, max_y = world_bounds
+            if not all(isfinite(v) for v in world_bounds) or max_x <= min_x or max_y <= min_y:
+                raise RegionalWorldError("world_bounds must be finite with positive width and height")
+        ships = []
+        for item in self.public_map(visible_ship_ids):
+            x, y = float(item["x"]), float(item["y"])
+            if world_bounds is None:
+                if not (0 <= x <= 1 and 0 <= y <= 1):
+                    continue
+                normalized = [x, y]
+            else:
+                if not (min_x <= x <= max_x and min_y <= y <= max_y):
+                    continue
+                normalized = [(x - min_x) / (max_x - min_x), (y - min_y) / (max_y - min_y)]
+            item["normalized_position"] = normalized
+            ships.append(item)
+        return {"schema_version": 1, "turn": self.turn, "ships": ships}
     def _ship(self, ship_id: str) -> RegionalShip:
         try:
             return self.ships[ship_id]
