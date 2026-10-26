@@ -119,3 +119,26 @@ def test_invalid_ai_output_degrades_safely_and_bad_token_is_rejected():
     assert RegionalOpponent(registry).take_turn(game, "invalid") == {
         "ok": False, "source": "none", "error": "unauthorized"
     }
+
+
+def test_fallback_fires_when_authorized_contact_is_in_weapon_range():
+    world = RegionalWorld([
+        RegionalShip.from_class(
+            ship_id="red", name="Red Ship", ship_class="frigate",
+            x=0.2, y=0.3, speed=0.01, weapon_range=0.2,
+        ),
+        RegionalShip.from_class(
+            ship_id="blue", name="Blue Ship", ship_class="destroyer",
+            x=0.3, y=0.3, speed=0.01,
+        ),
+    ])
+    game = RegionalGame(world)
+    game.register_player(
+        player_id="opponent", token="opponent-secret",
+        controlled_ship_ids={"red"}, visible_ship_ids={"red", "blue"},
+    )
+    result = RegionalOpponent().take_turn(game, "opponent-secret")
+    assert result["ok"] is True
+    assert result["source"] == "fallback"
+    assert result["result"]["operation"] == "fire_weapon"
+    assert world.ships["blue"].hull == world.ships["blue"].max_hull - 1
