@@ -2315,15 +2315,15 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     onlineRequest('/api/multiplayer/fire','POST',{row:row,column:column},onlineSession.token).then(function(result){
       var shot=result.outgoing_shots.find(function(item){return item.row===row&&item.column===column;});
       if(shot)status.textContent=shot.hit?'CONFIRMED HIT // '+String.fromCharCode(65+column)+(row+1):'MISS // '+String.fromCharCode(65+column)+(row+1);
-      onlineState=result;renderBoard();updateMetrics();
+      onlineState=result;renderBoard();updateMetrics();onlineRequestBusy=false;
       return onlineSync();
-    }).catch(function(error){status.textContent='SHOT REJECTED // '+error.message;return onlineSync();}).finally(function(){onlineRequestBusy=false;});
+    }).catch(function(error){status.textContent='SHOT REJECTED // '+error.message;onlineRequestBusy=false;return onlineSync();}).finally(function(){onlineRequestBusy=false;});
   }
   function afloat(fleet){return fleet.filter(function(v){return Object.keys(v.hits).length<v.size;}).length;}
   function allSunk(fleet){return afloat(fleet)===0;}
   function initialize(){
     enemyFleet=mode.value==='online'?[]:makeFleet();playerFleet={1:mode.value==='online'?[]:makeFleet()};shotsByPlayer={1:{}};aiShots={};
-    activePlayer=1;placementMode=false;placementIndex=0;placementVertical=false;document.getElementById("sim-manual-setup").textContent="MANUAL FLEET SETUP";document.getElementById("sim-rotate").disabled=true;document.getElementById("sim-rotate").textContent="ORIENTATION: HORIZONTAL";ownFleetView=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;sweepCount=0;reconTracks=Object.create(null);lastObservationData=null;selectedReconTrackId=null;reconTruthById=Object.create(null);reconIdentityBySource=Object.create(null);document.getElementById("sim-recon-investigate").disabled=true;gameOver=false;sequence++;
+    activePlayer=1;placementMode=false;placementIndex=0;placementVertical=false;document.getElementById("sim-publish").disabled=mode.value==='online';document.getElementById("sim-manual-setup").textContent="MANUAL FLEET SETUP";document.getElementById("sim-rotate").disabled=true;document.getElementById("sim-rotate").textContent="ORIENTATION: HORIZONTAL";ownFleetView=false;document.getElementById("sim-view-fleet").setAttribute("aria-pressed","false");document.getElementById("sim-view-fleet").textContent="VIEW OWN FLEET";shotCount=0;hitCount=0;aiHitCount=0;observationCount=0;sweepCount=0;reconTracks=Object.create(null);lastObservationData=null;selectedReconTrackId=null;reconTruthById=Object.create(null);reconIdentityBySource=Object.create(null);document.getElementById("sim-recon-investigate").disabled=true;gameOver=false;sequence++;
     renderBoard();updateMetrics();status.textContent=mode.value==='online'?'ONLINE MODE // PLACE YOUR FLEET, THEN CREATE OR JOIN A ROOM':'SOLO ENGAGEMENT // SELECT A CELL TO FIRE';
     document.getElementById('sim-telemetry').textContent='SENSOR STANDBY // NEW EXERCISE '+sequence+'\nCOMPUTER DEFENSE: '+(mode.value==='solo'?'ARMED':'DISABLED');
     publish(false,false);
@@ -2345,7 +2345,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       var k=key(r,c),b=document.createElement('button');b.type='button';b.className='sim-cell';b.setAttribute('role','gridcell');b.setAttribute('aria-label',String.fromCharCode(65+c)+(r+1));b.dataset.row=r;b.dataset.col=c;
       if(placementMode||ownFleetView){var vessel=vesselAt(displayFleet,r,c);if(vessel){b.classList.add("ship");b.textContent=vessel.name.charAt(0);b.setAttribute("aria-label",b.getAttribute("aria-label")+" "+vessel.name);}if(ownFleetView&&displayShots[k]){b.classList.add(displayShots[k]);if(displayShots[k]==="hit")b.classList.add("incoming-hit");b.textContent=displayShots[k]==="hit"?"X":(vessel?vessel.name.charAt(0):"·");b.setAttribute("aria-label",b.getAttribute("aria-label")+(displayShots[k]==="hit"?" incoming hit":" incoming miss"));}if(placementMode){b.disabled=false;b.addEventListener("pointerenter",function(event){previewPlacement(Number(event.currentTarget.dataset.row),Number(event.currentTarget.dataset.col));});b.addEventListener("focus",function(event){previewPlacement(Number(event.currentTarget.dataset.row),Number(event.currentTarget.dataset.col));});b.addEventListener("click",function(event){placeManualCell(Number(event.currentTarget.dataset.row),Number(event.currentTarget.dataset.col));});}else b.disabled=true;}
       else if(shots[k]){b.disabled=true;b.classList.add(shots[k]);b.textContent=shots[k]==='hit'?'X':'·';b.setAttribute('aria-label',b.getAttribute('aria-label')+(shots[k]==='hit'?' confirmed hit':' miss'));}
-      else{b.textContent=String.fromCharCode(65+c)+(r+1);b.addEventListener('click',fire);}
+      else{b.textContent=String.fromCharCode(65+c)+(r+1);if(mode.value==='online'&&(!onlineSession||!onlineState||!onlineState.ready||onlineState.turn!==onlineSession.player||gameOver))b.disabled=true;else b.addEventListener('click',fire);}
       board.appendChild(b);
     }
     var head=board.parentElement.querySelector('.sim-board-head strong');
