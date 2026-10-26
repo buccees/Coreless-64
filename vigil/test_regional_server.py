@@ -18,7 +18,7 @@ def sample_config():
         "ships": [
             {
                 "ship_id": "blue", "name": "Blue Ship", "ship_class": "destroyer",
-                "x": 10, "y": 20, "speed": 0.5, "max_speed": 0.75, "heading_deg": 90,
+                "x": 10, "y": 20, "speed": 0.5, "max_speed": 0.75, "weapon_reload_seconds": 7.5, "heading_deg": 90,
                 "length_m": 155, "beam_m": 20,
                 "blueprint_source": "cited-plan-source",
             },
@@ -47,6 +47,7 @@ def test_load_game_config_creates_authoritative_world_and_player_sessions(tmp_pa
     assert game.world.ships["blue"].aspect_ratio == 7.75
     assert game.world.ships["blue"].heading_deg == 90
     assert game.world.ships["blue"].max_speed == pytest.approx(0.75)
+    assert game.world.ships["blue"].weapon_reload_seconds == pytest.approx(7.5)
     assert [ship["ship_id"] for ship in game.snapshot("host-secret")["ships"]] == ["blue"]
     assert [ship["ship_id"] for ship in game.snapshot("opponent-secret")["ships"]] == ["red"]
 
