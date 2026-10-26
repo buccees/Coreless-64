@@ -139,3 +139,42 @@ def test_terminal_labels_last_known_position_and_never_claims_stale_motion():
     assert "stationary-crate: STATIONARY" not in output
     assert "age=4999ms" in output
 
+
+
+def test_main_terminal_renders_authorized_sonar_sweep():
+    from vigil.underwater import SonarMode, SonarSensor, UnderwaterTarget, simulate_sonar_sweep
+
+    model = fixture_model()
+    sweep = simulate_sonar_sweep(
+        SonarSensor("sonar-ui", SonarMode.PASSIVE, 5000, sensitivity=1.0,
+                    environmental_noise=0.0),
+        [UnderwaterTarget("secret-sub-id", 900, 0, 100, acoustic_signature=1.0)],
+        sensor_position_m=(0, 0),
+        timestamp_ns=10,
+    )
+    output = VigilTerminal(color=False).render(
+        model, fixture_pose(model), now_ns=10, sonar_sweeps=[sweep]
+    )
+    assert "UNDERWATER / SONAR" in output
+    assert "sonar-ui PASSIVE" in output
+    assert "range~" in output
+    assert "secret-sub-id" not in output
+
+
+def test_main_terminal_marks_old_sonar_sweep_stale():
+    from vigil.underwater import SonarMode, SonarSensor, UnderwaterTarget, simulate_sonar_sweep
+
+    model = fixture_model()
+    sweep = simulate_sonar_sweep(
+        SonarSensor("sonar-old", SonarMode.ACTIVE, 5000, sensitivity=1.0,
+                    environmental_noise=0.0),
+        [UnderwaterTarget("secret-sub-old", 900, 0, 100, acoustic_signature=1.0)],
+        sensor_position_m=(0, 0),
+        timestamp_ns=10,
+    )
+    output = VigilTerminal(color=False).render(
+        model, fixture_pose(model), now_ns=3_000_000_010, sonar_sweeps=[sweep]
+    )
+    assert "sonar-old ACTIVE" in output
+    assert "STALE" in output
+    assert "secret-sub-old" not in output
