@@ -41,6 +41,8 @@ class RegionalShip:
     hull: int | None = None
     weapon_damage: int = 1
     weapon_range: float = 0.15
+    weapon_reload_seconds: float = 5.0
+    weapon_cooldown_remaining: float = 0.0
     movement_spent: float = 0.0
     damage_by_system: dict[str, int] = field(default_factory=dict)
     sunk: bool = False
@@ -56,7 +58,8 @@ class RegionalShip:
     def from_class(
         cls, *, ship_id: str, name: str, ship_class: str, x: float, y: float,
         speed: float, weapon_damage: int = 1, weapon_range: float = 0.15,
-        faction_id: str | None = None, max_speed: float | None = None
+        faction_id: str | None = None, max_speed: float | None = None,
+        weapon_reload_seconds: float = 5.0
     ) -> "RegionalShip":
         """Create a ship whose hull points are determined by its class."""
         key = ship_class.strip().lower()
@@ -65,8 +68,8 @@ class RegionalShip:
         return cls(
             ship_id=ship_id, name=name, x=x, y=y, speed=speed,
             max_hull=SHIP_CLASS_HULL[key], weapon_damage=weapon_damage,
-            weapon_range=weapon_range, ship_class=key, faction_id=faction_id,
-            max_speed=max_speed,
+            weapon_range=weapon_range, weapon_reload_seconds=weapon_reload_seconds,
+            ship_class=key, faction_id=faction_id, max_speed=max_speed,
         )
 
     @classmethod
@@ -75,7 +78,7 @@ class RegionalShip:
         speed: float, length_m: float, beam_m: float, blueprint_source: str,
         max_hull: int, weapon_damage: int = 1, weapon_range: float = 0.15,
         heading_deg: float = 0.0, faction_id: str | None = None,
-        max_speed: float | None = None
+        max_speed: float | None = None, weapon_reload_seconds: float = 5.0
     ) -> "RegionalShip":
         """Create a dimensioned ship from a cited blueprint/specification source.
 
@@ -94,6 +97,7 @@ class RegionalShip:
             ship_class=ship_class, length_m=length_m, beam_m=beam_m,
             blueprint_source=blueprint_source.strip(), heading_deg=heading_deg,
             faction_id=faction_id, max_speed=max_speed,
+            weapon_reload_seconds=weapon_reload_seconds,
         )
 
     @property
@@ -124,6 +128,12 @@ class RegionalShip:
             raise RegionalWorldError("weapon_damage must be positive")
         if not isinstance(self.weapon_range, (int, float)) or not isfinite(self.weapon_range) or self.weapon_range <= 0:
             raise RegionalWorldError("weapon_range must be a finite positive number")
+        if (type(self.weapon_reload_seconds) not in (int, float)
+                or not isfinite(self.weapon_reload_seconds) or self.weapon_reload_seconds <= 0):
+            raise RegionalWorldError("weapon_reload_seconds must be a finite positive number")
+        if (type(self.weapon_cooldown_remaining) not in (int, float)
+                or not isfinite(self.weapon_cooldown_remaining) or self.weapon_cooldown_remaining < 0):
+            raise RegionalWorldError("weapon_cooldown_remaining must be a finite non-negative number")
         if self.hull is None:
             self.hull = self.max_hull
         if not 0 <= self.hull <= self.max_hull:
@@ -212,6 +222,10 @@ class RegionalWorld:
             raise RegionalWorldError("delta_seconds must be a finite positive number")
         results: list[MovementResult] = []
         for ship in self.ships.values():
+            if ship.afloat and ship.weapon_cooldown_remaining > 0:
+                ship.weapon_cooldown_remaining = max(
+                    0.0, float(ship.weapon_cooldown_remaining) - float(delta_seconds)
+                )
             if not ship.afloat:
                 continue
             start = (ship.x, ship.y)
