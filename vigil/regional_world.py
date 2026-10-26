@@ -8,7 +8,7 @@ It is a game abstraction, not a naval-performance simulator.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from math import hypot
+from math import cos, hypot, isfinite, radians, sin
 from typing import Iterable
 
 
@@ -185,6 +185,30 @@ class RegionalWorld:
             distance=distance,
             movement_remaining=ship.movement_remaining,
         )
+
+    def advance_realtime_tick(self, delta_seconds: float) -> list[MovementResult]:
+        """Advance all afloat ships together for a fixed real-time interval.
+
+        Speed is world-coordinate units per second. Heading is degrees clockwise
+        from north (0=north, 90=east). This is separate from campaign movement
+        allowances, so real-time ticks do not spend the campaign movement budget.
+        """
+        if not isinstance(delta_seconds, (int, float)) or not isfinite(delta_seconds) or delta_seconds <= 0:
+            raise RegionalWorldError("delta_seconds must be a finite positive number")
+        results: list[MovementResult] = []
+        for ship in self.ships.values():
+            if not ship.afloat:
+                continue
+            start = (ship.x, ship.y)
+            distance = ship.speed * float(delta_seconds)
+            angle = radians(ship.heading_deg)
+            ship.x += sin(angle) * distance
+            ship.y += cos(angle) * distance
+            results.append(MovementResult(
+                ship_id=ship.ship_id, start=start, end=(ship.x, ship.y),
+                distance=distance, movement_remaining=ship.movement_remaining,
+            ))
+        return results
 
     def apply_hit(
         self, target_id: str, damage: int | None = None, *, system: str = "hull"
