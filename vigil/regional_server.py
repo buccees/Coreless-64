@@ -57,6 +57,7 @@ def load_game_config(
             ship_class=ship_class, x=item.get("x"), y=item.get("y"),
             speed=item.get("speed"), weapon_damage=item.get("weapon_damage", 1),
             weapon_range=item.get("weapon_range", 0.15),
+            weapon_reload_seconds=item.get("weapon_reload_seconds", 5.0),
             faction_id=item.get("faction_id"),
             max_speed=item.get("max_speed"),
         )
