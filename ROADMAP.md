@@ -2,6 +2,17 @@
 
 **Side quests:** [Open the dedicated Side Quests page](SIDE_QUESTS.md) for optional experiments that should not displace core machine-development priorities.
 
+## Immediate VIGIL priority queue — updated 2026-10-26
+
+Work these items in order; keep existing priorities below this queue unless explicitly reordered.
+
+1. **Underwater simulation → sonar sensor → terminal/game display.** Trace the existing simulation-to-sensor-to-terminal path first. Add simulated submerged contacts and underwater conditions, feed generated active/passive sonar observations through the existing authorized sensor pipeline, and display sensor state, estimated contacts/range, confidence, uncertainty, and stale status. Keep physical sonar hardware integration explicitly unverified until a real driver/data path is demonstrated.
+2. **Fog of War player-isolation regression tests.** Verify that each player's contact picture and autonomous recon decisions use only that player's authorized observations; hidden truth remains evaluator-only.
+3. **Preserve and extend the green autonomous-recon regression baseline.** Keep conflict follow-up, last-known-contact reacquisition, movement-aware uncertainty growth, and no-hidden-truth output assertions passing.
+4. **Continue the existing VIGIL sensor-loop and multiplayer work** without claiming physical sensor connectivity or multiplayer transport until end-to-end checks prove it.
+
+Underwater/sonar acceptance checks: simulated submerged contacts are not directly visible to players; active and passive sonar produce distinct observation behavior; missed/noisy detections and stale tracks are represented; sonar observations reach the terminal/game display through the sensor pipeline; player-isolation and Fog of War tests pass.
+
 ## Portability and hardware-identity goals
 
 **The SSD holds the whole Coreless-64 machine, including its execution engine, OS/environment, configuration, and persistent state.** The OS runs on that machine. Lubuntu is the user's preferred OS for initial bring-up, not a host OS that owns Coreless execution. Keep the machine architecture, boot path, device model, and OS/runtime authority distinct from the chosen operating system. The portability goal is to boot and operate the Coreless machine from a broad range of supported SSDs and to expose Coreless's own identity through suitable hardware interfaces. The engineering goal is the complete SSD-carried machine, not a program installed on a host. Validate its execution/boot path and required physical interfaces against that architecture.
