@@ -142,3 +142,19 @@ def test_realtime_tick_rejects_invalid_elapsed_time(delta):
     world = RegionalWorld([ship()])
     with pytest.raises(RegionalWorldError, match="finite positive number"):
         world.advance_realtime_tick(delta)
+
+
+def test_public_snapshot_is_versioned_and_contains_only_authorized_ships():
+    world = RegionalWorld([
+        ship("friendly", x=0.25, y=0.75, speed=2.5, heading_deg=90),
+        ship("hidden", name="Hidden Enemy", x=0.8, y=0.2),
+    ])
+    snapshot = world.public_snapshot({"friendly"})
+    assert snapshot["schema_version"] == 1
+    assert snapshot["turn"] == 1
+    assert len(snapshot["ships"]) == 1
+    visible = snapshot["ships"][0]
+    assert visible["ship_id"] == "friendly"
+    assert visible["x"] == 0.25 and visible["y"] == 0.75
+    assert visible["speed"] == 2.5 and visible["heading_deg"] == 90
+    assert "Hidden Enemy" not in repr(snapshot)
