@@ -54,7 +54,8 @@ class RegionalOpponent:
                 prompt=(
                     "Choose exactly one legal VIGIL ship command for this turn. "
                     "Return only JSON with keys operation and arguments. "
-                    'Allowed operations: set_heading with ship_id and heading_deg; '
+                    'Allowed operations: fire_weapon with ship_id and target_id; '
+                    'set_heading with ship_id and heading_deg; '
                     "campaign_move with ship_id, x, and y. Only command ships in "
                     "controlled_ship_ids. Use only the supplied observation; "
                     "do not invent unseen contacts or fields."
@@ -100,7 +101,7 @@ class RegionalOpponent:
         if not isinstance(proposal, dict):
             return None
         operation, arguments = proposal.get("operation"), proposal.get("arguments")
-        if operation not in {"set_heading", "campaign_move"} or not isinstance(arguments, dict):
+        if operation not in {"fire_weapon", "set_heading", "campaign_move"} or not isinstance(arguments, dict):
             return None
         return operation, arguments
 
@@ -120,8 +121,17 @@ class RegionalOpponent:
         ]
         if not own or not contacts:
             return None
-        target = contacts[0]
         try:
+            # Fire whenever an authorized visible target is in the ship's configured range.
+            for ship in own:
+                sx, sy = float(ship["x"]), float(ship["y"])
+                for target in contacts:
+                    tx, ty = float(target["x"]), float(target["y"])
+                    if (tx - sx) ** 2 + (ty - sy) ** 2 <= float(ship.get("weapon_range", 0.15)) ** 2:
+                        return "fire_weapon", {
+                            "ship_id": ship["ship_id"], "target_id": target["ship_id"]
+                        }
+            target = contacts[0]
             tx, ty = float(target["x"]), float(target["y"])
             own.sort(key=lambda item: (
                 (float(item["x"]) - tx) ** 2 + (float(item["y"]) - ty) ** 2
