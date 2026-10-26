@@ -318,3 +318,12 @@ console.log("VIGIL audit retention and review decision scenarios: 2 scenario gro
   assert.equal(context.regionalTrainingFleet.some(v => v.x === 0.99 && v.y === 0.98), false);
 }
 console.log("VIGIL regional visibility boundary: 1 scenario group passed.");
+
+
+// Local pass-and-play must not return; MMO sign-in must remain HTTPS-only and login-first.
+assert.equal(html.includes('id="sim-mode"'), false, "engagement-mode selector must be removed");
+assert.equal(/hotseat|PASS DEVICE|pass-and-play/i.test(html), false, "local pass-and-play UI and branches must be absent");
+assert.equal(html.includes('id="vigil-regional-login"'), true, "regional server login control must exist");
+assert.equal(html.includes("endpoint.protocol!=='https:'"), true, "server login must enforce HTTPS");
+assert.equal(html.includes("'/api/auth/login'"), true, "client must use the documented authentication endpoint");
+console.log("VIGIL multiplayer mode and HTTPS login contract: 1 scenario group passed.");
