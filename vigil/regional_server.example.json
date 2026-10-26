@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "world_bounds": [0, 0, 1, 1],
+  "ships": [
+    {
+      "ship_id": "player-destroyer",
+      "name": "PLAYER DESTROYER",
+      "ship_class": "destroyer",
+      "x": 0.22,
+      "y": 0.28,
+      "speed": 0.002,
+      "heading_deg": 90,
+      "weapon_damage": 1,
+      "weapon_range": 0.18
+    },
+    {
+      "ship_id": "ai-frigate",
+      "name": "AI FRIGATE",
+      "ship_class": "frigate",
+      "x": 0.76,
+      "y": 0.72,
+      "speed": 0.0015,
+      "heading_deg": 225,
+      "weapon_damage": 1,
+      "weapon_range": 0.15
+    }
+  ],
+  "players": [
+    {
+      "player_id": "host",
+      "token_env": "VIGIL_HOST_TOKEN",
+      "controlled_ship_ids": ["player-destroyer"],
+      "visible_ship_ids": ["player-destroyer", "ai-frigate"]
+    },
+    {
+      "player_id": "computer",
+      "ai": true,
+      "controlled_ship_ids": ["ai-frigate"],
+      "visible_ship_ids": ["ai-frigate", "player-destroyer"]
+    }
+  ]
+}
