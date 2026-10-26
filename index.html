@@ -2843,8 +2843,31 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     {id:'DDG-51',name:'ARLEIGH BURKE-CLASS',x:.35,y:.44,lengthM:153.92,beamM:18.0,heading:28,speed:.018,source:'U.S. Navy DDG-51 fact sheet'},
     {id:'CVN',name:'NIMITZ-CLASS',x:.66,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,source:'U.S. Navy Nimitz-class fact sheet'}
   ];
+  var regionalWorldSnapshotActive=false;
   var regionalFleetTimer=null;
   var regionalFleetLastTick=0;
+  // API integration seam: accepts only already-authorized public snapshots.
+  // normalized_position is [x,y] in map coordinates (0..1), supplied by the
+  // server's world-to-map transform; raw world coordinates are never guessed.
+  window.setVigilRegionalWorldSnapshot=function(snapshot){
+    if(!snapshot||snapshot.schema_version!==1||!Array.isArray(snapshot.ships))return false;
+    var next=[];
+    for(var i=0;i<snapshot.ships.length;i++){
+      var s=snapshot.ships[i],p=s.normalized_position;
+      if(!s||typeof s.ship_id!=='string'||!Array.isArray(p)||p.length!==2)continue;
+      if(!p.every(function(v){return typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1;}))continue;
+      if(typeof s.heading_deg!=='number'||!Number.isFinite(s.heading_deg))continue;
+      next.push({id:s.ship_id,name:String(s.name||s.ship_id),x:p[0],y:p[1],
+        lengthM:Number(s.length_m)||18,beamM:Number(s.beam_m)||4,
+        heading:s.heading_deg,source:String(s.blueprint_source||''),
+        speed:Number(s.speed)||0,shipClass:String(s.ship_class||'unknown'),
+        afloat:s.afloat!==false});
+    }
+    pauseRegionalFleet();regionalWorldSnapshotActive=true;regionalTrainingFleet=next;
+    renderBathymetry(lastObservationData);return true;
+  };
+  window.clearVigilRegionalWorldSnapshot=function(){regionalWorldSnapshotActive=false;resetRegionalFleet();};
+  
   function stepRegionalFleet(now){
     if(!regionalFleetLastTick)regionalFleetLastTick=now;
     var dt=Math.min(.25,Math.max(0,(now-regionalFleetLastTick)/1000));
@@ -2859,7 +2882,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     renderBathymetry(lastObservationData);
     if(regionalFleetTimer!==null)regionalFleetTimer=requestAnimationFrame(stepRegionalFleet);
   }
-  function startRegionalFleet(){if(regionalFleetTimer!==null)return;regionalFleetLastTick=0;regionalFleetTimer=requestAnimationFrame(stepRegionalFleet);}
+  function startRegionalFleet(){if(regionalWorldSnapshotActive||regionalFleetTimer!==null)return;regionalFleetLastTick=0;regionalFleetTimer=requestAnimationFrame(stepRegionalFleet);}
   function pauseRegionalFleet(){if(regionalFleetTimer!==null)cancelAnimationFrame(regionalFleetTimer);regionalFleetTimer=null;regionalFleetLastTick=0;}
   function resetRegionalFleet(){
     pauseRegionalFleet();
