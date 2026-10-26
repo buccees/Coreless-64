@@ -312,8 +312,8 @@ console.log("VIGIL audit retention and review decision scenarios: 2 scenario gro
     ]
   });
   assert.equal(accepted, true);
-  assert.deepEqual(context.regionalTrainingFleet.map(v => v.id), ["OWN-1", "OBS-OPAQUE-7"]);
-  assert.deepEqual(context.regionalAuthorizedObservations.map(v => v.contactId), ["OPAQUE-7"]);
+  assert.deepEqual(Array.from(context.regionalTrainingFleet, v => v.id), ["OWN-1", "OBS-OPAQUE-7"]);
+  assert.deepEqual(Array.from(context.regionalAuthorizedObservations, v => v.contactId), ["OPAQUE-7"]);
   assert.equal(context.regionalTrainingFleet.some(v => v.id === "HIDDEN-ENEMY"), false);
   assert.equal(context.regionalTrainingFleet.some(v => v.x === 0.99 && v.y === 0.98), false);
 }
