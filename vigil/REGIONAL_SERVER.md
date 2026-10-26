@@ -50,10 +50,13 @@ zero through the configured max_speed; zero means all stop. Configure max_speed
 per ship in the JSON roster to permit acceleration above its starting speed.
 For backward compatibility, omitting max_speed makes the starting speed its
 maximum. The same speed value also defines the ship's campaign movement allowance.
-Weapon fire requires a visible target in range.
+Weapon fire requires a visible target in range. Each ship can configure
+weapon_reload_seconds (default 5); after a hit, the weapon remains unavailable
+until real-time simulation ticks count the cooldown down. A player's snapshot
+includes reload state for their own ships only, not visible enemy contacts.
 This initial weapon model applies configured damage directly; it does not yet
-simulate sensors, detection probability, weapon flight, reloads, countermeasures,
-or damage-control tasks.
+simulate sensors, detection probability, weapon flight, countermeasures, or
+damage-control tasks.
 
 The browser exposes window.connectVigilRegionalSnapshot({url, token}) for
 snapshot polling and window.sendVigilRegionalCommand({url, token}, operation,
