@@ -2626,8 +2626,26 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         selectedReconTrackId=object.object_id;
         list.querySelectorAll('button').forEach(function(item){item.setAttribute('aria-pressed',String(item===button));});
         var followup=document.getElementById('sim-recon-investigate');if(followup)followup.disabled=false;
-        var p=object.normalized_position||[];
-        detail.textContent='CONTACT EVIDENCE\nTRACK ID: '+object.object_id+'\nSENSOR: '+(object.sensor_ids||[]).join(', ')+'\nMODALITY: '+(object.modalities||[]).join(', ')+'\nNORMALIZED ESTIMATE: '+Number(p[0]).toFixed(3)+', '+Number(p[1]).toFixed(3)+'\nPOSITION UNCERTAINTY: ±'+object.uncertainty_m+' m\nOBSERVATIONS IN TRACK: '+(track?track.observations:object.observation_count)+'\nCLASSIFICATION: UNRESOLVED // SENSOR GEOMETRY ONLY';
+        var p=object.normalized_position;
+        var positionText=Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]))?'NORMALIZED ESTIMATE: '+Number(p[0]).toFixed(3)+', '+Number(p[1]).toFixed(3):'POSITION: NOT PROVIDED // MEASUREMENT-ONLY CONTACT';
+        var measurementLines=[];
+        ['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value'].forEach(function(key){
+          if(object[key]!==null&&object[key]!==undefined&&object[key]!==''&&Number.isFinite(Number(object[key]))){
+            var label={range_m:'RANGE',bearing_deg:'BEARING',depth_m:'DEPTH',temperature_c:'TEMPERATURE',signal_strength_db:'SIGNAL STRENGTH',velocity_mps:'VELOCITY',measurement_value:'MEASUREMENT'}[key];
+            var units={range_m:' m',bearing_deg:'°',depth_m:' m',temperature_c:' °C',signal_strength_db:' dB',velocity_mps:' m/s',measurement_value:object.measurement_units?' '+object.measurement_units:''}[key];
+            measurementLines.push(label+': '+Number(object[key])+units);
+          }
+        });
+        if(object.measurement_status)measurementLines.push('MEASUREMENT STATUS: '+object.measurement_status);
+        if(object.measurements&&typeof object.measurements==='object'){
+          Object.keys(object.measurements).forEach(function(key){
+            var value=object.measurements[key];
+            if(value!==null&&value!==undefined&&value!==''&&typeof value!=='object'&&['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value'].indexOf(key)===-1){
+              measurementLines.push('MEASUREMENT '+key.toUpperCase().replace(/_/g,' ')+': '+String(value));
+            }
+          });
+        }
+        detail.textContent='CONTACT EVIDENCE\nTRACK ID: '+object.object_id+'\nSENSOR: '+(object.sensor_ids||[]).join(', ')+'\nMODALITY: '+(object.modalities||[]).join(', ')+'\n'+positionText+(measurementLines.length?'\n'+measurementLines.join('\n'):'\nMEASUREMENTS: NONE REPORTED')+'\nPOSITION UNCERTAINTY: ±'+object.uncertainty_m+' m\nOBSERVATIONS IN TRACK: '+(track?track.observations:object.observation_count)+'\nCLASSIFICATION: UNRESOLVED // SENSOR GEOMETRY ONLY';
       });
       list.appendChild(button);
     });
