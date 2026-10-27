@@ -2795,8 +2795,8 @@ FIRE CONTROL: STANDBY</div>
   var regionalTrainingFleet=[
     {id:'DDG-51',name:'ARLEIGH BURKE-CLASS',x:.35,y:.44,lengthM:153.92,beamM:18.0,heading:28,speed:.018,maxSpeed:.04,weaponRange:.4,weaponDamage:2,weaponReloadSeconds:8,weaponCooldownRemaining:0,hull:6,maxHull:6,shipClass:'destroyer',weaponSystems:['main_battery','torpedo','missile'],side:'friendly',afloat:true,source:'U.S. Navy DDG-51 fact sheet'},
     {id:'SSN-774',name:'VIRGINIA-CLASS ATTACK SUBMARINE',x:.27,y:.72,lengthM:115,beamM:10.4,heading:25,speed:.006,maxSpeed:.03,weaponRange:.42,weaponDamage:4,weaponReloadSeconds:14,weaponCooldownRemaining:0,hull:7,maxHull:7,shipClass:'submarine',weaponSystems:['torpedo','missile'],side:'friendly',afloat:true,source:'U.S. Navy Virginia-class fact sheet'},
-    {id:'DRONE-01',name:'VIGIL RECONNAISSANCE DRONE',x:.39,y:.38,lengthM:3.2,beamM:2.1,heading:42,speed:.025,maxSpeed:.06,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:2,maxHull:2,shipClass:'drone',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'drone',parentId:'DDG-51'},
-    {id:'UUV-01',name:'VIGIL UNCREWED SUBMERSIBLE',x:.22,y:.79,lengthM:4.5,beamM:1.1,heading:31,speed:.012,maxSpeed:.035,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:2,maxHull:2,shipClass:'submersible',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'submersible',parentId:'SSN-774'},
+    {id:'DRONE-01',name:'VIGIL RECONNAISSANCE DRONE',x:.39,y:.38,lengthM:3.2,beamM:2.1,heading:42,speed:.025,maxSpeed:.06,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:2,maxHull:2,shipClass:'drone',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'drone',parentId:'DDG-51',stationKeepingEnabled:true,stationOffsetForward:.035,stationOffsetStarboard:.028,stationKeepingGain:1.15},
+    {id:'UUV-01',name:'VIGIL UNCREWED SUBMERSIBLE',x:.22,y:.79,lengthM:4.5,beamM:1.1,heading:31,speed:.012,maxSpeed:.035,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:2,maxHull:2,shipClass:'submersible',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'submersible',parentId:'SSN-774',stationKeepingEnabled:true,stationOffsetForward:-.045,stationOffsetStarboard:-.012,stationKeepingGain:.7},
     {id:'MECH-01',name:'VIGIL GROUND MECH',x:.52,y:.47,lengthM:4.2,beamM:2.4,heading:90,speed:.008,maxSpeed:.025,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:3,maxHull:3,shipClass:'mech',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'mech'},
     {id:'FAC-01',name:'VIGIL FORWARD SENSOR FACILITY',x:.15,y:.22,lengthM:0,beamM:0,heading:0,speed:0,maxSpeed:0,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:5,maxHull:5,shipClass:'facility',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'facility'},
     {id:'CVN',name:'NIMITZ-CLASS',x:.66,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.025,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
@@ -2806,6 +2806,9 @@ FIRE CONTROL: STANDBY</div>
     var handling={destroyer:{turn:7,accel:.006},submarine:{turn:3.5,accel:.0025},carrier:{turn:2.2,accel:.0018},drone:{turn:24,accel:.012},submersible:{turn:5,accel:.003},mech:{turn:18,accel:.008},facility:{turn:0,accel:0}}[ship.unitType||ship.shipClass]||{turn:5,accel:.003};
     ship.maxTurnRateDegPerSec=handling.turn;ship.accelerationPerSec=handling.accel;
     ship.desiredHeading=((Number(ship.heading)||0)%360+360)%360;ship.targetSpeed=Number(ship.speed)||0;
+    ship.stationKeepingEnabled=!!ship.parentId&&ship.stationKeepingEnabled!==false;
+    ship.navigationHeading=ship.desiredHeading;ship.navigationTargetSpeed=ship.targetSpeed;
+    ship.formationActive=false;ship.formationTarget=null;ship.formationDistance=null;ship.formationTargetSpeed=null;
   });
   var regionalTrainingFleetDemo=regionalTrainingFleet.map(function(ship){return Object.assign({},ship,{weaponSystems:Array.isArray(ship.weaponSystems)?ship.weaponSystems.slice():[]});});
   // Read-only station bridge: expose the same authorized regional tracks used by
@@ -2814,8 +2817,13 @@ FIRE CONTROL: STANDBY</div>
     return regionalTrainingFleet.filter(function(s){return s&&s.afloat!==false;}).map(function(s){
       return {id:String(s.id),label:String(s.name||s.id),x:Number(s.x),y:Number(s.y),
         heading_deg:Number(s.heading)||0,desired_heading_deg:Number(s.desiredHeading==null?s.heading:s.desiredHeading)||0,
-        steering_heading_deg:Number(s.avoidanceHeading==null?(s.desiredHeading==null?s.heading:s.desiredHeading):s.avoidanceHeading)||0,avoidance_active:s.avoidanceActive===true,
-        speed:Number(s.speed)||0,target_speed:Number(s.targetSpeed==null?s.speed:s.targetSpeed)||0,max_speed:Number(s.maxSpeed)||0,
+        steering_heading_deg:Number(s.avoidanceHeading==null?(s.navigationHeading==null?(s.desiredHeading==null?s.heading:s.desiredHeading):s.navigationHeading):s.avoidanceHeading)||0,avoidance_active:s.avoidanceActive===true,
+        navigation_heading_deg:Number(s.navigationHeading==null?s.heading:s.navigationHeading)||0,
+        speed:Number(s.speed)||0,target_speed:Number(s.targetSpeed==null?s.speed:s.targetSpeed)||0,
+        navigation_target_speed:Number(s.navigationTargetSpeed==null?(s.targetSpeed==null?s.speed:s.targetSpeed):s.navigationTargetSpeed)||0,max_speed:Number(s.maxSpeed)||0,
+        parent_id:s.parentId?String(s.parentId):null,station_keeping_enabled:s.stationKeepingEnabled===true,formation_active:s.formationActive===true,
+        formation_target:s.formationTarget&&Number.isFinite(Number(s.formationTarget.x))&&Number.isFinite(Number(s.formationTarget.y))?{x:Number(s.formationTarget.x),y:Number(s.formationTarget.y)}:null,
+        formation_distance:s.formationDistance==null?null:Number(s.formationDistance),
         turn_rate_deg_s:Number(s.maxTurnRateDegPerSec)||0,acceleration_per_s:Number(s.accelerationPerSec)||0,
         position:{x:Number(s.x),y:Number(s.y)},
         side:s.side==='friendly'?'friendly':'contact',
@@ -2835,17 +2843,33 @@ FIRE CONTROL: STANDBY</div>
     var resolved=aliases[unitProfile]||unitProfile;
     var unit=regionalTrainingFleet.find(function(s){return s&&s.id===resolved&&s.side==='friendly'&&s.afloat!==false;});
     if(!unit||!changes||typeof changes!=='object')return {ok:false,reason:'No assigned friendly simulation entity.'};
+    var nextHeading,nextSpeed;
     if(changes.heading!==undefined){
-      var heading=Number(changes.heading);if(!Number.isFinite(heading))return {ok:false,reason:'Heading must be numeric.'};
-      unit.desiredHeading=((heading%360)+360)%360;
+      nextHeading=Number(changes.heading);if(!Number.isFinite(nextHeading))return {ok:false,reason:'Heading must be numeric.'};
+      nextHeading=((nextHeading%360)+360)%360;
     }
     if(changes.speed!==undefined){
-      var speed=Number(changes.speed),max=Number(unit.maxSpeed)||0;
-      if(!Number.isFinite(speed)||speed<0||speed>max)return {ok:false,reason:'Speed must be between zero and this unit\\'s maximum speed.'};
-      unit.targetSpeed=speed;
+      nextSpeed=Number(changes.speed);var max=Number(unit.maxSpeed)||0;
+      if(!Number.isFinite(nextSpeed)||nextSpeed<0||nextSpeed>max)return {ok:false,reason:'Speed must be between zero and this unit\\'s maximum speed.'};
     }
-    window.dispatchEvent(new CustomEvent('vigil:simulation-unit-state-changed',{detail:{unit_id:unit.id,heading:unit.heading,desired_heading:unit.desiredHeading,speed:unit.speed,target_speed:unit.targetSpeed}}));
-    return {ok:true,unit_id:unit.id,heading:unit.heading,desired_heading:unit.desiredHeading,speed:unit.speed,target_speed:unit.targetSpeed,max_speed:Number(unit.maxSpeed)||0};
+    if(changes.station_keeping!==undefined){
+      if(typeof changes.station_keeping!=='boolean')return {ok:false,reason:'Station-keeping must be true or false.'};
+      if(changes.station_keeping){
+        var parent=unit.parentId&&regionalTrainingFleet.find(function(s){return s&&s.id===unit.parentId&&s.side==='friendly'&&s.afloat!==false;});
+        if(!parent)return {ok:false,reason:'Station-keeping requires an assigned friendly parent.'};
+      }
+    }
+    if(nextHeading!==undefined)unit.desiredHeading=nextHeading;
+    if(nextSpeed!==undefined)unit.targetSpeed=nextSpeed;
+    if(changes.station_keeping!==undefined)unit.stationKeepingEnabled=changes.station_keeping;
+    else if(changes.heading!==undefined||changes.speed!==undefined)unit.stationKeepingEnabled=false;
+    window.dispatchEvent(new CustomEvent('vigil:simulation-unit-state-changed',{detail:{
+      unit_id:unit.id,heading:unit.heading,desired_heading:unit.desiredHeading,speed:unit.speed,target_speed:unit.targetSpeed,
+      parent_id:unit.parentId||null,station_keeping_enabled:unit.stationKeepingEnabled===true
+    }}));
+    return {ok:true,unit_id:unit.id,heading:unit.heading,desired_heading:unit.desiredHeading,speed:unit.speed,
+      target_speed:unit.targetSpeed,max_speed:Number(unit.maxSpeed)||0,parent_id:unit.parentId||null,
+      station_keeping_enabled:unit.stationKeepingEnabled===true};
   };
 
   window.vigilGetFireControlState=function(shipId,targetId,weaponSystem){
@@ -3183,12 +3207,20 @@ FIRE CONTROL: STANDBY</div>
       source:regionalWorldSnapshotActive?'authoritative-server-snapshot':'local-training-simulation',
       timestamp:new Date().toISOString(),
       ships:regionalTrainingFleet.map(function(ship){return {
-        id:ship.id,name:ship.name,side:ship.side,ship_class:ship.shipClass,
-        position:{x:Number(ship.x),y:Number(ship.y)},heading_deg:Number(ship.heading),desired_heading_deg:Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading),
-        steering_heading_deg:Number(ship.avoidanceHeading==null?(ship.desiredHeading==null?ship.heading:ship.desiredHeading):ship.avoidanceHeading),avoidance_active:ship.avoidanceActive===true,
-        speed:Number(ship.speed),target_speed:Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed),max_speed:Number(ship.maxSpeed),
-        turn_rate_deg_s:Number(ship.maxTurnRateDegPerSec)||0,acceleration_per_s:Number(ship.accelerationPerSec)||0,
-        afloat:ship.afloat!==false,hull:Number(ship.hull),max_hull:Number(ship.maxHull),
+        id:ship.id,name:ship.name,side:ship.side,ship_class:ship.shipClass,parent_id:ship.parentId||null,
+        position:{x:Number(ship.x),y:Number(ship.y)},heading_deg:Number(ship.heading),
+        desired_heading_deg:Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading),
+        steering_heading_deg:Number(ship.avoidanceHeading==null?(ship.navigationHeading==null?(ship.desiredHeading==null?ship.heading:ship.desiredHeading):ship.navigationHeading):ship.avoidanceHeading),
+        navigation_heading_deg:Number(ship.navigationHeading==null?ship.heading:ship.navigationHeading),
+        avoidance_active:ship.avoidanceActive===true,station_keeping_enabled:ship.stationKeepingEnabled===true,
+        formation_active:ship.formationActive===true,
+        formation_target:ship.formationTarget&&Number.isFinite(Number(ship.formationTarget.x))&&Number.isFinite(Number(ship.formationTarget.y))?{x:Number(ship.formationTarget.x),y:Number(ship.formationTarget.y)}:null,
+        formation_distance:ship.formationDistance==null?null:Number(ship.formationDistance),
+        speed:Number(ship.speed),target_speed:Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed),
+        navigation_target_speed:Number(ship.navigationTargetSpeed==null?(ship.targetSpeed==null?ship.speed:ship.targetSpeed):ship.navigationTargetSpeed),
+        max_speed:Number(ship.maxSpeed),turn_rate_deg_s:Number(ship.maxTurnRateDegPerSec)||0,
+        acceleration_per_s:Number(ship.accelerationPerSec)||0,afloat:ship.afloat!==false,hull:ship.hull==null?null:Number(ship.hull),
+        max_hull:ship.maxHull==null?null:Number(ship.maxHull),
         weapon_cooldown_remaining:Number(ship.weaponCooldownRemaining||0),
         weapon_systems:Array.isArray(ship.weaponSystems)?ship.weaponSystems.slice():[]
       };})
@@ -3203,16 +3235,48 @@ FIRE CONTROL: STANDBY</div>
     if(!regionalFleetLastTick)regionalFleetLastTick=now;
     var dt=Math.min(.25,Math.max(0,(now-regionalFleetLastTick)/1000));
     regionalFleetLastTick=now;
-    // Evaluate separation against one frame snapshot so results do not depend on array order.
-    var frameShips=regionalTrainingFleet.map(function(s){return {id:s.id,x:Number(s.x),y:Number(s.y),heading:Number(s.heading)||0,speed:Number(s.speed)||0,targetSpeed:Number(s.targetSpeed==null?s.speed:s.targetSpeed)||0,afloat:s.afloat!==false};});
+    // Evaluate traffic and parent stations against one frame snapshot so results do not depend on array order.
+    var frameShips=regionalTrainingFleet.map(function(s){return {
+      id:s.id,x:Number(s.x),y:Number(s.y),heading:Number(s.heading)||0,speed:Number(s.speed)||0,
+      targetSpeed:Number(s.targetSpeed==null?s.speed:s.targetSpeed)||0,afloat:s.afloat!==false,
+      side:s.side,parentId:s.parentId||null
+    };});
+    var frameById={};
+    frameShips.forEach(function(s){frameById[s.id]=s;});
     regionalTrainingFleet.forEach(function(ship,index){
-      if(ship.side==='friendly'&&ship.shipClass==='facility'){ship.speed=0;ship.targetSpeed=0;ship.maxSpeed=0;ship.avoidanceActive=false;ship.avoidanceHeading=ship.heading;return;}
+      if(ship.side==='friendly'&&ship.shipClass==='facility'){
+        ship.speed=0;ship.targetSpeed=0;ship.maxSpeed=0;ship.navigationHeading=ship.heading;ship.navigationTargetSpeed=0;
+        ship.formationActive=false;ship.formationTarget=null;ship.formationDistance=null;ship.formationTargetSpeed=null;
+        ship.avoidanceActive=false;ship.avoidanceHeading=ship.heading;return;
+      }
       var desired=((Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading)%360)+360)%360;
-      var desiredRad=desired*Math.PI/180;
+      var navigationHeading=desired;
+      var navigationTargetSpeed=Math.max(0,Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed)||0);
+      ship.formationActive=false;ship.formationTarget=null;ship.formationDistance=null;ship.formationTargetSpeed=null;
+      var parent=ship.parentId?frameById[ship.parentId]:null;
+      if(ship.side==='friendly'&&ship.stationKeepingEnabled===true&&parent&&parent.side==='friendly'&&parent.afloat){
+        var parentHeading=(parent.heading%360+360)%360,parentRad=parentHeading*Math.PI/180;
+        var forward=Number(ship.stationOffsetForward)||0,starboard=Number(ship.stationOffsetStarboard)||0;
+        var stationX=parent.x+Math.sin(parentRad)*forward+Math.cos(parentRad)*starboard;
+        var stationY=parent.y-Math.cos(parentRad)*forward+Math.sin(parentRad)*starboard;
+        var errorX=stationX-Number(ship.x),errorY=stationY-Number(ship.y),stationDistance=Math.hypot(errorX,errorY);
+        var parentVx=Math.sin(parentRad)*parent.speed,parentVy=-Math.cos(parentRad)*parent.speed;
+        var gain=Math.max(.1,Math.min(2.5,Number(ship.stationKeepingGain)||.8));
+        // Feed forward the parent's motion and correct toward the assigned relative station.
+        var wantedVx=parentVx+errorX*gain,wantedVy=parentVy+errorY*gain;
+        var wantedSpeed=Math.hypot(wantedVx,wantedVy),unitMaxSpeed=Math.max(0,Number(ship.maxSpeed)||0);
+        navigationTargetSpeed=Math.min(unitMaxSpeed,wantedSpeed);
+        if(wantedSpeed>.00001)navigationHeading=((Math.atan2(wantedVx,-wantedVy)*180/Math.PI)%360+360)%360;
+        ship.formationActive=true;ship.formationTarget={x:stationX,y:stationY};
+        ship.formationDistance=stationDistance;ship.formationTargetSpeed=navigationTargetSpeed;
+      }
+      ship.navigationHeading=navigationHeading;ship.navigationTargetSpeed=navigationTargetSpeed;
+      var desiredRad=navigationHeading*Math.PI/180;
       var travelX=Math.sin(desiredRad),travelY=-Math.cos(desiredRad);
-      var currentX=Math.sin((Number(ship.heading)||0)*Math.PI/180)*(Number(ship.speed)||0);
-      var currentY=-Math.cos((Number(ship.heading)||0)*Math.PI/180)*(Number(ship.speed)||0);
-      var plannedSpeed=Math.max(Number(ship.speed)||0,(Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed)||0)*.65);
+      var currentRad=(Number(ship.heading)||0)*Math.PI/180;
+      var currentX=Math.sin(currentRad)*(Number(ship.speed)||0);
+      var currentY=-Math.cos(currentRad)*(Number(ship.speed)||0);
+      var plannedSpeed=Math.max(Number(ship.speed)||0,navigationTargetSpeed*.65);
       var plannedX=travelX*plannedSpeed,plannedY=travelY*plannedSpeed;
       var avoidX=0,avoidY=0,avoidStrength=0;
       var own=frameShips[index];
@@ -3237,18 +3301,16 @@ FIRE CONTROL: STANDBY</div>
           avoidStrength+=urgency;
         });
       }
-      var steering=desired;
+      var steering=navigationHeading;
       if(avoidStrength>0){
         var adjustedX=travelX+avoidX*2.25,adjustedY=travelY+avoidY*2.25;
-        if(Math.hypot(adjustedX,adjustedY)>.001){
-          steering=((Math.atan2(adjustedX,-adjustedY)*180/Math.PI)%360+360)%360;
-        }
+        if(Math.hypot(adjustedX,adjustedY)>.001)steering=((Math.atan2(adjustedX,-adjustedY)*180/Math.PI)%360+360)%360;
       }
       ship.avoidanceActive=avoidStrength>.08;
       ship.avoidanceHeading=steering;
       var delta=((steering-ship.heading+540)%360)-180,maxTurn=(Number(ship.maxTurnRateDegPerSec)||0)*dt;
       if(Math.abs(delta)<=maxTurn)ship.heading=steering;else ship.heading=(ship.heading+Math.sign(delta)*maxTurn+360)%360;
-      var target=Math.max(0,Math.min(Number(ship.maxSpeed)||0,Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed)||0));
+      var target=Math.max(0,Math.min(Number(ship.maxSpeed)||0,navigationTargetSpeed));
       var accel=(Number(ship.accelerationPerSec)||0)*dt,difference=target-ship.speed;
       if(Math.abs(difference)<=accel)ship.speed=target;else ship.speed=Math.max(0,ship.speed+Math.sign(difference)*accel);
       var angle=ship.heading*Math.PI/180;
@@ -3316,13 +3378,21 @@ FIRE CONTROL: STANDBY</div>
       var isFriendly=ship.side==='friendly';
       var hullStroke=isFriendly?'#d4f6a8':'#ffcc86';
       var hullFill=isFriendly?'rgba(11,43,24,.88)':'rgba(65,37,15,.88)';
-      // Only friendly units show a command course; the hull follows actual heading.
-      if(isFriendly&&ship.shipClass!=='facility'){
+      // Only friendly units under direct helm show a commanded-course guide.
+      if(isFriendly&&ship.shipClass!=='facility'&&ship.formationActive!==true){
         var guideLen=Math.max(24,Math.min(78,Math.max(lengthPx,16)*.72));
         var gx=px+Math.sin(commandRad)*guideLen,gy=py-Math.cos(commandRad)*guideLen;
         ctx.save();ctx.setLineDash([5,4]);ctx.strokeStyle='#42d9e8';ctx.lineWidth=1.5;
         ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(gx,gy);ctx.stroke();ctx.setLineDash([]);
         ctx.beginPath();ctx.arc(gx,gy,2.5,0,Math.PI*2);ctx.stroke();ctx.restore();
+      }
+      // Assigned support units show their parent-relative station on the same map.
+      if(isFriendly&&ship.formationActive===true&&ship.formationTarget){
+        var ftx=((ship.formationTarget.x-x0)/viewW)*w,fty=((ship.formationTarget.y-y0)/viewH)*h;
+        ctx.save();ctx.setLineDash([3,5]);ctx.strokeStyle='#82f6c4';ctx.lineWidth=1.4;
+        ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(ftx,fty);ctx.stroke();ctx.setLineDash([]);
+        ctx.beginPath();ctx.arc(ftx,fty,6,0,Math.PI*2);ctx.moveTo(ftx-9,fty);ctx.lineTo(ftx+9,fty);
+        ctx.moveTo(ftx,fty-9);ctx.lineTo(ftx,fty+9);ctx.stroke();ctx.restore();
       }
       // Heading is clockwise from north, so 0° points up and 90° points right.
       ctx.save();ctx.translate(px,py);ctx.rotate((actualHeading-90)*Math.PI/180);
@@ -3341,6 +3411,7 @@ FIRE CONTROL: STANDBY</div>
       // Motion arrow length reflects actual speed relative to maximum speed.
       var maxSpeed=Math.max(0,Number(ship.maxSpeed)||0),actualSpeed=Math.max(0,Number(ship.speed)||0);
       var targetSpeed=Math.max(0,Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed)||0);
+      var displayTargetSpeed=ship.formationActive===true&&Number.isFinite(Number(ship.formationTargetSpeed))?Number(ship.formationTargetSpeed):targetSpeed;
       var speedRatio=maxSpeed>0?Math.max(0,Math.min(1,actualSpeed/maxSpeed)):0;
       if(speedRatio>.005){
         var arrowLen=8+speedRatio*24;
@@ -3357,8 +3428,15 @@ FIRE CONTROL: STANDBY</div>
       ctx.fillStyle=isFriendly?'#edffd8':'#ffe0b5';ctx.font='bold 12px monospace';ctx.fillText(ship.id,px+8,py-10);
       if(ship.shipClass!=='facility'){
         ctx.fillStyle=isFriendly?'#a6ddcf':'#ffc49a';ctx.font='10px monospace';
-        ctx.fillText('SPD '+actualSpeed.toFixed(3)+'→'+targetSpeed.toFixed(3),px+8,py+3);
-        if(ship.avoidanceActive===true){ctx.fillStyle='#ffb36b';ctx.font='bold 10px monospace';ctx.fillText('AVOID',px+8,py+15);}
+        ctx.fillText('SPD '+actualSpeed.toFixed(3)+'→'+displayTargetSpeed.toFixed(3),px+8,py+3);
+        if(ship.formationActive===true){
+          var formationDistance=Math.max(0,Number(ship.formationDistance)||0);
+          ctx.fillStyle='#82f6c4';ctx.font='bold 10px monospace';
+          ctx.fillText(formationDistance<.008?'STATION':'FORM '+formationDistance.toFixed(3),px+8,py+15);
+        }else if(ship.stationKeepingEnabled===true&&ship.parentId){
+          ctx.fillStyle='#ffb36b';ctx.font='bold 10px monospace';ctx.fillText('PARENT N/A',px+8,py+15);
+        }
+        if(ship.avoidanceActive===true){ctx.fillStyle='#ffb36b';ctx.font='bold 10px monospace';ctx.fillText('AVOID',px+8,py+27);}
       }
     });
 
