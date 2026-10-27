@@ -2743,10 +2743,13 @@ FIRE CONTROL: STANDBY</div>
     var dx=target.x-shooter.x,dy=target.y-shooter.y,distance=Math.hypot(dx,dy);
     var profiles={main_battery:{range:shooter.weaponRange||.23,damage:shooter.weaponDamage||2,reload:shooter.weaponReloadSeconds||8,label:'MAIN BATTERY'},torpedo:{range:Math.max(shooter.weaponRange||.23,.42),damage:4,reload:14,label:'TORPEDO'},missile:{range:Math.max(shooter.weaponRange||.23,.65),damage:3,reload:18,label:'MISSILE'}};
     var profile=profiles[weaponSystem]||profiles.main_battery;
+    var rangeFraction=Math.min(1,distance/Math.max(.001,profile.range));
+    var baseAccuracy=weaponSystem==='missile'?.9:weaponSystem==='torpedo'?.76:.84;
+    var solutionQuality=Math.max(.2,Math.min(.97,baseAccuracy-rangeFraction*.22-Math.min(.18,Number(target.speed||0)*2)));
     var bearing=(Math.atan2(dx,-dy)*180/Math.PI+360)%360;
     var relative=((bearing-shooter.heading+540)%360)-180;
     return{ok:true,ship_id:shipId,target_id:targetId,bearing_deg:bearing,relative_bearing_deg:relative,
-      range_normalized:distance,max_range:profile.range,within_range:distance<=profile.range,weapon_system:weaponSystem,weapon_label:profile.label,weapon_damage:profile.damage,weapon_reload_seconds:profile.reload,
+      range_normalized:distance,max_range:profile.range,within_range:distance<=profile.range,weapon_system:weaponSystem,weapon_label:profile.label,weapon_damage:profile.damage,weapon_reload_seconds:profile.reload,solution_quality:solutionQuality,
       heading_deg:shooter.heading,speed:shooter.speed,cooldown_remaining:shooter.weaponCooldownRemaining||0,
       hull:shooter.hull,max_hull:shooter.maxHull,target_hull:target.hull,target_max_hull:target.maxHull,
       target_afloat:target.afloat!==false,weapon_ready:(shooter.weaponCooldownRemaining||0)<=0.01};
@@ -2871,9 +2874,9 @@ FIRE CONTROL: STANDBY</div>
   var regionalEncounterHistory=[];
   window.addEventListener('vigil:regional-encounter',function(event){
     var e=event&&event.detail;if(!e||typeof e!=='object')return;
-    var damage=Number(e.damage),hull=Number(e.hull_after);
+    var damage=Number(e.damage),hull=Number(e.hull_after),result=e.hit===true?'HIT':e.hit===false?'MISS':'RESULT UNRESOLVED';
     var summary=String(e.source==='authoritative-backend'?'SERVER':'LOCAL')+' // '+String(e.shooter_id||'UNKNOWN')+' → '+String(e.target_id||'UNKNOWN')+
-      ' // DAMAGE '+(Number.isFinite(damage)?damage:'—')+' // HULL '+(Number.isFinite(hull)?hull:'—')+(e.sunk?' // SUNK':'')+
+      ' // '+result+' // DAMAGE '+(Number.isFinite(damage)?damage:'—')+' // HULL '+(Number.isFinite(hull)?hull:'—')+(e.sunk?' // SUNK':'')+
       ' // '+new Date(e.occurred_at||Date.now()).toLocaleTimeString();
     regionalEncounterHistory.unshift(summary);regionalEncounterHistory=regionalEncounterHistory.slice(0,6);
     var log=document.getElementById('vigil-regional-encounter-log');if(!log)return;
@@ -3032,14 +3035,15 @@ FIRE CONTROL: STANDBY</div>
       var fireState=window.vigilGetFireControlState(shipId,targetId,window.vigilPendingWeaponSystem||'main_battery');
       var distance=Math.hypot(target.x-shooter.x,target.y-shooter.y);
       if(!fireState.ok||distance>fireState.max_range){regionalUiStatus('NO FIRE SOLUTION // RANGE '+distance.toFixed(3)+' / MAX '+Number(fireState.max_range||0).toFixed(3),true);return;}
-      var damage=Number(fireState.weapon_damage||1);applyLocalWeaponHit(shooter,target,fireState);
-      var localEncounter={source:'local-training',shooter_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',authorization_id:window.vigilPendingAuthorizationId||'LOCAL-TRAINING-CO',damage:damage,hull_after:target.hull,sunk:!target.afloat,occurred_at:new Date().toISOString()};
+      var hit=Math.random()<=Number(fireState.solution_quality||.5),damage=hit?Number(fireState.weapon_damage||1):0;
+      if(hit)applyLocalWeaponHit(shooter,target,fireState);else shooter.weaponCooldownRemaining=Number(fireState.weapon_reload_seconds||shooter.weaponReloadSeconds||5);
+      var localEncounter={source:'local-training',shooter_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',authorization_id:window.vigilPendingAuthorizationId||'LOCAL-TRAINING-CO',hit:hit,assessment:hit?'HIT':'MISS',damage:damage,hull_after:target.hull,sunk:!target.afloat,occurred_at:new Date().toISOString()};
       window.dispatchEvent(new CustomEvent('vigil:regional-encounter',{detail:localEncounter}));
       populateLocalRegionalCommandChoices();renderBathymetry(lastObservationData);
-      regionalUiStatus((target.afloat?'LOCAL WEAPON HIT':'CONTACT SUNK')+' // '+targetId+' // DAMAGE '+damage+' // HULL '+target.hull+'/'+target.maxHull+' // RELOAD '+shooter.weaponCooldownRemaining.toFixed(1)+'s',false);return;
+      regionalUiStatus((hit?(target.afloat?'LOCAL HIT CONFIRMED':'CONTACT SUNK'):'MISS CONFIRMED // NO HULL DAMAGE')+' // '+targetId+' // DAMAGE '+damage+' // HULL '+target.hull+'/'+target.maxHull+' // RELOAD '+shooter.weaponCooldownRemaining.toFixed(1)+'s',false);return;
     }
     try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'fire_weapon',{ship_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',authorization_id:window.vigilFireControlAuthorizationId||''});var cooldown=Number(r.weapon_cooldown_remaining)||0;var fireButton=document.getElementById('vigil-regional-fire');if(cooldown>0){fireButton.disabled=true;fireButton.textContent='RELOADING '+cooldown.toFixed(1)+'s';}
-      window.dispatchEvent(new CustomEvent('vigil:regional-encounter',{detail:{source:'authoritative-backend',shooter_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',damage:Number(r.damage)||0,hull_after:Number(r.hull_after),sunk:!!r.sunk,occurred_at:new Date().toISOString()}}));
+      window.dispatchEvent(new CustomEvent('vigil:regional-encounter',{detail:{source:'authoritative-backend',shooter_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',hit:typeof r.hit==='boolean'?r.hit:undefined,assessment:typeof r.hit==='boolean'?(r.hit?'HIT':'MISS'):'UNRESOLVED',damage:Number(r.damage)||0,hull_after:Number(r.hull_after),sunk:!!r.sunk,occurred_at:new Date().toISOString()}}));
       regionalUiStatus((r.sunk?'CONTACT SUNK':'WEAPON HIT')+' // '+targetId+' // DAMAGE '+r.damage+' // HULL '+r.hull_after+' // RELOAD '+cooldown.toFixed(1)+'s',false);}
     catch(e){regionalUiStatus('FIRE SOLUTION REJECTED // '+String(e.message||e),true);}
   });
@@ -3300,7 +3304,7 @@ FIRE CONTROL: STANDBY</div>
       drawSight(state);
       if(!state.ok){document.getElementById('vigil-ops-fire').disabled=true;readout.textContent='NO VALID TRACK\nTARGET: '+(target.value||'NONE')+'\nFIRE CONTROL: STANDBY\n'+(state.reason||'Awaiting authorized target');return;}
       var locked=lockedTarget===target.value,authorized=authorizedTarget===target.value;
-      readout.textContent='OWN SHIP: '+state.ship_id+' // HDG '+state.heading_deg.toFixed(1)+'° // SPEED '+state.speed.toFixed(3)+'\nTARGET TRACK: '+state.target_id+' // '+(locked?'LOCKED':'TRACKED / NOT LOCKED')+'\nBEARING: '+state.bearing_deg.toFixed(1)+'° // RELATIVE: '+state.relative_bearing_deg.toFixed(1)+'°\nRANGE: '+state.range_normalized.toFixed(3)+' / MAX '+state.max_range.toFixed(3)+' // '+(state.within_range?'IN RANGE':'OUT OF RANGE')+'\nWEAPON STATION: '+state.weapon_label+' // DAMAGE '+state.weapon_damage+' // '+(state.weapon_ready?'READY':'RELOADING '+state.cooldown_remaining.toFixed(1)+'s')+'\nFIRE SOLUTION: '+(locked&&state.within_range&&state.weapon_ready?'READY':'NOT READY')+'\nCOMMAND AUTHORITY: '+(authorized?'GRANTED':'NOT GRANTED')+'\nTARGET HULL: '+state.target_hull+'/'+state.target_max_hull;
+      readout.textContent='OWN SHIP: '+state.ship_id+' // HDG '+state.heading_deg.toFixed(1)+'° // SPEED '+state.speed.toFixed(3)+'\nTARGET TRACK: '+state.target_id+' // '+(locked?'LOCKED':'TRACKED / NOT LOCKED')+'\nBEARING: '+state.bearing_deg.toFixed(1)+'° // RELATIVE: '+state.relative_bearing_deg.toFixed(1)+'°\nRANGE: '+state.range_normalized.toFixed(3)+' / MAX '+state.max_range.toFixed(3)+' // '+(state.within_range?'IN RANGE':'OUT OF RANGE')+'\nWEAPON STATION: '+state.weapon_label+' // DAMAGE '+state.weapon_damage+' // '+(state.weapon_ready?'READY':'RELOADING '+state.cooldown_remaining.toFixed(1)+'s')+'\nFIRE SOLUTION: '+(locked&&state.within_range&&state.weapon_ready?'READY':'NOT READY')+' // QUALITY '+Math.round(state.solution_quality*100)+'%\nCOMMAND AUTHORITY: '+(authorized?'GRANTED':'NOT GRANTED')+'\nTARGET HULL: '+state.target_hull+'/'+state.target_max_hull;
       document.getElementById('vigil-ops-fire').disabled=!(locked&&authorized&&state.within_range&&state.weapon_ready);
       status.textContent=locked&&authorized&&state.within_range&&state.weapon_ready?'AUTHORIZED ORDER READY // '+target.value:'TRACK '+target.value+' // '+(authorized?'AUTHORIZATION GRANTED':'AWAITING COMMAND AUTHORIZATION');
     }
@@ -3351,7 +3355,7 @@ FIRE CONTROL: STANDBY</div>
     weapon.addEventListener('change',function(){authorizedTarget='';authorizationId='';window.vigilFireControlAuthorizedTarget='';updateFireControl();});
     ship.addEventListener('change',function(){lockedTarget='';authorizedTarget='';authorizationId='';window.vigilFireControlLockedTarget='';window.vigilFireControlAuthorizedTarget='';syncControls();setStep(1);});
     target.addEventListener('change',function(){lockedTarget='';authorizedTarget='';authorizationId='';window.vigilFireControlLockedTarget='';window.vigilFireControlAuthorizedTarget='';var src=document.getElementById('vigil-regional-target');if(src)src.value=target.value;syncControls();setStep(2);});
-    window.addEventListener('vigil:regional-encounter',function(e){var d=e.detail||{};if(d.target_id!==target.value)return;setStep(4);readout.textContent='ENCOUNTER RESOLVED // '+(d.sunk?'TARGET DISABLED':'DAMAGE '+Number(d.damage||0))+'\nTARGET: '+d.target_id+' // HULL AFTER: '+d.hull_after+'\nRESULT SOURCE: '+d.source+' // '+(d.occurred_at||'TIME UNAVAILABLE');});
+    window.addEventListener('vigil:regional-encounter',function(e){var d=e.detail||{};if(d.target_id!==target.value)return;setStep(4);readout.textContent='ENCOUNTER ASSESSMENT // '+(d.hit===true?'HIT CONFIRMED':d.hit===false?'MISS CONFIRMED':'HIT STATUS UNRESOLVED')+'\nTARGET: '+d.target_id+' // DAMAGE '+Number(d.damage||0)+' // HULL AFTER: '+d.hull_after+(d.sunk?' // TARGET DISABLED':'')+'\nRESULT SOURCE: '+d.source+' // '+(d.occurred_at||'TIME UNAVAILABLE');});
     window.addEventListener('vigil:regional-snapshot-error',function(e){status.textContent='LINK ERROR // '+String(e.detail&&e.detail.message||'snapshot unavailable');});
     syncControls();
     window.setInterval(updateFireControl,750);
