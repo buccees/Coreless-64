@@ -4626,10 +4626,10 @@ function draw(){
      var t=item.target,y=125+i*27,col=t.id===cameraState.selectedTrackId?'#ffd47a':t.side==='friendly'?'#62b9ff':'#e6cd85';
      ctx.fillStyle=col;ctx.beginPath();ctx.arc(466,y-3,3,0,Math.PI*2);ctx.fill();
      ctx.fillStyle=col;ctx.font='bold 10px Courier New';ctx.fillText(t.id.slice(0,24),477,y);
-     ctx.fillStyle='#9bbca8';ctx.font='9px Courier New';ctx.fillText(String(t.modality||t.source||'REGIONAL').toUpperCase(),477,y+11);
-     ctx.fillText('Δ '+item.dist.toFixed(3),760,y);
+     ctx.fillStyle='#9bbca8';ctx.font='9px Courier New';ctx.fillText((String(t.source||'regional').toUpperCase()==='REGIONAL'?'REGIONAL POSITION':String(t.modality||t.source||'SENSOR').toUpperCase()+' ESTIMATE').slice(0,34),477,y+11);
+     ctx.fillText('MAP Δ '+item.dist.toFixed(3),748,y);
    });
-   var measurementOnly=feedObservations.filter(function(o){return !Array.isArray(o.normalized_position)&&['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value'].some(function(k){return o[k]!==null&&o[k]!==undefined;});});
+   var measurementOnly=feedObservations.filter(function(o){var p=o&&o.normalized_position,hasPosition=Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]));return !hasPosition&&['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value'].some(function(k){return o[k]!==null&&o[k]!==undefined&&o[k]!==''&&Number.isFinite(Number(o[k]));});});
    measurementOnly.slice(0,2).forEach(function(o,i){
      var y=272+i*19;ctx.fillStyle='#c7a6ff';ctx.font='9px Courier New';
      var value=['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value'].filter(function(k){return o[k]!==null&&o[k]!==undefined;}).map(function(k){return k+'='+Number(o[k]).toFixed(1);}).join(' / ');
