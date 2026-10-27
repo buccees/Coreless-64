@@ -2807,7 +2807,8 @@ FIRE CONTROL: STANDBY</div>
   window.vigilGetRegionalSensorContacts=function(){
     return regionalTrainingFleet.filter(function(s){return s&&s.afloat!==false;}).map(function(s){
       return {id:String(s.id),label:String(s.name||s.id),x:Number(s.x),y:Number(s.y),
-        heading_deg:Number(s.heading)||0,speed:Number(s.speed)||0,
+        heading_deg:Number(s.heading)||0,speed:Number(s.speed)||0,max_speed:Number(s.maxSpeed)||0,
+        position:{x:Number(s.x),y:Number(s.y)},
         side:s.side==='friendly'?'friendly':'contact',
         source:String(s.source||'regional simulation'),hull:s.hull==null?null:Number(s.hull)};
     }).filter(function(s){return Number.isFinite(s.x)&&Number.isFinite(s.y);});
@@ -2917,7 +2918,7 @@ FIRE CONTROL: STANDBY</div>
     pauseRegionalFleet();regionalWorldSnapshotActive=true;regionalAuthorizedObservations=authorized;regionalTrainingFleet=next;
     renderBathymetry(lastObservationData);return true;
   };
-  window.clearVigilRegionalWorldSnapshot=function(){regionalWorldSnapshotActive=false;resetRegionalFleet();};
+  window.clearVigilRegionalWorldSnapshot=function(){regionalWorldSnapshotActive=false;resetRegionalFleet();startRegionalFleet();};
   
   // Poll the authenticated WSGI bridge. Tokens stay in memory only (never localStorage).
   var regionalSnapshotPollTimer=null,regionalSnapshotPollOptions=null,regionalSnapshotPollBusy=false;
@@ -3206,8 +3207,8 @@ FIRE CONTROL: STANDBY</div>
   function pauseRegionalFleet(){if(regionalFleetTimer!==null)cancelAnimationFrame(regionalFleetTimer);regionalFleetTimer=null;regionalFleetLastTick=0;}
   function resetRegionalFleet(){
     pauseRegionalFleet();
-    regionalTrainingFleet[0].x=.35;regionalTrainingFleet[0].y=.44;regionalTrainingFleet[0].heading=28;
-    regionalTrainingFleet[1].x=.66;regionalTrainingFleet[1].y=.61;regionalTrainingFleet[1].heading=342;
+    regionalTrainingFleet=regionalTrainingFleetDemo.map(function(ship){return Object.assign({},ship,{weaponSystems:Array.isArray(ship.weaponSystems)?ship.weaponSystems.slice():[]});});
+    regionalFleetLastTick=0;
     renderBathymetry(lastObservationData);
     publishVigilSharedSimulationState(performance.now(),true);
   }
@@ -3750,6 +3751,8 @@ function draw(){
  ctx.fillStyle='#29f5b2';ctx.font='16px Courier New';ctx.fillText('VIGIL // '+unitId.toUpperCase()+' // '+activeSensor,18,25);
  var lower=activeSensor.toLowerCase(),cx=w*.5,cy=h*.56;
  var regionalContacts=typeof window.vigilGetRegionalSensorContacts==='function'?window.vigilGetRegionalSensorContacts():[];
+ var assignedIds={ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'},statusTrack=regionalContacts.find(function(c){return c.id===assignedIds[unitId]&&c.side==='friendly';});
+ if(status)status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+activeSensor+' // '+(statusTrack?'TRACK '+statusTrack.id+' // HDG '+Math.round(statusTrack.heading_deg)+'° // SPEED '+statusTrack.speed.toFixed(3)+' / '+statusTrack.max_speed.toFixed(3)+' // POS '+statusTrack.x.toFixed(3)+', '+statusTrack.y.toFixed(3):assignedIds[unitId]?'ASSIGNED TRACK: '+assignedIds[unitId]:'NO SIMULATION ENTITY ASSIGNED')+' // '+regionalContacts.length+' REGIONAL TRACKS // SHARED CONTROL PANEL';
  var sensorObservation=typeof window.vigilGetLatestSensorObservation==='function'?window.vigilGetLatestSensorObservation():null;
  var observationIsExternal=!!(sensorObservation&&sensorObservation.metadata&&sensorObservation.metadata.source==='external-sensor-adapter');
  var activeVessel=typeof window.vigilGetRegionalSimulationUnit==='function'?window.vigilGetRegionalSimulationUnit(unitId):null;
