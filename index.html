@@ -4796,6 +4796,13 @@ function choose(sensor){
  Array.prototype.forEach.call(buttons.querySelectorAll('button'),function(b){b.setAttribute('aria-pressed',String(b.textContent===sensor));});
  var controlsAreCamera=cameraModeActive();
  if(cameraControls)cameraControls.hidden=!controlsAreCamera;
+ // Track hold is a camera-control mode; do not leave it latched while another sensor station is active.
+ if(!controlsAreCamera&&cameraState.hold){
+   cameraState.hold=false;
+   var holdButton=display.querySelector('#vigil-camera-track-hold');
+   if(holdButton){holdButton.setAttribute('aria-pressed','false');holdButton.textContent='TRACK HOLD: OFF';}
+   setCommandMessage('TRACK HOLD RELEASED // NON-CAMERA SENSOR SELECTED');
+ }
  var linked=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(unitId);
  status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+sensor+' // '+
    (linked?'TRACK '+linked.id+' // HDG '+Math.round(linked.heading_deg)+'° // SPEED '+Number(linked.speed).toFixed(3)+' / '+(Number(linked.max_speed)||0).toFixed(3):'NO SIMULATION ENTITY ASSIGNED')+
