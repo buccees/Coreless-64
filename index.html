@@ -3731,10 +3731,27 @@ function draw(){
    ctx.strokeStyle='#29f5b2';ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(pulse*Math.PI*2)*radius,cy+Math.sin(pulse*Math.PI*2)*radius);ctx.stroke();
    // Prefer the latest accepted observation from the shared sensor pipeline.
    var plotted=0;
+   var ownTrack=regionalContacts.find(function(c){return c.id===unitId&&c.side==='friendly';})||
+     regionalContacts.find(function(c){return c.side==='friendly';});
+   var ownHeading=ownTrack?Number(ownTrack.heading_deg)||0:0;
+   function relativeScreenPoint(dx,dy){
+     // Regional x increases east and y increases south; heading is degrees clockwise from north.
+     var radians=ownHeading*Math.PI/180;
+     var forward=dx*Math.sin(radians)-dy*Math.cos(radians);
+     var starboard=dx*Math.cos(radians)+dy*Math.sin(radians);
+     return {x:cx+starboard*radius*1.35,y:cy-forward*radius*1.35};
+   }
    if(sensorObservation&&Array.isArray(sensorObservation.objects)&&sensorObservation.objects.length){
      sensorObservation.objects.forEach(function(o){
        if(!o.normalized_position)return;
-       var px=o.normalized_position[0]*w,py=o.normalized_position[1]*h;
+       var px,py;
+       if(observationIsExternal&&ownTrack){
+         var point=relativeScreenPoint(Number(o.normalized_position[0])-ownTrack.x,Number(o.normalized_position[1])-ownTrack.y);
+         px=point.x;py=point.y;
+       }else{
+         px=o.normalized_position[0]*w;py=o.normalized_position[1]*h;
+       }
+       if(px<cx-radius||px>cx+radius||py<cy-radius||py>cy+radius)return;
        ctx.fillStyle=observationIsExternal?'#ffbd63':'#29f5b2';
        ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);ctx.fill();
        var uncertaintyRadius=Math.max(5,Math.min(26,(Number(o.uncertainty_m)||0)*.4));
@@ -3742,14 +3759,12 @@ function draw(){
        ctx.font='10px Courier New';ctx.fillText(o.object_id,px+12,py-7);plotted++;
      });
    }else{
-     // If no observation is available, plot authorized regional tracks only.
-     var ownTrack=regionalContacts.find(function(c){return c.id===unitId&&c.side==='friendly';})||
-       regionalContacts.find(function(c){return c.side==='friendly';});
+     // If no observation is available, plot authorized regional tracks in own-ship-relative coordinates.
      regionalContacts.forEach(function(contact){
        if(ownTrack&&contact.id===ownTrack.id)return;
        var dx=ownTrack?contact.x-ownTrack.x:contact.x-.5;
        var dy=ownTrack?contact.y-ownTrack.y:contact.y-.5;
-       var px=cx+dx*radius*1.35,py=cy+dy*radius*1.35;
+       var point=relativeScreenPoint(dx,dy),px=point.x,py=point.y;
        if(px<cx-radius||px>cx+radius||py<cy-radius||py>cy+radius)return;
        ctx.fillStyle=contact.side==='friendly'?'#66b7ff':'#ffbd63';
        ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);ctx.fill();
