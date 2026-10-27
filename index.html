@@ -4226,6 +4226,8 @@ function updateTrackCandidates(regionalContacts,snapshot){
    if(candidates.some(function(t){return t.id===selected;})){cameraState.selectedTrackId=selected;trackSelect.value=selected;}
    else{cameraState.selectedTrackId='';trackSelect.value='';}
  }
+ // Candidate freshness can change without a selector change event; keep the action gate in sync with every roster refresh.
+ if(typeof syncFocusedFollowupButton==='function')syncFocusedFollowupButton();
 }
 function selectedTrack(){return currentTrackCandidates.find(function(t){return t.id===cameraState.selectedTrackId;})||null;}
 function selectedOwnTrack(regionalContacts){var id=({ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'})[unitId];return (regionalContacts||[]).find(function(t){return t&&t.id===id&&t.side==='friendly';})||null;}
