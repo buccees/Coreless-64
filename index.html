@@ -1065,10 +1065,12 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
       <div class="vigil-weapon-controls">
         <label>OWN SHIP<select id="vigil-ops-ship" aria-label="Select own ship"></select></label>
         <label>AUTHORIZED CONTACT<select id="vigil-ops-target" aria-label="Select authorized target"><option value="">NO CONTACT SELECTED</option></select></label>
+        <label>WEAPON STATION<select id="vigil-ops-weapon" aria-label="Select weapon station"><option value="main_battery">MAIN BATTERY / GUN DIRECTOR</option><option value="torpedo">TORPEDO FIRE CONTROL</option><option value="missile">MISSILE FIRE CONTROL</option></select></label>
         <button type="button" id="vigil-ops-lock">ACQUIRE / LOCK TARGET</button>
         <button type="button" id="vigil-ops-aim">UPDATE FIRING SOLUTION</button>
-        <button type="button" id="vigil-ops-clear-lock">BREAK LOCK</button>
-        <button type="button" id="vigil-ops-fire" class="ops-fire">REQUEST FIRE</button>
+        <button type="button" id="vigil-ops-authorize">REQUEST COMMAND AUTHORIZATION</button>
+        <button type="button" id="vigil-ops-clear-lock">BREAK LOCK / CANCEL ORDER</button>
+        <button type="button" id="vigil-ops-fire" class="ops-fire" disabled>EXECUTE AUTHORIZED ORDER</button>
       </div>
       <div id="vigil-fire-control-readout" class="vigil-ops-readout" role="status" aria-live="polite">NO TARGET SELECTED
 TRACK: NONE
@@ -3018,6 +3020,7 @@ FIRE CONTROL: STANDBY</div>
     var shipId=document.getElementById('vigil-regional-ship').value,targetId=document.getElementById('vigil-regional-target').value;
     if(!shipId||!targetId){regionalUiStatus('Select your vessel and an authorized visible target.',true);return;}
     if(window.vigilFireControlLockedTarget!==targetId){regionalUiStatus('FIRE REQUEST REJECTED // ACQUIRE AND LOCK THE SELECTED AUTHORIZED TARGET FIRST.',true);return;}
+    if(window.vigilFireControlAuthorizedTarget!==targetId){regionalUiStatus('FIRE REQUEST REJECTED // COMMAND AUTHORIZATION REQUIRED AFTER TARGET LOCK.',true);return;}
     if(!vigilRegionalUiOptions){
       var shooter=localRegionalShip(shipId),target=localRegionalShip(targetId);
       if(!shooter||shooter.side!=='friendly'){regionalUiStatus('LOCAL WEAPONS // Select the friendly DDG-51.',true);return;}
@@ -3026,13 +3029,13 @@ FIRE CONTROL: STANDBY</div>
       var distance=Math.hypot(target.x-shooter.x,target.y-shooter.y);
       if(distance>shooter.weaponRange){regionalUiStatus('NO FIRE SOLUTION // RANGE '+distance.toFixed(3)+' / MAX '+shooter.weaponRange.toFixed(3),true);return;}
       var damage=Number(shooter.weaponDamage||1);applyLocalWeaponHit(shooter,target);
-      var localEncounter={source:'local-training',shooter_id:shipId,target_id:targetId,damage:damage,hull_after:target.hull,sunk:!target.afloat,occurred_at:new Date().toISOString()};
+      var localEncounter={source:'local-training',shooter_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',authorization_id:window.vigilPendingAuthorizationId||'LOCAL-TRAINING-CO',damage:damage,hull_after:target.hull,sunk:!target.afloat,occurred_at:new Date().toISOString()};
       window.dispatchEvent(new CustomEvent('vigil:regional-encounter',{detail:localEncounter}));
       populateLocalRegionalCommandChoices();renderBathymetry(lastObservationData);
       regionalUiStatus((target.afloat?'LOCAL WEAPON HIT':'CONTACT SUNK')+' // '+targetId+' // DAMAGE '+damage+' // HULL '+target.hull+'/'+target.maxHull+' // RELOAD '+shooter.weaponCooldownRemaining.toFixed(1)+'s',false);return;
     }
-    try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'fire_weapon',{ship_id:shipId,target_id:targetId});var cooldown=Number(r.weapon_cooldown_remaining)||0;var fireButton=document.getElementById('vigil-regional-fire');if(cooldown>0){fireButton.disabled=true;fireButton.textContent='RELOADING '+cooldown.toFixed(1)+'s';}
-      window.dispatchEvent(new CustomEvent('vigil:regional-encounter',{detail:{source:'authoritative-backend',shooter_id:shipId,target_id:targetId,damage:Number(r.damage)||0,hull_after:Number(r.hull_after),sunk:!!r.sunk,occurred_at:new Date().toISOString()}}));
+    try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'fire_weapon',{ship_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',authorization_id:window.vigilFireControlAuthorizationId||''});var cooldown=Number(r.weapon_cooldown_remaining)||0;var fireButton=document.getElementById('vigil-regional-fire');if(cooldown>0){fireButton.disabled=true;fireButton.textContent='RELOADING '+cooldown.toFixed(1)+'s';}
+      window.dispatchEvent(new CustomEvent('vigil:regional-encounter',{detail:{source:'authoritative-backend',shooter_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',damage:Number(r.damage)||0,hull_after:Number(r.hull_after),sunk:!!r.sunk,occurred_at:new Date().toISOString()}}));
       regionalUiStatus((r.sunk?'CONTACT SUNK':'WEAPON HIT')+' // '+targetId+' // DAMAGE '+r.damage+' // HULL '+r.hull_after+' // RELOAD '+cooldown.toFixed(1)+'s',false);}
     catch(e){regionalUiStatus('FIRE SOLUTION REJECTED // '+String(e.message||e),true);}
   });
@@ -3253,7 +3256,7 @@ FIRE CONTROL: STANDBY</div>
     var ship=document.getElementById('vigil-ops-ship'),target=document.getElementById('vigil-ops-target'),sight=document.getElementById('vigil-gun-sight');
     var status=document.getElementById('vigil-ops-master-status'),readout=document.getElementById('vigil-fire-control-readout');
     if(!ship||!target||!sight||!status||!readout)return;
-    var ctx=sight.getContext('2d'),lockedTarget='',step=1;
+    var ctx=sight.getContext('2d'),lockedTarget='',authorizedTarget='',authorizationId='',step=1,weapon=document.getElementById('vigil-ops-weapon');
     function mirrorSelect(sourceId,destination){
       var source=document.getElementById(sourceId);if(!source||!destination)return;
       var old=destination.value;destination.replaceChildren();
@@ -3291,36 +3294,59 @@ FIRE CONTROL: STANDBY</div>
     function updateFireControl(){
       var state=window.vigilGetFireControlState?window.vigilGetFireControlState(ship.value,target.value):{ok:false,reason:'Fire-control state unavailable.'};
       drawSight(state);
-      if(!state.ok){readout.textContent='NO VALID TRACK\nTARGET: '+(target.value||'NONE')+'\nFIRE CONTROL: STANDBY\n'+(state.reason||'Awaiting authorized target');return;}
-      var locked=lockedTarget===target.value;
-      readout.textContent='OWN SHIP: '+state.ship_id+' // HDG '+state.heading_deg.toFixed(1)+'° // SPEED '+state.speed.toFixed(3)+'\nTARGET TRACK: '+state.target_id+' // '+(locked?'LOCKED':'TRACKED / NOT LOCKED')+'\nBEARING: '+state.bearing_deg.toFixed(1)+'° // RELATIVE: '+state.relative_bearing_deg.toFixed(1)+'°\nRANGE: '+state.range_normalized.toFixed(3)+' / MAX '+state.max_range.toFixed(3)+' // '+(state.within_range?'IN RANGE':'OUT OF RANGE')+'\nWEAPON: '+(state.weapon_ready?'READY':'RELOADING '+state.cooldown_remaining.toFixed(1)+'s')+' // FIRE SOLUTION: '+(locked&&state.within_range&&state.weapon_ready?'READY':'NOT READY')+'\nTARGET HULL: '+state.target_hull+'/'+state.target_max_hull;
-      document.getElementById('vigil-ops-fire').disabled=!(locked&&state.within_range&&state.weapon_ready);
-      status.textContent=locked&&state.within_range&&state.weapon_ready?'FIRE CONTROL READY // '+target.value:'TRACK '+target.value+' // '+(locked?'LOCKED':'AWAITING LOCK / AUTHORIZED SOLUTION');
+      if(!state.ok){document.getElementById('vigil-ops-fire').disabled=true;readout.textContent='NO VALID TRACK\nTARGET: '+(target.value||'NONE')+'\nFIRE CONTROL: STANDBY\n'+(state.reason||'Awaiting authorized target');return;}
+      var locked=lockedTarget===target.value,authorized=authorizedTarget===target.value;
+      readout.textContent='OWN SHIP: '+state.ship_id+' // HDG '+state.heading_deg.toFixed(1)+'° // SPEED '+state.speed.toFixed(3)+'\nTARGET TRACK: '+state.target_id+' // '+(locked?'LOCKED':'TRACKED / NOT LOCKED')+'\nBEARING: '+state.bearing_deg.toFixed(1)+'° // RELATIVE: '+state.relative_bearing_deg.toFixed(1)+'°\nRANGE: '+state.range_normalized.toFixed(3)+' / MAX '+state.max_range.toFixed(3)+' // '+(state.within_range?'IN RANGE':'OUT OF RANGE')+'\nWEAPON STATION: '+weapon.value.toUpperCase()+' // '+(state.weapon_ready?'READY':'RELOADING '+state.cooldown_remaining.toFixed(1)+'s')+'\nFIRE SOLUTION: '+(locked&&state.within_range&&state.weapon_ready?'READY':'NOT READY')+'\nCOMMAND AUTHORITY: '+(authorized?'GRANTED':'NOT GRANTED')+'\nTARGET HULL: '+state.target_hull+'/'+state.target_max_hull;
+      document.getElementById('vigil-ops-fire').disabled=!(locked&&authorized&&state.within_range&&state.weapon_ready);
+      status.textContent=locked&&authorized&&state.within_range&&state.weapon_ready?'AUTHORIZED ORDER READY // '+target.value:'TRACK '+target.value+' // '+(authorized?'AUTHORIZATION GRANTED':'AWAITING COMMAND AUTHORIZATION');
     }
     document.getElementById('vigil-ops-lock').addEventListener('click',function(){
       if(!ship.value||!target.value){readout.textContent='LOCK DENIED // SELECT OWN SHIP AND AUTHORIZED CONTACT FIRST.';return;}
       var state=window.vigilGetFireControlState(ship.value,target.value);
       if(!state.ok){readout.textContent='LOCK DENIED // '+(state.reason||'No valid track');return;}
-      lockedTarget=target.value;window.vigilFireControlLockedTarget=lockedTarget;
+      lockedTarget=target.value;authorizedTarget='';authorizationId='';window.vigilFireControlLockedTarget=lockedTarget;window.vigilFireControlAuthorizedTarget='';
       document.getElementById('vigil-ops-target').value=lockedTarget;
       var source=document.getElementById('vigil-regional-target');if(source)source.value=lockedTarget;
-      setStep(3);updateFireControl();readout.textContent='TARGET LOCK ACQUIRED // '+lockedTarget+'\nBEARING '+state.bearing_deg.toFixed(1)+'° // RANGE '+state.range_normalized.toFixed(3)+'\nLOCK DOES NOT GRANT COMMAND AUTHORIZATION. '+readout.textContent;
+      setStep(2);updateFireControl();readout.textContent='TARGET LOCK ACQUIRED // '+lockedTarget+'\nBEARING '+state.bearing_deg.toFixed(1)+'° // RANGE '+state.range_normalized.toFixed(3)+'\nNEXT: REQUEST COMMAND AUTHORIZATION. '+readout.textContent;
     });
     document.getElementById('vigil-ops-aim').addEventListener('click',function(){updateFireControl();if(lockedTarget===target.value)setStep(3);});
-    document.getElementById('vigil-ops-clear-lock').addEventListener('click',function(){lockedTarget='';window.vigilFireControlLockedTarget='';setStep(2);updateFireControl();status.textContent='TARGET LOCK BROKEN // TRACK RETAINED';});
+    document.getElementById('vigil-ops-clear-lock').addEventListener('click',function(){lockedTarget='';authorizedTarget='';authorizationId='';window.vigilFireControlLockedTarget='';window.vigilFireControlAuthorizedTarget='';setStep(2);updateFireControl();status.textContent='LOCK BROKEN // AUTHORIZATION CANCELLED // TRACK RETAINED';});
+    document.getElementById('vigil-ops-authorize').addEventListener('click',async function(){
+      var state=window.vigilGetFireControlState?window.vigilGetFireControlState(ship.value,target.value):{ok:false};
+      if(lockedTarget!==target.value||!state.ok||!state.within_range||!state.weapon_ready){readout.textContent='AUTHORIZATION REQUEST DENIED // LOCK A VALID TRACK AND ESTABLISH A READY FIRING SOLUTION FIRST.';return;}
+      var button=this;button.disabled=true;readout.textContent='ORDER QUEUED // REQUESTING COMMAND AUTHORITY…';
+      try{
+        if(vigilRegionalUiOptions){
+          var response=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'request_fire_authorization',{ship_id:ship.value,target_id:target.value,weapon_system:weapon.value});
+          if(response.authorized!==true)throw new Error(String(response.reason||'Server did not authorize this order.'));
+          authorizationId=String(response.authorization_id||'');authorizedTarget=target.value;
+          window.vigilFireControlAuthorizationId=authorizationId;window.vigilFireControlAuthorizedTarget=authorizedTarget;
+          readout.textContent='SERVER COMMAND AUTHORITY GRANTED // '+(authorizationId||'AUTHORIZATION ACKNOWLEDGED')+'\nORDER: '+weapon.value.toUpperCase()+' // TARGET '+target.value;
+        }else{
+          var trainingApproved=state.hull>0&&state.target_afloat&&state.within_range&&state.weapon_ready;
+          if(!trainingApproved)throw new Error('Training command denied: vessel, target, range, or weapon readiness failed doctrine checks.');
+          authorizedTarget=target.value;authorizationId='LOCAL-TRAINING-CO';
+          window.vigilFireControlAuthorizationId=authorizationId;window.vigilFireControlAuthorizedTarget=authorizedTarget;
+          readout.textContent='SIMULATED COMMANDING OFFICER // TRAINING AUTHORIZATION GRANTED\nORDER: '+weapon.value.toUpperCase()+' // TARGET '+target.value+'\nRULE CHECK: TRACK LOCKED · IN RANGE · WEAPON READY';
+        }
+        setStep(3);updateFireControl();
+      }catch(error){authorizedTarget='';authorizationId='';window.vigilFireControlAuthorizedTarget='';readout.textContent='ORDER HELD / DENIED // '+String(error.message||error)+'\nNo weapon fired. Correct the issue or request command review.';updateFireControl();}
+      finally{button.disabled=false;}
+    });
     document.getElementById('vigil-ops-fire').addEventListener('click',function(){
-      if(lockedTarget!==target.value){readout.textContent='FIRE REQUEST REJECTED // LOCK THE CURRENT TRACK FIRST.';return;}
+      if(lockedTarget!==target.value||authorizedTarget!==target.value){readout.textContent='EXECUTION BLOCKED // CURRENT TARGET MUST BE LOCKED AND AUTHORIZED.';return;}
       var state=window.vigilGetFireControlState(ship.value,target.value);
       if(!state.ok||!state.within_range||!state.weapon_ready){updateFireControl();return;}
-      setStep(4);readout.textContent='FIRE REQUEST SUBMITTED // WAITING FOR SIMULATION RESULT…';
+      setStep(4);readout.textContent='ORDER EXECUTING // WAITING FOR ENCOUNTER RESOLUTION…';
       var fire=document.getElementById('vigil-regional-fire');
       var regionalShip=document.getElementById('vigil-regional-ship'),regionalTarget=document.getElementById('vigil-regional-target');
       if(regionalShip)regionalShip.value=ship.value;if(regionalTarget)regionalTarget.value=target.value;
-      if(fire)fire.click();
-      window.setTimeout(function(){var result=document.getElementById('vigil-regional-status');var message=result?result.textContent:'Encounter result not returned';readout.textContent='ENCOUNTER RESULT // '+message+'\nA hit is confirmed only when the simulation returns a resolved hit event.';updateFireControl();},80);
+      window.vigilPendingWeaponSystem=weapon.value;window.vigilPendingAuthorizationId=authorizationId;
+      if(fire)fire.click();else readout.textContent='EXECUTION FAILED // Regional weapon handler is unavailable.';
     });
-    ship.addEventListener('change',function(){lockedTarget='';window.vigilFireControlLockedTarget='';syncControls();setStep(1);});
-    target.addEventListener('change',function(){lockedTarget='';window.vigilFireControlLockedTarget='';var src=document.getElementById('vigil-regional-target');if(src)src.value=target.value;syncControls();setStep(2);});
+    weapon.addEventListener('change',function(){authorizedTarget='';authorizationId='';window.vigilFireControlAuthorizedTarget='';updateFireControl();});
+    ship.addEventListener('change',function(){lockedTarget='';authorizedTarget='';authorizationId='';window.vigilFireControlLockedTarget='';window.vigilFireControlAuthorizedTarget='';syncControls();setStep(1);});
+    target.addEventListener('change',function(){lockedTarget='';authorizedTarget='';authorizationId='';window.vigilFireControlLockedTarget='';window.vigilFireControlAuthorizedTarget='';var src=document.getElementById('vigil-regional-target');if(src)src.value=target.value;syncControls();setStep(2);});
     window.addEventListener('vigil:regional-encounter',function(e){var d=e.detail||{};if(d.target_id!==target.value)return;setStep(4);readout.textContent='ENCOUNTER RESOLVED // '+(d.sunk?'TARGET DISABLED':'DAMAGE '+Number(d.damage||0))+'\nTARGET: '+d.target_id+' // HULL AFTER: '+d.hull_after+'\nRESULT SOURCE: '+d.source+' // '+(d.occurred_at||'TIME UNAVAILABLE');});
     window.addEventListener('vigil:regional-snapshot-error',function(e){status.textContent='LINK ERROR // '+String(e.detail&&e.detail.message||'snapshot unavailable');});
     syncControls();
