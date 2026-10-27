@@ -4308,33 +4308,106 @@ function draw(){
    ctx.fillStyle='#4b8168';ctx.font='9px Courier New';ctx.fillText('RNG IS NORMALIZED MAP DISTANCE  /  NOT NAUTICAL MILES',444,294);
    drawFooter((observationIsExternal&&sensorObservation.stale?'EXTERNAL DATA STALE  /  ':'')+(observationFresh?(observationIsExternal?'EXTERNAL OBSERVATIONS':'PIPELINE OBSERVATIONS'):'REGIONAL TRAINING CONTACTS')+'  //  ROTATING SWEEP MODEL');
  }else if(isCamera||isThermal){
-   var visualColor=isThermal?'#ffc26e':'#76e2ad';
-   var imageGrad=ctx.createLinearGradient(0,38,0,h);imageGrad.addColorStop(0,isThermal?'#2a1b12':'#0a251a');imageGrad.addColorStop(1,'#010604');
-   ctx.fillStyle=imageGrad;ctx.fillRect(1,37,w-2,h-38);
-   // Camera viewport: faint sensor raster and clean optical/thermal reticle.
-   for(var scan=0;scan<h-38;scan+=4){ctx.fillStyle=isThermal?'rgba(255,190,100,.025)':'rgba(78,207,142,.025)';ctx.fillRect(1,38+scan,w-2,1);}
-   ctx.strokeStyle=isThermal?'rgba(255,190,100,.20)':'rgba(80,214,148,.20)';ctx.lineWidth=1;
-   for(var k=0;k<9;k++){ctx.beginPath();ctx.moveTo(k*w/8,38);ctx.lineTo(k*w/8,h-1);ctx.stroke();}
-   ctx.beginPath();ctx.moveTo(1,h*.68);ctx.lineTo(w*.2,h*.65);ctx.lineTo(w*.34,h*.45);ctx.lineTo(w*.5,h*.58);ctx.lineTo(w*.72,h*.38);ctx.lineTo(w-1,h*.62);ctx.stroke();
-   var boxW=105,boxH=86,bx=w*.53,by=h*.44;
-   ctx.strokeStyle=visualColor;ctx.lineWidth=1.5;
-   ctx.beginPath();ctx.moveTo(bx-boxW/2,by-boxH/2+14);ctx.lineTo(bx-boxW/2,by-boxH/2);ctx.lineTo(bx-boxW/2+14,by-boxH/2);
-   ctx.moveTo(bx+boxW/2-14,by-boxH/2);ctx.lineTo(bx+boxW/2,by-boxH/2);ctx.lineTo(bx+boxW/2,by-boxH/2+14);
-   ctx.moveTo(bx-boxW/2,by+boxH/2-14);ctx.lineTo(bx-boxW/2,by+boxH/2);ctx.lineTo(bx-boxW/2+14,by+boxH/2);
-   ctx.moveTo(bx+boxW/2-14,by+boxH/2);ctx.lineTo(bx+boxW/2,by+boxH/2);ctx.lineTo(bx+boxW/2,by+boxH/2-14);ctx.stroke();
-   ctx.beginPath();ctx.moveTo(bx-10,by);ctx.lineTo(bx+10,by);ctx.moveTo(bx,by-10);ctx.lineTo(bx,by+10);ctx.stroke();
-   var visualTracks=0;
-   targets.forEach(function(t){
-     var p=t.raw&&t.raw.normalized_position?t.raw.normalized_position:null;
-     var modalities=t.raw&&Array.isArray(t.raw.modalities)?t.raw.modalities:[];
-     if(p&&((modalities.indexOf('optical')>=0)||(modalities.indexOf('lidar')>=0))){
-       var px=Number(p[0])*w,py=Number(p[1])*h;
-       if(!Number.isFinite(px)||!Number.isFinite(py)||px<0||px>w||py<38||py>h-20)return;
-       ctx.strokeStyle=visualColor;ctx.strokeRect(px-24,py-32,48,64);ctx.fillStyle=visualColor;ctx.font='9px Courier New';ctx.fillText(t.id,px-24,py-37);visualTracks++;
+   var visualColor=isUnderwaterCamera?'#65e6d0':isThermal?'#ffc26e':'#76e2ad';
+   var viewTop=38,viewBottom=h-20,viewHeight=viewBottom-viewTop,waterline=isUnderwaterCamera?h*.48:h*.42;
+   var inputFrame=!!(loadedFrameImage&&loadedFrameImage.complete&&loadedFrameImage.naturalWidth>0);
+   if(inputFrame){
+     var iw=loadedFrameImage.naturalWidth,ih=loadedFrameImage.naturalHeight,zoom=Math.max(1,cameraState.zoom);
+     var sourceW=iw/zoom,sourceH=ih/zoom;
+     var sourceX=(iw-sourceW)/2+Math.max(-1,Math.min(1,cameraState.pan/90))*(iw-sourceW)/2;
+     var sourceY=(ih-sourceH)/2+Math.max(-1,Math.min(1,cameraState.tilt/45))*(ih-sourceH)/2;
+     sourceX=Math.max(0,Math.min(iw-sourceW,sourceX));sourceY=Math.max(0,Math.min(ih-sourceH,sourceY));
+     ctx.drawImage(loadedFrameImage,sourceX,sourceY,sourceW,sourceH,1,viewTop,w-2,viewHeight);
+     ctx.fillStyle=isUnderwaterCamera?'rgba(0,34,39,.25)':isThermal?'rgba(42,20,3,.12)':'rgba(0,23,13,.10)';
+     ctx.fillRect(1,viewTop,w-2,viewHeight);
+   }else if(isUnderwaterCamera){
+     // A usable synthetic underwater camera scene driven by the active submersible's
+     // pose and surrounding regional tracks—not a static placeholder drawing.
+     var seaGrad=ctx.createLinearGradient(0,viewTop,0,viewBottom);
+     seaGrad.addColorStop(0,'#082f37');seaGrad.addColorStop(.34,'#06434b');seaGrad.addColorStop(.68,'#032a2b');seaGrad.addColorStop(1,'#010a0c');
+     ctx.fillStyle=seaGrad;ctx.fillRect(1,viewTop,w-2,viewHeight);
+     ctx.save();ctx.globalAlpha=.12;
+     for(var beam=0;beam<5;beam++){
+       var beamX=w*(.16+beam*.17)+Math.sin(frame*.012+beam)*18;
+       ctx.fillStyle=beam%2?'#68e9d6':'#b1f3e7';ctx.beginPath();ctx.moveTo(beamX-8,viewTop);ctx.lineTo(beamX+9,viewTop);
+       ctx.lineTo(beamX+74+beam*9,waterline+62);ctx.lineTo(beamX-52-beam*8,waterline+62);ctx.closePath();ctx.fill();
      }
+     ctx.restore();
+     ctx.strokeStyle='rgba(110,235,216,.34)';ctx.lineWidth=1;
+     ctx.beginPath();ctx.moveTo(1,waterline);ctx.bezierCurveTo(w*.25,waterline-8,w*.52,waterline+9,w*.75,waterline-5);ctx.lineTo(w-1,waterline+2);ctx.stroke();
+     // Layered seafloor slope with contour lines and rock silhouettes.
+     var floorBase=waterline+viewHeight*.47;
+     ctx.beginPath();ctx.moveTo(1,floorBase+18);ctx.bezierCurveTo(w*.18,floorBase-10,w*.33,floorBase+26,w*.49,floorBase+10);
+     ctx.bezierCurveTo(w*.68,floorBase-5,w*.83,floorBase+32,w-1,floorBase+8);ctx.lineTo(w-1,viewBottom);ctx.lineTo(1,viewBottom);ctx.closePath();
+     var floorGrad=ctx.createLinearGradient(0,floorBase,0,viewBottom);floorGrad.addColorStop(0,'#17483e');floorGrad.addColorStop(.45,'#0a2b29');floorGrad.addColorStop(1,'#020909');
+     ctx.fillStyle=floorGrad;ctx.fill();
+     ctx.strokeStyle='rgba(104,190,158,.38)';
+     for(var contour=0;contour<5;contour++){
+       var contourY=floorBase+14+contour*12;
+       ctx.beginPath();ctx.moveTo(1,contourY+5*Math.sin(contour));ctx.bezierCurveTo(w*.25,contourY-12,w*.56,contourY+15,w-1,contourY-2);ctx.stroke();
+     }
+     for(var rock=0;rock<7;rock++){
+       var rockX=((rock*137+frame*.18)%Math.max(1,w-60))+15,rockY=floorBase+8+(rock%3)*9,rockW=15+(rock%4)*7;
+       ctx.fillStyle=rock%2?'#0b2928':'#123832';ctx.beginPath();ctx.moveTo(rockX-rockW,rockY+19);ctx.lineTo(rockX-rockW*.7,rockY+4);ctx.lineTo(rockX-2,rockY-4-(rock%3)*4);
+       ctx.lineTo(rockX+rockW*.55,rockY+3);ctx.lineTo(rockX+rockW,rockY+19);ctx.closePath();ctx.fill();
+       ctx.strokeStyle='rgba(114,204,176,.42)';ctx.stroke();
+     }
+     for(var mote=0;mote<58;mote++){
+       var mx=(mote*83+frame*(.12+(mote%5)*.025))%w,my=viewTop+((mote*47+frame*(.22+(mote%4)*.035))%viewHeight);
+       ctx.fillStyle='rgba(162,241,228,'+(.12+(mote%5)*.045)+')';ctx.fillRect(mx,my,1+(mote%3===0?1:0),1+(mote%3===0?1:0));
+     }
+   }else{
+     var imageGrad=ctx.createLinearGradient(0,viewTop,0,viewBottom);
+     imageGrad.addColorStop(0,isThermal?'#24190f':'#0a251a');imageGrad.addColorStop(1,'#010604');
+     ctx.fillStyle=imageGrad;ctx.fillRect(1,viewTop,w-2,viewHeight);
+     for(var scan=0;scan<viewHeight;scan+=4){ctx.fillStyle=isThermal?'rgba(255,190,100,.035)':'rgba(78,207,142,.035)';ctx.fillRect(1,viewTop+scan,w-2,1);}
+     ctx.strokeStyle=isThermal?'rgba(255,190,100,.2)':'rgba(80,214,148,.2)';ctx.lineWidth=1;
+     ctx.beginPath();ctx.moveTo(1,h*.7);ctx.lineTo(w*.2,h*.66);ctx.lineTo(w*.34,h*.48);ctx.lineTo(w*.5,h*.6);ctx.lineTo(w*.72,h*.4);ctx.lineTo(w-1,h*.63);ctx.stroke();
+   }
+   // All live/accepted visual observations are drawn in the gimbal's current field
+   // of view. Without an optical feed, local exercise tracks remain useful camera targets.
+   var ownX=statusTrack?Number(statusTrack.x):NaN,ownY=statusTrack?Number(statusTrack.y):NaN,ownHeading=statusTrack?Number(statusTrack.heading_deg)||0:0;
+   var hfov=Math.max(10,70/cameraState.zoom),visualTracks=0,selectedVisible=false;
+   if(cameraState.hold){
+     var holdTarget=selectedTrack(),holdBearing=bearingToTrack(holdTarget,statusTrack);
+     if(holdBearing!==null){var wantedPan=Math.max(-85,Math.min(85,signedDegrees(holdBearing-ownHeading)));cameraState.pan=Math.max(-85,Math.min(85,cameraState.pan+signedDegrees(wantedPan-cameraState.pan)*.22));}
+   }
+   targets.forEach(function(t){
+     var dx=Number(t.x)-ownX,dy=Number(t.y)-ownY;
+     if(!Number.isFinite(dx)||!Number.isFinite(dy))return;
+     var distance=Math.hypot(dx,dy),absoluteBearing=(Math.atan2(dx,-dy)*180/Math.PI+360)%360;
+     var relativeBearing=signedDegrees(absoluteBearing-ownHeading);
+     var viewBearing=signedDegrees(relativeBearing-cameraState.pan);
+     if(Math.abs(viewBearing)>hfov*.52)return;
+     var px=w*.5+(viewBearing/(hfov*.52))*w*.43;
+     var verticalDistance=Math.min(viewHeight*.2,distance*(isUnderwaterCamera?300:160));
+     var py=(isUnderwaterCamera?waterline+viewHeight*.16:h*.48)+verticalDistance-cameraState.tilt*1.45;
+     var targetSize=Math.max(5,Math.min(24,18/(.09+distance)*cameraState.zoom));
+     if(!Number.isFinite(px)||!Number.isFinite(py)||py<viewTop+8||py>viewBottom-10)return;
+     var color=t.id===cameraState.selectedTrackId?'#ffd47a':t.side==='friendly'?'#65bfff':visualColor;
+     ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=t.id===cameraState.selectedTrackId?2:1.25;
+     var bw=targetSize*2.3,bh=targetSize*1.55;
+     ctx.beginPath();
+     ctx.moveTo(px-bw/2,py-bh/2+6);ctx.lineTo(px-bw/2,py-bh/2);ctx.lineTo(px-bw/2+6,py-bh/2);
+     ctx.moveTo(px+bw/2-6,py-bh/2);ctx.lineTo(px+bw/2,py-bh/2);ctx.lineTo(px+bw/2,py-bh/2+6);
+     ctx.moveTo(px-bw/2,py+bh/2-6);ctx.lineTo(px-bw/2,py+bh/2);ctx.lineTo(px-bw/2+6,py+bh/2);
+     ctx.moveTo(px+bw/2-6,py+bh/2);ctx.lineTo(px+bw/2,py+bh/2);ctx.lineTo(px+bw/2,py+bh/2-6);ctx.stroke();
+     if(t.side==='friendly'){ctx.beginPath();ctx.moveTo(px-4,py);ctx.lineTo(px+4,py);ctx.moveTo(px,py-4);ctx.lineTo(px,py+4);ctx.stroke();}
+     ctx.font='10px Courier New';ctx.fillText(t.id.slice(0,25),px+bw/2+5,py-3);
+     if(t.id===cameraState.selectedTrackId){ctx.beginPath();ctx.arc(px,py,targetSize*1.65,0,Math.PI*2);ctx.stroke();selectedVisible=true;}
+     ctx.restore();visualTracks++;
    });
-   ctx.fillStyle=visualColor;ctx.font='10px Courier New';ctx.fillText((isThermal?'THERMAL IMAGING':'OPTICAL IMAGING')+'  //  '+visualTracks+' VISUAL TRACKS',16,h-22);
-   drawFooter(observationFresh?(observationIsExternal?'EXTERNAL SENSOR DATA':'PIPELINE SENSOR DATA'):'SIMULATED CAMERA VIEW');
+   // Gimbal crosshair, heading tick, and readable camera state stay on top of imagery.
+   var reticleX=w*.5,reticleY=h*.51-cameraState.tilt*.5;
+   ctx.strokeStyle=visualColor;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(reticleX-18,reticleY);ctx.lineTo(reticleX-6,reticleY);ctx.moveTo(reticleX+6,reticleY);ctx.lineTo(reticleX+18,reticleY);
+   ctx.moveTo(reticleX,reticleY-18);ctx.lineTo(reticleX,reticleY-6);ctx.moveTo(reticleX,reticleY+6);ctx.lineTo(reticleX,reticleY+18);ctx.stroke();
+   ctx.strokeStyle='rgba(109,210,170,.45)';ctx.beginPath();ctx.moveTo(w*.5,h*.38);ctx.lineTo(w*.5,h*.64);ctx.moveTo(w*.35,h*.51);ctx.lineTo(w*.65,h*.51);ctx.stroke();
+   ctx.fillStyle='#e0f6e8';ctx.font='bold 10px Courier New';
+   ctx.fillText((isUnderwaterCamera?'UNDERWATER CAMERA':isThermal?'THERMAL / IR IMAGER':'EO CAMERA')+'  //  '+(inputFrame?'INPUT FRAME':'SIMULATED VIEW'),16,54);
+   ctx.fillStyle='#79b99d';ctx.font='9px Courier New';
+   ctx.fillText('GIMBAL PAN '+(cameraState.pan>=0?'+':'')+cameraState.pan.toFixed(0)+'°  /  TILT '+(cameraState.tilt>=0?'+':'')+cameraState.tilt.toFixed(0)+'°  /  ZOOM '+cameraState.zoom.toFixed(1)+'×  /  GAIN '+cameraState.sensitivity.toFixed(1)+'×',16,h-25);
+   ctx.fillText(visualTracks+' TRACK(S) IN FOV'+(cameraState.hold?'  //  TRACK HOLD':'')+(inputFrame&&activeImageFeed?'  //  '+activeImageFeed.sensor_id:'')+(staleRelevantFeeds.length?'  //  FEED STALE':'')+(selectedVisible?'  //  SELECTED TRACK LOCKED':''),16,h-10);
+   drawFooter((inputFrame?'ACCEPTED CAMERA FRAME':'SIMULATED CAMERA FRAME')+'  //  NORMALIZED REGIONAL TRACK OVERLAY');
  }else if(isRange){
    panel(10,43,w-20,270,'LASER / DEPTH RANGEFINDER');
    ctx.strokeStyle='#164a35';ctx.lineWidth=1;
