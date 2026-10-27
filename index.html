@@ -4391,6 +4391,15 @@ function draw(){
  }
  updateTrackCandidates(regionalContacts,sensorSnapshot);
  var ownTrackForCamera=selectedOwnTrack(regionalContacts),selectedCameraTarget=selectedTrack();
+ // A hold requires both a valid target and the active unit's own position; release it if either disappears.
+ if(cameraState.hold&&(!selectedCameraTarget||!ownTrackForCamera||!cameraModeActive())){
+   cameraState.hold=false;
+   var holdButton=display.querySelector('#vigil-camera-track-hold');
+   if(holdButton){holdButton.setAttribute('aria-pressed','false');holdButton.textContent='TRACK HOLD: OFF';}
+   if(!ownTrackForCamera)setCommandMessage('TRACK HOLD RELEASED // OWN UNIT POSITION UNAVAILABLE');
+   else if(!cameraModeActive())setCommandMessage('TRACK HOLD RELEASED // CAMERA STATION INACTIVE');
+   else setCommandMessage('TRACK HOLD RELEASED // TRACK UNAVAILABLE');
+ }
  if(cameraState.hold&&selectedCameraTarget&&ownTrackForCamera&&cameraModeActive()){
    var targetBearing=bearingToTrack(selectedCameraTarget,ownTrackForCamera);
    if(targetBearing!==null){var desiredPan=Math.max(-85,Math.min(85,signedDegrees(targetBearing-(Number(ownTrackForCamera.heading_deg)||0))));cameraState.pan=Math.max(-85,Math.min(85,cameraState.pan+signedDegrees(desiredPan-cameraState.pan)*.22));}
