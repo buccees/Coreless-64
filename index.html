@@ -2968,7 +2968,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       metadata:Object.assign({},sourceMetadata),
       objects:(lastObservationData.objects||[]).map(function(o){return {
         object_id:String(o.object_id||''),normalized_position:Array.isArray(o.normalized_position)?o.normalized_position.slice(0,3):null,
-        uncertainty_m:Number(o.uncertainty_m)||0,confidence:Number(o.confidence)||0,
+        uncertainty_m:typeof o.uncertainty_m==='number'&&Number.isFinite(o.uncertainty_m)&&o.uncertainty_m>=0?o.uncertainty_m:null,confidence:typeof o.confidence==='number'&&Number.isFinite(o.confidence)?Math.max(0,Math.min(1,o.confidence)):null,
         classification:String(o.classification||'unclassified contact'),
         modalities:Array.isArray(o.modalities)?o.modalities.slice():[],
         external_timestamp:o.external_timestamp||null
