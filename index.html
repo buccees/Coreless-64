@@ -4754,25 +4754,30 @@ display.querySelector('#vigil-sensor-auto-step').addEventListener('click',functi
  else setCommandMessage('AUTONOMOUS SENSOR STEP UNAVAILABLE');
 });
 display.querySelector('#vigil-sensor-request-followup').addEventListener('click',function(){
- var selected=cameraState.selectedTrackId,items=Array.prototype.slice.call(document.querySelectorAll('#sim-recon-contacts [data-contact-id]'));
+ var selected=trackSelect&&trackSelect.value||cameraState.selectedTrackId,items=Array.prototype.slice.call(document.querySelectorAll('#sim-recon-contacts [data-contact-id]'));
  var matching=items.find(function(item){return item.getAttribute('data-contact-id')===selected;});
- if(!matching){setCommandMessage('FOCUSED FOLLOW-UP REQUIRES A CURRENT SIMULATION CONTACT // RUN A SWEEP AND SELECT ITS TRACK');return;}
+ var observation=typeof window.vigilGetLatestSensorObservation==='function'?window.vigilGetLatestSensorObservation():null;
+ var hasCurrentObservation=!!(observation&&!observation.stale&&Array.isArray(observation.objects)&&observation.objects.some(function(o){return o.object_id===selected;}));
+ if(!matching||!hasCurrentObservation){syncFocusedFollowupButton();setCommandMessage('FOCUSED FOLLOW-UP BLOCKED // CONTACT IS MISSING OR OBSERVATION IS STALE // RUN A NEW SWEEP');return;}
  matching.click();
  var followup=document.getElementById('sim-recon-investigate');
  if(followup&&!followup.disabled){followup.click();setCommandMessage('FOCUSED FOLLOW-UP REQUESTED // '+selected);}
  else setCommandMessage('FOCUSED FOLLOW-UP UNAVAILABLE FOR THE SELECTED CONTACT');
+ syncFocusedFollowupButton();
 });
 display.querySelector('#vigil-sensor-open-feeds').addEventListener('click',function(){
  var bay=document.getElementById('vigil-sensor-input-bay');if(bay)bay.open=!bay.open;
  var list=document.getElementById('vigil-live-sensor-feed-list');if(list&&bay&&bay.open)list.scrollIntoView({block:'nearest'});
 });
-trackSelect.addEventListener('change',function(){
+function syncFocusedFollowupButton(){
  var followup=display.querySelector('#vigil-sensor-request-followup');
- if(followup){
-   var observation=typeof window.vigilGetLatestSensorObservation==='function'?window.vigilGetLatestSensorObservation():null;
-   followup.disabled=!(cameraState.selectedTrackId&&observation&&Array.isArray(observation.objects)&&observation.objects.some(function(o){return o.object_id===cameraState.selectedTrackId;}));
- }
-});
+ if(!followup)return;
+ var selected=trackSelect&&trackSelect.value||cameraState.selectedTrackId;
+ var observation=typeof window.vigilGetLatestSensorObservation==='function'?window.vigilGetLatestSensorObservation():null;
+ var currentSimulationContact=Array.prototype.some.call(document.querySelectorAll('#sim-recon-contacts [data-contact-id]'),function(item){return item.getAttribute('data-contact-id')===selected;});
+ followup.disabled=!(selected&&currentSimulationContact&&observation&&!observation.stale&&Array.isArray(observation.objects)&&observation.objects.some(function(o){return o.object_id===selected;}));
+}
+trackSelect.addEventListener('change',syncFocusedFollowupButton);
 
 display.querySelector('#vigil-unit-heading-right').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({heading:(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)+15});});
 display.querySelector('#vigil-unit-speed-down').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({speed:Math.max(0,(u.target_speed==null?u.speed:u.target_speed)-.005)});});
@@ -4780,6 +4785,7 @@ display.querySelector('#vigil-unit-speed-up').addEventListener('click',function(
 trackSelect.addEventListener('change',function(){
  cameraState.selectedTrackId=trackSelect.value;cameraState.hold=false;
  var hold=display.querySelector('#vigil-camera-track-hold');if(hold){hold.setAttribute('aria-pressed','false');hold.textContent='TRACK HOLD: OFF';}
+ syncFocusedFollowupButton();
  setCommandMessage(cameraState.selectedTrackId?'TRACK SELECTED // '+cameraState.selectedTrackId:'TRACK SELECTION CLEARED');draw();
 });
 display.querySelector('#vigil-unit-course-to-track').addEventListener('click',function(){
@@ -4793,7 +4799,7 @@ display.querySelector('#vigil-unit-course-to-track').addEventListener('click',fu
 display.querySelector('#vigil-unit-clear-track').addEventListener('click',function(){
  cameraState.selectedTrackId='';cameraState.hold=false;if(trackSelect)trackSelect.value='';
  var hold=display.querySelector('#vigil-camera-track-hold');if(hold){hold.setAttribute('aria-pressed','false');hold.textContent='TRACK HOLD: OFF';}
- setCommandMessage('TRACK SELECTION CLEARED');draw();
+ syncFocusedFollowupButton();setCommandMessage('TRACK SELECTION CLEARED');draw();
 });
 function adjustCamera(key,amount,min,max,label){
  cameraState[key]=Math.max(min,Math.min(max,cameraState[key]+amount));
