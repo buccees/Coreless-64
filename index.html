@@ -3895,13 +3895,15 @@ render();
 </script>
 
 <style>
-.vigil-unit-sensor-display{border:1px solid var(--line);background:#010604;padding:9px;margin:8px 0 12px}
-.vigil-unit-sensor-display h4{margin:0 0 7px;color:var(--g);font-size:11px;letter-spacing:1px}
-.vigil-unit-sensor-display .unit-display-bar{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0}
-.vigil-unit-sensor-display .unit-display-bar button{background:#020907;color:var(--dim);border:1px solid var(--line);padding:6px 8px;font:10px "Courier New",monospace;cursor:pointer}
-.vigil-unit-sensor-display .unit-display-bar button[aria-pressed="true"]{color:var(--g);border-color:var(--g);background:#073324}
-.vigil-unit-sensor-display canvas{display:block;width:100%;height:auto;max-height:360px;background:#010604;border:1px solid #17634d}
-.vigil-unit-sensor-display .unit-display-status{font-size:10px;color:var(--dim);margin-top:7px}
+.vigil-unit-sensor-display{border:1px solid #244c3c;background:linear-gradient(180deg,#04120d 0%,#010604 100%);padding:12px;margin:10px 0 14px;box-shadow:inset 0 0 0 1px rgba(111,198,151,.04),0 8px 24px rgba(0,0,0,.22)}
+.vigil-unit-sensor-display h4{margin:0 0 9px;color:#a4cfb6;font-size:11px;letter-spacing:1.4px;text-transform:uppercase}
+.vigil-unit-sensor-display .unit-display-bar{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.vigil-unit-sensor-display .unit-display-bar button{background:linear-gradient(180deg,#0a1c13,#031009);color:#749982;border:1px solid #214936;border-radius:2px;padding:7px 10px;font:10px "Courier New",monospace;letter-spacing:.35px;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+.vigil-unit-sensor-display .unit-display-bar button:hover{color:#d2f4df;border-color:#4b9471}
+.vigil-unit-sensor-display .unit-display-bar button[aria-pressed="true"]{color:#d9ffe7;border-color:#5bb987;background:linear-gradient(180deg,#12412a,#072416);box-shadow:inset 0 0 0 1px rgba(115,232,159,.10)}
+.vigil-unit-sensor-display canvas{display:block;width:100%;height:auto;max-height:420px;background:#010604;border:1px solid #23583e;box-shadow:inset 0 0 0 1px rgba(111,198,151,.035)}
+.vigil-unit-sensor-display .unit-display-status{font-size:10px;color:#7eaa91;margin-top:8px;padding:6px 8px;border-left:2px solid #326c4a;background:#031009;line-height:1.5;font-family:"Courier New",monospace}
+@media(max-width:650px){.vigil-unit-sensor-display{padding:7px}.vigil-unit-sensor-display .unit-display-bar button{padding:6px 7px;font-size:9px}.vigil-unit-sensor-display .unit-display-status{font-size:9px}}
 </style>
 <script>
 (function(){
@@ -3913,7 +3915,7 @@ display.id='vigil-unit-sensor-display';display.className='vigil-unit-sensor-disp
 display.innerHTML='<h4 id="vigil-unit-display-title">ACTIVE UNIT SENSOR DISPLAY</h4><div id="vigil-unit-display-buttons" class="unit-display-bar" role="group" aria-label="Select active unit sensor"></div><div class="unit-display-bar" role="group" aria-label="Active unit movement controls"><button type="button" id="vigil-unit-heading-left">HEADING −15°</button><button type="button" id="vigil-unit-heading-right">HEADING +15°</button><button type="button" id="vigil-unit-speed-down">SPEED −</button><button type="button" id="vigil-unit-speed-up">SPEED +</button></div><canvas id="vigil-unit-display-canvas" width="900" height="340" role="img" aria-label="Simulated sensor display for the active unit"></canvas><div id="vigil-unit-display-status" class="unit-display-status" role="status" aria-live="polite">SIMULATION DISPLAY INITIALIZING</div>';
 context.insertAdjacentElement('afterend',display);
 var canvas=display.querySelector('canvas'),ctx=canvas.getContext('2d'),buttons=display.querySelector('#vigil-unit-display-buttons'),title=display.querySelector('#vigil-unit-display-title'),status=display.querySelector('#vigil-unit-display-status');
-var activeSensor='',unitId='ship',frame=0;
+var activeSensor='',unitId='ship',frame=0,waterfallHistory=[],waterfallHistoryKey='';
 var profiles={
  ship:['SONAR','RADAR','EO / IR CAMERA','ESM / RF','NAVIGATION','FIRE CONTROL'],
  drone:['EO CAMERA','THERMAL / IR','RANGEFINDER','INERTIAL NAVIGATION','TELEMETRY'],
@@ -3923,180 +3925,245 @@ var profiles={
 };
 function draw(){
  if(!ctx)return;
- var w=canvas.width,h=canvas.height,pulse=(frame%80)/80;
- var lower=activeSensor.toLowerCase(),isSonar=lower.indexOf('sonar')>=0,isRadar=lower.indexOf('radar')>=0,cx=w*.5,cy=h*.56;
- if(isSonar){cx=w*.23;cy=h*.56;}
- // Sonar gets a split acoustic scope + waterfall; radar gets a dedicated PPI.
- // Other sensor types retain the common engineering-grid presentation.
- ctx.fillStyle='#010604';ctx.fillRect(0,0,w,h);
- if(!isSonar&&!isRadar){
-   ctx.strokeStyle='#0b4a38';ctx.lineWidth=1;
-   for(var x=0;x<=w;x+=30){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
-   for(var y=0;y<=h;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
- }
- ctx.fillStyle='#29f5b2';ctx.font='16px Courier New';ctx.fillText('VIGIL // '+unitId.toUpperCase()+' // '+activeSensor,18,25);
+ var w=canvas.width,h=canvas.height,pulse=(frame%100)/100;
+ var lower=activeSensor.toLowerCase(),isSonar=lower.indexOf('sonar')>=0,isRadar=lower.indexOf('radar')>=0;
+ var isCamera=lower.indexOf('camera')>=0,isThermal=lower.indexOf('thermal')>=0,isRange=lower.indexOf('range')>=0;
+ var historyKey=unitId+'|'+activeSensor;
+ if(waterfallHistoryKey!==historyKey){waterfallHistory=[];waterfallHistoryKey=historyKey;}
  var regionalContacts=typeof window.vigilGetRegionalSensorContacts==='function'?window.vigilGetRegionalSensorContacts():[];
- var assignedIds={ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'},statusTrack=regionalContacts.find(function(c){return c.id===assignedIds[unitId]&&c.side==='friendly';});
- if(status)status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+activeSensor+' // '+(statusTrack?'TRACK '+statusTrack.id+' // HDG '+Math.round(statusTrack.heading_deg)+'° // SPEED '+statusTrack.speed.toFixed(3)+'→'+statusTrack.target_speed.toFixed(3)+' / '+statusTrack.max_speed.toFixed(3)+' // HDG '+Math.round(statusTrack.heading_deg)+'→'+Math.round(statusTrack.desired_heading_deg)+'° // POS '+statusTrack.x.toFixed(3)+', '+statusTrack.y.toFixed(3):assignedIds[unitId]?'ASSIGNED TRACK: '+assignedIds[unitId]:'NO SIMULATION ENTITY ASSIGNED')+' // '+regionalContacts.length+' REGIONAL TRACKS // SHARED CONTROL PANEL';
+ var assignedIds={ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'};
+ var ownId=assignedIds[unitId],statusTrack=regionalContacts.find(function(c){return c.id===ownId&&c.side==='friendly';});
+ if(status)status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+activeSensor+' // '+
+   (statusTrack?'TRACK '+statusTrack.id+' // HDG '+Math.round(statusTrack.heading_deg)+'° // SPD '+statusTrack.speed.toFixed(3)+' / '+statusTrack.max_speed.toFixed(3)+' // POS '+statusTrack.x.toFixed(3)+', '+statusTrack.y.toFixed(3):ownId?'ASSIGNED TRACK: '+ownId:'NO SIMULATION ENTITY ASSIGNED')+
+   ' // '+regionalContacts.length+' REGIONAL TRACKS // SHARED CONTROL PANEL';
  var sensorObservation=typeof window.vigilGetLatestSensorObservation==='function'?window.vigilGetLatestSensorObservation():null;
  var observationIsExternal=!!(sensorObservation&&sensorObservation.metadata&&sensorObservation.metadata.source==='external-sensor-adapter');
+ var observationFresh=!!(sensorObservation&&Array.isArray(sensorObservation.objects)&&sensorObservation.objects.length&&!(observationIsExternal&&sensorObservation.stale));
  var activeVessel=typeof window.vigilGetRegionalSimulationUnit==='function'?window.vigilGetRegionalSimulationUnit(unitId):null;
- ctx.strokeStyle='#17634d';ctx.fillStyle='#29f5b2';
- if(lower.indexOf('sonar')>=0||lower.indexOf('radar')>=0||lower.indexOf('esm')>=0||lower.indexOf('acoustic')>=0||lower.indexOf('proximity')>=0){
-   var radius=isSonar?Math.min(h*.38,w*.15):Math.min(w,h)*.39;
-   if(isSonar){
-     // Acoustic scope on the left: bearing rings and a slower bearing sweep.
-     ctx.strokeStyle='#17634d';ctx.lineWidth=1;
-     for(var sr=radius/4;sr<=radius;sr+=radius/4){ctx.beginPath();ctx.arc(cx,cy,sr,0,Math.PI*2);ctx.stroke();}
-     for(var sb=0;sb<360;sb+=15){
-       var ba=sb*Math.PI/180,inner=radius*(sb%45===0?.89:.95);
-       ctx.beginPath();ctx.moveTo(cx+Math.sin(ba)*inner,cy-Math.cos(ba)*inner);ctx.lineTo(cx+Math.sin(ba)*radius,cy-Math.cos(ba)*radius);ctx.stroke();
-     }
-     ctx.beginPath();ctx.moveTo(cx,cy-radius);ctx.lineTo(cx,cy+radius);ctx.moveTo(cx-radius,cy);ctx.lineTo(cx+radius,cy);ctx.stroke();
-     ctx.strokeStyle='rgba(41,245,178,.9)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cx,cy);
-     ctx.lineTo(cx+Math.sin(pulse*Math.PI*2)*radius,cy-Math.cos(pulse*Math.PI*2)*radius);ctx.stroke();
-     // Synthetic waterfall is derived from the training track picture, not live hardware.
-     var waterfallX=420,waterfallY=68,waterfallW=w-waterfallX-22,waterfallH=h-waterfallY-44;
-     var waterfallBins=60,waterfallRows=30,cellW=waterfallW/waterfallBins,cellH=waterfallH/waterfallRows;
-     ctx.fillStyle='#020b08';ctx.fillRect(waterfallX,waterfallY,waterfallW,waterfallH);
-     ctx.strokeStyle='#17634d';ctx.lineWidth=1;ctx.strokeRect(waterfallX,waterfallY,waterfallW,waterfallH);
-     ctx.fillStyle='#59bda3';ctx.font='11px Courier New';ctx.fillText('ACOUSTIC WATERFALL // BEARING →',waterfallX,48);
-     ctx.fillText('TIME ↓',waterfallX+waterfallW-50,waterfallY+waterfallH+15);
-     var acousticReturns=[];
-     if(statusTrack){
-       regionalContacts.forEach(function(contact){
-         if(contact.id===statusTrack.id||!Number.isFinite(contact.x)||!Number.isFinite(contact.y))return;
-         var dx=contact.x-statusTrack.x,dy=contact.y-statusTrack.y;
-         var absoluteBearing=(Math.atan2(dx,-dy)*180/Math.PI+360)%360;
-         var relativeBearing=(absoluteBearing-(Number(statusTrack.heading_deg)||0)+360)%360;
-         var distance=Math.hypot(dx,dy);
-         acousticReturns.push({bin:Math.round(relativeBearing/360*waterfallBins)%waterfallBins,strength:Math.max(.18,Math.min(.82,.82-distance*.9))});
-       });
-     }
-     for(var wr=0;wr<waterfallRows;wr++){
-       for(var wb=0;wb<waterfallBins;wb++){
-         var signal=.035+.09*(.5+.5*Math.sin(wb*1.71+wr*2.37+frame*.035));
-         acousticReturns.forEach(function(ret){
-           var diff=Math.abs(wb-ret.bin);diff=Math.min(diff,waterfallBins-diff);
-           if(diff<=2)signal+=ret.strength*Math.exp(-diff*diff*.8)*(.38+.62*(.5+.5*Math.sin(wr*.74+frame*.075+ret.bin)));
-         });
-         if(signal>.12){
-           ctx.fillStyle='rgba(41,245,178,'+Math.min(.94,signal)+')';
-           ctx.fillRect(waterfallX+wb*cellW,waterfallY+wr*cellH,Math.max(1,cellW-.7),Math.max(1,cellH-.6));
-         }
-       }
-     }
-     ctx.fillStyle='#59bda3';ctx.font='10px Courier New';ctx.fillText('SIMULATED RETURNS // '+acousticReturns.length+' REGIONAL TRACKS',waterfallX,waterfallY+waterfallH+29);
-   }else if(isRadar){
-     // Radar PPI: north-up range rings, cardinal marks, and a rotating sweep.
-     ctx.strokeStyle='#17634d';ctx.lineWidth=1;
-     for(var rr=radius/4;rr<=radius;rr+=radius/4){ctx.beginPath();ctx.arc(cx,cy,rr,0,Math.PI*2);ctx.stroke();}
-     for(var rb=0;rb<360;rb+=10){
-       var rad=rb*Math.PI/180,tickInner=radius*(rb%30===0?.91:.96);
-       ctx.beginPath();ctx.moveTo(cx+Math.sin(rad)*tickInner,cy-Math.cos(rad)*tickInner);
-       ctx.lineTo(cx+Math.sin(rad)*radius,cy-Math.cos(rad)*radius);ctx.stroke();
-     }
-     ctx.strokeStyle='#0b4a38';ctx.beginPath();ctx.moveTo(cx-radius,cy);ctx.lineTo(cx+radius,cy);ctx.moveTo(cx,cy-radius);ctx.lineTo(cx,cy+radius);ctx.stroke();
-     ctx.fillStyle='#59bda3';ctx.font='11px Courier New';ctx.fillText('N',cx-4,cy-radius-9);ctx.fillText('E',cx+radius+6,cy+4);
-     ctx.fillText('S',cx-4,cy+radius+16);ctx.fillText('W',cx-radius-15,cy+4);
-     // A short fading trail distinguishes a rotating radar sweep from sonar bearing history.
-     for(var tail=8;tail>=0;tail--){
-       var sweepAngle=(pulse*Math.PI*2-tail*.055),alpha=.08+(8-tail)*.025;
-       ctx.strokeStyle='rgba(41,245,178,'+alpha+')';ctx.lineWidth=tail===0?2:1;
-       ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(sweepAngle)*radius,cy-Math.cos(sweepAngle)*radius);ctx.stroke();
-     }
-   }else{
-     for(var r=radius/4;r<=radius;r+=radius/4){ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();}
-     ctx.beginPath();ctx.moveTo(cx,cy-radius);ctx.lineTo(cx,cy+radius);ctx.moveTo(cx-radius,cy);ctx.lineTo(cx+radius,cy);ctx.stroke();
-     ctx.strokeStyle='#29f5b2';ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(pulse*Math.PI*2)*radius,cy+Math.sin(pulse*Math.PI*2)*radius);ctx.stroke();
-   }
-   // Prefer the latest accepted observation from the shared sensor pipeline.
-   var plotted=0;
-   // Only anchor a profile to a regional entity when an explicit mapping exists.
-   // Profiles without a represented simulation entity must not borrow another vessel's pose.
-   var profileTrackIds={ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'};
-   var assignedTrackId=profileTrackIds[unitId]||null;
-   var ownTrack=assignedTrackId?regionalContacts.find(function(c){return c.id===assignedTrackId&&c.side==='friendly';}):null;
-   var ownHeading=ownTrack?Number(ownTrack.heading_deg)||0:0;
-   function relativeScreenPoint(dx,dy){
-     // Regional x increases east and y increases south; heading is degrees clockwise from north.
-     var radians=ownHeading*Math.PI/180;
-     var forward=dx*Math.sin(radians)-dy*Math.cos(radians);
-     var starboard=dx*Math.cos(radians)+dy*Math.sin(radians);
-     return {x:cx+starboard*radius*1.35,y:cy-forward*radius*1.35};
-   }
-   var plottedObservationData=!!(sensorObservation&&Array.isArray(sensorObservation.objects)&&sensorObservation.objects.length&&!(observationIsExternal&&sensorObservation.stale));
-   if(plottedObservationData){
-     sensorObservation.objects.forEach(function(o){
-       if(!o.normalized_position)return;
-       var px,py;
-       if(observationIsExternal&&ownTrack){
-         var point=relativeScreenPoint(Number(o.normalized_position[0])-ownTrack.x,Number(o.normalized_position[1])-ownTrack.y);
-         px=point.x;py=point.y;
-       }else{
-         px=o.normalized_position[0]*w;py=o.normalized_position[1]*h;
-       }
-       if(px<cx-radius||px>cx+radius||py<cy-radius||py>cy+radius)return;
-       ctx.fillStyle=observationIsExternal?'#ffbd63':'#29f5b2';
-       ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);ctx.fill();
-       var uncertaintyRadius=Math.max(5,Math.min(26,(Number(o.uncertainty_m)||0)*.4));
-       ctx.strokeStyle=ctx.fillStyle;ctx.beginPath();ctx.arc(px,py,uncertaintyRadius,0,Math.PI*2);ctx.stroke();
-       ctx.font='10px Courier New';ctx.fillText(o.object_id,px+12,py-7);plotted++;
-     });
-   }else if(ownTrack){
-     // Regional tracks are shown relative to the explicitly assigned friendly simulation entity.
-     regionalContacts.forEach(function(contact){
-       if(contact.id===ownTrack.id)return;
-       var dx=contact.x-ownTrack.x;
-       var dy=contact.y-ownTrack.y;
-       var point=relativeScreenPoint(dx,dy),px=point.x,py=point.y;
-       if(px<cx-radius||px>cx+radius||py<cy-radius||py>cy+radius)return;
-       ctx.fillStyle=contact.side==='friendly'?'#66b7ff':'#ffbd63';
-       ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);ctx.fill();
-       ctx.strokeStyle=ctx.fillStyle;ctx.beginPath();ctx.arc(px,py,10,0,Math.PI*2);ctx.stroke();
-       ctx.font='10px Courier New';ctx.fillText(contact.id,px+12,py-7);plotted++;
-     });
-   }
-   if(!plotted){ctx.fillStyle='#59bda3';ctx.font='11px Courier New';ctx.fillText(!ownTrack&&!plottedObservationData?'NO ASSIGNED UNIT TRACK':'NO TRACKS // NO DETECTIONS',cx-radius+8,cy+18);}
-   ctx.fillStyle='#59bda3';ctx.font='12px Courier New';
-   var displayKind=isSonar?'ACOUSTIC SCOPE + WATERFALL':isRadar?'RADAR PPI // ROTATING SWEEP':lower.indexOf('esm')>=0?'RF / EMITTER BEARING DISPLAY':'ACOUSTIC / PROXIMITY PLOT';
-   ctx.fillText((observationIsExternal&&sensorObservation.stale?'STALE EXTERNAL DATA // FALLBACK ':'')+displayKind+' // '+plotted+' '+(plottedObservationData?(observationIsExternal?'EXTERNAL':'PIPELINE'):'REGIONAL')+' TRACKS',18,h-16);
- }else if(lower.indexOf('camera')>=0||lower.indexOf('thermal')>=0){
-   var grad=ctx.createLinearGradient(0,45,0,h);grad.addColorStop(0,lower.indexOf('thermal')>=0?'#311b12':'#05281d');grad.addColorStop(1,lower.indexOf('thermal')>=0?'#100b09':'#010604');ctx.fillStyle=grad;ctx.fillRect(1,35,w-2,h-36);
-   ctx.strokeStyle=lower.indexOf('thermal')>=0?'#ffbd63':'#17634d';ctx.lineWidth=2;
-   for(var k=0;k<8;k++){ctx.beginPath();ctx.moveTo(k*w/8,40);ctx.lineTo(k*w/8,h-1);ctx.stroke();}
-   ctx.beginPath();ctx.moveTo(1,h*.68);ctx.lineTo(w*.2,h*.65);ctx.lineTo(w*.34,h*.45);ctx.lineTo(w*.5,h*.58);ctx.lineTo(w*.72,h*.38);ctx.lineTo(w-1,h*.62);ctx.stroke();
-   ctx.strokeRect(w*.43,h*.27,w*.13,h*.36);ctx.beginPath();ctx.moveTo(w*.5,h*.27-12);ctx.lineTo(w*.5,h*.27+12);ctx.moveTo(w*.43-12,h*.45);ctx.lineTo(w*.43+12,h*.45);ctx.stroke();
-   // Visual/thermal overlays only use observations explicitly tagged optical or lidar;
-   // sonar/radar tracks are not silently presented as camera detections.
-   var visualTracks=0;
-   var visualObjects=sensorObservation&&Array.isArray(sensorObservation.objects)?sensorObservation.objects:[];
-   visualObjects.forEach(function(o){
-     if(observationIsExternal&&sensorObservation.stale)return;
-     var modalities=Array.isArray(o.modalities)?o.modalities:[];
-     var visual=modalities.indexOf('optical')>=0||modalities.indexOf('lidar')>=0;
-     if(!visual)return;
-     var p=o.normalized_position;if(!Array.isArray(p)||p.length<2)return;
-     var px=Number(p[0])*w,py=Number(p[1])*h;
-     if(!Number.isFinite(px)||!Number.isFinite(py)||px<0||px>w||py<35||py>h-22)return;
-     var bw=Math.max(22,Math.min(74,(Number(o.uncertainty_m)||18)*1.2)),bh=bw*1.35;
-     ctx.strokeStyle=lower.indexOf('thermal')>=0?'#ffbd63':'#29f5b2';
-     ctx.lineWidth=1.5;ctx.strokeRect(px-bw/2,py-bh/2,bw,bh);
-     ctx.fillStyle=ctx.strokeStyle;ctx.font='10px Courier New';
-     ctx.fillText(String(o.object_id||'VISUAL TRACK')+' '+Math.round(Math.max(0,Math.min(1,Number(o.confidence)||0))*100)+'%',px-bw/2,py-bh/2-4);
-     visualTracks++;
+ var observations=observationFresh?sensorObservation.objects:[];
+ var targets=[];
+ if(observationFresh){
+   observations.forEach(function(o){
+     var p=o&&o.normalized_position;
+     if(!Array.isArray(p)||p.length<2||!Number.isFinite(Number(p[0]))||!Number.isFinite(Number(p[1])))return;
+     targets.push({id:String(o.object_id||o.contact_id||'OBSERVATION'),x:Number(p[0]),y:Number(p[1]),
+       side:o.side||'contact',uncertainty:Number(o.uncertainty_m)||0,source:'observation',raw:o});
    });
-   ctx.fillStyle=lower.indexOf('thermal')>=0?'#ffbd63':'#29f5b2';ctx.font='12px Courier New';
-   ctx.fillText((observationIsExternal&&sensorObservation.stale?'STALE EXTERNAL DATA // ':'')+(lower.indexOf('thermal')>=0?'THERMAL VIEW':'OPTICAL VIEW')+' // '+visualTracks+' VISUAL TRACKS'+(visualTracks?'':' // NO VISUAL OBSERVATIONS'),18,h-16);
- }else if(lower.indexOf('range')>=0){
-   ctx.strokeStyle='#29f5b2';ctx.beginPath();ctx.moveTo(25,h-40);ctx.lineTo(w-25,45);ctx.stroke();ctx.strokeRect(w*.55,h*.3,90,75);ctx.fillStyle='#29f5b2';ctx.font='15px Courier New';ctx.fillText('RANGE ESTIMATE: '+(120+Math.round(pulse*8))+' m',28,65);ctx.fillText('LASER / DEPTH SOLUTION // SIMULATED',28,88);
  }else{
-   ctx.fillStyle='#29f5b2';ctx.font='14px Courier New';
-   var lines=['UNIT STATUS: NOMINAL','SIMULATION TELEMETRY: ACTIVE','POSITION / ATTITUDE: TRACKED','LINK QUALITY: '+(92+Math.round(Math.sin(frame/8)*5))+'%','SENSOR OUTPUT: SIMULATED'];
-   lines.forEach(function(line,i){ctx.fillText(line,24,75+i*30);});
-   ctx.strokeStyle='#17634d';ctx.strokeRect(w*.63,55,w*.3,h-90);ctx.beginPath();ctx.moveTo(w*.65,cy);ctx.lineTo(w*.91,cy);ctx.moveTo(w*.78,70);ctx.lineTo(w*.78,h-50);ctx.stroke();
+   regionalContacts.forEach(function(c){
+     if(!c||c.id===ownId||!Number.isFinite(Number(c.x))||!Number.isFinite(Number(c.y)))return;
+     targets.push({id:String(c.id),x:Number(c.x),y:Number(c.y),side:c.side||'contact',uncertainty:0,source:'regional'});
+   });
  }
- ctx.fillStyle='#59bda3';ctx.font='10px Courier New';ctx.fillText('TRAINING SIMULATION // NOT LIVE HARDWARE TELEMETRY',18,canvas.height-2);
+ var baseBg=ctx.createLinearGradient(0,0,0,h);baseBg.addColorStop(0,'#03120e');baseBg.addColorStop(.52,'#020a08');baseBg.addColorStop(1,'#010504');
+ ctx.fillStyle=baseBg;ctx.fillRect(0,0,w,h);
+ ctx.strokeStyle='#102e25';ctx.lineWidth=1;
+ ctx.beginPath();ctx.moveTo(12,36);ctx.lineTo(w-12,36);ctx.stroke();
+ ctx.fillStyle='#8fcfba';ctx.font='bold 13px Courier New';ctx.fillText('VIGIL  /  '+unitId.toUpperCase(),16,24);
+ ctx.fillStyle='#4e8b78';ctx.font='10px Courier New';
+ ctx.fillText(isSonar?'ACOUSTIC ANALYSIS  //  PASSIVE TRAINING VIEW':isRadar?'SURFACE SEARCH  //  PPI TRAINING VIEW':isThermal?'IMAGING SYSTEM  //  THERMAL CHANNEL':isCamera?'IMAGING SYSTEM  //  OPTICAL CHANNEL':'UNIT SENSOR SYSTEM  //  SIMULATED',w-330,24);
+ function panel(x,y,pw,ph,label){
+   var pg=ctx.createLinearGradient(x,y,x,y+ph);pg.addColorStop(0,'#041810');pg.addColorStop(1,'#020a07');
+   ctx.fillStyle=pg;ctx.fillRect(x,y,pw,ph);
+   ctx.strokeStyle='#205b45';ctx.lineWidth=1;ctx.strokeRect(x+.5,y+.5,pw-1,ph-1);
+   ctx.strokeStyle='#0c3528';ctx.beginPath();ctx.moveTo(x+1,y+24);ctx.lineTo(x+pw-1,y+24);ctx.stroke();
+   ctx.fillStyle='#7eb49f';ctx.font='bold 10px Courier New';ctx.fillText(label,x+10,y+16);
+   ctx.fillStyle='#1a4937';ctx.fillRect(x+pw-31,y+7,20,10);
+   ctx.fillStyle='#69a88c';ctx.font='8px Courier New';ctx.fillText('SIM',x+pw-28,y+15);
+ }
+ function drawTarget(px,py,target,kind){
+   if(!Number.isFinite(px)||!Number.isFinite(py)||px<0||px>w||py<0||py>h)return;
+   var friendly=target.side==='friendly',color=friendly?'#62b9ff':observationIsExternal?'#ffc36d':'#f4d985';
+   ctx.save();
+   if(kind==='sonar'){
+     ctx.strokeStyle=color;ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(px-5,py);ctx.lineTo(px+5,py);ctx.moveTo(px,py-5);ctx.lineTo(px,py+5);ctx.stroke();
+     ctx.beginPath();ctx.arc(px,py,3,0,Math.PI*2);ctx.stroke();
+     ctx.globalAlpha=.28;ctx.beginPath();ctx.arc(px,py,8,0,Math.PI*2);ctx.stroke();
+   }else{
+     ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=7;
+     ctx.beginPath();ctx.arc(px,py,2.6,0,Math.PI*2);ctx.fill();
+     ctx.shadowBlur=0;ctx.strokeStyle=color;ctx.lineWidth=1;
+     ctx.beginPath();ctx.arc(px,py,5.5,0,Math.PI*2);ctx.stroke();
+     if(friendly){ctx.beginPath();ctx.moveTo(px-8,py);ctx.lineTo(px+8,py);ctx.moveTo(px,py-8);ctx.lineTo(px,py+8);ctx.stroke();}
+   }
+   ctx.restore();
+ }
+ function targetPoint(target,cx,cy,radius,mode){
+   var dx=target.x-.5,dy=target.y-.5;
+   if(statusTrack){dx=target.x-Number(statusTrack.x);dy=target.y-Number(statusTrack.y);}
+   if(!Number.isFinite(dx)||!Number.isFinite(dy))return null;
+   var dist=Math.hypot(dx,dy),sx,sy;
+   if(statusTrack&&mode==='head-up'){
+     var hdg=(Number(statusTrack.heading_deg)||0)*Math.PI/180;
+     var forward=dx*Math.sin(hdg)-dy*Math.cos(hdg);
+     var starboard=dx*Math.cos(hdg)+dy*Math.sin(hdg);
+     sx=cx+starboard*radius*1.65;sy=cy-forward*radius*1.65;
+   }else{
+     sx=cx+dx*radius*1.65;sy=cy+dy*radius*1.65;
+   }
+   var absBearing=(Math.atan2(dx,-dy)*180/Math.PI+360)%360;
+   var relBearing=(absBearing-(statusTrack?Number(statusTrack.heading_deg)||0:0)+360)%360;
+   return {x:sx,y:sy,distance:dist,bearing:mode==='head-up'?relBearing:absBearing,visible:Math.hypot(sx-cx,sy-cy)<=radius*1.04};
+ }
+ function numberText(v,digits){return Number(v).toFixed(digits);}
+ function drawFooter(text){
+   ctx.fillStyle='#416e5e';ctx.font='9px Courier New';
+   ctx.fillText(text,16,h-7);
+   ctx.textAlign='right';ctx.fillText('SIMULATION ONLY  //  NOT LIVE HARDWARE',w-16,h-7);ctx.textAlign='left';
+ }
+ if(isSonar){
+   panel(10,43,328,270,'01  /  BEARING & RANGE');
+   panel(348,43,542,270,'02  /  ACOUSTIC WATERFALL');
+   var cx=174,cy=184,radius=108;
+   ctx.save();ctx.beginPath();ctx.arc(cx,cy,radius,0,Math.PI*2);ctx.clip();
+   var sg=ctx.createRadialGradient(cx,cy,5,cx,cy,radius);sg.addColorStop(0,'#073421');sg.addColorStop(.65,'#032316');sg.addColorStop(1,'#010906');
+   ctx.fillStyle=sg;ctx.fillRect(cx-radius,cy-radius,radius*2,radius*2);
+   ctx.strokeStyle='#15523b';ctx.lineWidth=1;
+   for(var sr=1;sr<=4;sr++){var sradius=radius*sr/4;ctx.beginPath();ctx.arc(cx,cy,sradius,0,Math.PI*2);ctx.stroke();}
+   for(var sb=0;sb<360;sb+=5){
+     var ba=sb*Math.PI/180,inner=radius*(sb%30===0?.88:sb%15===0?.93:.975);
+     ctx.strokeStyle=sb%30===0?'#286747':'#103e2c';ctx.lineWidth=sb%30===0?1:.7;
+     ctx.beginPath();ctx.moveTo(cx+Math.sin(ba)*inner,cy-Math.cos(ba)*inner);ctx.lineTo(cx+Math.sin(ba)*radius,cy-Math.cos(ba)*radius);ctx.stroke();
+   }
+   for(var cross=0;cross<4;cross++){var ca=cross*Math.PI/2;ctx.strokeStyle='#1a6242';ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(ca)*radius,cy-Math.cos(ca)*radius);ctx.stroke();}
+   var sweep=pulse*Math.PI*2;
+   ctx.fillStyle='rgba(35,235,151,.07)';ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,radius,sweep-.45,sweep);ctx.closePath();ctx.fill();
+   ctx.strokeStyle='rgba(73,255,176,.8)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(sweep)*radius,cy-Math.cos(sweep)*radius);ctx.stroke();
+   ctx.restore();
+   ctx.strokeStyle='#397b56';ctx.lineWidth=1;ctx.beginPath();ctx.arc(cx,cy,radius,0,Math.PI*2);ctx.stroke();
+   var labels=[{a:0,t:'000'},{a:45,t:'045'},{a:90,t:'090'},{a:135,t:'135'},{a:180,t:'180'},{a:225,t:'225'},{a:270,t:'270'},{a:315,t:'315'}];
+   ctx.font='9px Courier New';ctx.fillStyle='#88c7a4';labels.forEach(function(l){var a=l.a*Math.PI/180;var tx=cx+Math.sin(a)*(radius+10),ty=cy-Math.cos(a)*(radius+10);ctx.textAlign='center';ctx.fillText(l.t,tx,ty+3);});ctx.textAlign='left';
+   // Own-ship marker is fixed at the centre of the head-up bearing plot.
+   ctx.fillStyle='#77d8ff';ctx.strokeStyle='#77d8ff';ctx.beginPath();ctx.moveTo(cx,cy-8);ctx.lineTo(cx-5,cy+5);ctx.lineTo(cx,cy+2);ctx.lineTo(cx+5,cy+5);ctx.closePath();ctx.fill();
+   var visibleSonar=[];
+   targets.forEach(function(t){var p=targetPoint(t,cx,cy,radius,'head-up');if(!p||!p.visible)return;drawTarget(p.x,p.y,t,'sonar');visibleSonar.push({target:t,point:p});});
+   if(!visibleSonar.length){ctx.fillStyle='#6aa88c';ctx.font='9px Courier New';ctx.textAlign='center';ctx.fillText('NO RETURN',cx,cy+radius*.58);ctx.textAlign='left';}
+   ctx.fillStyle='#5a9978';ctx.font='9px Courier New';ctx.fillText('REL BRG',24,300);ctx.fillText('OUTER RING  /  TRAINING RANGE',24,300);
+   ctx.fillStyle='#69b48c';ctx.font='9px Courier New';ctx.fillText('OWN HDG '+(statusTrack?String(Math.round(statusTrack.heading_deg)).padStart(3,'0')+'°':'---'),22,65);
+   ctx.fillStyle='#c0e4cd';ctx.font='bold 11px Courier New';ctx.fillText(String(visibleSonar.length).padStart(2,'0')+' RETURNS',244,65);
+   // Build and scroll a true waterfall history: the newest acoustic scan is at the top.
+   var wfX=360,wfY=80,wfW=518,wfH=197,bins=72,rows=34,cellW=wfW/bins,cellH=wfH/rows;
+   var latest=new Array(bins);
+   for(var bi=0;bi<bins;bi++)latest[bi]=.025+.035*(.5+.5*Math.sin(bi*1.77+frame*.12))+.025*(.5+.5*Math.sin(bi*.47+frame*.055));
+   visibleSonar.forEach(function(item){
+     var bin=Math.round(item.point.bearing/360*bins)%bins;
+     var strength=Math.max(.3,Math.min(.95,.9-item.point.distance*.8));
+     for(var spread=-3;spread<=3;spread++){var sbn=(bin+spread+bins)%bins;latest[sbn]+=strength*Math.exp(-spread*spread*.38);}
+   });
+   waterfallHistory.unshift(latest.map(function(v){return Math.min(1,v);}));
+   if(waterfallHistory.length>rows)waterfallHistory.length=rows;
+   ctx.fillStyle='#010906';ctx.fillRect(wfX,wfY,wfW,wfH);
+   ctx.strokeStyle='#215b43';ctx.strokeRect(wfX,wfY,wfW,wfH);
+   for(var wg=0;wg<=bins;wg+=6){ctx.strokeStyle=wg%18===0?'rgba(54,122,80,.6)':'rgba(27,79,51,.32)';ctx.beginPath();ctx.moveTo(wfX+wg*cellW,wfY);ctx.lineTo(wfX+wg*cellW,wfY+wfH);ctx.stroke();}
+   for(var wrg=0;wrg<=rows;wrg+=5){ctx.strokeStyle='rgba(34,90,58,.38)';ctx.beginPath();ctx.moveTo(wfX,wfY+wrg*cellH);ctx.lineTo(wfX+wfW,wfY+wrg*cellH);ctx.stroke();}
+   for(var wr=0;wr<rows;wr++){
+     var row=waterfallHistory[wr];if(!row)continue;
+     for(var wb=0;wb<bins;wb++){
+       var sig=row[wb];if(sig<.095)continue;
+       ctx.fillStyle=sig>.72?'#f2d77b':sig>.48?'#7be5a6':sig>.25?'#2c9d68':'#15573b';
+       ctx.fillRect(wfX+wb*cellW+.35,wfY+wr*cellH+.3,Math.max(1,cellW-.7),Math.max(1,cellH-.6));
+     }
+   }
+   ctx.fillStyle='#7cbda0';ctx.font='9px Courier New';
+   [0,45,90,135,180,225,270,315].forEach(function(a){ctx.fillText(String(a).padStart(3,'0')+'°',wfX+a/360*wfW-8,wfY-5);});
+   ctx.fillStyle='#5b8f75';ctx.fillText('NEWER',wfX+wfW-42,wfY+10);ctx.fillText('OLDER',wfX+wfW-42,wfY+wfH-5);
+   ctx.fillStyle='#8fc8a4';ctx.font='9px Courier New';ctx.fillText('RELATIVE BEARING  →',wfX,wfY+wfH+13);
+   ctx.fillStyle='#5f977c';ctx.fillText('ACOUSTIC ENERGY  //  '+visibleSonar.length+' SIMULATED RETURNS',356,302);
+   drawFooter((observationIsExternal&&sensorObservation.stale?'EXTERNAL DATA STALE  /  ':'')+(observationFresh?(observationIsExternal?'EXTERNAL OBSERVATIONS':'PIPELINE OBSERVATIONS'):'REGIONAL TRAINING CONTACTS')+'  //  PASSIVE DISPLAY MODEL');
+ }else if(isRadar){
+   panel(10,43,408,270,'01  /  PLAN POSITION INDICATOR');
+   panel(428,43,462,270,'02  /  TRACK DATA');
+   var cx=214,cy=181,radius=111;
+   ctx.save();ctx.beginPath();ctx.arc(cx,cy,radius,0,Math.PI*2);ctx.clip();
+   var rg=ctx.createRadialGradient(cx,cy,4,cx,cy,radius);rg.addColorStop(0,'#07301f');rg.addColorStop(.7,'#032016');rg.addColorStop(1,'#010806');
+   ctx.fillStyle=rg;ctx.fillRect(cx-radius,cy-radius,radius*2,radius*2);
+   ctx.strokeStyle='#15523b';ctx.lineWidth=1;
+   for(var rr=1;rr<=4;rr++){ctx.beginPath();ctx.arc(cx,cy,radius*rr/4,0,Math.PI*2);ctx.stroke();}
+   for(var rb=0;rb<360;rb+=5){
+     var rad=rb*Math.PI/180,ti=radius*(rb%30===0?.88:rb%10===0?.93:.975);
+     ctx.strokeStyle=rb%30===0?'#286747':'#103e2c';ctx.lineWidth=rb%30===0?1:.65;
+     ctx.beginPath();ctx.moveTo(cx+Math.sin(rad)*ti,cy-Math.cos(rad)*ti);ctx.lineTo(cx+Math.sin(rad)*radius,cy-Math.cos(rad)*radius);ctx.stroke();
+   }
+   ctx.strokeStyle='#256543';ctx.beginPath();ctx.moveTo(cx-radius,cy);ctx.lineTo(cx+radius,cy);ctx.moveTo(cx,cy-radius);ctx.lineTo(cx,cy+radius);ctx.stroke();
+   var sweepAngle=pulse*Math.PI*2;
+   var rgSweep=ctx.createRadialGradient(cx,cy,0,cx,cy,radius);rgSweep.addColorStop(0,'rgba(54,255,158,.0)');rgSweep.addColorStop(1,'rgba(54,255,158,.12)');
+   ctx.fillStyle=rgSweep;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,radius,sweepAngle-.3,sweepAngle);ctx.closePath();ctx.fill();
+   ctx.strokeStyle='#7dffb0';ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(sweepAngle)*radius,cy-Math.cos(sweepAngle)*radius);ctx.stroke();
+   ctx.restore();
+   ctx.strokeStyle='#397b56';ctx.lineWidth=1;ctx.beginPath();ctx.arc(cx,cy,radius,0,Math.PI*2);ctx.stroke();
+   ctx.fillStyle='#8bcba2';ctx.font='9px Courier New';ctx.textAlign='center';ctx.fillText('N',cx,cy-radius-8);ctx.fillText('E',cx+radius+9,cy+3);ctx.fillText('S',cx,cy+radius+13);ctx.fillText('W',cx-radius-10,cy+3);ctx.textAlign='left';
+   // Own ship is shown at the origin; the compass and sweep are north-up.
+   ctx.save();ctx.translate(cx,cy);ctx.rotate((statusTrack?Number(statusTrack.heading_deg)||0:0)*Math.PI/180);ctx.fillStyle='#77d8ff';ctx.strokeStyle='#77d8ff';
+   ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(-5,5);ctx.lineTo(0,2);ctx.lineTo(5,5);ctx.closePath();ctx.fill();ctx.restore();
+   var visibleRadar=[];
+   targets.forEach(function(t){var p=targetPoint(t,cx,cy,radius,'north-up');if(!p||!p.visible)return;drawTarget(p.x,p.y,t,'radar');visibleRadar.push({target:t,point:p});});
+   if(!visibleRadar.length){ctx.fillStyle='#6aa88c';ctx.font='9px Courier New';ctx.textAlign='center';ctx.fillText('NO RETURNS',cx,cy+radius*.58);ctx.textAlign='left';}
+   ctx.fillStyle='#5c997b';ctx.font='9px Courier New';ctx.fillText('N-UP  /  RELATIVE MAP SCALE',26,300);
+   ctx.fillStyle='#c0e4cd';ctx.font='bold 11px Courier New';ctx.fillText(String(visibleRadar.length).padStart(2,'0')+' TRACKS',322,65);
+   ctx.fillStyle='#7eb49f';ctx.font='9px Courier New';ctx.fillText('RANGE  /  BEARING',444,83);
+   ctx.fillStyle='#477b65';ctx.fillText('ID',444,101);ctx.fillText('BRG',673,101);ctx.fillText('RNG',734,101);ctx.fillText('SIDE',797,101);
+   ctx.strokeStyle='#1c4c38';ctx.beginPath();ctx.moveTo(441,107);ctx.lineTo(876,107);ctx.stroke();
+   var rowsToDraw=visibleRadar.slice(0,6);
+   rowsToDraw.forEach(function(item,i){
+     var y=129+i*27,t=item.target,p=item.point;
+     var col=t.side==='friendly'?'#62b9ff':observationIsExternal?'#ffc36d':'#f4d985';
+     ctx.fillStyle=i%2===0?'rgba(11,41,27,.4)':'rgba(2,14,9,.3)';ctx.fillRect(441,y-14,435,23);
+     ctx.fillStyle=col;ctx.fillRect(445,y-5,4,4);
+     ctx.fillStyle=col;ctx.font='bold 10px Courier New';ctx.fillText(t.id.slice(0,22),456,y);
+     ctx.fillStyle='#b0d5bf';ctx.font='10px Courier New';ctx.fillText(String(Math.round(p.bearing)).padStart(3,'0')+'°',673,y);
+     ctx.fillText(numberText(p.distance,3),734,y);
+     ctx.fillStyle=t.side==='friendly'?'#62b9ff':'#c3a576';ctx.font='9px Courier New';ctx.fillText(t.side==='friendly'?'FRIEND':'CONTACT',797,y);
+   });
+   if(!rowsToDraw.length){ctx.fillStyle='#78a58c';ctx.font='11px Courier New';ctx.fillText('NO DETECTIONS REPORTED',446,137);ctx.fillText('Awaiting simulated returns or an accepted sensor observation.',446,157);}
+   ctx.fillStyle='#4b8168';ctx.font='9px Courier New';ctx.fillText('RNG IS NORMALIZED MAP DISTANCE  /  NOT NAUTICAL MILES',444,294);
+   drawFooter((observationIsExternal&&sensorObservation.stale?'EXTERNAL DATA STALE  /  ':'')+(observationFresh?(observationIsExternal?'EXTERNAL OBSERVATIONS':'PIPELINE OBSERVATIONS'):'REGIONAL TRAINING CONTACTS')+'  //  ROTATING SWEEP MODEL');
+ }else if(isCamera||isThermal){
+   var visualColor=isThermal?'#ffc26e':'#76e2ad';
+   var imageGrad=ctx.createLinearGradient(0,38,0,h);imageGrad.addColorStop(0,isThermal?'#2a1b12':'#0a251a');imageGrad.addColorStop(1,'#010604');
+   ctx.fillStyle=imageGrad;ctx.fillRect(1,37,w-2,h-38);
+   // Camera viewport: faint sensor raster and clean optical/thermal reticle.
+   for(var scan=0;scan<h-38;scan+=4){ctx.fillStyle=isThermal?'rgba(255,190,100,.025)':'rgba(78,207,142,.025)';ctx.fillRect(1,38+scan,w-2,1);}
+   ctx.strokeStyle=isThermal?'rgba(255,190,100,.20)':'rgba(80,214,148,.20)';ctx.lineWidth=1;
+   for(var k=0;k<9;k++){ctx.beginPath();ctx.moveTo(k*w/8,38);ctx.lineTo(k*w/8,h-1);ctx.stroke();}
+   ctx.beginPath();ctx.moveTo(1,h*.68);ctx.lineTo(w*.2,h*.65);ctx.lineTo(w*.34,h*.45);ctx.lineTo(w*.5,h*.58);ctx.lineTo(w*.72,h*.38);ctx.lineTo(w-1,h*.62);ctx.stroke();
+   var boxW=105,boxH=86,bx=w*.53,by=h*.44;
+   ctx.strokeStyle=visualColor;ctx.lineWidth=1.5;
+   ctx.beginPath();ctx.moveTo(bx-boxW/2,by-boxH/2+14);ctx.lineTo(bx-boxW/2,by-boxH/2);ctx.lineTo(bx-boxW/2+14,by-boxH/2);
+   ctx.moveTo(bx+boxW/2-14,by-boxH/2);ctx.lineTo(bx+boxW/2,by-boxH/2);ctx.lineTo(bx+boxW/2,by-boxH/2+14);
+   ctx.moveTo(bx-boxW/2,by+boxH/2-14);ctx.lineTo(bx-boxW/2,by+boxH/2);ctx.lineTo(bx-boxW/2+14,by+boxH/2);
+   ctx.moveTo(bx+boxW/2-14,by+boxH/2);ctx.lineTo(bx+boxW/2,by+boxH/2);ctx.lineTo(bx+boxW/2,by+boxH/2-14);ctx.stroke();
+   ctx.beginPath();ctx.moveTo(bx-10,by);ctx.lineTo(bx+10,by);ctx.moveTo(bx,by-10);ctx.lineTo(bx,by+10);ctx.stroke();
+   var visualTracks=0;
+   targets.forEach(function(t){
+     var p=t.raw&&t.raw.normalized_position?t.raw.normalized_position:null;
+     var modalities=t.raw&&Array.isArray(t.raw.modalities)?t.raw.modalities:[];
+     if(p&&((modalities.indexOf('optical')>=0)||(modalities.indexOf('lidar')>=0))){
+       var px=Number(p[0])*w,py=Number(p[1])*h;
+       if(!Number.isFinite(px)||!Number.isFinite(py)||px<0||px>w||py<38||py>h-20)return;
+       ctx.strokeStyle=visualColor;ctx.strokeRect(px-24,py-32,48,64);ctx.fillStyle=visualColor;ctx.font='9px Courier New';ctx.fillText(t.id,px-24,py-37);visualTracks++;
+     }
+   });
+   ctx.fillStyle=visualColor;ctx.font='10px Courier New';ctx.fillText((isThermal?'THERMAL IMAGING':'OPTICAL IMAGING')+'  //  '+visualTracks+' VISUAL TRACKS',16,h-22);
+   drawFooter(observationFresh?(observationIsExternal?'EXTERNAL SENSOR DATA':'PIPELINE SENSOR DATA'):'SIMULATED CAMERA VIEW');
+ }else if(isRange){
+   panel(10,43,w-20,270,'LASER / DEPTH RANGEFINDER');
+   ctx.strokeStyle='#164a35';ctx.lineWidth=1;
+   for(var gx=20;gx<w;gx+=30){ctx.beginPath();ctx.moveTo(gx,70);ctx.lineTo(gx,296);ctx.stroke();}
+   for(var gy=70;gy<296;gy+=20){ctx.beginPath();ctx.moveTo(10,gy);ctx.lineTo(w-10,gy);ctx.stroke();}
+   ctx.strokeStyle='#77d8ff';ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(24,h-54);ctx.lineTo(w-24,74);ctx.stroke();
+   ctx.strokeRect(w*.58,h*.34,90,74);ctx.beginPath();ctx.moveTo(w*.58+45,h*.34-12);ctx.lineTo(w*.58+45,h*.34+86);ctx.moveTo(w*.58-12,h*.34+37);ctx.lineTo(w*.58+102,h*.34+37);ctx.stroke();
+   ctx.fillStyle='#b8e8d0';ctx.font='bold 14px Courier New';ctx.fillText('RANGE SOLUTION  //  '+(120+Math.round(pulse*8))+' m',26,92);
+   ctx.fillStyle='#6eae8e';ctx.font='10px Courier New';ctx.fillText('TRAINING ESTIMATE  /  SYNTHETIC RETURN',26,114);
+   drawFooter('SIMULATED RANGE DATA');
+ }else{
+   panel(10,43,w-20,270,'UNIT STATUS / TELEMETRY');
+   ctx.fillStyle='#b8e8d0';ctx.font='12px Courier New';
+   var lines=['UNIT STATUS : NOMINAL','SIMULATION TELEMETRY : ACTIVE','POSITION / ATTITUDE : TRACKED','LINK QUALITY : '+(92+Math.round(Math.sin(frame/8)*5))+'%','SENSOR OUTPUT : SIMULATED'];
+   lines.forEach(function(line,i){ctx.fillText(line,28,91+i*31);});
+   ctx.strokeStyle='#246347';ctx.strokeRect(w*.63,73,w*.3,207);ctx.beginPath();ctx.moveTo(w*.65,cy);ctx.lineTo(w*.91,cy);ctx.moveTo(w*.78,84);ctx.lineTo(w*.78,h-70);ctx.stroke();
+   drawFooter('TRAINING SIMULATION / SENSOR TELEMETRY');
+ }
+ ctx.fillStyle='#59bda3';ctx.font='9px Courier New';ctx.fillText('VIGIL SENSOR SUITE  /  REV 01',16,h-7);
  frame++;
 }
 function choose(sensor){
