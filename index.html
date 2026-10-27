@@ -3746,9 +3746,9 @@ function draw(){
      var starboard=dx*Math.cos(radians)+dy*Math.sin(radians);
      return {x:cx+starboard*radius*1.35,y:cy-forward*radius*1.35};
    }
-   if(sensorObservation&&Array.isArray(sensorObservation.objects)&&sensorObservation.objects.length){
+   var plottedObservationData=!!(sensorObservation&&Array.isArray(sensorObservation.objects)&&sensorObservation.objects.length&&!(observationIsExternal&&sensorObservation.stale));
+   if(plottedObservationData){
      sensorObservation.objects.forEach(function(o){
-       if(observationIsExternal&&sensorObservation.stale)return;
        if(!o.normalized_position)return;
        var px,py;
        if(observationIsExternal&&ownTrack){
@@ -3779,7 +3779,7 @@ function draw(){
      });
    }
    if(!plotted){ctx.fillStyle='#59bda3';ctx.font='11px Courier New';ctx.fillText('NO TRACKS // NO DETECTIONS',cx-radius+8,cy+18);}
-   ctx.fillStyle='#59bda3';ctx.font='12px Courier New';ctx.fillText((observationIsExternal&&sensorObservation.stale?'STALE EXTERNAL DATA // ':'')+(lower.indexOf('sonar')>=0?'ACOUSTIC CONTACT PLOT':'SWEEP / DETECTION DISPLAY')+' // '+plotted+' '+(sensorObservation&&sensorObservation.objects.length?(observationIsExternal?'EXTERNAL':'PIPELINE'):'REGIONAL')+' TRACKS',18,h-16);
+   ctx.fillStyle='#59bda3';ctx.font='12px Courier New';ctx.fillText((observationIsExternal&&sensorObservation.stale?'STALE EXTERNAL DATA // FALLBACK ':'')+(lower.indexOf('sonar')>=0?'ACOUSTIC CONTACT PLOT':'SWEEP / DETECTION DISPLAY')+' // '+plotted+' '+(plottedObservationData?(observationIsExternal?'EXTERNAL':'PIPELINE'):'REGIONAL')+' TRACKS',18,h-16);
  }else if(lower.indexOf('camera')>=0||lower.indexOf('thermal')>=0){
    var grad=ctx.createLinearGradient(0,45,0,h);grad.addColorStop(0,lower.indexOf('thermal')>=0?'#311b12':'#05281d');grad.addColorStop(1,lower.indexOf('thermal')>=0?'#100b09':'#010604');ctx.fillStyle=grad;ctx.fillRect(1,35,w-2,h-36);
    ctx.strokeStyle=lower.indexOf('thermal')>=0?'#ffbd63':'#17634d';ctx.lineWidth=2;
