@@ -2771,7 +2771,8 @@ FIRE CONTROL: STANDBY</div>
 
   // Shared illustrative fleet state: normalized regional coordinates and degrees clockwise from north.
   var regionalTrainingFleet=[
-    {id:'DDG-51',name:'ARLEIGH BURKE-CLASS',x:.35,y:.44,lengthM:153.92,beamM:18.0,heading:28,speed:.018,maxSpeed:.04,weaponRange:.23,weaponDamage:2,weaponReloadSeconds:8,weaponCooldownRemaining:0,hull:6,maxHull:6,shipClass:'destroyer',side:'friendly',afloat:true,source:'U.S. Navy DDG-51 fact sheet'},
+    {id:'DDG-51',name:'ARLEIGH BURKE-CLASS',x:.35,y:.44,lengthM:153.92,beamM:18.0,heading:28,speed:.018,maxSpeed:.04,weaponRange:.4,weaponDamage:2,weaponReloadSeconds:8,weaponCooldownRemaining:0,hull:6,maxHull:6,shipClass:'destroyer',weaponSystems:['main_battery','torpedo','missile'],side:'friendly',afloat:true,source:'U.S. Navy DDG-51 fact sheet'},
+    {id:'SSN-774',name:'VIRGINIA-CLASS ATTACK SUBMARINE',x:.27,y:.72,lengthM:115,beamM:10.4,heading:25,speed:.006,maxSpeed:.03,weaponRange:.42,weaponDamage:4,weaponReloadSeconds:14,weaponCooldownRemaining:0,hull:7,maxHull:7,shipClass:'submarine',weaponSystems:['torpedo','missile'],side:'friendly',afloat:true,source:'U.S. Navy Virginia-class fact sheet'},
     {id:'CVN',name:'NIMITZ-CLASS',x:.66,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.025,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
   ];
   var regionalTrainingFleetDemo=regionalTrainingFleet.map(function(ship){return Object.assign({},ship);});
@@ -2783,6 +2784,8 @@ FIRE CONTROL: STANDBY</div>
     if(!shooter||!target)return{ok:false,reason:'Select a controlled vessel and an authorized visible contact.'};
     var dx=target.x-shooter.x,dy=target.y-shooter.y,distance=Math.hypot(dx,dy);
     var profiles={main_battery:{range:shooter.weaponRange||.23,damage:shooter.weaponDamage||2,reload:shooter.weaponReloadSeconds||8,label:'MAIN BATTERY'},torpedo:{range:Math.max(shooter.weaponRange||.23,.42),damage:4,reload:14,label:'TORPEDO'},missile:{range:Math.max(shooter.weaponRange||.23,.65),damage:3,reload:18,label:'MISSILE'}};
+    var allowedSystems=Array.isArray(shooter.weaponSystems)?shooter.weaponSystems:(shooter.shipClass==='submarine'?['torpedo','missile']:['main_battery','torpedo','missile']);
+    if(allowedSystems.indexOf(weaponSystem)<0)return{ok:false,reason:'Selected vessel is not fitted for '+weaponSystem+'. Select a compatible weapon station.'};
     var profile=profiles[weaponSystem]||profiles.main_battery;
     var rangeFraction=Math.min(1,distance/Math.max(.001,profile.range));
     var baseAccuracy=weaponSystem==='missile'?.9:weaponSystem==='torpedo'?.76:.84;
@@ -2962,7 +2965,7 @@ FIRE CONTROL: STANDBY</div>
   function localRegionalDemoSnapshot(){
     return {
       schema_version:1,player_id:'local-training',simulation_tick:regionalDemoTicks,
-      controlled_ship_ids:['DDG-51'],
+      controlled_ship_ids:['DDG-51','SSN-774'],
       ships:regionalTrainingFleet.map(function(s){return {
         ship_id:s.id,name:s.name,x:s.x,y:s.y,speed:s.speed,max_speed:s.maxSpeed,
         heading_deg:s.heading,afloat:s.afloat!==false,ship_class:s.shipClass,
@@ -3035,7 +3038,7 @@ FIRE CONTROL: STANDBY</div>
     if(!shipId){regionalUiStatus('Select a controlled vessel first.',true);return;}
     if(!Number.isFinite(h)||h<0||h>=360){regionalUiStatus('Heading must be between 0° and 359.9°.',true);return;}
     if(!vigilRegionalUiOptions){
-      var local=localRegionalShip(shipId);if(!local||local.side!=='friendly'){regionalUiStatus('LOCAL HELM // Select the friendly DDG-51.',true);return;}
+      var local=localRegionalShip(shipId);if(!local||local.side!=='friendly'){regionalUiStatus('LOCAL HELM // Select a friendly vessel.',true);return;}
       local.heading=h;renderBathymetry(lastObservationData);regionalUiStatus('LOCAL COURSE SET // '+shipId+' → '+h.toFixed(1)+'°',false);return;
     }
     try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'set_heading',{ship_id:shipId,heading_deg:h});regionalUiStatus('COURSE SET // '+shipId+' → '+Number(r.heading_deg).toFixed(1)+'°',false);}
