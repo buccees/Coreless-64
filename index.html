@@ -4265,7 +4265,9 @@ function draw(){
  feedObservations.forEach(function(o){
    var p=o&&o.normalized_position;if(!Array.isArray(p)||p.length<2||!Number.isFinite(Number(p[0]))||!Number.isFinite(Number(p[1])))return;
    targets.push({id:String(o.object_id||o.contact_id||'OBSERVATION'),x:Number(p[0]),y:Number(p[1]),side:o.side||'contact',
-     uncertainty:Number(o.uncertainty_m)||0,confidence:Number(o.confidence)||0,source:o.source||'observation',modality:o.modality,modalities:o.modalities||[],raw:o});
+     uncertainty:Number(o.uncertainty_m)||0,confidence:Number(o.confidence)||0,source:o.source||'observation',modality:o.modality,modalities:o.modalities||[],raw:o,
+     measuredBearing:o.bearing_deg!==null&&o.bearing_deg!==undefined&&Number.isFinite(Number(o.bearing_deg))?((Number(o.bearing_deg)%360)+360)%360:null,
+     measuredRange:o.range_m!==null&&o.range_m!==undefined&&Number.isFinite(Number(o.range_m))?Number(o.range_m):null});
  });
  // If a station has no positional returns, retain the local exercise picture for visual navigation and track practice.
  // Measurement-only sensor values remain measurement-only and are never assigned fabricated map coordinates.
@@ -4429,7 +4431,12 @@ function draw(){
    ctx.save();ctx.translate(cx,cy);ctx.rotate((statusTrack?Number(statusTrack.heading_deg)||0:0)*Math.PI/180);ctx.fillStyle='#77d8ff';ctx.strokeStyle='#77d8ff';
    ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(-5,5);ctx.lineTo(0,2);ctx.lineTo(5,5);ctx.closePath();ctx.fill();ctx.restore();
    var visibleRadar=[];
-   targets.forEach(function(t){var p=targetPoint(t,cx,cy,radius,'north-up');if(!p||!p.visible)return;drawTarget(p.x,p.y,t,'radar');visibleRadar.push({target:t,point:p});});
+   targets.forEach(function(t){
+     var p=targetPoint(t,cx,cy,radius,'north-up');if(!p||!p.visible)return;
+     if(t.measuredBearing!==null&&t.measuredBearing!==undefined)p.bearing=t.measuredBearing;
+     if(t.measuredRange!==null&&t.measuredRange!==undefined){p.range_m=t.measuredRange;p.measured=true;}
+     drawTarget(p.x,p.y,t,'radar');visibleRadar.push({target:t,point:p});
+   });
    // Bearing-only radar contacts are shown on the outer ring; range remains unknown.
    feedObservations.forEach(function(o){
      if(Array.isArray(o.normalized_position)||o.bearing_deg===null||o.bearing_deg===undefined||!Number.isFinite(Number(o.bearing_deg)))return;
@@ -4452,7 +4459,7 @@ function draw(){
      ctx.fillStyle=col;ctx.fillRect(445,y-5,4,4);
      ctx.fillStyle=col;ctx.font='bold 10px Courier New';ctx.fillText(t.id.slice(0,22),456,y);
      ctx.fillStyle='#b0d5bf';ctx.font='10px Courier New';ctx.fillText(String(Math.round(p.bearing)).padStart(3,'0')+'°',673,y);
-     ctx.fillText(p.measured?(p.range_m!==null&&p.range_m!==undefined?Number(p.range_m).toFixed(1)+' m':'—'):numberText(p.distance,3),734,y);
+     ctx.fillText(p.measured?(p.range_m!==null&&p.range_m!==undefined?Number(p.range_m).toFixed(1)+' m':'—'):'MAP Δ '+numberText(p.distance,3),734,y);
      ctx.fillStyle=t.side==='friendly'?'#62b9ff':'#c3a576';ctx.font='9px Courier New';ctx.fillText(t.side==='friendly'?'FRIEND':'CONTACT',797,y);
    });
    if(!rowsToDraw.length){ctx.fillStyle='#78a58c';ctx.font='11px Courier New';ctx.fillText('NO DETECTIONS REPORTED',446,137);ctx.fillText('Awaiting simulated returns or an accepted sensor observation.',446,157);}
