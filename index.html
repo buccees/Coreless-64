@@ -3712,15 +3712,23 @@ function draw(){
    for(var r=radius/4;r<=radius;r+=radius/4){ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();}
    ctx.beginPath();ctx.moveTo(cx,cy-radius);ctx.lineTo(cx,cy+radius);ctx.moveTo(cx-radius,cy);ctx.lineTo(cx+radius,cy);ctx.stroke();
    ctx.strokeStyle='#29f5b2';ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(pulse*Math.PI*2)*radius,cy+Math.sin(pulse*Math.PI*2)*radius);ctx.stroke();
-   for(var i=0;i<7;i++){var a=(i*2.399+0.6),rr=radius*(.2+((i*37)%71)/100);ctx.fillStyle=i%3===0?'#ffbd63':'#29f5b2';ctx.beginPath();ctx.arc(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,2+(i%3),0,Math.PI*2);ctx.fill();}
+   // Plot real regional tracks relative to the active friendly vessel; no invented contact dots.
+   var ownTrack=regionalContacts.find(function(c){return c.id===unitId&&c.side==='friendly';})||
+     regionalContacts.find(function(c){return c.side==='friendly';});
+   var plotted=0;
    regionalContacts.forEach(function(contact){
-     var px=contact.x*w,py=contact.y*h;
+     if(ownTrack&&contact.id===ownTrack.id)return;
+     var dx=ownTrack?contact.x-ownTrack.x:contact.x-.5;
+     var dy=ownTrack?contact.y-ownTrack.y:contact.y-.5;
+     var px=cx+dx*radius*1.35,py=cy+dy*radius*1.35;
+     if(px<cx-radius||px>cx+radius||py<cy-radius||py>cy+radius)return;
      ctx.fillStyle=contact.side==='friendly'?'#66b7ff':'#ffbd63';
      ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);ctx.fill();
      ctx.strokeStyle=ctx.fillStyle;ctx.beginPath();ctx.arc(px,py,10,0,Math.PI*2);ctx.stroke();
-     ctx.font='10px Courier New';ctx.fillText(contact.id,px+12,py-7);
+     ctx.font='10px Courier New';ctx.fillText(contact.id,px+12,py-7);plotted++;
    });
-   ctx.fillStyle='#59bda3';ctx.font='12px Courier New';ctx.fillText(lower.indexOf('sonar')>=0?'ACOUSTIC CONTACT PLOT // SIMULATED RETURNS':'SWEEP / DETECTION DISPLAY // SIMULATED RETURNS',18,h-16);
+   if(!plotted){ctx.fillStyle='#59bda3';ctx.font='11px Courier New';ctx.fillText('NO TRACKS // NO DETECTIONS',cx-radius+8,cy+18);}
+   ctx.fillStyle='#59bda3';ctx.font='12px Courier New';ctx.fillText((lower.indexOf('sonar')>=0?'ACOUSTIC CONTACT PLOT':'SWEEP / DETECTION DISPLAY')+' // '+plotted+' REGIONAL TRACKS',18,h-16);
  }else if(lower.indexOf('camera')>=0||lower.indexOf('thermal')>=0){
    var grad=ctx.createLinearGradient(0,45,0,h);grad.addColorStop(0,lower.indexOf('thermal')>=0?'#311b12':'#05281d');grad.addColorStop(1,lower.indexOf('thermal')>=0?'#100b09':'#010604');ctx.fillStyle=grad;ctx.fillRect(1,35,w-2,h-36);
    ctx.strokeStyle=lower.indexOf('thermal')>=0?'#ffbd63':'#17634d';ctx.lineWidth=2;
