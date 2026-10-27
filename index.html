@@ -3594,4 +3594,53 @@ renderOrderOfBattle(selector?selector.value:'WYCF');
 })();
 </script>
 
+
+<style>
+.vigil-unit-context{border:1px solid var(--g);background:#020a07;padding:10px;margin:8px 0 12px}
+.vigil-unit-context .unit-context-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.vigil-unit-context label{color:var(--dim);font-size:10px;letter-spacing:.7px}
+.vigil-unit-context select{display:block;min-width:min(100%,240px);margin-top:4px;padding:8px;background:#010604;color:var(--g);border:1px solid var(--line);font:inherit}
+.vigil-unit-context .unit-sensor-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.vigil-unit-context .unit-sensor-chip{border:1px solid var(--line);padding:5px 8px;font-size:10px;color:var(--dim)}
+.vigil-unit-context .unit-sensor-chip.active{color:var(--g);border-color:var(--g);background:#073324}
+.vigil-unit-context .unit-context-note{font-size:10px;color:var(--dim);margin:8px 0 0}
+</style>
+<script>
+(function(){
+'use strict';
+var consoleRoot=document.getElementById('vigil-ops-console');
+if(!consoleRoot||document.getElementById('vigil-unit-sensor-profile'))return;
+var context=document.createElement('section');
+context.className='vigil-unit-context';
+context.id='vigil-unit-sensor-profile';
+context.setAttribute('aria-label','Active simulation unit and sensor capabilities');
+context.innerHTML='<div class="unit-context-controls"><label for="vigil-active-unit">ACTIVE SIMULATION UNIT<select id="vigil-active-unit"><option value="ship">SHIP // SHIPBOARD SENSORS</option><option value="drone">LAUNCH / CONTROL SIMULATED DRONE</option><option value="submersible">UNCREWED SUBMERSIBLE</option><option value="mech">MECH UNIT</option><option value="facility">FIXED INSTALLATION</option></select></label><div><strong id="vigil-active-unit-status" class="green">UNIT PROFILE // SHIP</strong><p class="unit-context-note">One shared control panel. Changing unit updates its sensor capabilities here; it does not open a second console.</p></div></div><div id="vigil-unit-sensor-list" class="unit-sensor-list" aria-live="polite"></div><p id="vigil-unit-sensor-note" class="unit-context-note"></p>';
+var head=consoleRoot.querySelector('.vigil-ops-head');
+if(head)head.insertAdjacentElement('afterend',context);else consoleRoot.insertBefore(context,consoleRoot.firstChild);
+var select=context.querySelector('#vigil-active-unit');
+var status=context.querySelector('#vigil-active-unit-status');
+var list=context.querySelector('#vigil-unit-sensor-list');
+var note=context.querySelector('#vigil-unit-sensor-note');
+var profiles={
+ ship:{title:'SHIP',sensors:['SONAR','RADAR','EO / IR CAMERA','ESM / RF','NAVIGATION','FIRE CONTROL'],note:'Shipboard sensor suite; shared sonar and fire-control displays remain in this console.'},
+ drone:{title:'SIMULATED DRONE',sensors:['EO CAMERA','THERMAL / IR','RANGEFINDER','INERTIAL NAVIGATION','TELEMETRY'],note:'Drone control is represented in the same console. Camera and telemetry are unit-specific; ship-only instruments remain available but are not presented as drone-mounted sensors.'},
+ submersible:{title:'UNCREWED SUBMERSIBLE',sensors:['IMAGING SONAR','FORWARD-LOOKING SONAR','DEPTH SENSOR','UNDERWATER CAMERA','INERTIAL NAVIGATION','TELEMETRY'],note:'Underwater vehicle sensor suite; sonar displays use the same simulation presentation and shared contact state.'},
+ mech:{title:'MECH UNIT',sensors:['EO CAMERA','THERMAL / IR','RANGEFINDER','MOTION / INERTIAL','PROXIMITY WARNING','UNIT TELEMETRY'],note:'Mech sensor suite; unit-specific views are represented within the existing shared panel.'},
+ facility:{title:'FIXED INSTALLATION',sensors:['FIXED CAMERA','THERMAL / IR','PERIMETER RADAR','ACOUSTIC / MOTION SENSORS','ACCESS / ALARM STATUS'],note:'Installation sensors are fixed to the selected site; camera display reference will guide its future visual treatment.'}
+};
+function render(){
+ var p=profiles[select.value]||profiles.ship;
+ status.textContent='UNIT PROFILE // '+p.title;
+ list.textContent='';
+ p.sensors.forEach(function(sensor){var chip=document.createElement('span');chip.className='unit-sensor-chip active';chip.textContent=sensor;list.appendChild(chip);});
+ note.textContent=p.note;
+ context.dataset.activeUnit=select.value;
+ window.vigilActiveSimulationUnit={id:select.value,label:p.title,sensors:p.sensors.slice(),updatedAt:new Date().toISOString()};
+ window.dispatchEvent(new CustomEvent('vigil:active-unit-changed',{detail:{unit:window.vigilActiveSimulationUnit}}));
+}
+select.addEventListener('change',render);
+window.vigilGetActiveSimulationUnit=function(){return window.vigilActiveSimulationUnit||null;};
+render();
+})();
+</script>
 </body></html>
