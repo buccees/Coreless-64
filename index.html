@@ -4302,7 +4302,16 @@ function updateTrackCandidates(regionalContacts,snapshot){
  // Candidate freshness can change without a selector change event; keep the action gate in sync with every roster refresh.
  if(typeof syncFocusedFollowupButton==='function')syncFocusedFollowupButton();
 }
-function selectedTrack(){return currentTrackCandidates.find(function(t){return t.id===cameraState.selectedTrackId;})||null;}
+function selectedTrack(){
+ var selectedId=cameraState.selectedTrackId,track=currentTrackCandidates.find(function(t){return t.id===selectedId;})||null;
+ // A stale selection must not survive a roster refresh that removed or invalidated its evidence.
+ if(!track&&selectedId){
+   cameraState.selectedTrackId='';
+   if(trackSelect)trackSelect.value='';
+   if(typeof syncFocusedFollowupButton==='function')syncFocusedFollowupButton();
+ }
+ return track;
+}
 function selectedOwnTrack(regionalContacts){var id=({ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'})[unitId];return (regionalContacts||[]).find(function(t){return t&&t.id===id&&t.side==='friendly';})||null;}
 function bearingToTrack(target,own){if(!target||!own)return null;var dx=Number(target.x)-Number(own.x),dy=Number(target.y)-Number(own.y);if(!Number.isFinite(dx)||!Number.isFinite(dy)||Math.hypot(dx,dy)<1e-6)return null;return (Math.atan2(dx,-dy)*180/Math.PI+360)%360;}
 function signedDegrees(value){return ((Number(value)+540)%360)-180;}
@@ -4859,9 +4868,10 @@ function syncFocusedFollowupButton(){
  var followup=display.querySelector('#vigil-sensor-request-followup');
  if(!followup)return;
  var selected=trackSelect&&trackSelect.value||cameraState.selectedTrackId;
+ var selectedCandidate=currentTrackCandidates.find(function(t){return t.id===selected;})||null;
  var observation=typeof window.vigilGetLatestSensorObservation==='function'?window.vigilGetLatestSensorObservation():null;
  var currentSimulationContact=Array.prototype.some.call(document.querySelectorAll('#sim-recon-contacts [data-contact-id]'),function(item){return item.getAttribute('data-contact-id')===selected;});
- followup.disabled=!(selected&&currentSimulationContact&&observation&&!observation.stale&&Array.isArray(observation.objects)&&observation.objects.some(function(o){return o.object_id===selected;}));
+ followup.disabled=!(selected&&selectedCandidate&&selectedCandidate.confidenceState==='reported'&&selectedCandidate.source!=='sensor-conflict+regional'&&currentSimulationContact&&observation&&!observation.stale&&Array.isArray(observation.objects)&&observation.objects.some(function(o){return o.object_id===selected;}));
 }
 trackSelect.addEventListener('change',syncFocusedFollowupButton);
 
