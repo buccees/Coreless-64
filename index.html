@@ -2879,8 +2879,12 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
 
     var suppliedWaterfall=null;
     if(allowedWaterfall!==undefined){if(!Array.isArray(allowedWaterfall)||allowedWaterfall.length!==180)throw new Error('waterfall_bins, when supplied, must contain exactly 180 normalized energy values.');suppliedWaterfall=allowedWaterfall.map(function(v){v=Number(v);if(!Number.isFinite(v)||v<0||v>1)throw new Error('Each waterfall energy value must be between 0 and 1.');return v;});}
+    var seenContactIds=Object.create(null);
     var objects=(Array.isArray(payload.contacts)?payload.contacts:[]).map(function(c,index){
       if(!c||typeof c.contact_id!=='string'||!c.contact_id.trim())throw new Error('Each sensor contact needs contact_id.');
+      var normalizedContactId=c.contact_id.trim();
+      if(seenContactIds[normalizedContactId])throw new Error('Duplicate contact_id '+normalizedContactId+' in one sensor payload.');
+      seenContactIds[normalizedContactId]=true;
       var hasPosition=Array.isArray(c.normalized_position)&&c.normalized_position.length>=2;
       var x=hasPosition?Number(c.normalized_position[0]):NaN,y=hasPosition?Number(c.normalized_position[1]):NaN;
       if(hasPosition&&(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>1||y<0||y>1))throw new Error('Contact '+c.contact_id+' coordinates must be normalized to 0..1.');
@@ -2890,6 +2894,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       var measurements=c.measurements&&typeof c.measurements==='object'?Object.assign({},c.measurements):{};
       ['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value','measurement_units','measurement_status'].forEach(function(k){if(c[k]!==undefined)measurements[k]=c[k];});
       function numericMeasurement(key){var value=measurements[key];if(value===null||value===undefined||value===''||(typeof value!=='number'&&typeof value!=='string'))return null;var parsed=Number(value);return Number.isFinite(parsed)?parsed:null;}
+      var rangeValue=numericMeasurement('range_m');
+      if(rangeValue!==null&&rangeValue<0)throw new Error('Contact '+c.contact_id+' range_m cannot be negative.');
       var hasMeasurement=['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value'].some(function(k){return numericMeasurement(k)!==null;})||['measurement_units','measurement_status'].some(function(k){return measurements[k]!==undefined&&measurements[k]!==null&&String(measurements[k]).trim()!=='';});
       if(!hasPosition&&!hasMeasurement)throw new Error('Contact '+c.contact_id+' needs normalized_position or at least one valid sensor measurement field.');
       return{object_id:'EXT-'+payload.sensor_id.replace(/[^a-z0-9_-]/gi,'_')+'-'+c.contact_id.replace(/[^a-z0-9_-]/gi,'_'),
