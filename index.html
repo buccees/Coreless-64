@@ -3643,4 +3643,87 @@ window.vigilGetActiveSimulationUnit=function(){return window.vigilActiveSimulati
 render();
 })();
 </script>
+
+<style>
+.vigil-unit-sensor-display{border:1px solid var(--line);background:#010604;padding:9px;margin:8px 0 12px}
+.vigil-unit-sensor-display h4{margin:0 0 7px;color:var(--g);font-size:11px;letter-spacing:1px}
+.vigil-unit-sensor-display .unit-display-bar{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0}
+.vigil-unit-sensor-display .unit-display-bar button{background:#020907;color:var(--dim);border:1px solid var(--line);padding:6px 8px;font:10px "Courier New",monospace;cursor:pointer}
+.vigil-unit-sensor-display .unit-display-bar button[aria-pressed="true"]{color:var(--g);border-color:var(--g);background:#073324}
+.vigil-unit-sensor-display canvas{display:block;width:100%;height:auto;max-height:360px;background:#010604;border:1px solid #17634d}
+.vigil-unit-sensor-display .unit-display-status{font-size:10px;color:var(--dim);margin-top:7px}
+</style>
+<script>
+(function(){
+'use strict';
+var context=document.getElementById('vigil-unit-sensor-profile');
+if(!context||document.getElementById('vigil-unit-sensor-display'))return;
+var display=document.createElement('section');
+display.id='vigil-unit-sensor-display';display.className='vigil-unit-sensor-display';
+display.innerHTML='<h4 id="vigil-unit-display-title">ACTIVE UNIT SENSOR DISPLAY</h4><div id="vigil-unit-display-buttons" class="unit-display-bar" role="group" aria-label="Select active unit sensor"></div><canvas id="vigil-unit-display-canvas" width="900" height="340" role="img" aria-label="Simulated sensor display for the active unit"></canvas><div id="vigil-unit-display-status" class="unit-display-status" role="status" aria-live="polite">SIMULATION DISPLAY INITIALIZING</div>';
+context.insertAdjacentElement('afterend',display);
+var canvas=display.querySelector('canvas'),ctx=canvas.getContext('2d'),buttons=display.querySelector('#vigil-unit-display-buttons'),title=display.querySelector('#vigil-unit-display-title'),status=display.querySelector('#vigil-unit-display-status');
+var activeSensor='',unitId='ship',frame=0;
+var profiles={
+ ship:['SONAR','RADAR','EO / IR CAMERA','ESM / RF','NAVIGATION','FIRE CONTROL'],
+ drone:['EO CAMERA','THERMAL / IR','RANGEFINDER','INERTIAL NAVIGATION','TELEMETRY'],
+ submersible:['IMAGING SONAR','FORWARD-LOOKING SONAR','DEPTH SENSOR','UNDERWATER CAMERA','INERTIAL NAVIGATION','TELEMETRY'],
+ mech:['EO CAMERA','THERMAL / IR','RANGEFINDER','MOTION / INERTIAL','PROXIMITY WARNING','UNIT TELEMETRY'],
+ facility:['FIXED CAMERA','THERMAL / IR','PERIMETER RADAR','ACOUSTIC / MOTION SENSORS','ACCESS / ALARM STATUS']
+};
+function draw(){
+ if(!ctx)return;
+ var w=canvas.width,h=canvas.height,pulse=(frame%80)/80;
+ ctx.fillStyle='#010604';ctx.fillRect(0,0,w,h);
+ ctx.strokeStyle='#0b4a38';ctx.lineWidth=1;
+ for(var x=0;x<=w;x+=30){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+ for(var y=0;y<=h;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+ ctx.fillStyle='#29f5b2';ctx.font='16px Courier New';ctx.fillText('VIGIL // '+unitId.toUpperCase()+' // '+activeSensor,18,25);
+ var lower=activeSensor.toLowerCase(),cx=w*.5,cy=h*.56;
+ ctx.strokeStyle='#17634d';ctx.fillStyle='#29f5b2';
+ if(lower.indexOf('sonar')>=0||lower.indexOf('radar')>=0||lower.indexOf('esm')>=0||lower.indexOf('acoustic')>=0||lower.indexOf('proximity')>=0){
+   var radius=Math.min(w,h)*.39;
+   for(var r=radius/4;r<=radius;r+=radius/4){ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();}
+   ctx.beginPath();ctx.moveTo(cx,cy-radius);ctx.lineTo(cx,cy+radius);ctx.moveTo(cx-radius,cy);ctx.lineTo(cx+radius,cy);ctx.stroke();
+   ctx.strokeStyle='#29f5b2';ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(pulse*Math.PI*2)*radius,cy+Math.sin(pulse*Math.PI*2)*radius);ctx.stroke();
+   for(var i=0;i<7;i++){var a=(i*2.399+0.6),rr=radius*(.2+((i*37)%71)/100);ctx.fillStyle=i%3===0?'#ffbd63':'#29f5b2';ctx.beginPath();ctx.arc(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,2+(i%3),0,Math.PI*2);ctx.fill();}
+   ctx.fillStyle='#59bda3';ctx.font='12px Courier New';ctx.fillText(lower.indexOf('sonar')>=0?'ACOUSTIC CONTACT PLOT // SIMULATED RETURNS':'SWEEP / DETECTION DISPLAY // SIMULATED RETURNS',18,h-16);
+ }else if(lower.indexOf('camera')>=0||lower.indexOf('thermal')>=0){
+   var grad=ctx.createLinearGradient(0,45,0,h);grad.addColorStop(0,lower.indexOf('thermal')>=0?'#311b12':'#05281d');grad.addColorStop(1,lower.indexOf('thermal')>=0?'#100b09':'#010604');ctx.fillStyle=grad;ctx.fillRect(1,35,w-2,h-36);
+   ctx.strokeStyle=lower.indexOf('thermal')>=0?'#ffbd63':'#17634d';ctx.lineWidth=2;
+   for(var k=0;k<8;k++){ctx.beginPath();ctx.moveTo(k*w/8,40);ctx.lineTo(k*w/8,h-1);ctx.stroke();}
+   ctx.beginPath();ctx.moveTo(1,h*.68);ctx.lineTo(w*.2,h*.65);ctx.lineTo(w*.34,h*.45);ctx.lineTo(w*.5,h*.58);ctx.lineTo(w*.72,h*.38);ctx.lineTo(w-1,h*.62);ctx.stroke();
+   ctx.strokeRect(w*.43,h*.27,w*.13,h*.36);ctx.beginPath();ctx.moveTo(w*.5,h*.27-12);ctx.lineTo(w*.5,h*.27+12);ctx.moveTo(w*.43-12,h*.45);ctx.lineTo(w*.43+12,h*.45);ctx.stroke();
+   ctx.fillStyle=lower.indexOf('thermal')>=0?'#ffbd63':'#29f5b2';ctx.font='12px Courier New';ctx.fillText(lower.indexOf('thermal')>=0?'THERMAL PALETTE // SIMULATED HEAT SIGNATURES':'OPTICAL FEED // SIMULATED TRAINING SCENE',18,h-16);
+ }else if(lower.indexOf('range')>=0){
+   ctx.strokeStyle='#29f5b2';ctx.beginPath();ctx.moveTo(25,h-40);ctx.lineTo(w-25,45);ctx.stroke();ctx.strokeRect(w*.55,h*.3,90,75);ctx.fillStyle='#29f5b2';ctx.font='15px Courier New';ctx.fillText('RANGE ESTIMATE: '+(120+Math.round(pulse*8))+' m',28,65);ctx.fillText('LASER / DEPTH SOLUTION // SIMULATED',28,88);
+ }else{
+   ctx.fillStyle='#29f5b2';ctx.font='14px Courier New';
+   var lines=['UNIT STATUS: NOMINAL','SIMULATION TELEMETRY: ACTIVE','POSITION / ATTITUDE: TRACKED','LINK QUALITY: '+(92+Math.round(Math.sin(frame/8)*5))+'%','SENSOR OUTPUT: SIMULATED'];
+   lines.forEach(function(line,i){ctx.fillText(line,24,75+i*30);});
+   ctx.strokeStyle='#17634d';ctx.strokeRect(w*.63,55,w*.3,h-90);ctx.beginPath();ctx.moveTo(w*.65,cy);ctx.lineTo(w*.91,cy);ctx.moveTo(w*.78,70);ctx.lineTo(w*.78,h-50);ctx.stroke();
+ }
+ ctx.fillStyle='#59bda3';ctx.font='10px Courier New';ctx.fillText('TRAINING SIMULATION // NOT LIVE HARDWARE TELEMETRY',18,canvas.height-2);
+ frame++;
+}
+function choose(sensor){
+ activeSensor=sensor;title.textContent='ACTIVE UNIT SENSOR DISPLAY // '+sensor;
+ Array.prototype.forEach.call(buttons.querySelectorAll('button'),function(b){b.setAttribute('aria-pressed',String(b.textContent===sensor));});
+ status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+sensor+' // SHARED CONTROL PANEL';
+ draw();
+}
+function updateUnit(unit){
+ unit=unit||window.vigilGetActiveSimulationUnit&&window.vigilGetActiveSimulationUnit();
+ if(!unit)return;
+ unitId=unit.id||'ship';var sensors=profiles[unitId]||profiles.ship;
+ buttons.textContent='';
+ sensors.forEach(function(sensor){var b=document.createElement('button');b.type='button';b.textContent=sensor;b.setAttribute('aria-pressed','false');b.addEventListener('click',function(){choose(sensor);});buttons.appendChild(b);});
+ choose(sensors.indexOf(activeSensor)>=0?activeSensor:sensors[0]);
+}
+window.addEventListener('vigil:active-unit-changed',function(e){updateUnit(e.detail&&e.detail.unit);});
+updateUnit(window.vigilGetActiveSimulationUnit&&window.vigilGetActiveSimulationUnit());
+window.vigilGetActiveSensorDisplay=function(){return {unit:unitId,sensor:activeSensor,mode:'simulated'};};
+window.setInterval(draw,180);
+})();
+</script>
 </body></html>
