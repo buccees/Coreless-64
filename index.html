@@ -1084,7 +1084,7 @@ FIRE CONTROL: STANDBY</div>
     <div class="vigil-order-step" data-step="3">03 AUTHORITY<br>Authorization gate</div>
     <div class="vigil-order-step" data-step="4">04 RESULT<br>Assess / confirm</div>
   </div>
-  <div class="vigil-ops-note"><strong id="vigil-sensor-source-status">SENSOR INPUT: SYNTHETIC TRAINING FEED</strong> // The waterfall can accept external sensor observations through <code>window.vigilIngestSensorObservation(payload)</code>. Target lock is not authorization; only resolved encounter events count as hit confirmation.<details style="margin-top:7px"><summary>EXTERNAL SENSOR ADAPTER CONTRACT</summary><pre style="white-space:pre-wrap">{schema_version:1, sensor_id:'SONAR-01', modality:'sonar', timestamp:'ISO-8601', contacts:[{contact_id:'TRACK-001', normalized_position:[0.42,0.61], uncertainty_m:18, confidence:0.82, classification:'surface contact'}]}</pre><span>Coordinates must already be transformed to the map's normalized 0–1 frame by the adapter. The console will not guess units or silently convert raw sensor coordinates.</span></details></div>
+  <div class="vigil-ops-note"><strong id="vigil-sensor-source-status">SENSOR INPUT: SYNTHETIC TRAINING FEED</strong> // The waterfall can accept external sensor observations through <code>window.vigilIngestSensorObservation(payload)</code>. Target lock is not authorization; only resolved encounter events count as hit confirmation.<details style="margin-top:7px"><summary>EXTERNAL SENSOR ADAPTER CONTRACT</summary><pre style="white-space:pre-wrap">{schema_version:1, sensor_id:'SONAR-01', modality:'sonar', timestamp:'ISO-8601', contacts:[{contact_id:'TRACK-001', normalized_position:[0.42,0.61], uncertainty_m:18, confidence:0.82, classification:'surface contact'}], waterfall_bins:[/* optional: 180 real energy values from 0 to 1 */]}</pre><span>Coordinates must already be transformed to the map's normalized 0–1 frame by the adapter. The console will not guess units or silently convert raw sensor coordinates.</span></details></div>
 </section>
 
 <section id="vigil-order-of-battle" class="sim-recon-panel" aria-labelledby="vigil-oob-title">
@@ -2705,6 +2705,8 @@ FIRE CONTROL: STANDBY</div>
     var allowed=['sonar','radar','optical','ew','lidar','acoustic','simulated'];
     var modality=payload.modality.toLowerCase();
     if(allowed.indexOf(modality)<0)throw new Error('Unsupported sensor modality: '+modality);
+    var suppliedWaterfall=null;
+    if(payload.waterfall_bins!==undefined){if(!Array.isArray(payload.waterfall_bins)||payload.waterfall_bins.length!==180)throw new Error('waterfall_bins, when supplied, must contain exactly 180 normalized energy values.');suppliedWaterfall=payload.waterfall_bins.map(function(v){v=Number(v);if(!Number.isFinite(v)||v<0||v>1)throw new Error('Each waterfall energy value must be between 0 and 1.');return v;});}
     var objects=payload.contacts.map(function(c,index){
       if(!c||typeof c.contact_id!=='string'||!c.contact_id.trim()||!Array.isArray(c.normalized_position)||c.normalized_position.length<2)throw new Error('Each sensor contact needs contact_id and normalized_position: [x,y].');
       var x=Number(c.normalized_position[0]),y=Number(c.normalized_position[1]),uncertainty=Number(c.uncertainty_m||0),confidence=Number(c.confidence);
@@ -2721,13 +2723,13 @@ FIRE CONTROL: STANDBY</div>
     });
     var data={schema_version:1,model_id:'EXTERNAL-SENSOR-ARRAY',revision:String(payload.timestamp||Date.now()),
       frame_id:'normalized-regional-map-v1',metadata:{sonar_posture:modality==='sonar'||modality==='acoustic'?'passive monitoring':modality+' sensor input',source:'external-sensor-adapter'},
-      objects:objects};
+      objects:objects,waterfall_bins:suppliedWaterfall};
     externalSensorObservationActive=true;lastObservationData=data;
     renderReconContacts(data);renderBathymetry(data);renderNavalSonar(data);
     var sourceStatus=document.getElementById('vigil-sensor-source-status');
     if(sourceStatus)sourceStatus.textContent='SENSOR INPUT: EXTERNAL '+modality.toUpperCase()+' // '+payload.sensor_id+' // '+objects.length+' TRACK(S)';
     var telemetry=document.getElementById('sim-telemetry');
-    if(telemetry)telemetry.textContent='SOURCE: EXTERNAL SENSOR ADAPTER\\nSENSOR: '+payload.sensor_id+' / '+modality.toUpperCase()+'\\nTRACKS: '+objects.length+'\\nCOORDINATE FRAME: NORMALIZED REGIONAL MAP\\nCALIBRATION: EXTERNAL / NOT VERIFIED';
+    if(telemetry)telemetry.textContent='SOURCE: EXTERNAL SENSOR ADAPTER'+(suppliedWaterfall?' // REAL WATERFALL BINS':' // CONTACT-BASED WATERFALL')+'\\nSENSOR: '+payload.sensor_id+' / '+modality.toUpperCase()+'\\nTRACKS: '+objects.length+'\\nCOORDINATE FRAME: NORMALIZED REGIONAL MAP\\nCALIBRATION: EXTERNAL / NOT VERIFIED';
     window.dispatchEvent(new CustomEvent('vigil:sensor-observation',{detail:{sensor_id:payload.sensor_id,modality:modality,track_count:objects.length,timestamp:data.revision}}));
     return{accepted:true,track_count:objects.length,revision:data.revision};
   };
@@ -2744,13 +2746,17 @@ FIRE CONTROL: STANDBY</div>
     sc.fillStyle='#8ad8b5';sc.font='11px monospace';sc.fillText('CONTACTS '+objects.length,10,18);sc.fillText('RANGE SCALE: RELATIVE',10,sh-10);
     // Generate one synthetic acoustic-energy row per sweep: a noise floor, drifting contact signatures, and intermittent clutter.
     var bins=180,energy=new Array(bins),sweepIndex=sonarWaterfallHistory.length;
-    for(var bi=0;bi<bins;bi++)energy[bi]=0.035+Math.random()*0.11;
-    dots.forEach(function(d,di){
-      var center=Math.round(d.bearing/360*bins),width=2+Math.round((1-d.strength)*5),level=.35+d.strength*.55;
-      for(var offset=-width*3;offset<=width*3;offset++){var idx=(center+offset+bins)%bins,profile=Math.exp(-(offset*offset)/(2*width*width)),pulse=.78+.22*Math.sin((sweepIndex+di*7+offset)*.31);energy[idx]=Math.min(1,energy[idx]+level*profile*pulse);}
-    });
-    // Clutter is deliberately synthetic and may appear briefly without a persistent contact track.
-    for(var clutter=0;clutter<4;clutter++){var noiseBin=Math.floor(Math.random()*bins);energy[noiseBin]=Math.min(1,energy[noiseBin]+.18+Math.random()*.3);}
+    var suppliedBins=data&&Array.isArray(data.waterfall_bins)&&data.waterfall_bins.length===bins?data.waterfall_bins:null;
+    if(suppliedBins){for(var bi=0;bi<bins;bi++)energy[bi]=Math.max(0,Math.min(1,Number(suppliedBins[bi])||0));}
+    else{
+      for(var bi=0;bi<bins;bi++)energy[bi]=0.035+Math.random()*0.11;
+      dots.forEach(function(d,di){
+        var center=Math.round(d.bearing/360*bins),width=2+Math.round((1-d.strength)*5),level=.35+d.strength*.55;
+        for(var offset=-width*3;offset<=width*3;offset++){var idx=(center+offset+bins)%bins,profile=Math.exp(-(offset*offset)/(2*width*width)),pulse=.78+.22*Math.sin((sweepIndex+di*7+offset)*.31);energy[idx]=Math.min(1,energy[idx]+level*profile*pulse);}
+      });
+      // Clutter is synthetic only when the external adapter does not supply real energy bins.
+      for(var clutter=0;clutter<4;clutter++){var noiseBin=Math.floor(Math.random()*bins);energy[noiseBin]=Math.min(1,energy[noiseBin]+.18+Math.random()*.3);}
+    }
     sonarWaterfallHistory.push(energy);if(sonarWaterfallHistory.length>90)sonarWaterfallHistory.shift();
     wc.fillStyle='#020807';wc.fillRect(0,0,waterfall.width,waterfall.height);
     var rowHeight=waterfall.height/90,binWidth=waterfall.width/bins;
