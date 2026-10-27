@@ -4034,11 +4034,62 @@ var profiles={
  mech:['EO CAMERA','THERMAL / IR','LASER RANGEFINDER','PROXIMITY SENSOR','INERTIAL NAVIGATION','OBJECT TRACKING','FUSED VIEW','TELEMETRY'],
  facility:['FIXED CAMERA','THERMAL / IR','PERIMETER RADAR','ACOUSTIC / MOTION','ESM / RF','OBJECT TRACKING','FUSED VIEW','ACCESS / ALARM','TELEMETRY']
 };
+var currentTrackCandidates=[],trackOptionsSignature='';
+function sensorModalitiesForMode(lower){
+ if(lower.indexOf('sonar')>=0||lower.indexOf('acoustic')>=0)return lower.indexOf('proximity')>=0?['proximity','acoustic','sonar']:['sonar','acoustic','motion'];
+ if(lower.indexOf('radar')>=0)return ['radar','perimeter_radar'];
+ if(lower.indexOf('underwater')>=0&&lower.indexOf('camera')>=0)return ['underwater_camera','camera','optical','lidar'];
+ if(lower.indexOf('camera')>=0||lower.indexOf('optical')>=0)return ['optical','camera','fixed_camera','underwater_camera','lidar'];
+ if(lower.indexOf('thermal')>=0||lower.indexOf('infrared')>=0)return ['thermal','infrared'];
+ if(lower.indexOf('esm')>=0||lower.indexOf('rf')>=0||lower.indexOf('csi')>=0)return ['ew','esm','rf','csi','wifi_csi'];
+ if(lower.indexOf('range')>=0)return ['lidar','range','rangefinder'];
+ if(lower.indexOf('depth')>=0)return ['depth','sonar','range'];
+ if(lower.indexOf('inertial')>=0||lower.indexOf('navigation')>=0||lower.indexOf('imu')>=0)return ['imu','inertial','navigation','telemetry'];
+ if(lower.indexOf('proximity')>=0)return ['proximity','acoustic','sonar'];
+ if(lower.indexOf('access')>=0)return ['access_alarm','motion','telemetry'];
+ if(lower.indexOf('fire control')>=0)return ['fire_control','radar','sonar','optical','thermal','lidar','tracking'];
+ if(lower.indexOf('fused')>=0||lower.indexOf('track')>=0||lower.indexOf('telemetry')>=0||lower.indexOf('motion')>=0)return null;
+ return null;
+}
+function updateTrackCandidates(regionalContacts,snapshot){
+ var candidates=[],seen=Object.create(null),ownId=({ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'})[unitId];
+ (regionalContacts||[]).forEach(function(c){
+   if(!c||!c.id||c.id===ownId||!Number.isFinite(Number(c.x))||!Number.isFinite(Number(c.y)))return;
+   var id=String(c.id);seen[id]=true;candidates.push({id:id,label:id+' // '+(c.side==='friendly'?'FRIENDLY':'CONTACT'),x:Number(c.x),y:Number(c.y),side:c.side||'contact',heading_deg:Number(c.heading_deg)||0,source:'regional'});
+ });
+ (snapshot&&Array.isArray(snapshot.observations)?snapshot.observations:[]).forEach(function(o){
+   if(!o||o.feed_stale||!o.object_id||!Array.isArray(o.normalized_position)||!Number.isFinite(Number(o.normalized_position[0]))||!Number.isFinite(Number(o.normalized_position[1])))return;
+   var id=String(o.object_id);if(id===ownId||seen[id])return;seen[id]=true;
+   candidates.push({id:id,label:id+' // '+String(o.modality||'SENSOR').toUpperCase(),x:Number(o.normalized_position[0]),y:Number(o.normalized_position[1]),side:o.side||'contact',modalities:o.modalities||[],source:o.source||'sensor',raw:o});
+ });
+ currentTrackCandidates=candidates;
+ var signature=candidates.map(function(t){return t.id+'|'+t.label;}).join(';');
+ if(trackSelect&&signature!==trackOptionsSignature){
+   var selected=cameraState.selectedTrackId||trackSelect.value;
+   trackOptionsSignature=signature;trackSelect.textContent='';
+   var empty=document.createElement('option');empty.value='';empty.textContent='NO CONTACT SELECTED';trackSelect.appendChild(empty);
+   candidates.forEach(function(t){var option=document.createElement('option');option.value=t.id;option.textContent=t.label;trackSelect.appendChild(option);});
+   if(candidates.some(function(t){return t.id===selected;})){cameraState.selectedTrackId=selected;trackSelect.value=selected;}
+   else{cameraState.selectedTrackId='';trackSelect.value='';}
+ }
+}
+function selectedTrack(){return currentTrackCandidates.find(function(t){return t.id===cameraState.selectedTrackId;})||null;}
+function selectedOwnTrack(regionalContacts){var id=({ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'})[unitId];return (regionalContacts||[]).find(function(t){return t&&t.id===id&&t.side==='friendly';})||null;}
+function bearingToTrack(target,own){if(!target||!own)return null;var dx=Number(target.x)-Number(own.x),dy=Number(target.y)-Number(own.y);if(!Number.isFinite(dx)||!Number.isFinite(dy)||Math.hypot(dx,dy)<1e-6)return null;return (Math.atan2(dx,-dy)*180/Math.PI+360)%360;}
+function signedDegrees(value){return ((Number(value)+540)%360)-180;}
+function setCommandMessage(message){operatorMessage=String(message||'');if(commandStatus)commandStatus.textContent=operatorMessage||'TRACK CONTROL STANDBY';}
+function cameraModeActive(){var lower=activeSensor.toLowerCase();return lower.indexOf('camera')>=0||lower.indexOf('optical')>=0||lower.indexOf('thermal')>=0||lower.indexOf('infrared')>=0;}
+function moveCameraToSelectedTrack(){
+ var target=selectedTrack(),regional=typeof window.vigilGetRegionalSensorContacts==='function'?window.vigilGetRegionalSensorContacts():[],own=selectedOwnTrack(regional),bearing=bearingToTrack(target,own);
+ if(bearing===null){setCommandMessage('SLEW REJECTED // SELECT A VALID CONTACT WITH A POSITION FIX');draw();return;}
+ cameraState.pan=Math.max(-85,Math.min(85,signedDegrees(bearing-(Number(own.heading_deg)||0))));
+ cameraState.hold=true;cameraState.selectedTrackId=target.id;if(trackSelect)trackSelect.value=target.id;
+ setCommandMessage('CAMERA SLEW // '+target.id+' // RELATIVE BEARING '+Math.round(cameraState.pan)+'° // TRACK HOLD ENABLED');draw();
+}
 function draw(){
  if(!ctx)return;
  var w=canvas.width,h=canvas.height,pulse=(frame%100)/100;
- var lower=activeSensor.toLowerCase(),isSonar=lower.indexOf('sonar')>=0,isRadar=lower.indexOf('radar')>=0;
- var isCamera=lower.indexOf('camera')>=0,isThermal=lower.indexOf('thermal')>=0,isRange=lower.indexOf('range')>=0;
+ var lower=activeSensor.toLowerCase(),isSonar=lower.indexOf('sonar')>=0||lower.indexOf('acoustic')>=0,isRadar=lower.indexOf('radar')>=0,isUnderwaterCamera=lower.indexOf('underwater')>=0&&lower.indexOf('camera')>=0,isCamera=lower.indexOf('camera')>=0||lower.indexOf('optical')>=0,isThermal=lower.indexOf('thermal')>=0||lower.indexOf('infrared')>=0,isRange=lower.indexOf('range')>=0||lower.indexOf('depth')>=0,isTrackStation=lower.indexOf('track')>=0||lower.indexOf('fused')>=0,isRfStation=lower.indexOf('esm')>=0||lower.indexOf('rf')>=0||lower.indexOf('csi')>=0;
  var historyKey=unitId+'|'+activeSensor;
  if(waterfallHistoryKey!==historyKey){waterfallHistory=[];waterfallHistoryKey=historyKey;}
  var regionalContacts=typeof window.vigilGetRegionalSensorContacts==='function'?window.vigilGetRegionalSensorContacts():[];
@@ -4048,24 +4099,50 @@ function draw(){
    (statusTrack?'TRACK '+statusTrack.id+' // HDG '+Math.round(statusTrack.heading_deg)+'° // SPD '+statusTrack.speed.toFixed(3)+' / '+statusTrack.max_speed.toFixed(3)+' // POS '+statusTrack.x.toFixed(3)+', '+statusTrack.y.toFixed(3):ownId?'ASSIGNED TRACK: '+ownId:'NO SIMULATION ENTITY ASSIGNED')+
    ' // '+regionalContacts.length+' REGIONAL TRACKS // SHARED CONTROL PANEL';
  var sensorObservation=typeof window.vigilGetLatestSensorObservation==='function'?window.vigilGetLatestSensorObservation():null;
- var observationIsExternal=!!(sensorObservation&&sensorObservation.metadata&&sensorObservation.metadata.source==='external-sensor-adapter');
- var observationFresh=!!(sensorObservation&&Array.isArray(sensorObservation.objects)&&sensorObservation.objects.length&&!(observationIsExternal&&sensorObservation.stale));
- var activeVessel=typeof window.vigilGetRegionalSimulationUnit==='function'?window.vigilGetRegionalSimulationUnit(unitId):null;
- var observations=observationFresh?sensorObservation.objects:[];
+ var sensorSnapshot=typeof window.vigilGetSensorInputSnapshot==='function'?window.vigilGetSensorInputSnapshot():{feeds:[],observations:[]};
+ var wantedModalities=sensorModalitiesForMode(lower);
+ var relevantFeeds=(sensorSnapshot.feeds||[]).filter(function(f){return !wantedModalities||wantedModalities.indexOf(f.modality)>=0;});
+ var freshFeeds=relevantFeeds.filter(function(f){return !f.stale;});
+ var staleRelevantFeeds=relevantFeeds.filter(function(f){return f.stale;});
+ var matchingFeeds=freshFeeds.filter(function(f){return (f.objects&&f.objects.length)||f.image_available||f.waterfall_bins;});
+ var feedObservations=[];
+ matchingFeeds.forEach(function(feed){(feed.objects||[]).forEach(function(o){feedObservations.push(Object.assign({},o,{sensor_id:feed.sensor_id,modality:feed.modality,source:feed.source,feed_stale:false}));});});
+ var observationIsExternal=matchingFeeds.some(function(f){return f.source==='external';});
+ var observationFresh=matchingFeeds.length>0;
+ var observations=feedObservations;
+ var activeWaterfallFeed=matchingFeeds.find(function(f){return Array.isArray(f.waterfall_bins)&&f.waterfall_bins.length;})||null;
+ var frameModalities=wantedModalities||['optical','camera','underwater_camera','thermal','infrared','fixed_camera','lidar'];
+ var imageFeeds=(isCamera||isThermal)&&typeof window.vigilGetSensorFramesFor==='function'?window.vigilGetSensorFramesFor(frameModalities):[];
+ var activeImageFeed=imageFeeds.length?imageFeeds[imageFeeds.length-1]:null;
+ var imageUrl=activeImageFeed?activeImageFeed.image_data_url:null;
+ if(imageUrl&&imageUrl!==loadedFrameUrl&&imageUrl!==imageLoadingUrl){
+   imageLoadingUrl=imageUrl;var nextImage=new Image();
+   nextImage.onload=function(){loadedFrameImage=nextImage;loadedFrameUrl=imageUrl;imageLoadingUrl='';draw();};
+   nextImage.onerror=function(){imageLoadingUrl='';setCommandMessage('CAMERA INPUT ERROR // CHECK IMAGE DATA URL');};
+   nextImage.src=imageUrl;
+ }else if(!imageUrl){loadedFrameImage=null;loadedFrameUrl='';imageLoadingUrl='';}
  var targets=[];
- if(observationFresh){
-   observations.forEach(function(o){
-     var p=o&&o.normalized_position;
-     if(!Array.isArray(p)||p.length<2||!Number.isFinite(Number(p[0]))||!Number.isFinite(Number(p[1])))return;
-     targets.push({id:String(o.object_id||o.contact_id||'OBSERVATION'),x:Number(p[0]),y:Number(p[1]),
-       side:o.side||'contact',uncertainty:Number(o.uncertainty_m)||0,source:'observation',raw:o});
+ if(feedObservations.length){
+   feedObservations.forEach(function(o){
+     var p=o&&o.normalized_position;if(!Array.isArray(p)||p.length<2||!Number.isFinite(Number(p[0]))||!Number.isFinite(Number(p[1])))return;
+     targets.push({id:String(o.object_id||o.contact_id||'OBSERVATION'),x:Number(p[0]),y:Number(p[1]),side:o.side||'contact',
+       uncertainty:Number(o.uncertainty_m)||0,confidence:Number(o.confidence)||0,source:o.source||'observation',modality:o.modality,modalities:o.modalities||[],raw:o});
    });
- }else{
+ }else if(!matchingFeeds.length||!matchingFeeds.some(function(f){return f.image_available;})){
    regionalContacts.forEach(function(c){
      if(!c||c.id===ownId||!Number.isFinite(Number(c.x))||!Number.isFinite(Number(c.y)))return;
-     targets.push({id:String(c.id),x:Number(c.x),y:Number(c.y),side:c.side||'contact',uncertainty:0,source:'regional'});
+     targets.push({id:String(c.id),x:Number(c.x),y:Number(c.y),side:c.side||'contact',uncertainty:0,confidence:.5,source:'regional',heading_deg:Number(c.heading_deg)||0});
    });
  }
+ updateTrackCandidates(regionalContacts,sensorSnapshot);
+ var ownTrackForCamera=selectedOwnTrack(regionalContacts),selectedCameraTarget=selectedTrack();
+ if(cameraState.hold&&selectedCameraTarget&&ownTrackForCamera&&cameraModeActive()){
+   var targetBearing=bearingToTrack(selectedCameraTarget,ownTrackForCamera);
+   if(targetBearing!==null){var desiredPan=Math.max(-85,Math.min(85,signedDegrees(targetBearing-(Number(ownTrackForCamera.heading_deg)||0))));cameraState.pan=Math.max(-85,Math.min(85,cameraState.pan+signedDegrees(desiredPan-cameraState.pan)*.22));}
+ }
+ if(status)status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+activeSensor+' // '+
+   (statusTrack?'TRACK '+statusTrack.id+' // HDG '+Math.round(statusTrack.heading_deg)+'° // SPD '+statusTrack.speed.toFixed(3)+' / '+statusTrack.max_speed.toFixed(3)+' // POS '+statusTrack.x.toFixed(3)+', '+statusTrack.y.toFixed(3):ownId?'ASSIGNED TRACK: '+ownId:'NO SIMULATION ENTITY ASSIGNED')+
+   ' // '+matchingFeeds.length+' MATCHING FEED(S) // '+targets.length+' TRACK INPUT(S)'+(staleRelevantFeeds.length?' // '+staleRelevantFeeds.length+' STALE FEED(S)':'')+(operatorMessage?' // '+operatorMessage:'');
  var baseBg=ctx.createLinearGradient(0,0,0,h);baseBg.addColorStop(0,'#03120e');baseBg.addColorStop(.52,'#020a08');baseBg.addColorStop(1,'#010504');
  ctx.fillStyle=baseBg;ctx.fillRect(0,0,w,h);
  ctx.strokeStyle='#102e25';ctx.lineWidth=1;
@@ -4153,8 +4230,11 @@ function draw(){
    ctx.fillStyle='#69b48c';ctx.font='9px Courier New';ctx.fillText('OWN HDG '+(statusTrack?String(Math.round(statusTrack.heading_deg)).padStart(3,'0')+'°':'---')+'  //  '+String(visibleSonar.length).padStart(2,'0')+' RETURNS',184,301);
    // Build and scroll a true waterfall history: the newest acoustic scan is at the top.
    var wfX=360,wfY=80,wfW=518,wfH=197,bins=72,rows=34,cellW=wfW/bins,cellH=wfH/rows;
-   var latest=new Array(bins);
-   for(var bi=0;bi<bins;bi++)latest[bi]=.025+.035*(.5+.5*Math.sin(bi*1.77+frame*.12))+.025*(.5+.5*Math.sin(bi*.47+frame*.055));
+   var latest=new Array(bins),suppliedBins=activeWaterfallFeed&&Array.isArray(activeWaterfallFeed.waterfall_bins)?activeWaterfallFeed.waterfall_bins:null;
+   for(var bi=0;bi<bins;bi++){
+     var supplied=suppliedBins?Number(suppliedBins[Math.floor(bi/bins*suppliedBins.length)]):null;
+     latest[bi]=suppliedBins&&Number.isFinite(supplied)?supplied:cameraState.sensitivity*(.025+.035*(.5+.5*Math.sin(bi*1.77+frame*.12))+.025*(.5+.5*Math.sin(bi*.47+frame*.055)));
+   }
    visibleSonar.forEach(function(item){
      var bin=Math.round(item.point.bearing/360*bins)%bins;
      var strength=Math.max(.3,Math.min(.95,.9-item.point.distance*.8));
