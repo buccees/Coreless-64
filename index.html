@@ -4320,8 +4320,9 @@ function cameraModeActive(){var lower=activeSensor.toLowerCase();return lower.in
 function moveCameraToSelectedTrack(){
  var target=selectedTrack(),regional=typeof window.vigilGetRegionalSensorContacts==='function'?window.vigilGetRegionalSensorContacts():[],own=selectedOwnTrack(regional),bearing=bearingToTrack(target,own);
  if(bearing===null){setCommandMessage('SLEW REJECTED // SELECT A VALID CONTACT WITH A POSITION FIX');draw();return;}
- if(target.confidenceState==='unknown'||target.confidenceState==='low'){
-   setCommandMessage('SLEW REJECTED // '+target.id+' // '+(target.confidenceState==='unknown'?'POSITION UNCERTAINTY UNKNOWN':'LOW CONFIDENCE POSITION')+' // REVIEW SENSOR EVIDENCE FIRST');draw();return;
+ if(target.source==='sensor-conflict+regional'||target.confidenceState!=='reported'){
+   var reason=target.source==='sensor-conflict+regional'?'CONFLICTING SENSOR POSITIONS':target.confidenceState==='low'?'LOW CONFIDENCE POSITION':'POSITION UNCERTAINTY NOT VERIFIED';
+   setCommandMessage('SLEW REJECTED // '+target.id+' // '+reason+' // REVIEW SENSOR EVIDENCE FIRST');draw();return;
  }
  cameraState.pan=Math.max(-85,Math.min(85,signedDegrees(bearing-(Number(own.heading_deg)||0))));
  cameraState.hold=true;cameraState.selectedTrackId=target.id;if(trackSelect)trackSelect.value=target.id;
