@@ -3245,6 +3245,8 @@ FIRE CONTROL: STANDBY</div>
   sensor.addEventListener('change',function(){publish(false,false);});
   noise.addEventListener('input',function(){document.getElementById('sim-noise-value').textContent=Number(noise.value).toFixed(1);});
   initialize();
+  publish(false,false); // Seed the visible sonar scope and waterfall on page load.
+  window.setInterval(function(){if(lastObservationData)renderNavalSonar(lastObservationData);},1500); // Advance waterfall history from the latest sensor picture.
 
   // Integrated console: visual instruments and procedures bind to the same regional fleet and fire-control command path.
   (function(){
