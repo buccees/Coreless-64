@@ -2778,6 +2778,20 @@ FIRE CONTROL: STANDBY</div>
     {id:'CVN',name:'NIMITZ-CLASS',x:.66,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.025,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
   ];
   var regionalTrainingFleetDemo=regionalTrainingFleet.map(function(ship){return Object.assign({},ship);});
+  // Read-only station bridge: expose the same authorized regional tracks used by
+  // navigation and fire control to the shared simulated sensor displays.
+  window.vigilGetRegionalSensorContacts=function(){
+    return regionalTrainingFleet.filter(function(s){return s&&s.afloat!==false;}).map(function(s){
+      return {id:String(s.id),label:String(s.name||s.id),x:Number(s.x),y:Number(s.y),
+        heading_deg:Number(s.heading)||0,speed:Number(s.speed)||0,
+        side:s.side==='friendly'?'friendly':'contact',
+        source:String(s.source||'regional simulation'),hull:s.hull==null?null:Number(s.hull)};
+    }).filter(function(s){return Number.isFinite(s.x)&&Number.isFinite(s.y);});
+  };
+  window.vigilGetRegionalSimulationUnit=function(unitId){
+    var contacts=window.vigilGetRegionalSensorContacts();
+    return contacts.find(function(c){return c.id===unitId&&c.side==='friendly';})||null;
+  };
 
   window.vigilGetFireControlState=function(shipId,targetId,weaponSystem){
     weaponSystem=weaponSystem||'main_battery';
@@ -3680,6 +3694,8 @@ function draw(){
  for(var y=0;y<=h;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
  ctx.fillStyle='#29f5b2';ctx.font='16px Courier New';ctx.fillText('VIGIL // '+unitId.toUpperCase()+' // '+activeSensor,18,25);
  var lower=activeSensor.toLowerCase(),cx=w*.5,cy=h*.56;
+ var regionalContacts=typeof window.vigilGetRegionalSensorContacts==='function'?window.vigilGetRegionalSensorContacts():[];
+ var activeVessel=typeof window.vigilGetRegionalSimulationUnit==='function'?window.vigilGetRegionalSimulationUnit(unitId):null;
  ctx.strokeStyle='#17634d';ctx.fillStyle='#29f5b2';
  if(lower.indexOf('sonar')>=0||lower.indexOf('radar')>=0||lower.indexOf('esm')>=0||lower.indexOf('acoustic')>=0||lower.indexOf('proximity')>=0){
    var radius=Math.min(w,h)*.39;
@@ -3687,6 +3703,13 @@ function draw(){
    ctx.beginPath();ctx.moveTo(cx,cy-radius);ctx.lineTo(cx,cy+radius);ctx.moveTo(cx-radius,cy);ctx.lineTo(cx+radius,cy);ctx.stroke();
    ctx.strokeStyle='#29f5b2';ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(pulse*Math.PI*2)*radius,cy+Math.sin(pulse*Math.PI*2)*radius);ctx.stroke();
    for(var i=0;i<7;i++){var a=(i*2.399+0.6),rr=radius*(.2+((i*37)%71)/100);ctx.fillStyle=i%3===0?'#ffbd63':'#29f5b2';ctx.beginPath();ctx.arc(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,2+(i%3),0,Math.PI*2);ctx.fill();}
+   regionalContacts.forEach(function(contact){
+     var px=contact.x*w,py=contact.y*h;
+     ctx.fillStyle=contact.side==='friendly'?'#66b7ff':'#ffbd63';
+     ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);ctx.fill();
+     ctx.strokeStyle=ctx.fillStyle;ctx.beginPath();ctx.arc(px,py,10,0,Math.PI*2);ctx.stroke();
+     ctx.font='10px Courier New';ctx.fillText(contact.id,px+12,py-7);
+   });
    ctx.fillStyle='#59bda3';ctx.font='12px Courier New';ctx.fillText(lower.indexOf('sonar')>=0?'ACOUSTIC CONTACT PLOT // SIMULATED RETURNS':'SWEEP / DETECTION DISPLAY // SIMULATED RETURNS',18,h-16);
  }else if(lower.indexOf('camera')>=0||lower.indexOf('thermal')>=0){
    var grad=ctx.createLinearGradient(0,45,0,h);grad.addColorStop(0,lower.indexOf('thermal')>=0?'#311b12':'#05281d');grad.addColorStop(1,lower.indexOf('thermal')>=0?'#100b09':'#010604');ctx.fillStyle=grad;ctx.fillRect(1,35,w-2,h-36);
@@ -3709,7 +3732,7 @@ function draw(){
 function choose(sensor){
  activeSensor=sensor;title.textContent='ACTIVE UNIT SENSOR DISPLAY // '+sensor;
  Array.prototype.forEach.call(buttons.querySelectorAll('button'),function(b){b.setAttribute('aria-pressed',String(b.textContent===sensor));});
- status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+sensor+' // SHARED CONTROL PANEL';
+ var unit=window.vigilGetActiveSimulationUnit&&window.vigilGetActiveSimulationUnit(); var linked=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(unitId); status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+sensor+' // '+(linked?'TRACK SOURCE: '+linked.id:'TRAINING UNIT PROFILE')+' // '+(window.vigilGetRegionalSensorContacts?window.vigilGetRegionalSensorContacts().length:0)+' REGIONAL TRACKS // SHARED CONTROL PANEL';
  draw();
 }
 function updateUnit(unit){
