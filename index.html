@@ -2850,7 +2850,7 @@ FIRE CONTROL: STANDBY</div>
     }
     if(changes.speed!==undefined){
       nextSpeed=Number(changes.speed);var max=Number(unit.maxSpeed)||0;
-      if(!Number.isFinite(nextSpeed)||nextSpeed<0||nextSpeed>max)return {ok:false,reason:'Speed must be between zero and this unit\\'s maximum speed.'};
+      if(!Number.isFinite(nextSpeed)||nextSpeed<0||nextSpeed>max)return {ok:false,reason:'Speed is outside this unit’s permitted range.'};
     }
     if(changes.station_keeping!==undefined){
       if(typeof changes.station_keeping!=='boolean')return {ok:false,reason:'Station-keeping must be true or false.'};
