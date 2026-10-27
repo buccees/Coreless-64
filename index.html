@@ -2698,6 +2698,7 @@ FIRE CONTROL: STANDBY</div>
     };
   }
   var externalSensorObservationActive=false;
+  var lastExternalObservationReceivedAt=0;
   // Adapter seam for the user's existing sensor-array software. The adapter must
   // provide normalized map coordinates; raw sensor units are never guessed here.
   window.vigilIngestSensorObservation=function(payload){
@@ -2724,7 +2725,7 @@ FIRE CONTROL: STANDBY</div>
     var data={schema_version:1,model_id:'EXTERNAL-SENSOR-ARRAY',revision:String(payload.timestamp||Date.now()),
       frame_id:'normalized-regional-map-v1',metadata:{sonar_posture:modality==='sonar'||modality==='acoustic'?'passive monitoring':modality+' sensor input',source:'external-sensor-adapter'},
       objects:objects,waterfall_bins:suppliedWaterfall};
-    externalSensorObservationActive=true;lastObservationData=data;
+    externalSensorObservationActive=true;lastObservationData=data;lastExternalObservationReceivedAt=Date.now();
     renderReconContacts(data);renderBathymetry(data);renderNavalSonar(data);
     var sourceStatus=document.getElementById('vigil-sensor-source-status');
     if(sourceStatus)sourceStatus.textContent='SENSOR INPUT: EXTERNAL '+modality.toUpperCase()+' // '+payload.sensor_id+' // '+objects.length+' TRACK(S)';
@@ -2736,9 +2737,13 @@ FIRE CONTROL: STANDBY</div>
   // Read-only copy of the latest accepted sensor observation for other station displays.
   window.vigilGetLatestSensorObservation=function(){
     if(!lastObservationData)return null;
+    var sourceMetadata=lastObservationData.metadata||{};
+    var external=sourceMetadata.source==='external-sensor-adapter';
+    var ageMs=external&&lastExternalObservationReceivedAt?Math.max(0,Date.now()-lastExternalObservationReceivedAt):0;
     return {schema_version:lastObservationData.schema_version,model_id:lastObservationData.model_id,
       revision:lastObservationData.revision,frame_id:lastObservationData.frame_id,
-      metadata:Object.assign({},lastObservationData.metadata||{}),
+      age_ms:ageMs,stale:external&&ageMs>15000,
+      metadata:Object.assign({},sourceMetadata),
       objects:(lastObservationData.objects||[]).map(function(o){return {
         object_id:String(o.object_id||''),normalized_position:Array.isArray(o.normalized_position)?o.normalized_position.slice(0,3):null,
         uncertainty_m:Number(o.uncertainty_m)||0,confidence:Number(o.confidence)||0,
@@ -3743,6 +3748,7 @@ function draw(){
    }
    if(sensorObservation&&Array.isArray(sensorObservation.objects)&&sensorObservation.objects.length){
      sensorObservation.objects.forEach(function(o){
+       if(observationIsExternal&&sensorObservation.stale)return;
        if(!o.normalized_position)return;
        var px,py;
        if(observationIsExternal&&ownTrack){
@@ -3773,7 +3779,7 @@ function draw(){
      });
    }
    if(!plotted){ctx.fillStyle='#59bda3';ctx.font='11px Courier New';ctx.fillText('NO TRACKS // NO DETECTIONS',cx-radius+8,cy+18);}
-   ctx.fillStyle='#59bda3';ctx.font='12px Courier New';ctx.fillText((lower.indexOf('sonar')>=0?'ACOUSTIC CONTACT PLOT':'SWEEP / DETECTION DISPLAY')+' // '+plotted+' '+(sensorObservation&&sensorObservation.objects.length?(observationIsExternal?'EXTERNAL':'PIPELINE'):'REGIONAL')+' TRACKS',18,h-16);
+   ctx.fillStyle='#59bda3';ctx.font='12px Courier New';ctx.fillText((observationIsExternal&&sensorObservation.stale?'STALE EXTERNAL DATA // ':'')+(lower.indexOf('sonar')>=0?'ACOUSTIC CONTACT PLOT':'SWEEP / DETECTION DISPLAY')+' // '+plotted+' '+(sensorObservation&&sensorObservation.objects.length?(observationIsExternal?'EXTERNAL':'PIPELINE'):'REGIONAL')+' TRACKS',18,h-16);
  }else if(lower.indexOf('camera')>=0||lower.indexOf('thermal')>=0){
    var grad=ctx.createLinearGradient(0,45,0,h);grad.addColorStop(0,lower.indexOf('thermal')>=0?'#311b12':'#05281d');grad.addColorStop(1,lower.indexOf('thermal')>=0?'#100b09':'#010604');ctx.fillStyle=grad;ctx.fillRect(1,35,w-2,h-36);
    ctx.strokeStyle=lower.indexOf('thermal')>=0?'#ffbd63':'#17634d';ctx.lineWidth=2;
@@ -3785,6 +3791,7 @@ function draw(){
    var visualTracks=0;
    var visualObjects=sensorObservation&&Array.isArray(sensorObservation.objects)?sensorObservation.objects:[];
    visualObjects.forEach(function(o){
+     if(observationIsExternal&&sensorObservation.stale)return;
      var modalities=Array.isArray(o.modalities)?o.modalities:[];
      var visual=modalities.indexOf('optical')>=0||modalities.indexOf('lidar')>=0;
      if(!visual)return;
@@ -3799,7 +3806,7 @@ function draw(){
      visualTracks++;
    });
    ctx.fillStyle=lower.indexOf('thermal')>=0?'#ffbd63':'#29f5b2';ctx.font='12px Courier New';
-   ctx.fillText((lower.indexOf('thermal')>=0?'THERMAL VIEW':'OPTICAL VIEW')+' // '+visualTracks+' VISUAL TRACKS'+(visualTracks?'':' // NO VISUAL OBSERVATIONS'),18,h-16);
+   ctx.fillText((observationIsExternal&&sensorObservation.stale?'STALE EXTERNAL DATA // ':'')+(lower.indexOf('thermal')>=0?'THERMAL VIEW':'OPTICAL VIEW')+' // '+visualTracks+' VISUAL TRACKS'+(visualTracks?'':' // NO VISUAL OBSERVATIONS'),18,h-16);
  }else if(lower.indexOf('range')>=0){
    ctx.strokeStyle='#29f5b2';ctx.beginPath();ctx.moveTo(25,h-40);ctx.lineTo(w-25,45);ctx.stroke();ctx.strokeRect(w*.55,h*.3,90,75);ctx.fillStyle='#29f5b2';ctx.font='15px Courier New';ctx.fillText('RANGE ESTIMATE: '+(120+Math.round(pulse*8))+' m',28,65);ctx.fillText('LASER / DEPTH SOLUTION // SIMULATED',28,88);
  }else{
