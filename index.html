@@ -3257,22 +3257,66 @@ FIRE CONTROL: STANDBY</div>
     for(var gx=0;gx<=6;gx++){var xx=gx*w/6;ctx.beginPath();ctx.moveTo(xx,0);ctx.lineTo(xx,h);ctx.stroke();ctx.fillStyle='#c7efbd';ctx.font='12px monospace';ctx.fillText(String.fromCharCode(65+gx),xx+5,16);}
     for(var gy=0;gy<=4;gy++){var yy=gy*h/4;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke();ctx.fillStyle='#b6dce4';ctx.font='12px monospace';ctx.fillText(''+(gy+1),5,yy+14);}
     ctx.fillStyle='rgba(4,22,14,.82)';ctx.fillRect(w-180,h-48,170,38);ctx.fillStyle='#e4f6d7';ctx.font='12px monospace';ctx.fillText('SECTOR 01 // NOT TO SCALE',w-170,h-32);ctx.fillStyle='#a9d99b';ctx.fillText('CONTOURS: SIMULATED',w-170,h-16);
+    ctx.fillStyle='rgba(4,22,14,.82)';ctx.fillRect(10,h-48,330,38);ctx.fillStyle='#d4f6a8';ctx.font='11px monospace';ctx.fillText('HULL = ACTUAL HEADING',18,h-32);ctx.fillStyle='#42d9e8';ctx.fillText('DASH = ORDERED HEADING',18,h-16);ctx.fillStyle='#ffd479';ctx.fillText('ARROW = ACTUAL MOTION',178,h-16);
     var objects=data&&Array.isArray(data.objects)?data.objects:[];
     objects.forEach(function(o,i){var p=o.normalized_position||[];if(p.length<2)return;var px=((Number(p[0])-x0)/viewW)*w,py=((Number(p[1])-y0)/viewH)*h;if(px<0||px>w||py<0||py>h)return;ctx.strokeStyle=o.conflict?'#ffca7a':'#f5f6ce';ctx.fillStyle=o.conflict?'#ffca7a':'#f5f6ce';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px,py-7);ctx.lineTo(px+7,py);ctx.lineTo(px,py+7);ctx.lineTo(px-7,py);ctx.closePath();ctx.stroke();ctx.fillText('E'+String(i+1).padStart(2,'0'),px+10,py-8);});
-    // These dimension envelopes now render from shared simulation state.
-    // They remain illustrative rectangles, not verified blueprint silhouettes.
+    // Shared-state vessel and unit symbology. Hulls are illustrative envelopes,
+    // not verified blueprint silhouettes; minimum sizes keep small units legible.
     regionalTrainingFleet.forEach(function(ship){
       var px=((ship.x-x0)/viewW)*w,py=((ship.y-y0)/viewH)*h;
       if(px< -240||px>w+240||py< -100||py>h+100)return;
       var pxPerMeter=(10/18)*mapCamera.zoom;
-      var lengthPx=ship.lengthM*pxPerMeter,beamPx=ship.beamM*pxPerMeter;
-      var angle=ship.heading*Math.PI/180;
-      ctx.save();ctx.translate(px,py);ctx.rotate(angle);
-      ctx.fillStyle='rgba(11,43,24,.82)';ctx.strokeStyle='#d4f6a8';ctx.lineWidth=1.8;
-      ctx.beginPath();ctx.rect(-lengthPx/2,-beamPx/2,lengthPx,beamPx);ctx.fill();ctx.stroke();
-      ctx.beginPath();ctx.moveTo(-lengthPx*.42,0);ctx.lineTo(lengthPx*.42,0);ctx.strokeStyle='rgba(212,246,168,.65)';ctx.lineWidth=1;ctx.stroke();
+      var lengthPx=ship.lengthM>0?Math.max(12,ship.lengthM*pxPerMeter):0;
+      var beamPx=ship.beamM>0?Math.max(5,ship.beamM*pxPerMeter):0;
+      var actualHeading=((Number(ship.heading)||0)%360+360)%360;
+      var commandedHeading=((Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading)%360)+360)%360;
+      var actualRad=actualHeading*Math.PI/180,commandRad=commandedHeading*Math.PI/180;
+      var isFriendly=ship.side==='friendly';
+      var hullStroke=isFriendly?'#d4f6a8':'#ffcc86';
+      var hullFill=isFriendly?'rgba(11,43,24,.88)':'rgba(65,37,15,.88)';
+      // Only friendly units show a command course; the hull follows actual heading.
+      if(isFriendly&&ship.shipClass!=='facility'){
+        var guideLen=Math.max(24,Math.min(78,Math.max(lengthPx,16)*.72));
+        var gx=px+Math.sin(commandRad)*guideLen,gy=py-Math.cos(commandRad)*guideLen;
+        ctx.save();ctx.setLineDash([5,4]);ctx.strokeStyle='#42d9e8';ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(gx,gy);ctx.stroke();ctx.setLineDash([]);
+        ctx.beginPath();ctx.arc(gx,gy,2.5,0,Math.PI*2);ctx.stroke();ctx.restore();
+      }
+      // Heading is clockwise from north, so 0° points up and 90° points right.
+      ctx.save();ctx.translate(px,py);ctx.rotate((actualHeading-90)*Math.PI/180);
+      ctx.fillStyle=hullFill;ctx.strokeStyle=hullStroke;ctx.lineWidth=1.8;
+      if(ship.shipClass==='facility'){
+        ctx.beginPath();ctx.rect(-7,-7,14,14);ctx.fill();ctx.stroke();
+        ctx.beginPath();ctx.moveTo(-10,0);ctx.lineTo(10,0);ctx.moveTo(0,-10);ctx.lineTo(0,10);ctx.stroke();
+      }else if(ship.shipClass==='drone'||ship.shipClass==='submersible'||ship.shipClass==='mech'){
+        ctx.beginPath();ctx.moveTo(lengthPx/2,0);ctx.lineTo(0,-beamPx/2);ctx.lineTo(-lengthPx/2,0);ctx.lineTo(0,beamPx/2);ctx.closePath();ctx.fill();ctx.stroke();
+        ctx.beginPath();ctx.moveTo(-lengthPx*.22,0);ctx.lineTo(lengthPx*.22,0);ctx.strokeStyle='rgba(212,246,168,.72)';ctx.stroke();
+      }else{
+        ctx.beginPath();ctx.moveTo(lengthPx/2,0);ctx.lineTo(lengthPx*.24,-beamPx/2);ctx.lineTo(-lengthPx/2,-beamPx/2);ctx.lineTo(-lengthPx/2,beamPx/2);ctx.lineTo(lengthPx*.24,beamPx/2);ctx.closePath();ctx.fill();ctx.stroke();
+        ctx.beginPath();ctx.moveTo(-lengthPx*.36,0);ctx.lineTo(lengthPx*.34,0);ctx.strokeStyle='rgba(212,246,168,.7)';ctx.lineWidth=1;ctx.stroke();
+      }
       ctx.restore();
-      ctx.fillStyle='#edffd8';ctx.font='bold 12px monospace';ctx.fillText(ship.id,px+8,py-10);
+      // Motion arrow length reflects actual speed relative to maximum speed.
+      var maxSpeed=Math.max(0,Number(ship.maxSpeed)||0),actualSpeed=Math.max(0,Number(ship.speed)||0);
+      var targetSpeed=Math.max(0,Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed)||0);
+      var speedRatio=maxSpeed>0?Math.max(0,Math.min(1,actualSpeed/maxSpeed)):0;
+      if(speedRatio>.005){
+        var arrowLen=8+speedRatio*24;
+        var sideOffset=Math.max(6,Math.min(14,beamPx/2+4));
+        var sideX=Math.cos(actualRad),sideY=Math.sin(actualRad);
+        var dirX=Math.sin(actualRad),dirY=-Math.cos(actualRad);
+        var bx=px+sideX*sideOffset,by=py+sideY*sideOffset;
+        var ex=bx+dirX*arrowLen,ey=by+dirY*arrowLen;
+        ctx.strokeStyle=isFriendly?'#ffd479':'#ff9d78';ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(ex,ey);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(ex,ey);ctx.lineTo(ex-dirX*6+sideX*3,ey-dirY*6+sideY*3);
+        ctx.lineTo(ex-dirX*6-sideX*3,ey-dirY*6-sideY*3);ctx.closePath();ctx.fill();
+      }
+      ctx.fillStyle=isFriendly?'#edffd8':'#ffe0b5';ctx.font='bold 12px monospace';ctx.fillText(ship.id,px+8,py-10);
+      if(ship.shipClass!=='facility'){
+        ctx.fillStyle=isFriendly?'#a6ddcf':'#ffc49a';ctx.font='10px monospace';
+        ctx.fillText('SPD '+actualSpeed.toFixed(3)+'→'+targetSpeed.toFixed(3),px+8,py+3);
+      }
     });
 
   }
