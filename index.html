@@ -4285,9 +4285,12 @@ function cameraModeActive(){var lower=activeSensor.toLowerCase();return lower.in
 function moveCameraToSelectedTrack(){
  var target=selectedTrack(),regional=typeof window.vigilGetRegionalSensorContacts==='function'?window.vigilGetRegionalSensorContacts():[],own=selectedOwnTrack(regional),bearing=bearingToTrack(target,own);
  if(bearing===null){setCommandMessage('SLEW REJECTED // SELECT A VALID CONTACT WITH A POSITION FIX');draw();return;}
+ if(target.confidenceState==='unknown'||target.confidenceState==='low'){
+   setCommandMessage('SLEW REJECTED // '+target.id+' // '+(target.confidenceState==='unknown'?'POSITION UNCERTAINTY UNKNOWN':'LOW CONFIDENCE POSITION')+' // REVIEW SENSOR EVIDENCE FIRST');draw();return;
+ }
  cameraState.pan=Math.max(-85,Math.min(85,signedDegrees(bearing-(Number(own.heading_deg)||0))));
  cameraState.hold=true;cameraState.selectedTrackId=target.id;if(trackSelect)trackSelect.value=target.id;
- setCommandMessage('CAMERA SLEW // '+target.id+' // RELATIVE BEARING '+Math.round(cameraState.pan)+'° // TRACK HOLD ENABLED');draw();
+ setCommandMessage('CAMERA SLEW // '+target.id+' // RELATIVE BEARING '+Math.round(cameraState.pan)+'° // REPORTED UNCERTAINTY '+target.uncertainty_m.toFixed(2)+'m // TRACK HOLD ENABLED');draw();
 }
 function draw(){
  if(!ctx)return;
@@ -4849,8 +4852,11 @@ display.querySelector('#vigil-unit-course-to-track').addEventListener('click',fu
  var target=selectedTrack(),regional=typeof window.vigilGetRegionalSensorContacts==='function'?window.vigilGetRegionalSensorContacts():[],own=selectedOwnTrack(regional);
  var bearing=bearingToTrack(target,own);
  if(bearing===null){setCommandMessage('COURSE ORDER REJECTED // SELECT A POSITIONED TRACK');return;}
+ if(target.confidenceState==='unknown'||target.confidenceState==='low'){
+   setCommandMessage('COURSE ORDER REJECTED // '+target.id+' // '+(target.confidenceState==='unknown'?'POSITION UNCERTAINTY UNKNOWN':'LOW CONFIDENCE POSITION')+' // REVIEW SENSOR EVIDENCE FIRST');draw();return;
+ }
  var result=changeUnitState({heading:bearing});
- if(result&&result.ok)setCommandMessage('COURSE ORDER // '+target.id+' // DESIRED HEADING '+Math.round(bearing)+'°');
+ if(result&&result.ok)setCommandMessage('COURSE ORDER // '+target.id+' // DESIRED HEADING '+Math.round(bearing)+'° // REPORTED UNCERTAINTY '+target.uncertainty_m.toFixed(2)+'m');
  draw();
 });
 display.querySelector('#vigil-unit-clear-track').addEventListener('click',function(){
