@@ -2615,7 +2615,9 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         // A new measurement can add evidence without creating a zero-coordinate position fix.
         object.normalized_position=null;
       }
-      object.uncertainty_m=Number((Number(object.uncertainty_m||0)/Math.sqrt(track.observations)).toFixed(2));
+      var reportedUncertainty=object.uncertainty_m;
+      // Preserve unknown uncertainty; only reduce a valid per-observation metre estimate.
+      object.uncertainty_m=typeof reportedUncertainty==='number'&&Number.isFinite(reportedUncertainty)&&reportedUncertainty>=0?Number((reportedUncertainty/Math.sqrt(track.observations)).toFixed(2)):null;
       object.observation_count=track.observations;
       track.last=object;
     });
@@ -2866,8 +2868,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       var hasPosition=Array.isArray(c.normalized_position)&&c.normalized_position.length>=2;
       var x=hasPosition?Number(c.normalized_position[0]):NaN,y=hasPosition?Number(c.normalized_position[1]):NaN;
       if(hasPosition&&(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>1||y<0||y>1))throw new Error('Contact '+c.contact_id+' coordinates must be normalized to 0..1.');
-      var uncertainty=Number(c.uncertainty_m||0),confidence=Number(c.confidence);
-      if(!Number.isFinite(uncertainty)||uncertainty<0)throw new Error('Contact '+c.contact_id+' uncertainty_m must be a non-negative number.');
+      var uncertainty=c.uncertainty_m===undefined||c.uncertainty_m===null||c.uncertainty_m===''?null:Number(c.uncertainty_m),confidence=Number(c.confidence);
+      if(uncertainty!==null&&(!Number.isFinite(uncertainty)||uncertainty<0))throw new Error('Contact '+c.contact_id+' uncertainty_m must be a non-negative number when supplied.');
       if(!Number.isFinite(confidence))confidence=.5;confidence=Math.max(0,Math.min(1,confidence));
       var measurements=c.measurements&&typeof c.measurements==='object'?Object.assign({},c.measurements):{};
       ['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value','measurement_units','measurement_status'].forEach(function(k){if(c[k]!==undefined)measurements[k]=c[k];});
