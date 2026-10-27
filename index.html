@@ -2801,13 +2801,21 @@ FIRE CONTROL: STANDBY</div>
     {id:'FAC-01',name:'VIGIL FORWARD SENSOR FACILITY',x:.15,y:.22,lengthM:0,beamM:0,heading:0,speed:0,maxSpeed:0,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:5,maxHull:5,shipClass:'facility',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'facility'},
     {id:'CVN',name:'NIMITZ-CLASS',x:.66,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.025,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
   ];
-  var regionalTrainingFleetDemo=regionalTrainingFleet.map(function(ship){return Object.assign({},ship);});
+  // Handling rates are game-tuning values, not claims about real-world classified performance.
+  regionalTrainingFleet.forEach(function(ship){
+    var handling={destroyer:{turn:7,accel:.006},submarine:{turn:3.5,accel:.0025},carrier:{turn:2.2,accel:.0018},drone:{turn:24,accel:.012},submersible:{turn:5,accel:.003},mech:{turn:18,accel:.008},facility:{turn:0,accel:0}}[ship.unitType||ship.shipClass]||{turn:5,accel:.003};
+    ship.maxTurnRateDegPerSec=handling.turn;ship.accelerationPerSec=handling.accel;
+    ship.desiredHeading=((Number(ship.heading)||0)%360+360)%360;ship.targetSpeed=Number(ship.speed)||0;
+  });
+  var regionalTrainingFleetDemo=regionalTrainingFleet.map(function(ship){return Object.assign({},ship,{weaponSystems:Array.isArray(ship.weaponSystems)?ship.weaponSystems.slice():[]});});
   // Read-only station bridge: expose the same authorized regional tracks used by
   // navigation and fire control to the shared simulated sensor displays.
   window.vigilGetRegionalSensorContacts=function(){
     return regionalTrainingFleet.filter(function(s){return s&&s.afloat!==false;}).map(function(s){
       return {id:String(s.id),label:String(s.name||s.id),x:Number(s.x),y:Number(s.y),
-        heading_deg:Number(s.heading)||0,speed:Number(s.speed)||0,max_speed:Number(s.maxSpeed)||0,
+        heading_deg:Number(s.heading)||0,desired_heading_deg:Number(s.desiredHeading==null?s.heading:s.desiredHeading)||0,
+        speed:Number(s.speed)||0,target_speed:Number(s.targetSpeed==null?s.speed:s.targetSpeed)||0,max_speed:Number(s.maxSpeed)||0,
+        turn_rate_deg_s:Number(s.maxTurnRateDegPerSec)||0,acceleration_per_s:Number(s.accelerationPerSec)||0,
         position:{x:Number(s.x),y:Number(s.y)},
         side:s.side==='friendly'?'friendly':'contact',
         source:String(s.source||'regional simulation'),hull:s.hull==null?null:Number(s.hull)};
@@ -2828,15 +2836,15 @@ FIRE CONTROL: STANDBY</div>
     if(!unit||!changes||typeof changes!=='object')return {ok:false,reason:'No assigned friendly simulation entity.'};
     if(changes.heading!==undefined){
       var heading=Number(changes.heading);if(!Number.isFinite(heading))return {ok:false,reason:'Heading must be numeric.'};
-      unit.heading=((heading%360)+360)%360;
+      unit.desiredHeading=((heading%360)+360)%360;
     }
     if(changes.speed!==undefined){
       var speed=Number(changes.speed),max=Number(unit.maxSpeed)||0;
-      if(!Number.isFinite(speed)||speed<0||speed>max)return {ok:false,reason:'Speed must be between zero and this unit\'s maximum speed.'};
-      unit.speed=speed;
+      if(!Number.isFinite(speed)||speed<0||speed>max)return {ok:false,reason:'Speed must be between zero and this unit\\'s maximum speed.'};
+      unit.targetSpeed=speed;
     }
-    window.dispatchEvent(new CustomEvent('vigil:simulation-unit-state-changed',{detail:{unit_id:unit.id,heading:unit.heading,speed:unit.speed}}));
-    return {ok:true,unit_id:unit.id,heading:unit.heading,speed:unit.speed,max_speed:Number(unit.maxSpeed)||0};
+    window.dispatchEvent(new CustomEvent('vigil:simulation-unit-state-changed',{detail:{unit_id:unit.id,heading:unit.heading,desired_heading:unit.desiredHeading,speed:unit.speed,target_speed:unit.targetSpeed}}));
+    return {ok:true,unit_id:unit.id,heading:unit.heading,desired_heading:unit.desiredHeading,speed:unit.speed,target_speed:unit.targetSpeed,max_speed:Number(unit.maxSpeed)||0};
   };
 
   window.vigilGetFireControlState=function(shipId,targetId,weaponSystem){
@@ -3175,8 +3183,9 @@ FIRE CONTROL: STANDBY</div>
       timestamp:new Date().toISOString(),
       ships:regionalTrainingFleet.map(function(ship){return {
         id:ship.id,name:ship.name,side:ship.side,ship_class:ship.shipClass,
-        position:{x:Number(ship.x),y:Number(ship.y)},heading_deg:Number(ship.heading),
-        speed:Number(ship.speed),max_speed:Number(ship.maxSpeed),
+        position:{x:Number(ship.x),y:Number(ship.y)},heading_deg:Number(ship.heading),desired_heading_deg:Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading),
+        speed:Number(ship.speed),target_speed:Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed),max_speed:Number(ship.maxSpeed),
+        turn_rate_deg_s:Number(ship.maxTurnRateDegPerSec)||0,acceleration_per_s:Number(ship.accelerationPerSec)||0,
         afloat:ship.afloat!==false,hull:Number(ship.hull),max_hull:Number(ship.maxHull),
         weapon_cooldown_remaining:Number(ship.weaponCooldownRemaining||0),
         weapon_systems:Array.isArray(ship.weaponSystems)?ship.weaponSystems.slice():[]
@@ -3193,11 +3202,17 @@ FIRE CONTROL: STANDBY</div>
     var dt=Math.min(.25,Math.max(0,(now-regionalFleetLastTick)/1000));
     regionalFleetLastTick=now;
     regionalTrainingFleet.forEach(function(ship){
+      if(ship.side==='friendly'&&ship.shipClass==='facility'){ship.speed=0;ship.targetSpeed=0;ship.maxSpeed=0;return;}
+      var desired=((Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading)%360)+360)%360;
+      var delta=((desired-ship.heading+540)%360)-180,maxTurn=(Number(ship.maxTurnRateDegPerSec)||0)*dt;
+      if(Math.abs(delta)<=maxTurn)ship.heading=desired;else ship.heading=(ship.heading+Math.sign(delta)*maxTurn+360)%360;
+      var target=Math.max(0,Math.min(Number(ship.maxSpeed)||0,Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed)||0));
+      var accel=(Number(ship.accelerationPerSec)||0)*dt,difference=target-ship.speed;
+      if(Math.abs(difference)<=accel)ship.speed=target;else ship.speed=Math.max(0,ship.speed+Math.sign(difference)*accel);
       var angle=ship.heading*Math.PI/180;
-      ship.x+=Math.sin(angle)*ship.speed*dt;
-      ship.y-=Math.cos(angle)*ship.speed*dt;
-      if(ship.x<.04||ship.x>.96){ship.heading=(360-ship.heading)%360;ship.x=Math.max(.04,Math.min(.96,ship.x));}
-      if(ship.y<.05||ship.y>.95){ship.heading=(180-ship.heading+360)%360;ship.y=Math.max(.05,Math.min(.95,ship.y));}
+      ship.x+=Math.sin(angle)*ship.speed*dt;ship.y-=Math.cos(angle)*ship.speed*dt;
+      if(ship.x<.04||ship.x>.96){ship.x=Math.max(.04,Math.min(.96,ship.x));ship.desiredHeading=(360-ship.heading)%360;}
+      if(ship.y<.05||ship.y>.95){ship.y=Math.max(.05,Math.min(.95,ship.y));ship.desiredHeading=(180-ship.heading+360)%360;}
     });
     renderBathymetry(lastObservationData);
     publishVigilSharedSimulationState(now,false);
@@ -3752,7 +3767,7 @@ function draw(){
  var lower=activeSensor.toLowerCase(),cx=w*.5,cy=h*.56;
  var regionalContacts=typeof window.vigilGetRegionalSensorContacts==='function'?window.vigilGetRegionalSensorContacts():[];
  var assignedIds={ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'},statusTrack=regionalContacts.find(function(c){return c.id===assignedIds[unitId]&&c.side==='friendly';});
- if(status)status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+activeSensor+' // '+(statusTrack?'TRACK '+statusTrack.id+' // HDG '+Math.round(statusTrack.heading_deg)+'° // SPEED '+statusTrack.speed.toFixed(3)+' / '+statusTrack.max_speed.toFixed(3)+' // POS '+statusTrack.x.toFixed(3)+', '+statusTrack.y.toFixed(3):assignedIds[unitId]?'ASSIGNED TRACK: '+assignedIds[unitId]:'NO SIMULATION ENTITY ASSIGNED')+' // '+regionalContacts.length+' REGIONAL TRACKS // SHARED CONTROL PANEL';
+ if(status)status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+activeSensor+' // '+(statusTrack?'TRACK '+statusTrack.id+' // HDG '+Math.round(statusTrack.heading_deg)+'° // SPEED '+statusTrack.speed.toFixed(3)+'→'+statusTrack.target_speed.toFixed(3)+' / '+statusTrack.max_speed.toFixed(3)+' // HDG '+Math.round(statusTrack.heading_deg)+'→'+Math.round(statusTrack.desired_heading_deg)+'° // POS '+statusTrack.x.toFixed(3)+', '+statusTrack.y.toFixed(3):assignedIds[unitId]?'ASSIGNED TRACK: '+assignedIds[unitId]:'NO SIMULATION ENTITY ASSIGNED')+' // '+regionalContacts.length+' REGIONAL TRACKS // SHARED CONTROL PANEL';
  var sensorObservation=typeof window.vigilGetLatestSensorObservation==='function'?window.vigilGetLatestSensorObservation():null;
  var observationIsExternal=!!(sensorObservation&&sensorObservation.metadata&&sensorObservation.metadata.source==='external-sensor-adapter');
  var activeVessel=typeof window.vigilGetRegionalSimulationUnit==='function'?window.vigilGetRegionalSimulationUnit(unitId):null;
@@ -3862,10 +3877,10 @@ function changeUnitState(change){
  if(!result||!result.ok){status.textContent=result&&result.reason||'UNIT CONTROL UNAVAILABLE';return;}
  draw();
 }
-display.querySelector('#vigil-unit-heading-left').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({heading:u.heading_deg-15});});
-display.querySelector('#vigil-unit-heading-right').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({heading:u.heading_deg+15});});
-display.querySelector('#vigil-unit-speed-down').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({speed:Math.max(0,u.speed-.005)});});
-display.querySelector('#vigil-unit-speed-up').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({speed:Math.min(Number(u.max_speed)||0,u.speed+.005)});});
+display.querySelector('#vigil-unit-heading-left').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({heading:(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)-15});});
+display.querySelector('#vigil-unit-heading-right').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({heading:(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)+15});});
+display.querySelector('#vigil-unit-speed-down').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({speed:Math.max(0,(u.target_speed==null?u.speed:u.target_speed)-.005)});});
+display.querySelector('#vigil-unit-speed-up').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({speed:Math.min(Number(u.max_speed)||0,(u.target_speed==null?u.speed:u.target_speed)+.005)});});
 function updateUnit(unit){
  unit=unit||window.vigilGetActiveSimulationUnit&&window.vigilGetActiveSimulationUnit();
  if(!unit)return;
