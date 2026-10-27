@@ -1134,7 +1134,7 @@ FIRE CONTROL: STANDBY</div>
     <div style="display:flex;align-items:end"><button type="button" id="vigil-regional-set-heading">SET COURSE</button></div>
     <label style="display:grid;gap:4px">Desired speed · world units/s<input id="vigil-regional-speed" type="number" min="0" max="0.004" step="any" value="0.002" style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label>
     <div style="display:flex;gap:6px;align-items:end;flex-wrap:wrap"><button type="button" id="vigil-regional-set-speed">SET SPEED</button><button type="button" id="vigil-regional-stop-speed">ALL STOP</button></div>
-    <label style="display:grid;gap:4px">Authorized visible target<select id="vigil-regional-target" style="background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"><option value="">No contacts loaded</option></select></label>
+    <div id="vigil-friendly-roster" role="status" aria-live="polite" style="grid-column:1/-1;border:1px solid #315b40;padding:8px;color:#c5e8b4"><strong style="color:#9bd58a;letter-spacing:.1em">FRIENDLY ROSTER</strong><div id="vigil-friendly-roster-list" style="margin-top:5px">NO FRIENDLY UNITS REGISTERED</div><small style="display:block;color:#8bb99b;margin-top:4px">Rostered friendly units are not targetable.</small></div>\n    <label style="display:grid;gap:4px">Authorized visible target<select id="vigil-regional-target" style="background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"><option value="">No contacts loaded</option></select></label>
     <div style="display:flex;align-items:end"><button type="button" id="vigil-regional-fire">FIRE WEAPON</button></div>
     <div id="vigil-regional-status" role="status" aria-live="polite" style="grid-column:1/-1;color:#8bb99b">NOT SIGNED IN // Enter the HTTPS server URL, then log in. The server must implement /api/auth/login and the VIGIL regional game API.</div>
     <div style="grid-column:1/-1;border-top:1px solid #315b40;padding-top:7px">
@@ -2967,11 +2967,14 @@ FIRE CONTROL: STANDBY</div>
     // Retain only command telemetry needed by the controls; never cache raw
     // regional snapshots that may contain hidden authoritative positions.
     var ships=Array.isArray(snapshot.ships)?snapshot.ships:[],controlled=Array.isArray(snapshot.controlled_ship_ids)?snapshot.controlled_ship_ids:[];
-    regionalUiLastSnapshot={ships:ships.filter(function(s){return s&&controlled.indexOf(s.ship_id)>=0;}).map(function(s){return {ship_id:s.ship_id,speed:s.speed,max_speed:s.max_speed,weapon_cooldown_remaining:s.weapon_cooldown_remaining,afloat:s.afloat};}),controlled_ship_ids:controlled.slice()};
+    function isFriendly(s){var allegiance=String(s&&(s.side||s.allegiance||s.team||s.faction_role)||'').toLowerCase();return controlled.indexOf(s&&s.ship_id)>=0||['friendly','ally','allied','player','own','blue'].indexOf(allegiance)>=0;}
+    var roster=ships.filter(function(s){return s&&isFriendly(s)&&s.afloat!==false;});
+    regionalUiLastSnapshot={ships:ships.filter(function(s){return s&&isFriendly(s);}).map(function(s){return {ship_id:s.ship_id,speed:s.speed,max_speed:s.max_speed,weapon_cooldown_remaining:s.weapon_cooldown_remaining,afloat:s.afloat};}),controlled_ship_ids:controlled.slice()};
+    var rosterList=document.getElementById('vigil-friendly-roster-list');if(rosterList)rosterList.textContent=roster.length?roster.map(function(s){return String(s.name||s.ship_id)+' ['+s.ship_id+']';}).join(' // '):'NO FRIENDLY UNITS REGISTERED';
     var ss=document.getElementById('vigil-regional-ship'),ts=document.getElementById('vigil-regional-target');if(!ss||!ts)return;
     var oldShip=ss.value,oldTarget=ts.value;ss.replaceChildren();ts.replaceChildren();
-    controlled.forEach(function(id){var s=ships.find(function(x){return x.ship_id===id;});var o=new Option(s?String(s.name||id)+' ['+id+']':id,id);ss.add(o);});
-    ships.forEach(function(s){if(controlled.indexOf(s.ship_id)>=0||s.afloat===false)return;ts.add(new Option(String(s.name||s.ship_id)+' ['+s.ship_id+']',s.ship_id));});
+    roster.forEach(function(s){var id=s.ship_id;var o=new Option(String(s.name||id)+' ['+id+']',id);ss.add(o);});
+    ships.forEach(function(s){if(!s||isFriendly(s)||s.afloat===false)return;ts.add(new Option(String(s.name||s.ship_id)+' ['+s.ship_id+']',s.ship_id));});
     if(Array.from(ss.options).some(function(o){return o.value===oldShip;}))ss.value=oldShip;
     if(Array.from(ts.options).some(function(o){return o.value===oldTarget;}))ts.value=oldTarget;
     if(!ss.options.length)ss.add(new Option('No controlled vessels',''));if(!ts.options.length)ts.add(new Option('No visible targets',''));
@@ -2984,6 +2987,7 @@ FIRE CONTROL: STANDBY</div>
       controlled_ship_ids:['DDG-51','SSN-774'],
       ships:regionalTrainingFleet.map(function(s){return {
         ship_id:s.id,name:s.name,x:s.x,y:s.y,speed:s.speed,max_speed:s.maxSpeed,
+        side:s.side==='friendly'?'friendly':'contact',
         heading_deg:s.heading,afloat:s.afloat!==false,ship_class:s.shipClass,
         length_m:s.lengthM,beam_m:s.beamM,blueprint_source:s.source,
         weapon_range:s.weaponRange,weapon_damage:s.weaponDamage,
