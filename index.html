@@ -2874,7 +2874,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       if(!Number.isFinite(confidence))confidence=.5;confidence=Math.max(0,Math.min(1,confidence));
       var measurements=c.measurements&&typeof c.measurements==='object'?Object.assign({},c.measurements):{};
       ['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value','measurement_units','measurement_status'].forEach(function(k){if(c[k]!==undefined)measurements[k]=c[k];});
-      function numericMeasurement(key){var value=measurements[key];return value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value))?Number(value):null;}
+      function numericMeasurement(key){var value=measurements[key];if(value===null||value===undefined||value===''||(typeof value!=='number'&&typeof value!=='string'))return null;var parsed=Number(value);return Number.isFinite(parsed)?parsed:null;}
       var hasMeasurement=['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value'].some(function(k){return numericMeasurement(k)!==null;})||['measurement_units','measurement_status'].some(function(k){return measurements[k]!==undefined&&measurements[k]!==null&&String(measurements[k]).trim()!=='';});
       if(!hasPosition&&!hasMeasurement)throw new Error('Contact '+c.contact_id+' needs normalized_position or at least one valid sensor measurement field.');
       return{object_id:'EXT-'+payload.sensor_id.replace(/[^a-z0-9_-]/gi,'_')+'-'+c.contact_id.replace(/[^a-z0-9_-]/gi,'_'),
