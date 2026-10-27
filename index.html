@@ -4170,7 +4170,8 @@ function draw(){
  var activeWaterfallFeed=matchingFeeds.find(function(f){return Array.isArray(f.waterfall_bins)&&f.waterfall_bins.length;})||null;
  var frameModalities=wantedModalities||['optical','camera','underwater_camera','thermal','infrared','fixed_camera','lidar'];
  var imageFeeds=(isCamera||isThermal)&&typeof window.vigilGetSensorFramesFor==='function'?window.vigilGetSensorFramesFor(frameModalities):[];
- var activeImageFeed=imageFeeds.length?imageFeeds[imageFeeds.length-1]:null;
+ var preferredImageModality=isUnderwaterCamera?'underwater_camera':isThermal?'thermal':isCamera?'optical':'';
+ var activeImageFeed=imageFeeds.filter(function(f){return f.modality===preferredImageModality;}).slice(-1)[0]||imageFeeds.slice(-1)[0]||null;
  var imageUrl=activeImageFeed?activeImageFeed.image_data_url:null;
  if(imageUrl&&imageUrl!==loadedFrameUrl&&imageUrl!==imageLoadingUrl){
    imageLoadingUrl=imageUrl;var nextImage=new Image();
@@ -4384,7 +4385,7 @@ function draw(){
      var seaGrad=ctx.createLinearGradient(0,viewTop,0,viewBottom);
      seaGrad.addColorStop(0,'#082f37');seaGrad.addColorStop(.34,'#06434b');seaGrad.addColorStop(.68,'#032a2b');seaGrad.addColorStop(1,'#010a0c');
      ctx.fillStyle=seaGrad;ctx.fillRect(1,viewTop,w-2,viewHeight);
-     ctx.save();ctx.globalAlpha=.12;
+     ctx.save();ctx.translate(-cameraState.pan*1.7,cameraState.tilt*1.4);ctx.globalAlpha=.12;
      for(var beam=0;beam<5;beam++){
        var beamX=w*(.16+beam*.17)+Math.sin(frame*.012+beam)*18;
        ctx.fillStyle=beam%2?'#68e9d6':'#b1f3e7';ctx.beginPath();ctx.moveTo(beamX-8,viewTop);ctx.lineTo(beamX+9,viewTop);
@@ -4414,13 +4415,15 @@ function draw(){
        var mx=(mote*83+frame*(.12+(mote%5)*.025))%w,my=viewTop+((mote*47+frame*(.22+(mote%4)*.035))%viewHeight);
        ctx.fillStyle='rgba(162,241,228,'+(.12+(mote%5)*.045)+')';ctx.fillRect(mx,my,1+(mote%3===0?1:0),1+(mote%3===0?1:0));
      }
+     ctx.restore();
    }else{
      var imageGrad=ctx.createLinearGradient(0,viewTop,0,viewBottom);
      imageGrad.addColorStop(0,isThermal?'#24190f':'#0a251a');imageGrad.addColorStop(1,'#010604');
      ctx.fillStyle=imageGrad;ctx.fillRect(1,viewTop,w-2,viewHeight);
      for(var scan=0;scan<viewHeight;scan+=4){ctx.fillStyle=isThermal?'rgba(255,190,100,.035)':'rgba(78,207,142,.035)';ctx.fillRect(1,viewTop+scan,w-2,1);}
+     ctx.save();ctx.translate(-cameraState.pan*1.5,cameraState.tilt*1.5);
      ctx.strokeStyle=isThermal?'rgba(255,190,100,.2)':'rgba(80,214,148,.2)';ctx.lineWidth=1;
-     ctx.beginPath();ctx.moveTo(1,h*.7);ctx.lineTo(w*.2,h*.66);ctx.lineTo(w*.34,h*.48);ctx.lineTo(w*.5,h*.6);ctx.lineTo(w*.72,h*.4);ctx.lineTo(w-1,h*.63);ctx.stroke();
+     ctx.beginPath();ctx.moveTo(1,h*.7);ctx.lineTo(w*.2,h*.66);ctx.lineTo(w*.34,h*.48);ctx.lineTo(w*.5,h*.6);ctx.lineTo(w*.72,h*.4);ctx.lineTo(w-1,h*.63);ctx.stroke();ctx.restore();
    }
    // All live/accepted visual observations are drawn in the gimbal's current field
    // of view. Without an optical feed, local exercise tracks remain useful camera targets.
@@ -4580,10 +4583,10 @@ function choose(sensor){
 }
 function changeUnitState(change){
  var current=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(unitId);
- if(!current){status.textContent='NO SIMULATION ENTITY ASSIGNED // CONTROLS DISABLED';return;}
+ if(!current){status.textContent='NO SIMULATION ENTITY ASSIGNED // CONTROLS DISABLED';setCommandMessage('UNIT CONTROL UNAVAILABLE');return false;}
  var result=window.vigilSetSimulationUnitState&&window.vigilSetSimulationUnitState(unitId,change);
- if(!result||!result.ok){status.textContent=result&&result.reason||'UNIT CONTROL UNAVAILABLE';return;}
- draw();
+ if(!result||!result.ok){var reason=result&&result.reason||'UNIT CONTROL UNAVAILABLE';status.textContent=reason;setCommandMessage(reason);return false;}
+ draw();return result;
 }
 window.vigilSelectSensorStation=function(modality,sensorId){
  modality=String(modality||'').toLowerCase();sensorId=String(sensorId||'').toLowerCase();
@@ -4637,7 +4640,7 @@ display.querySelector('#vigil-unit-course-to-track').addEventListener('click',fu
  var bearing=bearingToTrack(target,own);
  if(bearing===null){setCommandMessage('COURSE ORDER REJECTED // SELECT A POSITIONED TRACK');return;}
  var result=changeUnitState({heading:bearing});
- if(result!==false)setCommandMessage('COURSE ORDER // '+target.id+' // DESIRED HEADING '+Math.round(bearing)+'°');
+ if(result&&result.ok)setCommandMessage('COURSE ORDER // '+target.id+' // DESIRED HEADING '+Math.round(bearing)+'°');
  draw();
 });
 display.querySelector('#vigil-unit-clear-track').addEventListener('click',function(){
