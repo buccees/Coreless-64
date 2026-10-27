@@ -2843,19 +2843,20 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       if(!Number.isFinite(confidence))confidence=.5;confidence=Math.max(0,Math.min(1,confidence));
       var measurements=c.measurements&&typeof c.measurements==='object'?Object.assign({},c.measurements):{};
       ['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value','measurement_units','measurement_status'].forEach(function(k){if(c[k]!==undefined)measurements[k]=c[k];});
+      function numericMeasurement(key){var value=measurements[key];return value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value))?Number(value):null;}
       if(!hasPosition&&!Object.keys(measurements).length)throw new Error('Contact '+c.contact_id+' needs normalized_position or at least one sensor measurement field.');
       return{object_id:'EXT-'+payload.sensor_id.replace(/[^a-z0-9_-]/gi,'_')+'-'+c.contact_id.replace(/[^a-z0-9_-]/gi,'_'),
         normalized_position:hasPosition?[x,y,Number.isFinite(Number(c.normalized_position[2]))?Number(c.normalized_position[2]):0]:null,
         uncertainty_m:uncertainty,observation_count:1,sensor_ids:[payload.sensor_id],modalities:[modality],
         independence_groups:['external-'+payload.sensor_id],calibration_status:'external-unverified',calibration_ids:[],lineage_declared:false,
         conflict:false,confidence:confidence,classification:String(c.classification||'unclassified contact'),
-        range_m:Number.isFinite(Number(measurements.range_m))?Number(measurements.range_m):null,
-        bearing_deg:Number.isFinite(Number(measurements.bearing_deg))?Number(measurements.bearing_deg):null,
-        depth_m:Number.isFinite(Number(measurements.depth_m))?Number(measurements.depth_m):null,
-        temperature_c:Number.isFinite(Number(measurements.temperature_c))?Number(measurements.temperature_c):null,
-        signal_strength_db:Number.isFinite(Number(measurements.signal_strength_db))?Number(measurements.signal_strength_db):null,
-        velocity_mps:Number.isFinite(Number(measurements.velocity_mps))?Number(measurements.velocity_mps):null,
-        measurement_value:Number.isFinite(Number(measurements.measurement_value))?Number(measurements.measurement_value):null,
+        range_m:numericMeasurement('range_m'),
+        bearing_deg:numericMeasurement('bearing_deg'),
+        depth_m:numericMeasurement('depth_m'),
+        temperature_c:numericMeasurement('temperature_c'),
+        signal_strength_db:numericMeasurement('signal_strength_db'),
+        velocity_mps:numericMeasurement('velocity_mps'),
+        measurement_value:numericMeasurement('measurement_value'),
         measurement_units:String(measurements.measurement_units||''),measurement_status:String(measurements.measurement_status||''),
         measurements:measurements,external_timestamp:String(payload.timestamp||new Date().toISOString())};
     });
@@ -4156,7 +4157,7 @@ var currentTrackCandidates=[],trackOptionsSignature='';
 function sensorModalitiesForMode(lower){
  if(lower.indexOf('sonar')>=0||lower.indexOf('acoustic')>=0)return lower.indexOf('proximity')>=0?['proximity','acoustic','sonar']:['sonar','acoustic','motion'];
  if(lower.indexOf('radar')>=0)return ['radar','perimeter_radar'];
- if(lower.indexOf('underwater')>=0&&lower.indexOf('camera')>=0)return ['underwater_camera','camera','optical','lidar'];
+ if(lower.indexOf('underwater')>=0&&lower.indexOf('camera')>=0)return ['underwater_camera','camera','optical','lidar','depth','sonar','acoustic','imu','inertial','navigation'];
  if(lower.indexOf('camera')>=0||lower.indexOf('optical')>=0)return ['optical','camera','fixed_camera','underwater_camera','lidar'];
  if(lower.indexOf('thermal')>=0||lower.indexOf('infrared')>=0)return ['thermal','infrared'];
  if(lower.indexOf('esm')>=0||lower.indexOf('rf')>=0||lower.indexOf('csi')>=0)return ['ew','esm','rf','csi','wifi_csi'];
@@ -4407,6 +4408,14 @@ function draw(){
    ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(-5,5);ctx.lineTo(0,2);ctx.lineTo(5,5);ctx.closePath();ctx.fill();ctx.restore();
    var visibleRadar=[];
    targets.forEach(function(t){var p=targetPoint(t,cx,cy,radius,'north-up');if(!p||!p.visible)return;drawTarget(p.x,p.y,t,'radar');visibleRadar.push({target:t,point:p});});
+   // Bearing-only radar contacts are shown on the outer ring; range remains unknown.
+   feedObservations.forEach(function(o){
+     if(Array.isArray(o.normalized_position)||o.bearing_deg===null||o.bearing_deg===undefined||!Number.isFinite(Number(o.bearing_deg)))return;
+     var bearing=((Number(o.bearing_deg)%360)+360)%360,rad=bearing*Math.PI/180,px=cx+Math.sin(rad)*radius*.94,py=cy-Math.cos(rad)*radius*.94;
+     var side=o.side||'contact',target={id:String(o.object_id||o.sensor_id||'BEARING RETURN'),side:side,modality:o.modality};
+     drawTarget(px,py,target,'radar');
+     visibleRadar.push({target:target,point:{bearing:bearing,distance:null,measured:true,range_m:o.range_m}});
+   });
    if(!visibleRadar.length){ctx.fillStyle='#6aa88c';ctx.font='9px Courier New';ctx.textAlign='center';ctx.fillText('NO RETURNS',cx,cy+radius*.58);ctx.textAlign='left';}
    ctx.fillStyle='#5c997b';ctx.font='9px Courier New';ctx.fillText('N-UP  /  RELATIVE MAP SCALE',26,300);
    ctx.fillStyle='#c0e4cd';ctx.font='bold 11px Courier New';ctx.fillText(String(visibleRadar.length).padStart(2,'0')+' TRACKS',322,65);
@@ -4421,11 +4430,11 @@ function draw(){
      ctx.fillStyle=col;ctx.fillRect(445,y-5,4,4);
      ctx.fillStyle=col;ctx.font='bold 10px Courier New';ctx.fillText(t.id.slice(0,22),456,y);
      ctx.fillStyle='#b0d5bf';ctx.font='10px Courier New';ctx.fillText(String(Math.round(p.bearing)).padStart(3,'0')+'°',673,y);
-     ctx.fillText(numberText(p.distance,3),734,y);
+     ctx.fillText(p.measured?(p.range_m!==null&&p.range_m!==undefined?Number(p.range_m).toFixed(1)+' m':'—'):numberText(p.distance,3),734,y);
      ctx.fillStyle=t.side==='friendly'?'#62b9ff':'#c3a576';ctx.font='9px Courier New';ctx.fillText(t.side==='friendly'?'FRIEND':'CONTACT',797,y);
    });
    if(!rowsToDraw.length){ctx.fillStyle='#78a58c';ctx.font='11px Courier New';ctx.fillText('NO DETECTIONS REPORTED',446,137);ctx.fillText('Awaiting simulated returns or an accepted sensor observation.',446,157);}
-   ctx.fillStyle='#4b8168';ctx.font='9px Courier New';ctx.fillText('RNG IS NORMALIZED MAP DISTANCE  /  NOT NAUTICAL MILES',444,294);
+   ctx.fillStyle='#4b8168';ctx.font='9px Courier New';ctx.fillText('PROVIDED RANGE IN m; OTHERWISE Δ IS NORMALIZED MAP DISTANCE',444,294);
    drawFooter((observationIsExternal&&sensorObservation.stale?'EXTERNAL DATA STALE  /  ':'')+(observationFresh?(observationIsExternal?'EXTERNAL OBSERVATIONS':'PIPELINE OBSERVATIONS'):'REGIONAL TRAINING CONTACTS')+'  //  ROTATING SWEEP MODEL');
  }else if(isCamera||isThermal){
    var visualColor=isUnderwaterCamera?'#65e6d0':isThermal?'#ffc26e':'#76e2ad';
@@ -4522,6 +4531,12 @@ function draw(){
    ctx.strokeStyle='rgba(109,210,170,.45)';ctx.beginPath();ctx.moveTo(w*.5,h*.38);ctx.lineTo(w*.5,h*.64);ctx.moveTo(w*.35,h*.51);ctx.lineTo(w*.65,h*.51);ctx.stroke();
    ctx.fillStyle='#e0f6e8';ctx.font='bold 10px Courier New';
    ctx.fillText((isUnderwaterCamera?'UNDERWATER CAMERA':isThermal?'THERMAL / IR IMAGER':'EO CAMERA')+'  //  '+(inputFrame?'INPUT FRAME':'SIMULATED VIEW'),16,54);
+   var cameraMeasurements=[];
+   feedObservations.forEach(function(o){
+     var m=o.measurements&&typeof o.measurements==='object'?o.measurements:{};
+     [['DEPTH',o.depth_m!==null&&o.depth_m!==undefined?o.depth_m:m.depth_m,'m'],['RANGE',o.range_m!==null&&o.range_m!==undefined?o.range_m:m.range_m,'m'],['TEMP',o.temperature_c!==null&&o.temperature_c!==undefined?o.temperature_c:m.temperature_c,'C'],['SIGNAL',o.signal_strength_db!==null&&o.signal_strength_db!==undefined?o.signal_strength_db:m.signal_strength_db,'dB']].forEach(function(value){if(value[1]!==null&&value[1]!==undefined&&value[1]!==''&&Number.isFinite(Number(value[1])))cameraMeasurements.push(String(value[0])+' '+Number(value[1]).toFixed(1)+' '+value[2]+' // '+String(o.sensor_id||o.modality||'FEED'));});
+   });
+   cameraMeasurements.slice(0,3).forEach(function(line,i){ctx.fillStyle='#d4f4e3';ctx.font='9px Courier New';ctx.fillText(line,16,70+i*12);});
    ctx.fillStyle='#79b99d';ctx.font='9px Courier New';
    ctx.fillText('GIMBAL PAN '+(cameraState.pan>=0?'+':'')+cameraState.pan.toFixed(0)+'°  /  TILT '+(cameraState.tilt>=0?'+':'')+cameraState.tilt.toFixed(0)+'°  /  ZOOM '+cameraState.zoom.toFixed(1)+'×  /  GAIN '+cameraState.sensitivity.toFixed(1)+'×',16,h-25);
    ctx.fillText(visualTracks+' TRACK(S) IN FOV'+(cameraState.hold?'  //  TRACK HOLD':'')+(inputFrame&&activeImageFeed?'  //  '+activeImageFeed.sensor_id:'')+(staleRelevantFeeds.length?'  //  FEED STALE':'')+(selectedVisible?'  //  SELECTED TRACK LOCKED':''),16,h-10);
