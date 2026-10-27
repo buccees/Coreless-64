@@ -4181,7 +4181,7 @@ var profiles={
  mech:['EO CAMERA','THERMAL / IR','LASER RANGEFINDER','PROXIMITY SENSOR','INERTIAL NAVIGATION','OBJECT TRACKING','FUSED VIEW','TELEMETRY'],
  facility:['FIXED CAMERA','THERMAL / IR','PERIMETER RADAR','ACOUSTIC / MOTION','ESM / RF','OBJECT TRACKING','FUSED VIEW','ACCESS / ALARM','TELEMETRY']
 };
-var currentTrackCandidates=[],trackOptionsSignature='';
+var currentTrackCandidates=[],trackOptionsSignature='',sensorPositionConflictHistory=Object.create(null);
 function sensorModalitiesForMode(lower){
  if(lower.indexOf('sonar')>=0||lower.indexOf('acoustic')>=0)return lower.indexOf('proximity')>=0?['proximity','acoustic','sonar']:['sonar','acoustic','motion'];
  if(lower.indexOf('radar')>=0)return ['radar','perimeter_radar'];
@@ -4199,18 +4199,34 @@ function sensorModalitiesForMode(lower){
  return null;
 }
 function updateTrackCandidates(regionalContacts,snapshot){
- var candidates=[],seen=Object.create(null),measurementOnlyIds=Object.create(null),sensorPositionGroups=Object.create(null),sensorPositionConflicts=Object.create(null),ownId=({ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'})[unitId];
+ var candidates=[],seen=Object.create(null),measurementOnlyIds=Object.create(null),sensorPositionGroups=Object.create(null),sensorPositionConflicts=Object.create(null),freshFeedKeys=Object.create(null),ownId=({ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'})[unitId];
+ (snapshot&&Array.isArray(snapshot.feeds)?snapshot.feeds:[]).forEach(function(feed){
+   if(feed&&!feed.stale)freshFeedKeys[String(feed.sensor_id||'').toLowerCase()+'|'+String(feed.modality||'').toLowerCase()]=true;
+ });
  // Flag same-ID sensor fixes that disagree by more than 0.01 normalized map units (1% of the map span).
  (snapshot&&Array.isArray(snapshot.observations)?snapshot.observations:[]).forEach(function(o){
    if(!o||o.feed_stale||!o.object_id||!Array.isArray(o.normalized_position)||o.normalized_position.length<2||!Number.isFinite(Number(o.normalized_position[0]))||!Number.isFinite(Number(o.normalized_position[1])))return;
-   var id=String(o.object_id),key=id+'|'+String(o.sensor_id||o.modality||'SENSOR');
+   var id=String(o.object_id),feedKey=String(o.sensor_id||'').toLowerCase()+'|'+String(o.modality||'').toLowerCase(),key=id+'|'+feedKey;
    if(!sensorPositionGroups[id])sensorPositionGroups[id]=[];
-   if(!sensorPositionGroups[id].some(function(p){return p.key===key;}))sensorPositionGroups[id].push({key:key,x:Number(o.normalized_position[0]),y:Number(o.normalized_position[1]),modality:String(o.modality||'SENSOR').toUpperCase()});
+   if(!sensorPositionGroups[id].some(function(p){return p.key===key;}))sensorPositionGroups[id].push({key:key,feedKey:feedKey,x:Number(o.normalized_position[0]),y:Number(o.normalized_position[1]),modality:String(o.modality||'SENSOR').toUpperCase()});
  });
  Object.keys(sensorPositionGroups).forEach(function(id){
    var positions=sensorPositionGroups[id],maxDelta=0;
    for(var i=0;i<positions.length;i++)for(var j=i+1;j<positions.length;j++)maxDelta=Math.max(maxDelta,Math.hypot(positions[i].x-positions[j].x,positions[i].y-positions[j].y));
-   if(maxDelta>0.01)sensorPositionConflicts[id]={delta:maxDelta,modalities:Array.from(new Set(positions.map(function(p){return p.modality;})))};
+   if(maxDelta>0.01){
+     sensorPositionConflicts[id]={delta:maxDelta,modalities:Array.from(new Set(positions.map(function(p){return p.modality;}))),feedKeys:positions.map(function(p){return p.feedKey;})};
+     sensorPositionConflictHistory[id]=positions.map(function(p){return p.feedKey;});
+   }
+ });
+ // A prior conflict remains unresolved while any sensor that contributed to it is still stale.
+ Object.keys(sensorPositionConflictHistory).forEach(function(id){
+   var priorFeeds=sensorPositionConflictHistory[id],unrefreshed=priorFeeds.filter(function(key){return !freshFeedKeys[key];});
+   if(unrefreshed.length){
+     if(!sensorPositionConflicts[id])sensorPositionConflicts[id]={delta:null,modalities:[],unresolved:true,missingFeeds:unrefreshed};
+     else{sensorPositionConflicts[id].unresolved=true;sensorPositionConflicts[id].missingFeeds=unrefreshed;}
+   }else if(!sensorPositionConflicts[id]){
+     delete sensorPositionConflictHistory[id];
+   }
  });
  // A measurement-only observation must not inherit a regional contact's position just because IDs collide.
  (snapshot&&Array.isArray(snapshot.observations)?snapshot.observations:[]).forEach(function(o){
@@ -4665,7 +4681,10 @@ function draw(){
    var positionConflicts=Object.keys(sensorPositionConflicts).map(function(id){return {id:id,conflict:sensorPositionConflicts[id]};});
    positionConflicts.slice(0,2).forEach(function(item,i){
      var y=272+i*19;ctx.fillStyle='#ff9b86';ctx.font='bold 9px Courier New';
-     ctx.fillText(('POSITION CONFLICT '+item.id+' // Δ '+item.conflict.delta.toFixed(3)+' // '+item.conflict.modalities.join('/')).slice(0,62),463,y);
+     var conflictDelta=Number.isFinite(item.conflict.delta)?'Δ '+item.conflict.delta.toFixed(3):'Δ UNKNOWN';
+     var conflictState=item.conflict.unresolved?'UNRESOLVED // STALE FEED':'CONFLICT';
+     var conflictSources=(item.conflict.modalities||[]).join('/')||(item.conflict.missingFeeds||[]).map(function(key){return key.split('|')[1]||'SENSOR';}).join('/');
+     ctx.fillText(('POSITION '+conflictState+' '+item.id+' // '+conflictDelta+' // '+conflictSources).slice(0,62),463,y);
    });
    var measurementOnly=feedObservations.filter(function(o){var p=o&&o.normalized_position,hasPosition=Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]));return !hasPosition&&['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value'].some(function(k){return o[k]!==null&&o[k]!==undefined&&o[k]!==''&&Number.isFinite(Number(o[k]));});});
    measurementOnly.slice(0,Math.max(0,2-positionConflicts.length)).forEach(function(o,i){
