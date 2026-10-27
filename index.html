@@ -309,6 +309,33 @@ body{padding-top:108px}
 #vigil-cb-log li{padding:3px 0;border-bottom:1px solid #142b20}
 .vigil-cb-legal{margin-bottom:0}
 @media(max-width:520px){.vigil-cb-actions button{flex:1 1 44%;min-height:42px}}
+
+/* VIGIL integrated naval operations console */
+.vigil-ops-console{margin:18px 0 22px;border:1px solid #347a62;background:linear-gradient(145deg,#04130f,#020806 68%);box-shadow:0 0 22px #19a77c12;color:#c5f5df}
+.vigil-ops-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid #28654f;background:#061b14}
+.vigil-ops-head h3{margin:0;color:#72ffc3;letter-spacing:.12em;font-size:13px}
+.vigil-ops-head .ops-state{font:11px monospace;color:#ffcf70}
+.vigil-ops-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:10px;padding:10px}
+.vigil-instrument{min-width:0;border:1px solid #214e3f;background:#010906;padding:10px}
+.vigil-instrument h4{margin:0 0 8px;font:11px monospace;letter-spacing:.1em;color:#6de5b1}
+.vigil-instrument canvas{display:block;width:100%;height:auto;background:#010605;border:1px solid #214e3f}
+.vigil-sonar-pair{display:grid;grid-template-columns:minmax(160px,.8fr) minmax(0,1.2fr);gap:8px;align-items:start}
+.vigil-ops-readout{min-height:62px;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.55 monospace;color:#b0e8ce;background:#03110b;border:1px solid #193c30;padding:8px;margin-top:8px}
+.vigil-targeting-display{position:relative;aspect-ratio:16/10;min-height:180px;background:radial-gradient(ellipse at center,#09251a 0,#020a06 68%);border:1px solid #28654f;overflow:hidden}
+.vigil-targeting-display canvas{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vigil-weapon-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:9px}
+.vigil-weapon-controls label{display:grid;gap:5px;font:10px monospace;color:#80d8b5}
+.vigil-weapon-controls select,.vigil-weapon-controls button{min-width:0;padding:9px;border:1px solid #2e795d;background:#04150e;color:#aef8d4;font:11px monospace}
+.vigil-weapon-controls button{cursor:pointer}
+.vigil-weapon-controls button:disabled{opacity:.45;cursor:not-allowed}
+.vigil-weapon-controls .ops-fire{border-color:#b17a32;color:#ffcf70;background:#241507}
+.vigil-order-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:0 10px 10px}
+.vigil-order-step{padding:8px;border:1px solid #234b3c;color:#75bca0;font:10px/1.4 monospace;background:#03100b}
+.vigil-order-step[aria-current="step"]{border-color:#71ffc2;color:#d2ffe8;box-shadow:inset 0 0 0 1px #71ffc233}
+.vigil-order-step[data-state="complete"]{border-color:#347d5b;color:#91eab4}
+.vigil-ops-note{padding:0 12px 12px;color:#8fc8ae;font:10px/1.5 monospace}
+@media(max-width:760px){.vigil-ops-grid{grid-template-columns:minmax(0,1fr)}.vigil-sonar-pair{grid-template-columns:minmax(0,1fr)}.vigil-order-flow{grid-template-columns:repeat(2,minmax(0,1fr))}.vigil-targeting-display{min-height:210px}}
+
 </style></head>
 <body><nav class="nav-panel" aria-label="VIGIL control room sections"><a class="nav-button" href="#overview-panel" data-view="overview" aria-pressed="true">01 // OVERVIEW</a><a class="nav-button" href="#architecture-panel" data-view="architecture" aria-pressed="false">02 // ARCHITECTURE</a><a class="nav-button" href="#spatial-panel" data-view="spatial" aria-pressed="false">03 // SPATIAL INTELLIGENCE</a><a class="nav-button" href="#simulation-panel" data-view="simulation" aria-pressed="false">04 // SIMULATION BAY</a><a class="nav-button" href="#sensors-panel" data-view="sensors" aria-pressed="false">05 // SENSOR INPUTS</a><a class="nav-button" href="#specimen-panel" data-view="specimen" aria-pressed="false">06 // SPECIMEN PLATE</a><a class="nav-button" href="#lab-report-panel" data-view="lab-report" aria-pressed="false">07 // LAB REPORT</a><a class="nav-button" href="#notes-panel" data-view="project-history" aria-pressed="false">08 // PROJECT HISTORY</a><a class="nav-button" href="#roadmap-panel" data-view="roadmap" aria-pressed="false">09 // ROADMAP</a><a class="nav-button" href="#verification-panel" data-view="verification" aria-pressed="false">10 // VERIFICATION</a><a class="nav-button" href="#hardware-panel" data-view="hardware" aria-pressed="false">11 // VIRTUAL HARDWARE</a><a class="nav-button" href="#biology-panel" data-view="biology" aria-pressed="false">12 // BIO-SIMULATION</a><a class="nav-button" href="#machine-panel" data-view="machine" aria-pressed="false">13 // MACHINE STATUS</a><a class="nav-button" href="#experimental-panel" data-view="experimental" aria-pressed="false">14 // EXPERIMENTAL FEATURES</a><button type="button" class="nav-button settings-launch" id="site-settings-open" aria-haspopup="dialog" aria-controls="site-settings-panel">⚙ SETTINGS</button></nav><div class="settings-backdrop" id="site-settings-backdrop" hidden><section class="settings-panel" id="site-settings-panel" role="dialog" aria-modal="true" aria-labelledby="site-settings-title" tabindex="-1">
 <div class="settings-head"><div><div class="settings-kicker">VIGIL / CORELESS-64 // CONFIGURATION UTILITY</div><h2 id="site-settings-title">SYSTEM CONFIGURATION</h2><p>Global preferences • subsystem configuration • diagnostics</p></div><button type="button" id="site-settings-close" aria-label="Close settings">CLOSE ✕</button></div>
@@ -1019,6 +1046,43 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
 </section>
 <section id="simulation-panel" class="panel report-panel" data-category="simulation"><h2>VIGIL SIMULATION BAY // NAVAL CONTACT EXERCISE</h2><div class="content">
 <p class="muted">CONTINUOUS REGIONAL SIMULATION // Move through a shared battlespace, track authorized contacts, and command vessel course and speed. Hidden contacts remain governed by authorized observations.</p>
+
+<section id="vigil-ops-console" class="vigil-ops-console" aria-labelledby="vigil-ops-title">
+  <div class="vigil-ops-head"><h3 id="vigil-ops-title">VIGIL // SHIPBOARD OPERATIONS CONSOLE</h3><span id="vigil-ops-master-status" class="ops-state" role="status" aria-live="polite">LOCAL TRAINING // STATIONS INITIALIZING</span></div>
+  <div class="vigil-ops-grid">
+    <section class="vigil-instrument" aria-labelledby="vigil-sonar-title">
+      <h4 id="vigil-sonar-title">01 // SONAR CONTACT PLOT + WATERFALL</h4>
+      <div class="vigil-sonar-pair">
+        <canvas id="sim-sonar-scope" width="360" height="360" role="img" aria-label="Simulated sonar scope with bearing and range rings"></canvas>
+        <canvas id="sim-sonar-waterfall" width="720" height="180" role="img" aria-label="Scrolling simulated sonar waterfall showing acoustic energy by bearing over time"></canvas>
+      </div>
+      <div id="sim-sonar-console-status" class="vigil-ops-readout" role="status" aria-live="polite">SONAR INITIALIZING // WAITING FOR SENSOR OBSERVATION</div>
+      <pre id="sim-sonar-readout" class="vigil-ops-readout">NO SENSOR RETURN YET</pre>
+    </section>
+    <section class="vigil-instrument" aria-labelledby="vigil-gunnery-title">
+      <h4 id="vigil-gunnery-title">02 // MAIN BATTERY FIRE CONTROL</h4>
+      <div class="vigil-targeting-display"><canvas id="vigil-gun-sight" width="640" height="400" role="img" aria-label="Interactive simulated gun director sight with bearing and elevation reticle"></canvas></div>
+      <div class="vigil-weapon-controls">
+        <label>OWN SHIP<select id="vigil-ops-ship" aria-label="Select own ship"></select></label>
+        <label>AUTHORIZED CONTACT<select id="vigil-ops-target" aria-label="Select authorized target"><option value="">NO CONTACT SELECTED</option></select></label>
+        <button type="button" id="vigil-ops-lock">ACQUIRE / LOCK TARGET</button>
+        <button type="button" id="vigil-ops-aim">UPDATE FIRING SOLUTION</button>
+        <button type="button" id="vigil-ops-clear-lock">BREAK LOCK</button>
+        <button type="button" id="vigil-ops-fire" class="ops-fire">REQUEST FIRE</button>
+      </div>
+      <div id="vigil-fire-control-readout" class="vigil-ops-readout" role="status" aria-live="polite">NO TARGET SELECTED
+TRACK: NONE
+FIRE CONTROL: STANDBY</div>
+    </section>
+  </div>
+  <div class="vigil-order-flow" aria-label="Engagement procedure">
+    <div class="vigil-order-step" data-step="1" aria-current="step">01 CONTACT<br>Sensor evidence</div>
+    <div class="vigil-order-step" data-step="2">02 TRACK<br>Review / designate</div>
+    <div class="vigil-order-step" data-step="3">03 AUTHORITY<br>Authorization gate</div>
+    <div class="vigil-order-step" data-step="4">04 RESULT<br>Assess / confirm</div>
+  </div>
+  <div class="vigil-ops-note">TRAINING SIMULATION // Sensor waterfall energy is synthetic until a sensor adapter supplies real observations. A target lock is not authorization. The fire-control display reports simulated outcomes and must not imply a confirmed hit without a resolved encounter result.</div>
+</section>
 
 <section id="vigil-order-of-battle" class="sim-recon-panel" aria-labelledby="vigil-oob-title">
   <h3 id="vigil-oob-title">CORPORATE MERCENARY ORDER OF BATTLE // RANK, UNIT &amp; LOCAL TERRITORY</h3>
@@ -2580,7 +2644,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     renderReconContacts(lastObservationData);updateMetrics();
     if(detail){var p=observation.normalized_position||[];detail.textContent='CONTACT EVIDENCE // FOCUSED FOLLOW-UP RECEIVED\nTRACK ID: '+contactId+'\nREQUESTED BY: '+requestedBy.toUpperCase()+'\nSENSOR: '+(observation.sensor_ids||[]).join(', ')+'\nMODALITY: '+(observation.modalities||[]).join(', ')+'\nFUSED NORMALIZED ESTIMATE: '+Number(p[0]).toFixed(3)+', '+Number(p[1]).toFixed(3)+'\nPOSITION UNCERTAINTY: ±'+observation.uncertainty_m+' m\nOBSERVATIONS IN TRACK: '+observation.observation_count+'\nASSESSMENT: STILL UNRESOLVED // SENSOR EVIDENCE ONLY';}
     var focusedPayload=Object.assign({},lastObservationData,{objects:[observation],metadata:Object.assign({},lastObservationData.metadata)});
-    if(typeof window.vigilImportScene==='function')window.vigilImportScene(focusedPayload);
+    renderNavalSonar(lastObservationData);if(typeof window.vigilImportScene==='function')window.vigilImportScene(focusedPayload);
     if(result)result.textContent='FOCUSED FOLLOW-UP COMPLETE // '+contactId+'\nREQUEST: '+requestId+' // REQUESTED BY: '+requestedBy.toUpperCase()+'\nNEW SENSOR RETURN FUSED WITH PRIOR OBSERVATIONS.\nVIGIL RECEIVED ONLY THE SELECTED CONTACT OBSERVATION; HIDDEN WORLD STATE WAS NOT INCLUDED.\nCLASSIFICATION REMAINS UNRESOLVED UNTIL VIGIL HAS SUFFICIENT EVIDENCE.';
     status.textContent='FOCUSED FOLLOW-UP '+sweepCount+' // '+contactId+' // '+sensor.value.toUpperCase()+' // PUBLISHED TO SPATIAL INTELLIGENCE';
     return{ok:true,request_id:requestId,requested_by:requestedBy,contact_id:contactId,sensor_mode:sensor.value,observation:JSON.parse(JSON.stringify(observation)),world_state_withheld:true};
@@ -2668,6 +2732,21 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
     {id:'CVN',name:'NIMITZ-CLASS',x:.66,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.025,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
   ];
   var regionalTrainingFleetDemo=regionalTrainingFleet.map(function(ship){return Object.assign({},ship);});
+
+  window.vigilGetFireControlState=function(shipId,targetId){
+    var shooter=regionalTrainingFleet.find(function(s){return s.id===shipId&&s.side==='friendly'&&s.afloat!==false;});
+    var target=regionalTrainingFleet.find(function(s){return s.id===targetId&&s.side==='contact'&&s.afloat!==false;});
+    if(!shooter||!target)return{ok:false,reason:'Select a controlled vessel and an authorized visible contact.'};
+    var dx=target.x-shooter.x,dy=target.y-shooter.y,distance=Math.hypot(dx,dy);
+    var bearing=(Math.atan2(dx,-dy)*180/Math.PI+360)%360;
+    var relative=((bearing-shooter.heading+540)%360)-180;
+    return{ok:true,ship_id:shipId,target_id:targetId,bearing_deg:bearing,relative_bearing_deg:relative,
+      range_normalized:distance,max_range:shooter.weaponRange,within_range:distance<=shooter.weaponRange,
+      heading_deg:shooter.heading,speed:shooter.speed,cooldown_remaining:shooter.weaponCooldownRemaining||0,
+      hull:shooter.hull,max_hull:shooter.maxHull,target_hull:target.hull,target_max_hull:target.maxHull,
+      target_afloat:target.afloat!==false,weapon_ready:(shooter.weaponCooldownRemaining||0)<=0.01};
+  };
+
   var regionalWorldSnapshotActive=false,regionalAuthorizedObservations=[],regionalAiNextDecision=0,regionalDemoTicks=0;
   var regionalFleetTimer=null;
   var regionalFleetLastTick=0;
@@ -2938,6 +3017,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   document.getElementById('vigil-regional-fire').addEventListener('click',async function(){
     var shipId=document.getElementById('vigil-regional-ship').value,targetId=document.getElementById('vigil-regional-target').value;
     if(!shipId||!targetId){regionalUiStatus('Select your vessel and an authorized visible target.',true);return;}
+    if(window.vigilFireControlLockedTarget!==targetId){regionalUiStatus('FIRE REQUEST REJECTED // ACQUIRE AND LOCK THE SELECTED AUTHORIZED TARGET FIRST.',true);return;}
     if(!vigilRegionalUiOptions){
       var shooter=localRegionalShip(shipId),target=localRegionalShip(targetId);
       if(!shooter||shooter.side!=='friendly'){regionalUiStatus('LOCAL WEAPONS // Select the friendly DDG-51.',true);return;}
@@ -3143,7 +3223,7 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   }
   function publish(sendToSpatial,countObservation){
     if(countObservation)sweepCount++;
-    var data=generateScene();recordReconObservation(data);lastObservationData=data;renderReconContacts(data);renderBathymetry(data);
+    var data=generateScene();recordReconObservation(data);lastObservationData=data;renderReconContacts(data);renderBathymetry(data);renderNavalSonar(data);
     if(countObservation)observationCount+=data.objects.length;updateMetrics();
     if(countObservation){var result=document.getElementById('sim-recon-results');if(result)result.textContent='NEW OBSERVATIONS AVAILABLE // RUN EVALUATION TO COMPARE ESTIMATES WITH HIDDEN TRUTH.';}
     document.getElementById('sim-noise-value').textContent=Number(noise.value).toFixed(1);
@@ -3165,6 +3245,86 @@ python -m pytest</pre><p><span class="green">LOCAL AI RUNNER</span></p><pre clas
   sensor.addEventListener('change',function(){publish(false,false);});
   noise.addEventListener('input',function(){document.getElementById('sim-noise-value').textContent=Number(noise.value).toFixed(1);});
   initialize();
+
+  // Integrated console: visual instruments and procedures bind to the same regional fleet and fire-control command path.
+  (function(){
+    var ship=document.getElementById('vigil-ops-ship'),target=document.getElementById('vigil-ops-target'),sight=document.getElementById('vigil-gun-sight');
+    var status=document.getElementById('vigil-ops-master-status'),readout=document.getElementById('vigil-fire-control-readout');
+    if(!ship||!target||!sight||!status||!readout)return;
+    var ctx=sight.getContext('2d'),lockedTarget='',step=1;
+    function mirrorSelect(sourceId,destination){
+      var source=document.getElementById(sourceId);if(!source||!destination)return;
+      var old=destination.value;destination.replaceChildren();
+      Array.from(source.options).forEach(function(o){destination.add(new Option(o.textContent,o.value));});
+      if(Array.from(destination.options).some(function(o){return o.value===old;}))destination.value=old;
+    }
+    function syncControls(){
+      mirrorSelect('vigil-regional-ship',ship);mirrorSelect('vigil-regional-target',target);
+      if(!ship.value&&ship.options.length)ship.selectedIndex=0;
+      if(!target.value)lockedTarget='';
+      drawSight();updateFireControl();
+    }
+    function setStep(next){
+      step=next;document.querySelectorAll('.vigil-order-step').forEach(function(el){var n=Number(el.dataset.step);el.removeAttribute('aria-current');el.dataset.state=n<step?'complete':n===step?'active':'pending';if(n===step)el.setAttribute('aria-current','step');});
+    }
+    function drawSight(state){
+      if(!ctx)return;var w=sight.width,h=sight.height,cx=w/2,cy=h/2;
+      ctx.clearRect(0,0,w,h);ctx.fillStyle='#020906';ctx.fillRect(0,0,w,h);
+      ctx.strokeStyle='#164b37';ctx.lineWidth=1;
+      for(var x=0;x<=w;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+      for(var y=0;y<=h;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+      ctx.strokeStyle='#2d8960';for(var r=50;r<Math.min(w,h)/2;r+=50){ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();}
+      ctx.beginPath();ctx.moveTo(cx,15);ctx.lineTo(cx,h-15);ctx.moveTo(15,cy);ctx.lineTo(w-15,cy);ctx.stroke();
+      ctx.strokeStyle=lockedTarget?'#ffcb67':'#71e8b0';ctx.lineWidth=2;ctx.beginPath();
+      ctx.moveTo(cx-30,cy);ctx.lineTo(cx-10,cy);ctx.moveTo(cx+10,cy);ctx.lineTo(cx+30,cy);
+      ctx.moveTo(cx,cy-30);ctx.lineTo(cx,cy-10);ctx.moveTo(cx,cy+10);ctx.lineTo(cx,cy+30);ctx.stroke();
+      if(state&&state.ok){var angle=state.relative_bearing_deg*Math.PI/180,rad=Math.min(w,h)*.31,tx=cx+Math.sin(angle)*rad,ty=cy-Math.cos(angle)*rad;
+        ctx.strokeStyle=lockedTarget?'#ffcb67':'#83e8bd';ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(tx,ty);ctx.stroke();
+        ctx.beginPath();ctx.arc(tx,ty,lockedTarget?15:8,0,Math.PI*2);ctx.stroke();
+        if(lockedTarget){ctx.beginPath();ctx.moveTo(tx-24,ty);ctx.lineTo(tx-8,ty);ctx.moveTo(tx+8,ty);ctx.lineTo(tx+24,ty);ctx.moveTo(tx,ty-24);ctx.lineTo(tx,ty-8);ctx.moveTo(tx,ty+8);ctx.lineTo(tx,ty+24);ctx.stroke();}
+        ctx.fillStyle='#b9f7d4';ctx.font='13px monospace';ctx.fillText('BRG '+state.bearing_deg.toFixed(1)+'°',12,22);ctx.fillText('REL '+state.relative_bearing_deg.toFixed(1)+'°',12,42);
+      }else{ctx.fillStyle='#86bca0';ctx.font='14px monospace';ctx.fillText('NO VALID TRACK',12,24);}
+      ctx.fillStyle='#72d9a8';ctx.font='12px monospace';ctx.fillText(lockedTarget?'TARGET LOCK // '+lockedTarget:'DIRECTOR STANDBY',12,h-14);
+    }
+    function updateFireControl(){
+      var state=window.vigilGetFireControlState?window.vigilGetFireControlState(ship.value,target.value):{ok:false,reason:'Fire-control state unavailable.'};
+      drawSight(state);
+      if(!state.ok){readout.textContent='NO VALID TRACK\nTARGET: '+(target.value||'NONE')+'\nFIRE CONTROL: STANDBY\n'+(state.reason||'Awaiting authorized target');return;}
+      var locked=lockedTarget===target.value;
+      readout.textContent='OWN SHIP: '+state.ship_id+' // HDG '+state.heading_deg.toFixed(1)+'° // SPEED '+state.speed.toFixed(3)+'\nTARGET TRACK: '+state.target_id+' // '+(locked?'LOCKED':'TRACKED / NOT LOCKED')+'\nBEARING: '+state.bearing_deg.toFixed(1)+'° // RELATIVE: '+state.relative_bearing_deg.toFixed(1)+'°\nRANGE: '+state.range_normalized.toFixed(3)+' / MAX '+state.max_range.toFixed(3)+' // '+(state.within_range?'IN RANGE':'OUT OF RANGE')+'\nWEAPON: '+(state.weapon_ready?'READY':'RELOADING '+state.cooldown_remaining.toFixed(1)+'s')+' // FIRE SOLUTION: '+(locked&&state.within_range&&state.weapon_ready?'READY':'NOT READY')+'\nTARGET HULL: '+state.target_hull+'/'+state.target_max_hull;
+      document.getElementById('vigil-ops-fire').disabled=!(locked&&state.within_range&&state.weapon_ready);
+      status.textContent=locked&&state.within_range&&state.weapon_ready?'FIRE CONTROL READY // '+target.value:'TRACK '+target.value+' // '+(locked?'LOCKED':'AWAITING LOCK / AUTHORIZED SOLUTION');
+    }
+    document.getElementById('vigil-ops-lock').addEventListener('click',function(){
+      if(!ship.value||!target.value){readout.textContent='LOCK DENIED // SELECT OWN SHIP AND AUTHORIZED CONTACT FIRST.';return;}
+      var state=window.vigilGetFireControlState(ship.value,target.value);
+      if(!state.ok){readout.textContent='LOCK DENIED // '+(state.reason||'No valid track');return;}
+      lockedTarget=target.value;window.vigilFireControlLockedTarget=lockedTarget;
+      document.getElementById('vigil-ops-target').value=lockedTarget;
+      var source=document.getElementById('vigil-regional-target');if(source)source.value=lockedTarget;
+      setStep(3);updateFireControl();readout.textContent='TARGET LOCK ACQUIRED // '+lockedTarget+'\nBEARING '+state.bearing_deg.toFixed(1)+'° // RANGE '+state.range_normalized.toFixed(3)+'\nLOCK DOES NOT GRANT COMMAND AUTHORIZATION. '+readout.textContent;
+    });
+    document.getElementById('vigil-ops-aim').addEventListener('click',function(){updateFireControl();if(lockedTarget===target.value)setStep(3);});
+    document.getElementById('vigil-ops-clear-lock').addEventListener('click',function(){lockedTarget='';window.vigilFireControlLockedTarget='';setStep(2);updateFireControl();status.textContent='TARGET LOCK BROKEN // TRACK RETAINED';});
+    document.getElementById('vigil-ops-fire').addEventListener('click',function(){
+      if(lockedTarget!==target.value){readout.textContent='FIRE REQUEST REJECTED // LOCK THE CURRENT TRACK FIRST.';return;}
+      var state=window.vigilGetFireControlState(ship.value,target.value);
+      if(!state.ok||!state.within_range||!state.weapon_ready){updateFireControl();return;}
+      setStep(4);readout.textContent='FIRE REQUEST SUBMITTED // WAITING FOR SIMULATION RESULT…';
+      var fire=document.getElementById('vigil-regional-fire');
+      var regionalShip=document.getElementById('vigil-regional-ship'),regionalTarget=document.getElementById('vigil-regional-target');
+      if(regionalShip)regionalShip.value=ship.value;if(regionalTarget)regionalTarget.value=target.value;
+      if(fire)fire.click();
+      window.setTimeout(function(){var result=document.getElementById('vigil-regional-status');var message=result?result.textContent:'Encounter result not returned';readout.textContent='ENCOUNTER RESULT // '+message+'\nA hit is confirmed only when the simulation returns a resolved hit event.';updateFireControl();},80);
+    });
+    ship.addEventListener('change',function(){lockedTarget='';window.vigilFireControlLockedTarget='';syncControls();setStep(1);});
+    target.addEventListener('change',function(){lockedTarget='';window.vigilFireControlLockedTarget='';var src=document.getElementById('vigil-regional-target');if(src)src.value=target.value;syncControls();setStep(2);});
+    window.addEventListener('vigil:regional-encounter',function(e){var d=e.detail||{};if(d.target_id!==target.value)return;setStep(4);readout.textContent='ENCOUNTER RESOLVED // '+(d.sunk?'TARGET DISABLED':'DAMAGE '+Number(d.damage||0))+'\nTARGET: '+d.target_id+' // HULL AFTER: '+d.hull_after+'\nRESULT SOURCE: '+d.source+' // '+(d.occurred_at||'TIME UNAVAILABLE');});
+    window.addEventListener('vigil:regional-snapshot-error',function(e){status.textContent='LINK ERROR // '+String(e.detail&&e.detail.message||'snapshot unavailable');});
+    syncControls();
+    window.setInterval(updateFireControl,750);
+    setStep(1);
+  })();
 })();
 </script><script>
 (function(){
