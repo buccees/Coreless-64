@@ -329,7 +329,28 @@ const fixture = require("./fixtures/vigil-test-scene.json");
     assert.match(await page.locator("#sim-combat-log").innerText(), /HIT|MISS|CRITICAL HIT|NATURAL 1/);
     assert.deepEqual(errors, [], "ship roster and D20 combat must not throw uncaught JavaScript errors");
 
-    console.log("VIGIL browser integration: import, marker states, review filters, audit export/clear, Simulation Bay mechanics, manual fleet placement, ship dossiers, D20 combat, runtime errors, and mobile layout passed.");
+    // Audit the shared simulation/sensor control panel and the Settings-only tutorial.
+    await page.locator('.nav-button[data-view="simulation"]').click();
+    await page.locator("#simulation-panel").waitFor({ state: "visible" });
+    assert.equal(await page.locator("#vigil-active-unit").isVisible(), true, "active simulation unit selector must be available");
+    assert.ok(await page.locator("#vigil-unit-display-buttons button").count() >= 8, "ship profile must expose its sensor stations");
+    await page.locator("#vigil-active-unit").selectOption("ship");
+    await page.locator("#vigil-unit-display-buttons button").filter({ hasText: "EO CAMERA" }).click();
+    assert.equal(await page.locator("#vigil-camera-control-row").isVisible(), true, "EO camera station must expose camera controls");
+    await page.locator("#vigil-unit-display-buttons button").filter({ hasText: "RADAR" }).click();
+    assert.equal(await page.locator("#vigil-camera-control-row").isVisible(), false, "radar station must hide camera-only controls");
+    await page.locator("#vigil-active-unit").selectOption("submersible");
+    assert.ok(await page.locator("#vigil-unit-display-buttons button").filter({ hasText: "UNDERWATER CAMERA" }).count() === 1, "submersible profile must retain its underwater camera station");
+    await page.locator("#vigil-unit-display-buttons button").filter({ hasText: "UNDERWATER CAMERA" }).click();
+    assert.equal(await page.locator("#vigil-camera-control-row").isVisible(), true, "underwater camera station must expose camera controls");
+    await page.locator("#site-settings-open").click();
+    await page.locator('.settings-tab[data-settings-tab="tutorial"]').click();
+    assert.equal(await page.locator('.settings-page[data-settings-page="tutorial"]').isVisible(), true, "operations tutorial must live in Settings");
+    assert.match(await page.locator('.settings-page[data-settings-page="tutorial"]').innerText(), /ACTIVE UNIT|SENSOR|TRACK/i, "Settings tutorial must explain the sensor workflow");
+    await page.locator("#site-settings-close").click();
+    assert.equal(await page.locator("#site-settings-backdrop").isVisible(), false, "closing tutorial settings must restore the control panel");
+
+    console.log("VIGIL browser integration: import, sensor station controls, Settings tutorial, marker states, review filters, audit export/clear, Simulation Bay mechanics, manual fleet placement, ship dossiers, D20 combat, runtime errors, and mobile layout passed.");
     await context.close();
   } finally {
     await browser.close();
