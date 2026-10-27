@@ -2814,6 +2814,7 @@ FIRE CONTROL: STANDBY</div>
     return regionalTrainingFleet.filter(function(s){return s&&s.afloat!==false;}).map(function(s){
       return {id:String(s.id),label:String(s.name||s.id),x:Number(s.x),y:Number(s.y),
         heading_deg:Number(s.heading)||0,desired_heading_deg:Number(s.desiredHeading==null?s.heading:s.desiredHeading)||0,
+        steering_heading_deg:Number(s.avoidanceHeading==null?(s.desiredHeading==null?s.heading:s.desiredHeading):s.avoidanceHeading)||0,avoidance_active:s.avoidanceActive===true,
         speed:Number(s.speed)||0,target_speed:Number(s.targetSpeed==null?s.speed:s.targetSpeed)||0,max_speed:Number(s.maxSpeed)||0,
         turn_rate_deg_s:Number(s.maxTurnRateDegPerSec)||0,acceleration_per_s:Number(s.accelerationPerSec)||0,
         position:{x:Number(s.x),y:Number(s.y)},
@@ -3184,6 +3185,7 @@ FIRE CONTROL: STANDBY</div>
       ships:regionalTrainingFleet.map(function(ship){return {
         id:ship.id,name:ship.name,side:ship.side,ship_class:ship.shipClass,
         position:{x:Number(ship.x),y:Number(ship.y)},heading_deg:Number(ship.heading),desired_heading_deg:Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading),
+        steering_heading_deg:Number(ship.avoidanceHeading==null?(ship.desiredHeading==null?ship.heading:ship.desiredHeading):ship.avoidanceHeading),avoidance_active:ship.avoidanceActive===true,
         speed:Number(ship.speed),target_speed:Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed),max_speed:Number(ship.maxSpeed),
         turn_rate_deg_s:Number(ship.maxTurnRateDegPerSec)||0,acceleration_per_s:Number(ship.accelerationPerSec)||0,
         afloat:ship.afloat!==false,hull:Number(ship.hull),max_hull:Number(ship.maxHull),
@@ -3201,11 +3203,51 @@ FIRE CONTROL: STANDBY</div>
     if(!regionalFleetLastTick)regionalFleetLastTick=now;
     var dt=Math.min(.25,Math.max(0,(now-regionalFleetLastTick)/1000));
     regionalFleetLastTick=now;
-    regionalTrainingFleet.forEach(function(ship){
-      if(ship.side==='friendly'&&ship.shipClass==='facility'){ship.speed=0;ship.targetSpeed=0;ship.maxSpeed=0;return;}
+    // Evaluate separation against one frame snapshot so results do not depend on array order.
+    var frameShips=regionalTrainingFleet.map(function(s){return {id:s.id,x:Number(s.x),y:Number(s.y),heading:Number(s.heading)||0,speed:Number(s.speed)||0,targetSpeed:Number(s.targetSpeed==null?s.speed:s.targetSpeed)||0,afloat:s.afloat!==false};});
+    regionalTrainingFleet.forEach(function(ship,index){
+      if(ship.side==='friendly'&&ship.shipClass==='facility'){ship.speed=0;ship.targetSpeed=0;ship.maxSpeed=0;ship.avoidanceActive=false;ship.avoidanceHeading=ship.heading;return;}
       var desired=((Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading)%360)+360)%360;
-      var delta=((desired-ship.heading+540)%360)-180,maxTurn=(Number(ship.maxTurnRateDegPerSec)||0)*dt;
-      if(Math.abs(delta)<=maxTurn)ship.heading=desired;else ship.heading=(ship.heading+Math.sign(delta)*maxTurn+360)%360;
+      var desiredRad=desired*Math.PI/180;
+      var travelX=Math.sin(desiredRad),travelY=-Math.cos(desiredRad);
+      var currentX=Math.sin((Number(ship.heading)||0)*Math.PI/180)*(Number(ship.speed)||0);
+      var currentY=-Math.cos((Number(ship.heading)||0)*Math.PI/180)*(Number(ship.speed)||0);
+      var plannedSpeed=Math.max(Number(ship.speed)||0,(Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed)||0)*.65);
+      var plannedX=travelX*plannedSpeed,plannedY=travelY*plannedSpeed;
+      var avoidX=0,avoidY=0,avoidStrength=0;
+      var own=frameShips[index];
+      if(own&&plannedSpeed>.0005){
+        frameShips.forEach(function(other,j){
+          if(j===index||!other.afloat)return;
+          var dx=other.x-own.x,dy=other.y-own.y,dist=Math.hypot(dx,dy);
+          if(!Number.isFinite(dist)||dist<.00001||dist>.085)return;
+          var otherRad=other.heading*Math.PI/180;
+          var otherVx=Math.sin(otherRad)*other.speed,otherVy=-Math.cos(otherRad)*other.speed;
+          var relX=otherVx-plannedX,relY=otherVy-plannedY,relSq=relX*relX+relY*relY;
+          var ttc=relSq>1e-10?-(dx*relX+dy*relY)/relSq:-1;
+          var nearX=dx+relX*Math.max(0,Math.min(5,ttc)),nearY=dy+relY*Math.max(0,Math.min(5,ttc));
+          var closest=ttc>0?Math.hypot(nearX,nearY):dist;
+          var immediate=dist<.032;
+          var predicted=ttc>0&&ttc<5&&closest<.036;
+          var converging=(plannedX-otherVx)*dx+(plannedY-otherVy)*dy>0;
+          if(!immediate&&!predicted&&!(dist<.055&&converging))return;
+          var urgency=immediate?Math.min(1,.68+(.032-dist)/.032):predicted?Math.max(.24,(.036-closest)/.036):Math.max(.12,(.055-dist)/.055);
+          avoidX+=(own.x-other.x)/dist*urgency;
+          avoidY+=(own.y-other.y)/dist*urgency;
+          avoidStrength+=urgency;
+        });
+      }
+      var steering=desired;
+      if(avoidStrength>0){
+        var adjustedX=travelX+avoidX*2.25,adjustedY=travelY+avoidY*2.25;
+        if(Math.hypot(adjustedX,adjustedY)>.001){
+          steering=((Math.atan2(adjustedX,-adjustedY)*180/Math.PI)%360+360)%360;
+        }
+      }
+      ship.avoidanceActive=avoidStrength>.08;
+      ship.avoidanceHeading=steering;
+      var delta=((steering-ship.heading+540)%360)-180,maxTurn=(Number(ship.maxTurnRateDegPerSec)||0)*dt;
+      if(Math.abs(delta)<=maxTurn)ship.heading=steering;else ship.heading=(ship.heading+Math.sign(delta)*maxTurn+360)%360;
       var target=Math.max(0,Math.min(Number(ship.maxSpeed)||0,Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed)||0));
       var accel=(Number(ship.accelerationPerSec)||0)*dt,difference=target-ship.speed;
       if(Math.abs(difference)<=accel)ship.speed=target;else ship.speed=Math.max(0,ship.speed+Math.sign(difference)*accel);
@@ -3316,6 +3358,7 @@ FIRE CONTROL: STANDBY</div>
       if(ship.shipClass!=='facility'){
         ctx.fillStyle=isFriendly?'#a6ddcf':'#ffc49a';ctx.font='10px monospace';
         ctx.fillText('SPD '+actualSpeed.toFixed(3)+'→'+targetSpeed.toFixed(3),px+8,py+3);
+        if(ship.avoidanceActive===true){ctx.fillStyle='#ffb36b';ctx.font='bold 10px monospace';ctx.fillText('AVOID',px+8,py+15);}
       }
     });
 
