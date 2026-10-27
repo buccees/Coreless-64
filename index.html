@@ -2904,7 +2904,17 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     for(var deg=0;deg<360;deg+=30){var a=(deg-90)*Math.PI/180;sc.beginPath();sc.moveTo(cx,cy);sc.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r);sc.stroke();sc.fillStyle='#7cbfa4';sc.font='11px monospace';sc.fillText(String(deg).padStart(3,'0'),cx+Math.cos(a)*(r+13)-10,cy+Math.sin(a)*(r+13)+4);}
     sc.strokeStyle='#3aa67d';sc.beginPath();sc.moveTo(cx-r,cy);sc.lineTo(cx+r,cy);sc.moveTo(cx,cy-r);sc.lineTo(cx,cy+r);sc.stroke();
     var objects=data&&Array.isArray(data.objects)?data.objects:[],dots=[];
-    objects.forEach(function(o,i){var p=o.normalized_position||[.5,.5],dx=(Number(p[0])-.5)*1.8,dy=(Number(p[1])-.5)*1.8,dist=Math.min(.96,Math.sqrt(dx*dx+dy*dy)),ang=Math.atan2(dx,-dy),x=cx+Math.sin(ang)*r*dist,y=cy-Math.cos(ang)*r*dist;sc.fillStyle=o.conflict?'#f0b35c':'#8dffb9';sc.shadowColor=sc.fillStyle;sc.shadowBlur=8;sc.beginPath();sc.arc(x,y,4,0,Math.PI*2);sc.fill();sc.shadowBlur=0;sc.fillStyle='#b4f4d5';sc.font='10px monospace';sc.fillText('C'+String(i+1).padStart(2,'0'),x+6,y-5);dots.push({bearing:(Math.atan2(dx,dy)*180/Math.PI+360)%360,strength:Math.max(.15,1-Number(o.uncertainty_m||0)/30)});});
+    objects.forEach(function(o,i){
+      var p=o.normalized_position,hasPosition=Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]));
+      var dx=hasPosition?(Number(p[0])-.5)*1.8:0,dy=hasPosition?(Number(p[1])-.5)*1.8:0;
+      var dist=hasPosition?Math.min(.96,Math.sqrt(dx*dx+dy*dy)):.96;
+      var bearing=hasPosition?(Math.atan2(dx,-dy)*180/Math.PI+360)%360:(o.bearing_deg!==null&&o.bearing_deg!==undefined&&Number.isFinite(Number(o.bearing_deg))?((Number(o.bearing_deg)%360)+360)%360:null);
+      if(bearing===null)return; // No position or bearing: do not invent a centre return.
+      var ang=bearing*Math.PI/180,x=cx+Math.sin(ang)*r*dist,y=cy-Math.cos(ang)*r*dist;
+      sc.fillStyle=o.conflict?'#f0b35c':hasPosition?'#8dffb9':'#c5a7ff';sc.shadowColor=sc.fillStyle;sc.shadowBlur=8;sc.beginPath();sc.arc(x,y,4,0,Math.PI*2);sc.fill();sc.shadowBlur=0;
+      sc.fillStyle='#b4f4d5';sc.font='10px monospace';sc.fillText(hasPosition?'C'+String(i+1).padStart(2,'0'):'BRG '+String(Math.round(bearing)).padStart(3,'0')+'°',x+6,y-5);
+      dots.push({bearing:bearing,strength:Math.max(.15,1-Number(o.uncertainty_m||0)/30)});
+    });
     sc.fillStyle='#8ad8b5';sc.font='11px monospace';sc.fillText('CONTACTS '+objects.length,10,18);sc.fillText('RANGE SCALE: RELATIVE',10,sh-10);
     // Generate one synthetic acoustic-energy row per sweep: a noise floor, drifting contact signatures, and intermittent clutter.
     var bins=180,energy=new Array(bins),sweepIndex=sonarWaterfallHistory.length;
@@ -2930,7 +2940,19 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     });
     wc.strokeStyle='#173d32';wc.lineWidth=1;for(var gx=0;gx<=6;gx++){var xx=gx*waterfall.width/6;wc.beginPath();wc.moveTo(xx,0);wc.lineTo(xx,waterfall.height);wc.stroke();}for(var gy=0;gy<=8;gy++){var yy=gy*waterfall.height/8;wc.beginPath();wc.moveTo(0,yy);wc.lineTo(waterfall.width,yy);wc.stroke();}
     wc.fillStyle='#8ad8b5';wc.font='11px monospace';wc.fillText('BEARING →',8,14);wc.fillText('TIME ↓',8,waterfall.height-8);
-    var status=document.getElementById('sim-sonar-console-status'),readout=document.getElementById('sim-sonar-readout');if(status)status.textContent=(data&&data.metadata&&data.metadata.sonar_posture!=='not_applicable'?String(data.metadata.sonar_posture).toUpperCase():'SONAR SELECT MODE')+' · SWEEP '+(data&&data.revision?data.revision:'—');if(readout)readout.textContent=objects.length?objects.map(function(o,i){var p=o.normalized_position||[.5,.5],bearing=(Math.atan2(Number(p[0])-.5,Number(p[1])-.5)*180/Math.PI+360)%360;return 'CONTACT '+String(i+1).padStart(2,'0')+' // BEARING EST '+bearing.toFixed(0)+'° // UNCERTAINTY ±'+o.uncertainty_m+' m // '+Math.round(100/(1+Number(o.uncertainty_m||0)/10))+'% RELATIVE CONFIDENCE';}).join('\\n'):'NO CONTACTS DETECTED // BACKGROUND NOISE / SENSOR MISS POSSIBLE';
+    var status=document.getElementById('sim-sonar-console-status'),readout=document.getElementById('sim-sonar-readout');if(status)status.textContent=(data&&data.metadata&&data.metadata.sonar_posture!=='not_applicable'?String(data.metadata.sonar_posture).toUpperCase():'SONAR SELECT MODE')+' · SWEEP '+(data&&data.revision?data.revision:'—');if(readout)readout.textContent=objects.length?objects.map(function(o,i){
+      var p=o.normalized_position,hasPosition=Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]));
+      var bearing=hasPosition?(Math.atan2((Number(p[0])-.5),-(Number(p[1])-.5))*180/Math.PI+360)%360:(o.bearing_deg!==null&&o.bearing_deg!==undefined&&Number.isFinite(Number(o.bearing_deg))?((Number(o.bearing_deg)%360)+360)%360:null);
+      var fields=['CONTACT '+String(i+1).padStart(2,'0')];
+      if(bearing!==null)fields.push('BEARING '+bearing.toFixed(0)+'°');
+      if(Number.isFinite(Number(o.range_m))&&o.range_m!==null)fields.push('RANGE '+Number(o.range_m).toFixed(1)+' m');
+      else if(!hasPosition)fields.push('RANGE UNRESOLVED');
+      if(o.uncertainty_m!==null&&o.uncertainty_m!==undefined)fields.push('UNCERTAINTY ±'+Number(o.uncertainty_m).toFixed(1)+' m');
+      if(o.depth_m!==null&&o.depth_m!==undefined)fields.push('DEPTH '+Number(o.depth_m).toFixed(1)+' m');
+      if(o.temperature_c!==null&&o.temperature_c!==undefined)fields.push('TEMP '+Number(o.temperature_c).toFixed(1)+' C');
+      if(o.measurement_status)fields.push(String(o.measurement_status));
+      return fields.join(' // ');
+    }).join('\\n'):'NO CONTACTS DETECTED // BACKGROUND NOISE / SENSOR MISS POSSIBLE';
   }
 
   // Shared illustrative fleet state: normalized regional coordinates and degrees clockwise from north.
