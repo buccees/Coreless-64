@@ -2819,6 +2819,25 @@ FIRE CONTROL: STANDBY</div>
     return contacts.find(function(c){return c.id===resolved&&c.side==='friendly';})||null;
   };
 
+  // Shared unit-control bridge: update only an explicitly mapped friendly training entity.
+  window.vigilSetSimulationUnitState=function(unitProfile,changes){
+    var aliases={ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'};
+    var resolved=aliases[unitProfile]||unitProfile;
+    var unit=regionalTrainingFleet.find(function(s){return s&&s.id===resolved&&s.side==='friendly'&&s.afloat!==false;});
+    if(!unit||!changes||typeof changes!=='object')return {ok:false,reason:'No assigned friendly simulation entity.'};
+    if(changes.heading!==undefined){
+      var heading=Number(changes.heading);if(!Number.isFinite(heading))return {ok:false,reason:'Heading must be numeric.'};
+      unit.heading=((heading%360)+360)%360;
+    }
+    if(changes.speed!==undefined){
+      var speed=Number(changes.speed),max=Number(unit.maxSpeed)||0;
+      if(!Number.isFinite(speed)||speed<0||speed>max)return {ok:false,reason:'Speed must be between zero and this unit\'s maximum speed.'};
+      unit.speed=speed;
+    }
+    window.dispatchEvent(new CustomEvent('vigil:simulation-unit-state-changed',{detail:{unit_id:unit.id,heading:unit.heading,speed:unit.speed}}));
+    return {ok:true,unit_id:unit.id,heading:unit.heading,speed:unit.speed,max_speed:Number(unit.maxSpeed)||0};
+  };
+
   window.vigilGetFireControlState=function(shipId,targetId,weaponSystem){
     weaponSystem=weaponSystem||'main_battery';
     var shooter=regionalTrainingFleet.find(function(s){return s.id===shipId&&s.side==='friendly'&&s.afloat!==false;});
@@ -3710,7 +3729,7 @@ var context=document.getElementById('vigil-unit-sensor-profile');
 if(!context||document.getElementById('vigil-unit-sensor-display'))return;
 var display=document.createElement('section');
 display.id='vigil-unit-sensor-display';display.className='vigil-unit-sensor-display';
-display.innerHTML='<h4 id="vigil-unit-display-title">ACTIVE UNIT SENSOR DISPLAY</h4><div id="vigil-unit-display-buttons" class="unit-display-bar" role="group" aria-label="Select active unit sensor"></div><canvas id="vigil-unit-display-canvas" width="900" height="340" role="img" aria-label="Simulated sensor display for the active unit"></canvas><div id="vigil-unit-display-status" class="unit-display-status" role="status" aria-live="polite">SIMULATION DISPLAY INITIALIZING</div>';
+display.innerHTML='<h4 id="vigil-unit-display-title">ACTIVE UNIT SENSOR DISPLAY</h4><div id="vigil-unit-display-buttons" class="unit-display-bar" role="group" aria-label="Select active unit sensor"></div><div class="unit-display-bar" role="group" aria-label="Active unit movement controls"><button type="button" id="vigil-unit-heading-left">HEADING −15°</button><button type="button" id="vigil-unit-heading-right">HEADING +15°</button><button type="button" id="vigil-unit-speed-down">SPEED −</button><button type="button" id="vigil-unit-speed-up">SPEED +</button></div><canvas id="vigil-unit-display-canvas" width="900" height="340" role="img" aria-label="Simulated sensor display for the active unit"></canvas><div id="vigil-unit-display-status" class="unit-display-status" role="status" aria-live="polite">SIMULATION DISPLAY INITIALIZING</div>';
 context.insertAdjacentElement('afterend',display);
 var canvas=display.querySelector('canvas'),ctx=canvas.getContext('2d'),buttons=display.querySelector('#vigil-unit-display-buttons'),title=display.querySelector('#vigil-unit-display-title'),status=display.querySelector('#vigil-unit-display-status');
 var activeSensor='',unitId='ship',frame=0;
@@ -3830,9 +3849,20 @@ function draw(){
 function choose(sensor){
  activeSensor=sensor;title.textContent='ACTIVE UNIT SENSOR DISPLAY // '+sensor;
  Array.prototype.forEach.call(buttons.querySelectorAll('button'),function(b){b.setAttribute('aria-pressed',String(b.textContent===sensor));});
- var trackIds={ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'};var assigned=trackIds[unitId]||null;var linked=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(unitId); status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+sensor+' // '+(linked?'TRACK SOURCE: '+linked.id:assigned?'ASSIGNED TRACK: '+assigned:'NO SIMULATION ENTITY ASSIGNED')+' // '+(window.vigilGetRegionalSensorContacts?window.vigilGetRegionalSensorContacts().length:0)+' REGIONAL TRACKS // SHARED CONTROL PANEL';
+ var trackIds={ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'};var assigned=trackIds[unitId]||null;var linked=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(unitId); status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+sensor+' // '+(linked?'TRACK '+linked.id+' // HDG '+Math.round(linked.heading_deg)+'° // SPEED '+linked.speed.toFixed(3)+' / '+(Number(linked.max_speed)||0).toFixed(3):assigned?'ASSIGNED TRACK: '+assigned:'NO SIMULATION ENTITY ASSIGNED')+' // '+(window.vigilGetRegionalSensorContacts?window.vigilGetRegionalSensorContacts().length:0)+' REGIONAL TRACKS // SHARED CONTROL PANEL';
  draw();
 }
+function changeUnitState(change){
+ var current=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(unitId);
+ if(!current){status.textContent='NO SIMULATION ENTITY ASSIGNED // CONTROLS DISABLED';return;}
+ var result=window.vigilSetSimulationUnitState&&window.vigilSetSimulationUnitState(unitId,change);
+ if(!result||!result.ok){status.textContent=result&&result.reason||'UNIT CONTROL UNAVAILABLE';return;}
+ draw();
+}
+display.querySelector('#vigil-unit-heading-left').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({heading:u.heading_deg-15});});
+display.querySelector('#vigil-unit-heading-right').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({heading:u.heading_deg+15});});
+display.querySelector('#vigil-unit-speed-down').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({speed:Math.max(0,u.speed-.005)});});
+display.querySelector('#vigil-unit-speed-up').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({speed:Math.min(Number(u.max_speed)||0,u.speed+.005)});});
 function updateUnit(unit){
  unit=unit||window.vigilGetActiveSimulationUnit&&window.vigilGetActiveSimulationUnit();
  if(!unit)return;
