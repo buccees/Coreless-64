@@ -4231,7 +4231,7 @@ function updateTrackCandidates(regionalContacts,snapshot){
  });
  // Flag same-ID sensor fixes that disagree by more than 0.01 normalized map units (1% of the map span).
  (snapshot&&Array.isArray(snapshot.observations)?snapshot.observations:[]).forEach(function(o){
-   if(!o||o.feed_stale||!o.object_id||!Array.isArray(o.normalized_position)||o.normalized_position.length<2||!Number.isFinite(Number(o.normalized_position[0]))||!Number.isFinite(Number(o.normalized_position[1])))return;
+   if(!o||o.feed_stale||!o.object_id||!Array.isArray(o.normalized_position)||o.normalized_position.length<2||!Number.isFinite(Number(o.normalized_position[0]))||!Number.isFinite(Number(o.normalized_position[1]))||Number(o.normalized_position[0])<0||Number(o.normalized_position[0])>1||Number(o.normalized_position[1])<0||Number(o.normalized_position[1])>1)return;
    var id=String(o.object_id),feedKey=String(o.source||'simulation').toLowerCase()+'|'+String(o.sensor_id||'').toLowerCase()+'|'+String(o.modality||'').toLowerCase(),key=id+'|'+feedKey;
    if(!sensorPositionGroups[id])sensorPositionGroups[id]=[];
    if(!sensorPositionGroups[id].some(function(p){return p.key===key;}))sensorPositionGroups[id].push({key:key,feedKey:feedKey,x:Number(o.normalized_position[0]),y:Number(o.normalized_position[1]),modality:String(o.modality||'SENSOR').toUpperCase()});
@@ -4258,15 +4258,15 @@ function updateTrackCandidates(regionalContacts,snapshot){
  (snapshot&&Array.isArray(snapshot.observations)?snapshot.observations:[]).forEach(function(o){
    if(!o||o.feed_stale)return;
    var id=o.object_id||o.contact_id,p=o.normalized_position;
-   var hasPosition=Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]));
+   var hasPosition=Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]))&&Number(p[0])>=0&&Number(p[0])<=1&&Number(p[1])>=0&&Number(p[1])<=1;
    if(id&&!hasPosition)measurementOnlyIds[String(id)]=true;
  });
  (regionalContacts||[]).forEach(function(c){
-   if(!c||!c.id||c.id===ownId||measurementOnlyIds[String(c.id)]||!Number.isFinite(Number(c.x))||!Number.isFinite(Number(c.y)))return;
+   if(!c||!c.id||c.id===ownId||measurementOnlyIds[String(c.id)]||!Number.isFinite(Number(c.x))||!Number.isFinite(Number(c.y))||Number(c.x)<0||Number(c.x)>1||Number(c.y)<0||Number(c.y)>1)return;
    var id=String(c.id);seen[id]=true;candidates.push({id:id,label:id+' // '+(c.side==='friendly'?'FRIENDLY':'CONTACT'),x:Number(c.x),y:Number(c.y),side:c.side||'contact',heading_deg:Number(c.heading_deg)||0,source:'regional'});
  });
  (snapshot&&Array.isArray(snapshot.observations)?snapshot.observations:[]).forEach(function(o){
-   if(!o||o.feed_stale||!o.object_id||!Array.isArray(o.normalized_position)||o.normalized_position.length<2||!Number.isFinite(Number(o.normalized_position[0]))||!Number.isFinite(Number(o.normalized_position[1])))return;
+   if(!o||o.feed_stale||!o.object_id||!Array.isArray(o.normalized_position)||o.normalized_position.length<2||!Number.isFinite(Number(o.normalized_position[0]))||!Number.isFinite(Number(o.normalized_position[1]))||Number(o.normalized_position[0])<0||Number(o.normalized_position[0])>1||Number(o.normalized_position[1])<0||Number(o.normalized_position[1])>1)return;
    var id=String(o.object_id);if(id===ownId)return;
    var modality=String(o.modality||'SENSOR').toUpperCase(),existingIndex=candidates.findIndex(function(t){return t.id===id;}),conflict=sensorPositionConflicts[id],uncertainty=typeof o.uncertainty_m==='number'&&Number.isFinite(o.uncertainty_m)&&o.uncertainty_m>=0?o.uncertainty_m:null,lowConfidenceThresholdM=1,qualityLabel=uncertainty===null?'UNCERTAINTY UNKNOWN':uncertainty>lowConfidenceThresholdM?'LOW CONFIDENCE // REPORTED ±'+uncertainty.toFixed(2)+'m':'REPORTED ±'+uncertainty.toFixed(2)+'m';
    if(conflict){
