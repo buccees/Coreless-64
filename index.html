@@ -4297,7 +4297,13 @@ function updateTrackCandidates(regionalContacts,snapshot){
    var empty=document.createElement('option');empty.value='';empty.textContent='NO CONTACT SELECTED';trackSelect.appendChild(empty);
    candidates.forEach(function(t){var option=document.createElement('option');option.value=t.id;option.textContent=t.label;trackSelect.appendChild(option);});
    if(candidates.some(function(t){return t.id===selected;})){cameraState.selectedTrackId=selected;trackSelect.value=selected;}
-   else{cameraState.selectedTrackId='';trackSelect.value='';}
+   else{
+     cameraState.selectedTrackId='';trackSelect.value='';
+     // Losing the selected candidate invalidates track hold as well as the selector value.
+     cameraState.hold=false;
+     var holdButton=display&&display.querySelector('#vigil-camera-track-hold');
+     if(holdButton){holdButton.setAttribute('aria-pressed','false');holdButton.textContent='TRACK HOLD: OFF';}
+   }
  }
  // Candidate freshness can change without a selector change event; keep the action gate in sync with every roster refresh.
  if(typeof syncFocusedFollowupButton==='function')syncFocusedFollowupButton();
