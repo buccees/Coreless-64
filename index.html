@@ -2795,6 +2795,10 @@ FIRE CONTROL: STANDBY</div>
   var regionalTrainingFleet=[
     {id:'DDG-51',name:'ARLEIGH BURKE-CLASS',x:.35,y:.44,lengthM:153.92,beamM:18.0,heading:28,speed:.018,maxSpeed:.04,weaponRange:.4,weaponDamage:2,weaponReloadSeconds:8,weaponCooldownRemaining:0,hull:6,maxHull:6,shipClass:'destroyer',weaponSystems:['main_battery','torpedo','missile'],side:'friendly',afloat:true,source:'U.S. Navy DDG-51 fact sheet'},
     {id:'SSN-774',name:'VIRGINIA-CLASS ATTACK SUBMARINE',x:.27,y:.72,lengthM:115,beamM:10.4,heading:25,speed:.006,maxSpeed:.03,weaponRange:.42,weaponDamage:4,weaponReloadSeconds:14,weaponCooldownRemaining:0,hull:7,maxHull:7,shipClass:'submarine',weaponSystems:['torpedo','missile'],side:'friendly',afloat:true,source:'U.S. Navy Virginia-class fact sheet'},
+    {id:'DRONE-01',name:'VIGIL RECONNAISSANCE DRONE',x:.39,y:.38,lengthM:3.2,beamM:2.1,heading:42,speed:.025,maxSpeed:.06,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:2,maxHull:2,shipClass:'drone',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'drone',parentId:'DDG-51'},
+    {id:'UUV-01',name:'VIGIL UNCREWED SUBMERSIBLE',x:.22,y:.79,lengthM:4.5,beamM:1.1,heading:31,speed:.012,maxSpeed:.035,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:2,maxHull:2,shipClass:'submersible',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'submersible',parentId:'SSN-774'},
+    {id:'MECH-01',name:'VIGIL GROUND MECH',x:.52,y:.47,lengthM:4.2,beamM:2.4,heading:90,speed:.008,maxSpeed:.025,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:3,maxHull:3,shipClass:'mech',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'mech'},
+    {id:'FAC-01',name:'VIGIL FORWARD SENSOR FACILITY',x:.15,y:.22,lengthM:0,beamM:0,heading:0,speed:0,maxSpeed:0,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:5,maxHull:5,shipClass:'facility',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'facility'},
     {id:'CVN',name:'NIMITZ-CLASS',x:.66,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.025,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
   ];
   var regionalTrainingFleetDemo=regionalTrainingFleet.map(function(ship){return Object.assign({},ship);});
@@ -2809,8 +2813,10 @@ FIRE CONTROL: STANDBY</div>
     }).filter(function(s){return Number.isFinite(s.x)&&Number.isFinite(s.y);});
   };
   window.vigilGetRegionalSimulationUnit=function(unitId){
+    var aliases={ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'};
+    var resolved=aliases[unitId]||unitId;
     var contacts=window.vigilGetRegionalSensorContacts();
-    return contacts.find(function(c){return c.id===unitId&&c.side==='friendly';})||null;
+    return contacts.find(function(c){return c.id===resolved&&c.side==='friendly';})||null;
   };
 
   window.vigilGetFireControlState=function(shipId,targetId,weaponSystem){
@@ -3738,7 +3744,7 @@ function draw(){
    var plotted=0;
    // Only anchor a profile to a regional entity when an explicit mapping exists.
    // Profiles without a represented simulation entity must not borrow another vessel's pose.
-   var profileTrackIds={ship:'DDG-51',submersible:'SSN-774'};
+   var profileTrackIds={ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'};
    var assignedTrackId=profileTrackIds[unitId]||null;
    var ownTrack=assignedTrackId?regionalContacts.find(function(c){return c.id===assignedTrackId&&c.side==='friendly';}):null;
    var ownHeading=ownTrack?Number(ownTrack.heading_deg)||0:0;
@@ -3824,7 +3830,7 @@ function draw(){
 function choose(sensor){
  activeSensor=sensor;title.textContent='ACTIVE UNIT SENSOR DISPLAY // '+sensor;
  Array.prototype.forEach.call(buttons.querySelectorAll('button'),function(b){b.setAttribute('aria-pressed',String(b.textContent===sensor));});
- var trackIds={ship:'DDG-51',submersible:'SSN-774'};var assigned=trackIds[unitId]||null;var linked=assigned&&window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(assigned); status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+sensor+' // '+(linked?'TRACK SOURCE: '+linked.id:assigned?'ASSIGNED TRACK: '+assigned:'NO SIMULATION ENTITY ASSIGNED')+' // '+(window.vigilGetRegionalSensorContacts?window.vigilGetRegionalSensorContacts().length:0)+' REGIONAL TRACKS // SHARED CONTROL PANEL';
+ var trackIds={ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'};var assigned=trackIds[unitId]||null;var linked=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(unitId); status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+sensor+' // '+(linked?'TRACK SOURCE: '+linked.id:assigned?'ASSIGNED TRACK: '+assigned:'NO SIMULATION ENTITY ASSIGNED')+' // '+(window.vigilGetRegionalSensorContacts?window.vigilGetRegionalSensorContacts().length:0)+' REGIONAL TRACKS // SHARED CONTROL PANEL';
  draw();
 }
 function updateUnit(unit){
