@@ -2733,6 +2733,21 @@ FIRE CONTROL: STANDBY</div>
     window.dispatchEvent(new CustomEvent('vigil:sensor-observation',{detail:{sensor_id:payload.sensor_id,modality:modality,track_count:objects.length,timestamp:data.revision}}));
     return{accepted:true,track_count:objects.length,revision:data.revision};
   };
+  // Read-only copy of the latest accepted sensor observation for other station displays.
+  window.vigilGetLatestSensorObservation=function(){
+    if(!lastObservationData)return null;
+    return {schema_version:lastObservationData.schema_version,model_id:lastObservationData.model_id,
+      revision:lastObservationData.revision,frame_id:lastObservationData.frame_id,
+      metadata:Object.assign({},lastObservationData.metadata||{}),
+      objects:(lastObservationData.objects||[]).map(function(o){return {
+        object_id:String(o.object_id||''),normalized_position:Array.isArray(o.normalized_position)?o.normalized_position.slice(0,3):null,
+        uncertainty_m:Number(o.uncertainty_m)||0,confidence:Number(o.confidence)||0,
+        classification:String(o.classification||'unclassified contact'),
+        modalities:Array.isArray(o.modalities)?o.modalities.slice():[],
+        external_timestamp:o.external_timestamp||null
+      };}),
+      waterfall_bins:Array.isArray(lastObservationData.waterfall_bins)?lastObservationData.waterfall_bins.slice():null};
+  };
   var sonarWaterfallHistory=[];
   function renderNavalSonar(data){
     var scope=document.getElementById('sim-sonar-scope'),waterfall=document.getElementById('sim-sonar-waterfall');if(!scope||!waterfall)return;
@@ -3705,6 +3720,8 @@ function draw(){
  ctx.fillStyle='#29f5b2';ctx.font='16px Courier New';ctx.fillText('VIGIL // '+unitId.toUpperCase()+' // '+activeSensor,18,25);
  var lower=activeSensor.toLowerCase(),cx=w*.5,cy=h*.56;
  var regionalContacts=typeof window.vigilGetRegionalSensorContacts==='function'?window.vigilGetRegionalSensorContacts():[];
+ var sensorObservation=typeof window.vigilGetLatestSensorObservation==='function'?window.vigilGetLatestSensorObservation():null;
+ var observationIsExternal=!!(sensorObservation&&sensorObservation.metadata&&sensorObservation.metadata.source==='external-sensor-adapter');
  var activeVessel=typeof window.vigilGetRegionalSimulationUnit==='function'?window.vigilGetRegionalSimulationUnit(unitId):null;
  ctx.strokeStyle='#17634d';ctx.fillStyle='#29f5b2';
  if(lower.indexOf('sonar')>=0||lower.indexOf('radar')>=0||lower.indexOf('esm')>=0||lower.indexOf('acoustic')>=0||lower.indexOf('proximity')>=0){
@@ -3712,23 +3729,36 @@ function draw(){
    for(var r=radius/4;r<=radius;r+=radius/4){ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();}
    ctx.beginPath();ctx.moveTo(cx,cy-radius);ctx.lineTo(cx,cy+radius);ctx.moveTo(cx-radius,cy);ctx.lineTo(cx+radius,cy);ctx.stroke();
    ctx.strokeStyle='#29f5b2';ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(pulse*Math.PI*2)*radius,cy+Math.sin(pulse*Math.PI*2)*radius);ctx.stroke();
-   // Plot real regional tracks relative to the active friendly vessel; no invented contact dots.
-   var ownTrack=regionalContacts.find(function(c){return c.id===unitId&&c.side==='friendly';})||
-     regionalContacts.find(function(c){return c.side==='friendly';});
+   // Prefer the latest accepted observation from the shared sensor pipeline.
    var plotted=0;
-   regionalContacts.forEach(function(contact){
-     if(ownTrack&&contact.id===ownTrack.id)return;
-     var dx=ownTrack?contact.x-ownTrack.x:contact.x-.5;
-     var dy=ownTrack?contact.y-ownTrack.y:contact.y-.5;
-     var px=cx+dx*radius*1.35,py=cy+dy*radius*1.35;
-     if(px<cx-radius||px>cx+radius||py<cy-radius||py>cy+radius)return;
-     ctx.fillStyle=contact.side==='friendly'?'#66b7ff':'#ffbd63';
-     ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);ctx.fill();
-     ctx.strokeStyle=ctx.fillStyle;ctx.beginPath();ctx.arc(px,py,10,0,Math.PI*2);ctx.stroke();
-     ctx.font='10px Courier New';ctx.fillText(contact.id,px+12,py-7);plotted++;
-   });
+   if(sensorObservation&&Array.isArray(sensorObservation.objects)&&sensorObservation.objects.length){
+     sensorObservation.objects.forEach(function(o){
+       if(!o.normalized_position)return;
+       var px=o.normalized_position[0]*w,py=o.normalized_position[1]*h;
+       ctx.fillStyle=observationIsExternal?'#ffbd63':'#29f5b2';
+       ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);ctx.fill();
+       var uncertaintyRadius=Math.max(5,Math.min(26,(Number(o.uncertainty_m)||0)*.4));
+       ctx.strokeStyle=ctx.fillStyle;ctx.beginPath();ctx.arc(px,py,uncertaintyRadius,0,Math.PI*2);ctx.stroke();
+       ctx.font='10px Courier New';ctx.fillText(o.object_id,px+12,py-7);plotted++;
+     });
+   }else{
+     // If no observation is available, plot authorized regional tracks only.
+     var ownTrack=regionalContacts.find(function(c){return c.id===unitId&&c.side==='friendly';})||
+       regionalContacts.find(function(c){return c.side==='friendly';});
+     regionalContacts.forEach(function(contact){
+       if(ownTrack&&contact.id===ownTrack.id)return;
+       var dx=ownTrack?contact.x-ownTrack.x:contact.x-.5;
+       var dy=ownTrack?contact.y-ownTrack.y:contact.y-.5;
+       var px=cx+dx*radius*1.35,py=cy+dy*radius*1.35;
+       if(px<cx-radius||px>cx+radius||py<cy-radius||py>cy+radius)return;
+       ctx.fillStyle=contact.side==='friendly'?'#66b7ff':'#ffbd63';
+       ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);ctx.fill();
+       ctx.strokeStyle=ctx.fillStyle;ctx.beginPath();ctx.arc(px,py,10,0,Math.PI*2);ctx.stroke();
+       ctx.font='10px Courier New';ctx.fillText(contact.id,px+12,py-7);plotted++;
+     });
+   }
    if(!plotted){ctx.fillStyle='#59bda3';ctx.font='11px Courier New';ctx.fillText('NO TRACKS // NO DETECTIONS',cx-radius+8,cy+18);}
-   ctx.fillStyle='#59bda3';ctx.font='12px Courier New';ctx.fillText((lower.indexOf('sonar')>=0?'ACOUSTIC CONTACT PLOT':'SWEEP / DETECTION DISPLAY')+' // '+plotted+' REGIONAL TRACKS',18,h-16);
+   ctx.fillStyle='#59bda3';ctx.font='12px Courier New';ctx.fillText((lower.indexOf('sonar')>=0?'ACOUSTIC CONTACT PLOT':'SWEEP / DETECTION DISPLAY')+' // '+plotted+' '+(sensorObservation&&sensorObservation.objects.length?(observationIsExternal?'EXTERNAL':'PIPELINE'):'REGIONAL')+' TRACKS',18,h-16);
  }else if(lower.indexOf('camera')>=0||lower.indexOf('thermal')>=0){
    var grad=ctx.createLinearGradient(0,45,0,h);grad.addColorStop(0,lower.indexOf('thermal')>=0?'#311b12':'#05281d');grad.addColorStop(1,lower.indexOf('thermal')>=0?'#100b09':'#010604');ctx.fillStyle=grad;ctx.fillRect(1,35,w-2,h-36);
    ctx.strokeStyle=lower.indexOf('thermal')>=0?'#ffbd63':'#17634d';ctx.lineWidth=2;
