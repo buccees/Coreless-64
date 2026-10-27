@@ -4242,7 +4242,7 @@ function updateTrackCandidates(regionalContacts,snapshot){
  (snapshot&&Array.isArray(snapshot.observations)?snapshot.observations:[]).forEach(function(o){
    if(!o||o.feed_stale||!o.object_id||!Array.isArray(o.normalized_position)||o.normalized_position.length<2||!Number.isFinite(Number(o.normalized_position[0]))||!Number.isFinite(Number(o.normalized_position[1])))return;
    var id=String(o.object_id);if(id===ownId)return;
-   var modality=String(o.modality||'SENSOR').toUpperCase(),existingIndex=candidates.findIndex(function(t){return t.id===id;}),conflict=sensorPositionConflicts[id];
+   var modality=String(o.modality||'SENSOR').toUpperCase(),existingIndex=candidates.findIndex(function(t){return t.id===id;}),conflict=sensorPositionConflicts[id],uncertainty=typeof o.uncertainty_m==='number'&&Number.isFinite(o.uncertainty_m)?o.uncertainty_m:null,qualityLabel=uncertainty===null?'UNCERTAINTY UNKNOWN':uncertainty>1?'LOW CONFIDENCE // ±'+uncertainty.toFixed(2)+'m':'UNCERTAINTY ±'+uncertainty.toFixed(2)+'m';
    if(conflict){
      if(existingIndex>=0){
        var regional=candidates[existingIndex];
@@ -4256,12 +4256,12 @@ function updateTrackCandidates(regionalContacts,snapshot){
      var existing=candidates[existingIndex];
      // Same ID from both sources: prefer the live sensor fix, but retain its regional-map association explicitly.
      existing.x=Number(o.normalized_position[0]);existing.y=Number(o.normalized_position[1]);
-     existing.label=id+' // '+modality+' + REGIONAL';existing.side=o.side||existing.side;
+     existing.label=id+' // '+modality+' + REGIONAL // '+qualityLabel;existing.uncertainty_m=uncertainty;existing.confidenceState=uncertainty===null?'unknown':uncertainty>1?'low':'reported';existing.side=o.side||existing.side;
      existing.modalities=o.modalities||[];existing.modality=modality;existing.source='sensor+regional';existing.raw=o;
      return;
    }
    seen[id]=true;
-   candidates.push({id:id,label:id+' // '+modality,x:Number(o.normalized_position[0]),y:Number(o.normalized_position[1]),side:o.side||'contact',modalities:o.modalities||[],modality:modality,source:o.source||'sensor',raw:o});
+   candidates.push({id:id,label:id+' // '+modality+' // '+qualityLabel,x:Number(o.normalized_position[0]),y:Number(o.normalized_position[1]),side:o.side||'contact',modalities:o.modalities||[],modality:modality,source:o.source||'sensor',raw:o,uncertainty_m:uncertainty,confidenceState:uncertainty===null?'unknown':uncertainty>1?'low':'reported'});
  });
  currentTrackCandidates=candidates;
  var signature=candidates.map(function(t){return t.id+'|'+t.label;}).join(';');
