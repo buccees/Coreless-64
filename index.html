@@ -3736,8 +3736,11 @@ function draw(){
    ctx.strokeStyle='#29f5b2';ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(pulse*Math.PI*2)*radius,cy+Math.sin(pulse*Math.PI*2)*radius);ctx.stroke();
    // Prefer the latest accepted observation from the shared sensor pipeline.
    var plotted=0;
-   var ownTrack=regionalContacts.find(function(c){return c.id===unitId&&c.side==='friendly';})||
-     regionalContacts.find(function(c){return c.side==='friendly';});
+   // Only anchor a profile to a regional entity when an explicit mapping exists.
+   // Profiles without a represented simulation entity must not borrow another vessel's pose.
+   var profileTrackIds={ship:'DDG-51',submersible:'SSN-774'};
+   var assignedTrackId=profileTrackIds[unitId]||null;
+   var ownTrack=assignedTrackId?regionalContacts.find(function(c){return c.id===assignedTrackId&&c.side==='friendly';}):null;
    var ownHeading=ownTrack?Number(ownTrack.heading_deg)||0:0;
    function relativeScreenPoint(dx,dy){
      // Regional x increases east and y increases south; heading is degrees clockwise from north.
@@ -3764,12 +3767,12 @@ function draw(){
        ctx.strokeStyle=ctx.fillStyle;ctx.beginPath();ctx.arc(px,py,uncertaintyRadius,0,Math.PI*2);ctx.stroke();
        ctx.font='10px Courier New';ctx.fillText(o.object_id,px+12,py-7);plotted++;
      });
-   }else{
-     // If no observation is available, plot authorized regional tracks in own-ship-relative coordinates.
+   }else if(ownTrack){
+     // Regional tracks are shown relative to the explicitly assigned friendly simulation entity.
      regionalContacts.forEach(function(contact){
-       if(ownTrack&&contact.id===ownTrack.id)return;
-       var dx=ownTrack?contact.x-ownTrack.x:contact.x-.5;
-       var dy=ownTrack?contact.y-ownTrack.y:contact.y-.5;
+       if(contact.id===ownTrack.id)return;
+       var dx=contact.x-ownTrack.x;
+       var dy=contact.y-ownTrack.y;
        var point=relativeScreenPoint(dx,dy),px=point.x,py=point.y;
        if(px<cx-radius||px>cx+radius||py<cy-radius||py>cy+radius)return;
        ctx.fillStyle=contact.side==='friendly'?'#66b7ff':'#ffbd63';
@@ -3778,7 +3781,7 @@ function draw(){
        ctx.font='10px Courier New';ctx.fillText(contact.id,px+12,py-7);plotted++;
      });
    }
-   if(!plotted){ctx.fillStyle='#59bda3';ctx.font='11px Courier New';ctx.fillText('NO TRACKS // NO DETECTIONS',cx-radius+8,cy+18);}
+   if(!plotted){ctx.fillStyle='#59bda3';ctx.font='11px Courier New';ctx.fillText(!ownTrack&&!plottedObservationData?'NO ASSIGNED UNIT TRACK':'NO TRACKS // NO DETECTIONS',cx-radius+8,cy+18);}
    ctx.fillStyle='#59bda3';ctx.font='12px Courier New';ctx.fillText((observationIsExternal&&sensorObservation.stale?'STALE EXTERNAL DATA // FALLBACK ':'')+(lower.indexOf('sonar')>=0?'ACOUSTIC CONTACT PLOT':'SWEEP / DETECTION DISPLAY')+' // '+plotted+' '+(plottedObservationData?(observationIsExternal?'EXTERNAL':'PIPELINE'):'REGIONAL')+' TRACKS',18,h-16);
  }else if(lower.indexOf('camera')>=0||lower.indexOf('thermal')>=0){
    var grad=ctx.createLinearGradient(0,45,0,h);grad.addColorStop(0,lower.indexOf('thermal')>=0?'#311b12':'#05281d');grad.addColorStop(1,lower.indexOf('thermal')>=0?'#100b09':'#010604');ctx.fillStyle=grad;ctx.fillRect(1,35,w-2,h-36);
@@ -3821,7 +3824,7 @@ function draw(){
 function choose(sensor){
  activeSensor=sensor;title.textContent='ACTIVE UNIT SENSOR DISPLAY // '+sensor;
  Array.prototype.forEach.call(buttons.querySelectorAll('button'),function(b){b.setAttribute('aria-pressed',String(b.textContent===sensor));});
- var unit=window.vigilGetActiveSimulationUnit&&window.vigilGetActiveSimulationUnit(); var linked=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(unitId); status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+sensor+' // '+(linked?'TRACK SOURCE: '+linked.id:'TRAINING UNIT PROFILE')+' // '+(window.vigilGetRegionalSensorContacts?window.vigilGetRegionalSensorContacts().length:0)+' REGIONAL TRACKS // SHARED CONTROL PANEL';
+ var trackIds={ship:'DDG-51',submersible:'SSN-774'};var assigned=trackIds[unitId]||null;var linked=assigned&&window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(assigned); status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+sensor+' // '+(linked?'TRACK SOURCE: '+linked.id:assigned?'ASSIGNED TRACK: '+assigned:'NO SIMULATION ENTITY ASSIGNED')+' // '+(window.vigilGetRegionalSensorContacts?window.vigilGetRegionalSensorContacts().length:0)+' REGIONAL TRACKS // SHARED CONTROL PANEL';
  draw();
 }
 function updateUnit(unit){
