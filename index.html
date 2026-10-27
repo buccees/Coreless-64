@@ -2751,26 +2751,41 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   function recordSensorFeed(sensorId,modality,objects,waterfallBins,source,frameDataUrl,receivedAt){
     sensorId=String(sensorId||'SIM-SENSOR');modality=String(modality||'simulated').toLowerCase();
     var key=sensorId.toLowerCase()+'|'+modality;
-    var copied=(Array.isArray(objects)?objects:[]).map(function(o){return {
-      object_id:String(o.object_id||o.contact_id||'UNKNOWN'),
-      normalized_position:Array.isArray(o.normalized_position)?o.normalized_position.slice(0,3):null,
-      uncertainty_m:Number(o.uncertainty_m)||0,confidence:Number.isFinite(Number(o.confidence))?Math.max(0,Math.min(1,Number(o.confidence))):.5,
-      classification:String(o.classification||'unclassified contact'),
-      modalities:Array.isArray(o.modalities)?o.modalities.slice():[modality],
-      sensor_ids:Array.isArray(o.sensor_ids)?o.sensor_ids.slice():[sensorId],
-      side:o.side==='friendly'?'friendly':o.side==='contact'?'contact':null,
-      external_timestamp:o.external_timestamp||null,
-      range_m:o.range_m!==null&&o.range_m!==undefined&&o.range_m!==''&&Number.isFinite(Number(o.range_m))?Number(o.range_m):null,
-      bearing_deg:o.bearing_deg!==null&&o.bearing_deg!==undefined&&o.bearing_deg!==''&&Number.isFinite(Number(o.bearing_deg))?Number(o.bearing_deg):null,
-      depth_m:o.depth_m!==null&&o.depth_m!==undefined&&o.depth_m!==''&&Number.isFinite(Number(o.depth_m))?Number(o.depth_m):null,
-      temperature_c:o.temperature_c!==null&&o.temperature_c!==undefined&&o.temperature_c!==''&&Number.isFinite(Number(o.temperature_c))?Number(o.temperature_c):null,
-      signal_strength_db:o.signal_strength_db!==null&&o.signal_strength_db!==undefined&&o.signal_strength_db!==''&&Number.isFinite(Number(o.signal_strength_db))?Number(o.signal_strength_db):null,
-      velocity_mps:o.velocity_mps!==null&&o.velocity_mps!==undefined&&o.velocity_mps!==''&&Number.isFinite(Number(o.velocity_mps))?Number(o.velocity_mps):null,
-      measurement_value:o.measurement_value!==null&&o.measurement_value!==undefined&&o.measurement_value!==''&&Number.isFinite(Number(o.measurement_value))?Number(o.measurement_value):null,
-      measurement_units:String(o.measurement_units||''),
-      measurement_status:String(o.measurement_status||''),
-      measurements:o.measurements&&typeof o.measurements==='object'?Object.assign({},o.measurements):null
-    };});
+    function finiteScalar(value){
+      if(value===null||value===undefined||value===''||(typeof value!=='number'&&typeof value!=='string'))return null;
+      var parsed=Number(value);return Number.isFinite(parsed)?parsed:null;
+    }
+    var copied=(Array.isArray(objects)?objects:[]).filter(function(o){
+      return o&&typeof (o.object_id||o.contact_id)==='string'&&String(o.object_id||o.contact_id).trim()!=='';
+    }).map(function(o){
+      var rawPosition=o.normalized_position,position=null;
+      if(Array.isArray(rawPosition)&&rawPosition.length>=2){
+        var x=finiteScalar(rawPosition[0]),y=finiteScalar(rawPosition[1]),z=finiteScalar(rawPosition[2]);
+        if(x!==null&&y!==null&&x>=0&&x<=1&&y>=0&&y<=1)position=[x,y,z===null?0:z];
+      }
+      var uncertainty=finiteScalar(o.uncertainty_m),confidence=finiteScalar(o.confidence);
+      return {
+        object_id:String(o.object_id||o.contact_id).trim(),
+        normalized_position:position,
+        uncertainty_m:uncertainty!==null&&uncertainty>=0?uncertainty:null,
+        confidence:confidence!==null?Math.max(0,Math.min(1,confidence)):.5,
+        classification:String(o.classification||'unclassified contact'),
+        modalities:Array.isArray(o.modalities)?o.modalities.slice():[modality],
+        sensor_ids:Array.isArray(o.sensor_ids)?o.sensor_ids.slice():[sensorId],
+        side:o.side==='friendly'?'friendly':o.side==='contact'?'contact':null,
+        external_timestamp:o.external_timestamp||null,
+        range_m:finiteScalar(o.range_m),
+        bearing_deg:finiteScalar(o.bearing_deg),
+        depth_m:finiteScalar(o.depth_m),
+        temperature_c:finiteScalar(o.temperature_c),
+        signal_strength_db:finiteScalar(o.signal_strength_db),
+        velocity_mps:finiteScalar(o.velocity_mps),
+        measurement_value:finiteScalar(o.measurement_value),
+        measurement_units:String(o.measurement_units||''),
+        measurement_status:String(o.measurement_status||''),
+        measurements:o.measurements&&typeof o.measurements==='object'&&!Array.isArray(o.measurements)?Object.assign({},o.measurements):null
+      };
+    });
     sensorFeedRegistry[key]={sensor_id:sensorId,modality:modality,source:source==='external'?'external':'simulation',
       received_at:Number(receivedAt)||Date.now(),objects:copied,
       waterfall_bins:Array.isArray(waterfallBins)?waterfallBins.slice():null,
