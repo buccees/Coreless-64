@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920" role="img" aria-labelledby="title desc">
+<title id="title">VIGIL — Deepwater Command</title><desc id="desc">A cinematic naval command wallpaper with a moonlit ocean, a patrol ship silhouette, sonar radar, sensor telemetry, and VIGIL branding.</desc>
+<defs>
+ <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#030d18"/><stop offset=".48" stop-color="#061d2b"/><stop offset="1" stop-color="#01070c"/></linearGradient>
+ <radialGradient id="moon"><stop stop-color="#c9fff0" stop-opacity=".95"/><stop offset=".35" stop-color="#70e9d2" stop-opacity=".22"/><stop offset="1" stop-color="#3bf0c3" stop-opacity="0"/></radialGradient>
+ <linearGradient id="sea" x2="0" y2="1"><stop stop-color="#0c4b55" stop-opacity=".8"/><stop offset="1" stop-color="#02080e"/></linearGradient>
+ <linearGradient id="beam" x2="1" y2="0"><stop stop-color="#26f5c2" stop-opacity="0"/><stop offset=".5" stop-color="#26f5c2" stop-opacity=".55"/><stop offset="1" stop-color="#26f5c2" stop-opacity="0"/></linearGradient>
+ <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#40eec5" stroke-opacity=".11" stroke-width="1"/></pattern>
+ <pattern id="scan" width="3" height="6" patternUnits="userSpaceOnUse"><path d="M0 0H3" stroke="#4affd4" stroke-opacity=".08"/></pattern>
+ <filter id="glow"><feGaussianBlur stdDeviation="7"/></filter>
+ <clipPath id="screen"><rect x="62" y="1040" width="956" height="470" rx="8"/></clipPath>
+</defs>
+<rect width="1080" height="1920" fill="url(#bg)"/><rect width="1080" height="1920" fill="url(#grid)"/>
+<circle cx="805" cy="330" r="250" fill="url(#moon)"/><circle cx="805" cy="330" r="91" fill="#c9fff0" opacity=".82"/><circle cx="805" cy="330" r="105" fill="none" stroke="#61f5d0" stroke-opacity=".55"/>
+<g fill="none" stroke="#54e8cb" stroke-opacity=".28"><path d="M0 620Q170 592 320 624T650 620T1080 610"/><path d="M0 655Q180 628 370 660T760 650T1080 646"/><path d="M0 694Q210 667 430 700T820 686T1080 690"/><path d="M0 730Q220 710 420 738T850 728T1080 728"/></g>
+<path d="M0 785L95 762 158 776 231 748 300 775 382 744 456 777 540 749 625 777 720 744 808 777 892 752 980 778 1080 756V1120H0Z" fill="url(#sea)"/>
+<g stroke="#38eec0" stroke-opacity=".45" fill="none"><path d="M0 830Q140 805 280 835T560 828T840 832T1080 820"/><path d="M0 870Q160 850 330 876T660 868T1080 867"/><path d="M0 920Q190 900 390 925T770 916T1080 921"/><path d="M0 972Q180 952 390 979T820 970T1080 975"/></g>
+<path d="M0 1015L1080 970V1920H0Z" fill="#01060b" opacity=".9"/>
+<g transform="translate(540 790)">
+ <ellipse rx="260" ry="52" fill="#27edbd" opacity=".18" filter="url(#glow)"/>
+ <path d="M-255 13L-198 20 -142 8 -85 12 -35 -3 110 -3 155 9 215 15 250 9 224 36 170 44 -180 44Z" fill="#07171d" stroke="#4af3c8" stroke-width="2"/>
+ <path d="M-68 -5L-52 -43 -8 -43 6 -80 62 -80 79 -43 105 -43 126 -5Z" fill="#0a232b" stroke="#65f8d4" stroke-width="2"/>
+ <path d="M18 -80V-121M8 -108H30M18 -121L7 -112M18 -121L29 -112" fill="none" stroke="#76ffdb" stroke-width="3"/>
+ <rect x="-36" y="-31" width="14" height="11" fill="#6bffe0"/><rect x="-14" y="-31" width="14" height="11" fill="#6bffe0"/><rect x="8" y="-31" width="14" height="11" fill="#6bffe0"/>
+ <path d="M-255 48L-310 65M250 14L300 2M-175 47L-205 61M168 44L198 59" stroke="#38d8b2" stroke-width="2" opacity=".7"/>
+</g>
+<g font-family="monospace" fill="#65ffd5">
+ <text x="68" y="86" font-size="18" letter-spacing="5">WEYLAND–YUTANI / COLONIAL SYSTEMS</text><text x="1012" y="86" font-size="16" text-anchor="end">SECURE / 07</text>
+ <path d="M66 111H1014" stroke="#43f5c6" stroke-opacity=".65"/>
+ <text x="68" y="190" font-size="88" font-weight="bold" letter-spacing="13">VIGIL</text><text x="72" y="228" font-size="18" letter-spacing="6">DEEPWATER COMMAND SYSTEM</text>
+ <text x="72" y="272" font-size="14" fill="#a1d9d1" letter-spacing="2">REGIONAL SURVEILLANCE // SENSOR FUSION // CONTACT ANALYSIS</text>
+ <path d="M68 302H490" stroke="#4df5cb" stroke-width="2"/><path d="M68 312H300" stroke="#4df5cb" stroke-opacity=".35"/>
+</g>
+<g transform="translate(840 570)" fill="none" stroke="#45f5c8">
+ <circle r="140" stroke-opacity=".4"/><circle r="104" stroke-opacity=".32"/><circle r="68" stroke-opacity=".34"/><circle r="30" stroke-opacity=".4"/>
+ <path d="M-140 0H140M0-140V140M-99-99L99 99M-99 99L99-99" stroke-opacity=".28"/>
+ <path d="M0 0L93 -104A140 140 0 0 1 137 29Z" fill="#2ef5c1" fill-opacity=".17" stroke-opacity=".7"/>
+ <circle cx="58" cy="-36" r="5" fill="#7bffe0"/><circle cx="-75" cy="58" r="4" fill="#7bffe0"/><circle cx="19" cy="90" r="3" fill="#7bffe0"/>
+ <text x="0" y="-158" fill="#79ffdd" stroke="none" text-anchor="middle" font-family="monospace" font-size="13" letter-spacing="2">PASSIVE SONAR</text>
+</g>
+<g font-family="monospace" fill="#61f7d0" font-size="13">
+ <text x="68" y="1010" letter-spacing="3">TACTICAL SENSOR SUITE / LIVE SIMULATION</text>
+ <rect x="62" y="1040" width="956" height="470" rx="8" fill="#020d12" stroke="#2af4bd" stroke-opacity=".7"/>
+ <g clip-path="url(#screen)"><rect x="62" y="1040" width="956" height="470" fill="url(#grid)"/>
+ <path d="M62 1118H1018M62 1196H1018M62 1274H1018M62 1352H1018M62 1430H1018M220 1040V1510M378 1040V1510M536 1040V1510M694 1040V1510M852 1040V1510" stroke="#48f4c6" stroke-opacity=".15"/>
+ <text x="86" y="1080" font-size="15" letter-spacing="2">SONAR WATERFALL / CONTACT HISTORY</text>
+ <g fill="#36f8bf" opacity=".7"><rect x="88" y="1120" width="820" height="4"/><rect x="88" y="1141" width="540" height="3"/><rect x="88" y="1162" width="720" height="3"/><rect x="88" y="1183" width="400" height="4"/><rect x="88" y="1204" width="870" height="3"/><rect x="88" y="1225" width="620" height="4"/><rect x="88" y="1246" width="760" height="3"/><rect x="88" y="1267" width="340" height="3"/><rect x="88" y="1288" width="690" height="4"/><rect x="88" y="1309" width="890" height="3"/><rect x="88" y="1330" width="500" height="4"/></g>
+ <g fill="none" stroke="#a1ffe8" stroke-width="2"><path d="M86 1382L142 1382 156 1368 170 1392 194 1382 224 1382 245 1359 260 1395 282 1382 340 1382 360 1370 382 1382 434 1382 454 1350 473 1400 490 1382 552 1382 576 1367 592 1382 654 1382 677 1356 698 1394 716 1382 774 1382 798 1364 817 1382 900 1382 921 1371 946 1382 988 1382"/></g>
+ <text x="86" y="1464" font-size="12" fill="#9fcfc5">BEARING 327° // CLASSIFICATION UNRESOLVED // TRACK 04</text></g>
+ <path d="M62 1535H1018" stroke="#39eebf" stroke-opacity=".7"/>
+ <text x="68" y="1580" font-size="16" letter-spacing="3">OPERATIONAL STATUS</text>
+ <text x="68" y="1620" fill="#b2d7d0" font-size="13">ACOUSTIC CONTACTS</text><text x="1010" y="1620" text-anchor="end" font-size="13">04 / TRACKED</text>
+ <path d="M68 1640H1010" stroke="#4af5c7" stroke-opacity=".25"/><text x="68" y="1676" fill="#b2d7d0" font-size="13">REGIONAL MAP</text><text x="1010" y="1676" text-anchor="end" font-size="13">BATHYMETRY / ONLINE</text>
+ <path d="M68 1696H1010" stroke="#4af5c7" stroke-opacity=".25"/><text x="68" y="1732" fill="#b2d7d0" font-size="13">COMMAND LINK</text><text x="1010" y="1732" text-anchor="end" font-size="13">ENCRYPTED / STANDBY</text>
+ <path d="M68 1762H1010" stroke="#4af5c7" stroke-opacity=".7"/>
+ <text x="68" y="1810" font-size="28" font-weight="bold" letter-spacing="4">SOME THREATS AREN’T HUMAN.</text><text x="68" y="1850" font-size="12" letter-spacing="3" fill="#9bcfc3">VIGIL // SEE THE SIGNAL. HOLD THE LINE.</text>
+ <text x="1010" y="1890" text-anchor="end" font-size="11" fill="#508c81">CORELESS-64 / MOBILE WALLPAPER / 1080 × 1920</text>
+</g><rect width="1080" height="1920" fill="url(#scan)"/><rect x="24" y="24" width="1032" height="1872" rx="8" fill="none" stroke="#3df6c5" stroke-opacity=".45" stroke-width="2"/>
+</svg>
