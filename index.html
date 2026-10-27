@@ -4475,7 +4475,7 @@ function draw(){
      ctx.fillStyle='#9bbca8';ctx.font='9px Courier New';ctx.fillText(String(t.modality||t.source||'REGIONAL').toUpperCase(),477,y+11);
      ctx.fillText('Δ '+item.dist.toFixed(3),760,y);
    });
-   if(!trackItems.length){ctx.fillStyle='#779b85';ctx.font='10px Courier New';ctx.fillText('NO POSITIONED TRACKS',468,133);ctx.fillText('Measurement-only sensor values remain visible',468,153);ctx.fillText('in their dedicated station, but cannot be steered to',468,171);ctx.fillText('until they have a normalized position.',468,189);}
+   if(!trackItems.length){ctx.fillStyle='#779b85';ctx.font='10px Courier New';ctx.fillText('NO POSITIONED TRACKS',468,133);ctx.fillText('Measurement-only sensor values remain in their station',468,153);ctx.fillText('but cannot be steered to without a normalized position.',468,171);}
    drawFooter('SHARED TRACK VIEW  // SELECT TRACK IN CONTROL ROW');
  }else if(isRange){
    panel(10,43,w-20,270,'RANGE / DEPTH / SPATIAL MEASUREMENT INPUT');
@@ -4499,15 +4499,6 @@ function draw(){
      ctx.fillText('Normalized map coordinates are not converted to metres.',26,148);
    }
    drawFooter(measurementRows.length?'RECEIVED MEASUREMENTS  // CALIBRATION UNVERIFIED':'NO MEASUREMENT FEED  // NO INVENTED RANGE');
-
-   ctx.strokeStyle='#164a35';ctx.lineWidth=1;
-   for(var gx=20;gx<w;gx+=30){ctx.beginPath();ctx.moveTo(gx,70);ctx.lineTo(gx,296);ctx.stroke();}
-   for(var gy=70;gy<296;gy+=20){ctx.beginPath();ctx.moveTo(10,gy);ctx.lineTo(w-10,gy);ctx.stroke();}
-   ctx.strokeStyle='#77d8ff';ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(24,h-54);ctx.lineTo(w-24,74);ctx.stroke();
-   ctx.strokeRect(w*.58,h*.34,90,74);ctx.beginPath();ctx.moveTo(w*.58+45,h*.34-12);ctx.lineTo(w*.58+45,h*.34+86);ctx.moveTo(w*.58-12,h*.34+37);ctx.lineTo(w*.58+102,h*.34+37);ctx.stroke();
-   ctx.fillStyle='#b8e8d0';ctx.font='bold 14px Courier New';ctx.fillText('RANGE SOLUTION  //  '+(120+Math.round(pulse*8))+' m',26,92);
-   ctx.fillStyle='#6eae8e';ctx.font='10px Courier New';ctx.fillText('TRAINING ESTIMATE  /  SYNTHETIC RETURN',26,114);
-   drawFooter('SIMULATED RANGE DATA');
  }else{
    panel(10,43,w-20,270,'UNIT / NAVIGATION / EQUIPMENT TELEMETRY');
    var telemetryRows=feedObservations.slice(0,7);
@@ -4531,12 +4522,6 @@ function draw(){
      ctx.fillStyle='#527f67';ctx.fillText((vals.join(' / ')||String(o.measurement_status||o.classification||'CONTACT')).slice(0,43),w*.63,121+i*23);
    });
    drawFooter(feedObservations.length?'SHARED SENSOR INPUTS  // VALUES NOT AUTOMATICALLY CALIBRATED':'SIMULATION TELEMETRY  // AWAITING EXTERNAL VALUES');
- }
-   ctx.fillStyle='#b8e8d0';ctx.font='12px Courier New';
-   var lines=['UNIT STATUS : NOMINAL','SIMULATION TELEMETRY : ACTIVE','POSITION / ATTITUDE : TRACKED','LINK QUALITY : '+(92+Math.round(Math.sin(frame/8)*5))+'%','SENSOR OUTPUT : SIMULATED'];
-   lines.forEach(function(line,i){ctx.fillText(line,28,91+i*31);});
-   ctx.strokeStyle='#246347';ctx.strokeRect(w*.63,73,w*.3,207);ctx.beginPath();ctx.moveTo(w*.65,cy);ctx.lineTo(w*.91,cy);ctx.moveTo(w*.78,84);ctx.lineTo(w*.78,h-70);ctx.stroke();
-   drawFooter('TRAINING SIMULATION / SENSOR TELEMETRY');
  }
  frame++;
 }
