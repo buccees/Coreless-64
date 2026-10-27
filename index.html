@@ -3317,11 +3317,18 @@ FIRE CONTROL: STANDBY</div>
       Array.from(source.options).forEach(function(o){destination.add(new Option(o.textContent,o.value));});
       if(Array.from(destination.options).some(function(o){return o.value===old;}))destination.value=old;
     }
+    function syncWeaponChoices(){
+      var vessel=regionalTrainingFleet.find(function(item){return item.id===ship.value;});
+      var allowed=vessel&&Array.isArray(vessel.weaponSystems)?vessel.weaponSystems:(vessel&&vessel.shipClass==='submarine'?['torpedo','missile']:['main_battery','torpedo','missile']);
+      Array.from(weapon.options).forEach(function(option){option.disabled=allowed.indexOf(option.value)<0;});
+      var current=weapon.options[weapon.selectedIndex];
+      if(current&&current.disabled){weapon.value=allowed[0]||'main_battery';authorizedTarget='';authorizationId='';window.vigilFireControlAuthorizedTarget='';}
+    }
     function syncControls(){
       mirrorSelect('vigil-regional-ship',ship);mirrorSelect('vigil-regional-target',target);
       if(!ship.value&&ship.options.length)ship.selectedIndex=0;
       if(!target.value)lockedTarget='';
-      drawSight();updateFireControl();
+      syncWeaponChoices();drawSight();updateFireControl();
     }
     function setStep(next){
       step=next;document.querySelectorAll('.vigil-order-step').forEach(function(el){var n=Number(el.dataset.step);el.removeAttribute('aria-current');el.dataset.state=n<step?'complete':n===step?'active':'pending';if(n===step)el.setAttribute('aria-current','step');});
