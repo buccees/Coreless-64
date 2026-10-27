@@ -4458,10 +4458,6 @@ function draw(){
    // of view. Without an optical feed, local exercise tracks remain useful camera targets.
    var ownX=statusTrack?Number(statusTrack.x):NaN,ownY=statusTrack?Number(statusTrack.y):NaN,ownHeading=statusTrack?Number(statusTrack.heading_deg)||0:0;
    var hfov=Math.max(10,70/cameraState.zoom),visualTracks=0,selectedVisible=false;
-   if(cameraState.hold){
-     var holdTarget=selectedTrack(),holdBearing=bearingToTrack(holdTarget,statusTrack);
-     if(holdBearing!==null){var wantedPan=Math.max(-85,Math.min(85,signedDegrees(holdBearing-ownHeading)));cameraState.pan=Math.max(-85,Math.min(85,cameraState.pan+signedDegrees(wantedPan-cameraState.pan)*.22));}
-   }
    targets.forEach(function(t){
      var dx=Number(t.x)-ownX,dy=Number(t.y)-ownY;
      if(!Number.isFinite(dx)||!Number.isFinite(dy))return;
@@ -4679,7 +4675,11 @@ display.querySelector('#vigil-unit-clear-track').addEventListener('click',functi
 });
 function adjustCamera(key,amount,min,max,label){
  cameraState[key]=Math.max(min,Math.min(max,cameraState[key]+amount));
- if(key==='pan'||key==='tilt')cameraState.hold=false;
+ if(key==='pan'||key==='tilt'){
+   cameraState.hold=false;
+   var holdButton=display.querySelector('#vigil-camera-track-hold');
+   if(holdButton){holdButton.setAttribute('aria-pressed','false');holdButton.textContent='TRACK HOLD: OFF';}
+ }
  setCommandMessage(label+' // '+(cameraState[key]>=0&&key!=='zoom'?'+':'')+cameraState[key].toFixed(key==='zoom'?1:0)+(key==='zoom'?'×':'°'));draw();
 }
 display.querySelector('#vigil-camera-pan-left').addEventListener('click',function(){adjustCamera('pan',-5,-85,85,'GIMBAL PAN');});
