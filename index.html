@@ -2735,15 +2735,18 @@ FIRE CONTROL: STANDBY</div>
   ];
   var regionalTrainingFleetDemo=regionalTrainingFleet.map(function(ship){return Object.assign({},ship);});
 
-  window.vigilGetFireControlState=function(shipId,targetId){
+  window.vigilGetFireControlState=function(shipId,targetId,weaponSystem){
+    weaponSystem=weaponSystem||'main_battery';
     var shooter=regionalTrainingFleet.find(function(s){return s.id===shipId&&s.side==='friendly'&&s.afloat!==false;});
     var target=regionalTrainingFleet.find(function(s){return s.id===targetId&&s.side==='contact'&&s.afloat!==false;});
     if(!shooter||!target)return{ok:false,reason:'Select a controlled vessel and an authorized visible contact.'};
     var dx=target.x-shooter.x,dy=target.y-shooter.y,distance=Math.hypot(dx,dy);
+    var profiles={main_battery:{range:shooter.weaponRange||.23,damage:shooter.weaponDamage||2,reload:shooter.weaponReloadSeconds||8,label:'MAIN BATTERY'},torpedo:{range:Math.max(shooter.weaponRange||.23,.42),damage:4,reload:14,label:'TORPEDO'},missile:{range:Math.max(shooter.weaponRange||.23,.65),damage:3,reload:18,label:'MISSILE'}};
+    var profile=profiles[weaponSystem]||profiles.main_battery;
     var bearing=(Math.atan2(dx,-dy)*180/Math.PI+360)%360;
     var relative=((bearing-shooter.heading+540)%360)-180;
     return{ok:true,ship_id:shipId,target_id:targetId,bearing_deg:bearing,relative_bearing_deg:relative,
-      range_normalized:distance,max_range:shooter.weaponRange,within_range:distance<=shooter.weaponRange,
+      range_normalized:distance,max_range:profile.range,within_range:distance<=profile.range,weapon_system:weaponSystem,weapon_label:profile.label,weapon_damage:profile.damage,weapon_reload_seconds:profile.reload,
       heading_deg:shooter.heading,speed:shooter.speed,cooldown_remaining:shooter.weaponCooldownRemaining||0,
       hull:shooter.hull,max_hull:shooter.maxHull,target_hull:target.hull,target_max_hull:target.maxHull,
       target_afloat:target.afloat!==false,weapon_ready:(shooter.weaponCooldownRemaining||0)<=0.01};
@@ -2938,10 +2941,10 @@ FIRE CONTROL: STANDBY</div>
     regionalUiLastSnapshot=localRegionalDemoSnapshot();
     syncRegionalWeaponReadiness(regionalUiLastSnapshot);
   }
-  function applyLocalWeaponHit(shooter,target){
-    target.hull=Math.max(0,Number(target.hull||0)-Number(shooter.weaponDamage||1));
+  function applyLocalWeaponHit(shooter,target,fireState){
+    target.hull=Math.max(0,Number(target.hull||0)-Number(fireState&&fireState.weapon_damage||shooter.weaponDamage||1));
     target.afloat=target.hull>0;
-    shooter.weaponCooldownRemaining=Number(shooter.weaponReloadSeconds||5);
+    shooter.weaponCooldownRemaining=Number(fireState&&fireState.weapon_reload_seconds||shooter.weaponReloadSeconds||5);
   }
   document.getElementById('vigil-regional-ship').addEventListener('change',function(){regionalSpeedInputDirty=false;syncRegionalSpeedInput(regionalUiLastSnapshot);syncRegionalWeaponReadiness(regionalUiLastSnapshot);});
   document.getElementById('vigil-regional-speed').addEventListener('input',function(){regionalSpeedInputDirty=true;});
@@ -3026,9 +3029,10 @@ FIRE CONTROL: STANDBY</div>
       if(!shooter||shooter.side!=='friendly'){regionalUiStatus('LOCAL WEAPONS // Select the friendly DDG-51.',true);return;}
       if(!target||target.afloat===false){regionalUiStatus('TARGET UNAVAILABLE // No afloat target selected.',true);return;}
       if(shooter.weaponCooldownRemaining>0.01){regionalUiStatus('RELOADING // '+shooter.weaponCooldownRemaining.toFixed(1)+'s remaining.',true);return;}
+      var fireState=window.vigilGetFireControlState(shipId,targetId,window.vigilPendingWeaponSystem||'main_battery');
       var distance=Math.hypot(target.x-shooter.x,target.y-shooter.y);
-      if(distance>shooter.weaponRange){regionalUiStatus('NO FIRE SOLUTION // RANGE '+distance.toFixed(3)+' / MAX '+shooter.weaponRange.toFixed(3),true);return;}
-      var damage=Number(shooter.weaponDamage||1);applyLocalWeaponHit(shooter,target);
+      if(!fireState.ok||distance>fireState.max_range){regionalUiStatus('NO FIRE SOLUTION // RANGE '+distance.toFixed(3)+' / MAX '+Number(fireState.max_range||0).toFixed(3),true);return;}
+      var damage=Number(fireState.weapon_damage||1);applyLocalWeaponHit(shooter,target,fireState);
       var localEncounter={source:'local-training',shooter_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',authorization_id:window.vigilPendingAuthorizationId||'LOCAL-TRAINING-CO',damage:damage,hull_after:target.hull,sunk:!target.afloat,occurred_at:new Date().toISOString()};
       window.dispatchEvent(new CustomEvent('vigil:regional-encounter',{detail:localEncounter}));
       populateLocalRegionalCommandChoices();renderBathymetry(lastObservationData);
@@ -3292,17 +3296,17 @@ FIRE CONTROL: STANDBY</div>
       ctx.fillStyle='#72d9a8';ctx.font='12px monospace';ctx.fillText(lockedTarget?'TARGET LOCK // '+lockedTarget:'DIRECTOR STANDBY',12,h-14);
     }
     function updateFireControl(){
-      var state=window.vigilGetFireControlState?window.vigilGetFireControlState(ship.value,target.value):{ok:false,reason:'Fire-control state unavailable.'};
+      var state=window.vigilGetFireControlState?window.vigilGetFireControlState(ship.value,target.value,weapon.value):{ok:false,reason:'Fire-control state unavailable.'};
       drawSight(state);
       if(!state.ok){document.getElementById('vigil-ops-fire').disabled=true;readout.textContent='NO VALID TRACK\nTARGET: '+(target.value||'NONE')+'\nFIRE CONTROL: STANDBY\n'+(state.reason||'Awaiting authorized target');return;}
       var locked=lockedTarget===target.value,authorized=authorizedTarget===target.value;
-      readout.textContent='OWN SHIP: '+state.ship_id+' // HDG '+state.heading_deg.toFixed(1)+'° // SPEED '+state.speed.toFixed(3)+'\nTARGET TRACK: '+state.target_id+' // '+(locked?'LOCKED':'TRACKED / NOT LOCKED')+'\nBEARING: '+state.bearing_deg.toFixed(1)+'° // RELATIVE: '+state.relative_bearing_deg.toFixed(1)+'°\nRANGE: '+state.range_normalized.toFixed(3)+' / MAX '+state.max_range.toFixed(3)+' // '+(state.within_range?'IN RANGE':'OUT OF RANGE')+'\nWEAPON STATION: '+weapon.value.toUpperCase()+' // '+(state.weapon_ready?'READY':'RELOADING '+state.cooldown_remaining.toFixed(1)+'s')+'\nFIRE SOLUTION: '+(locked&&state.within_range&&state.weapon_ready?'READY':'NOT READY')+'\nCOMMAND AUTHORITY: '+(authorized?'GRANTED':'NOT GRANTED')+'\nTARGET HULL: '+state.target_hull+'/'+state.target_max_hull;
+      readout.textContent='OWN SHIP: '+state.ship_id+' // HDG '+state.heading_deg.toFixed(1)+'° // SPEED '+state.speed.toFixed(3)+'\nTARGET TRACK: '+state.target_id+' // '+(locked?'LOCKED':'TRACKED / NOT LOCKED')+'\nBEARING: '+state.bearing_deg.toFixed(1)+'° // RELATIVE: '+state.relative_bearing_deg.toFixed(1)+'°\nRANGE: '+state.range_normalized.toFixed(3)+' / MAX '+state.max_range.toFixed(3)+' // '+(state.within_range?'IN RANGE':'OUT OF RANGE')+'\nWEAPON STATION: '+state.weapon_label+' // DAMAGE '+state.weapon_damage+' // '+(state.weapon_ready?'READY':'RELOADING '+state.cooldown_remaining.toFixed(1)+'s')+'\nFIRE SOLUTION: '+(locked&&state.within_range&&state.weapon_ready?'READY':'NOT READY')+'\nCOMMAND AUTHORITY: '+(authorized?'GRANTED':'NOT GRANTED')+'\nTARGET HULL: '+state.target_hull+'/'+state.target_max_hull;
       document.getElementById('vigil-ops-fire').disabled=!(locked&&authorized&&state.within_range&&state.weapon_ready);
       status.textContent=locked&&authorized&&state.within_range&&state.weapon_ready?'AUTHORIZED ORDER READY // '+target.value:'TRACK '+target.value+' // '+(authorized?'AUTHORIZATION GRANTED':'AWAITING COMMAND AUTHORIZATION');
     }
     document.getElementById('vigil-ops-lock').addEventListener('click',function(){
       if(!ship.value||!target.value){readout.textContent='LOCK DENIED // SELECT OWN SHIP AND AUTHORIZED CONTACT FIRST.';return;}
-      var state=window.vigilGetFireControlState(ship.value,target.value);
+      var state=window.vigilGetFireControlState(ship.value,target.value,weapon.value);
       if(!state.ok){readout.textContent='LOCK DENIED // '+(state.reason||'No valid track');return;}
       lockedTarget=target.value;authorizedTarget='';authorizationId='';window.vigilFireControlLockedTarget=lockedTarget;window.vigilFireControlAuthorizedTarget='';
       document.getElementById('vigil-ops-target').value=lockedTarget;
@@ -3312,7 +3316,7 @@ FIRE CONTROL: STANDBY</div>
     document.getElementById('vigil-ops-aim').addEventListener('click',function(){updateFireControl();if(lockedTarget===target.value)setStep(3);});
     document.getElementById('vigil-ops-clear-lock').addEventListener('click',function(){lockedTarget='';authorizedTarget='';authorizationId='';window.vigilFireControlLockedTarget='';window.vigilFireControlAuthorizedTarget='';setStep(2);updateFireControl();status.textContent='LOCK BROKEN // AUTHORIZATION CANCELLED // TRACK RETAINED';});
     document.getElementById('vigil-ops-authorize').addEventListener('click',async function(){
-      var state=window.vigilGetFireControlState?window.vigilGetFireControlState(ship.value,target.value):{ok:false};
+      var state=window.vigilGetFireControlState?window.vigilGetFireControlState(ship.value,target.value,weapon.value):{ok:false};
       if(lockedTarget!==target.value||!state.ok||!state.within_range||!state.weapon_ready){readout.textContent='AUTHORIZATION REQUEST DENIED // LOCK A VALID TRACK AND ESTABLISH A READY FIRING SOLUTION FIRST.';return;}
       var button=this;button.disabled=true;readout.textContent='ORDER QUEUED // REQUESTING COMMAND AUTHORITY…';
       try{
