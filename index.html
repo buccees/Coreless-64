@@ -4199,7 +4199,19 @@ function sensorModalitiesForMode(lower){
  return null;
 }
 function updateTrackCandidates(regionalContacts,snapshot){
- var candidates=[],seen=Object.create(null),measurementOnlyIds=Object.create(null),ownId=({ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'})[unitId];
+ var candidates=[],seen=Object.create(null),measurementOnlyIds=Object.create(null),sensorPositionGroups=Object.create(null),sensorPositionConflicts=Object.create(null),ownId=({ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'})[unitId];
+ // Flag same-ID sensor fixes that disagree by more than 0.01 normalized map units (1% of the map span).
+ (snapshot&&Array.isArray(snapshot.observations)?snapshot.observations:[]).forEach(function(o){
+   if(!o||o.feed_stale||!o.object_id||!Array.isArray(o.normalized_position)||o.normalized_position.length<2||!Number.isFinite(Number(o.normalized_position[0]))||!Number.isFinite(Number(o.normalized_position[1])))return;
+   var id=String(o.object_id),key=id+'|'+String(o.sensor_id||o.modality||'SENSOR');
+   if(!sensorPositionGroups[id])sensorPositionGroups[id]=[];
+   if(!sensorPositionGroups[id].some(function(p){return p.key===key;}))sensorPositionGroups[id].push({key:key,x:Number(o.normalized_position[0]),y:Number(o.normalized_position[1]),modality:String(o.modality||'SENSOR').toUpperCase()});
+ });
+ Object.keys(sensorPositionGroups).forEach(function(id){
+   var positions=sensorPositionGroups[id],maxDelta=0;
+   for(var i=0;i<positions.length;i++)for(var j=i+1;j<positions.length;j++)maxDelta=Math.max(maxDelta,Math.hypot(positions[i].x-positions[j].x,positions[i].y-positions[j].y));
+   if(maxDelta>0.01)sensorPositionConflicts[id]={delta:maxDelta,modalities:Array.from(new Set(positions.map(function(p){return p.modality;})))};
+ });
  // A measurement-only observation must not inherit a regional contact's position just because IDs collide.
  (snapshot&&Array.isArray(snapshot.observations)?snapshot.observations:[]).forEach(function(o){
    if(!o||o.feed_stale)return;
@@ -4214,7 +4226,16 @@ function updateTrackCandidates(regionalContacts,snapshot){
  (snapshot&&Array.isArray(snapshot.observations)?snapshot.observations:[]).forEach(function(o){
    if(!o||o.feed_stale||!o.object_id||!Array.isArray(o.normalized_position)||o.normalized_position.length<2||!Number.isFinite(Number(o.normalized_position[0]))||!Number.isFinite(Number(o.normalized_position[1])))return;
    var id=String(o.object_id);if(id===ownId)return;
-   var modality=String(o.modality||'SENSOR').toUpperCase(),existingIndex=candidates.findIndex(function(t){return t.id===id;});
+   var modality=String(o.modality||'SENSOR').toUpperCase(),existingIndex=candidates.findIndex(function(t){return t.id===id;}),conflict=sensorPositionConflicts[id];
+   if(conflict){
+     if(existingIndex>=0){
+       var regional=candidates[existingIndex];
+       regional.label=id+' // SENSOR CONFLICT + REGIONAL';regional.source='sensor-conflict+regional';
+       regional.conflict=conflict;regional.modalities=conflict.modalities;
+     }
+     // Never select an arbitrary sensor position when fresh feeds disagree.
+     return;
+   }
    if(existingIndex>=0){
      var existing=candidates[existingIndex];
      // Same ID from both sources: prefer the live sensor fix, but retain its regional-map association explicitly.
@@ -4638,16 +4659,21 @@ function draw(){
      var t=item.target,y=125+i*27,col=t.id===cameraState.selectedTrackId?'#ffd47a':t.side==='friendly'?'#62b9ff':'#e6cd85';
      ctx.fillStyle=col;ctx.beginPath();ctx.arc(466,y-3,3,0,Math.PI*2);ctx.fill();
      ctx.fillStyle=col;ctx.font='bold 10px Courier New';ctx.fillText(t.id.slice(0,24),477,y);
-     ctx.fillStyle='#9bbca8';ctx.font='9px Courier New';ctx.fillText((String(t.source||'regional').toLowerCase()==='regional'?'REGIONAL POSITION':String(t.source||'').toLowerCase()==='sensor+regional'?'SENSOR FIX + REGIONAL TRACK':String(t.modality||t.source||'SENSOR').toUpperCase()+' ESTIMATE').slice(0,34),477,y+11);
+     ctx.fillStyle='#9bbca8';ctx.font='9px Courier New';ctx.fillText((String(t.source||'regional').toLowerCase()==='regional'?'REGIONAL POSITION':String(t.source||'').toLowerCase()==='sensor+regional'?'SENSOR FIX + REGIONAL TRACK':String(t.source||'').toLowerCase()==='sensor-conflict+regional'?'SENSOR DISAGREEMENT // REGIONAL REF':String(t.modality||t.source||'SENSOR').toUpperCase()+' ESTIMATE').slice(0,34),477,y+11);
      ctx.fillText('MAP Δ '+item.dist.toFixed(3),748,y);
    });
+   var positionConflicts=Object.keys(sensorPositionConflicts).map(function(id){return {id:id,conflict:sensorPositionConflicts[id]};});
+   positionConflicts.slice(0,2).forEach(function(item,i){
+     var y=272+i*19;ctx.fillStyle='#ff9b86';ctx.font='bold 9px Courier New';
+     ctx.fillText(('POSITION CONFLICT '+item.id+' // Δ '+item.conflict.delta.toFixed(3)+' // '+item.conflict.modalities.join('/')).slice(0,62),463,y);
+   });
    var measurementOnly=feedObservations.filter(function(o){var p=o&&o.normalized_position,hasPosition=Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]));return !hasPosition&&['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value'].some(function(k){return o[k]!==null&&o[k]!==undefined&&o[k]!==''&&Number.isFinite(Number(o[k]));});});
-   measurementOnly.slice(0,2).forEach(function(o,i){
+   measurementOnly.slice(0,Math.max(0,2-positionConflicts.length)).forEach(function(o,i){
      var y=272+i*19;ctx.fillStyle='#c7a6ff';ctx.font='9px Courier New';
      var value=['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value'].filter(function(k){return o[k]!==null&&o[k]!==undefined;}).map(function(k){return k+'='+Number(o[k]).toFixed(1);}).join(' / ');
      ctx.fillText('MEAS '+String(o.sensor_id||o.modality||'SENSOR').slice(0,18)+'  '+value.slice(0,35),463,y);
    });
-   if(!trackItems.length&&!measurementOnly.length){ctx.fillStyle='#779b85';ctx.font='10px Courier New';ctx.fillText('NO POSITIONED TRACKS OR SENSOR VALUES',468,133);ctx.fillText('Select a sensor sweep or connect a feed.',468,153);}
+   if(!trackItems.length&&!measurementOnly.length&&!positionConflicts.length){ctx.fillStyle='#779b85';ctx.font='10px Courier New';ctx.fillText('NO POSITIONED TRACKS OR SENSOR VALUES',468,133);ctx.fillText('Select a sensor sweep or connect a feed.',468,153);}
    drawFooter('SHARED TRACK VIEW  // SELECT TRACK IN CONTROL ROW');
  }else if(isRange){
    panel(10,43,w-20,270,'RANGE / DEPTH / SPATIAL MEASUREMENT INPUT');
