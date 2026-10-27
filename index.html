@@ -2602,11 +2602,19 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   function recordReconObservation(data){
     data.objects.forEach(function(object){
       var track=reconTracks[object.object_id];
-      if(!track)track=reconTracks[object.object_id]={observations:0,sumPosition:[0,0,0],last:null};
-      var position=object.normalized_position||[0,0,0];
-      for(var axis=0;axis<3;axis++)track.sumPosition[axis]+=Number(position[axis]||0);
+      if(!track)track=reconTracks[object.object_id]={observations:0,positionCount:0,sumPosition:[0,0,0],last:null};
+      if(track.positionCount===undefined)track.positionCount=track.observations||0;
+      var position=object.normalized_position;
+      var hasPosition=Array.isArray(position)&&position.length>=2&&Number.isFinite(Number(position[0]))&&Number.isFinite(Number(position[1]));
       track.observations++;
-      object.normalized_position=track.sumPosition.map(function(total){return total/track.observations;});
+      if(hasPosition){
+        for(var axis=0;axis<3;axis++)track.sumPosition[axis]+=axis<2?Number(position[axis]):(Number.isFinite(Number(position[axis]))?Number(position[axis]):0);
+        track.positionCount++;
+        object.normalized_position=track.sumPosition.map(function(total){return total/track.positionCount;});
+      }else{
+        // A new measurement can add evidence without creating a zero-coordinate position fix.
+        object.normalized_position=null;
+      }
       object.uncertainty_m=Number((Number(object.uncertainty_m||0)/Math.sqrt(track.observations)).toFixed(2));
       object.observation_count=track.observations;
       track.last=object;
@@ -2680,7 +2688,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     lastObservationData.metadata=Object.assign({},lastObservationData.metadata,{focused_contact_id:contactId,observation_type:'focused-follow-up',requested_by:requestedBy,request_id:requestId,generated_at:fresh.metadata.generated_at});
     observationCount++;
     renderReconContacts(lastObservationData);updateMetrics();
-    if(detail){var p=observation.normalized_position||[];detail.textContent='CONTACT EVIDENCE // FOCUSED FOLLOW-UP RECEIVED\nTRACK ID: '+contactId+'\nREQUESTED BY: '+requestedBy.toUpperCase()+'\nSENSOR: '+(observation.sensor_ids||[]).join(', ')+'\nMODALITY: '+(observation.modalities||[]).join(', ')+'\nFUSED NORMALIZED ESTIMATE: '+Number(p[0]).toFixed(3)+', '+Number(p[1]).toFixed(3)+'\nPOSITION UNCERTAINTY: ±'+observation.uncertainty_m+' m\nOBSERVATIONS IN TRACK: '+observation.observation_count+'\nASSESSMENT: STILL UNRESOLVED // SENSOR EVIDENCE ONLY';}
+    if(detail){var p=observation.normalized_position,hasPosition=Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]));detail.textContent='CONTACT EVIDENCE // FOCUSED FOLLOW-UP RECEIVED\nTRACK ID: '+contactId+'\nREQUESTED BY: '+requestedBy.toUpperCase()+'\nSENSOR: '+(observation.sensor_ids||[]).join(', ')+'\nMODALITY: '+(observation.modalities||[]).join(', ')+'\n'+(hasPosition?'FUSED NORMALIZED ESTIMATE: '+Number(p[0]).toFixed(3)+', '+Number(p[1]).toFixed(3):'POSITION FIX: NOT AVAILABLE // MEASUREMENT-ONLY RETURN')+'\nPOSITION UNCERTAINTY: ±'+observation.uncertainty_m+' m\nOBSERVATIONS IN TRACK: '+observation.observation_count+'\nASSESSMENT: STILL UNRESOLVED // SENSOR EVIDENCE ONLY';}
     var focusedPayload=Object.assign({},lastObservationData,{objects:[observation],metadata:Object.assign({},lastObservationData.metadata)});
     renderNavalSonar(lastObservationData);if(typeof window.vigilImportScene==='function')window.vigilImportScene(focusedPayload);
     if(result)result.textContent='FOCUSED FOLLOW-UP COMPLETE // '+contactId+'\nREQUEST: '+requestId+' // REQUESTED BY: '+requestedBy.toUpperCase()+'\nNEW SENSOR RETURN FUSED WITH PRIOR OBSERVATIONS.\nVIGIL RECEIVED ONLY THE SELECTED CONTACT OBSERVATION; HIDDEN WORLD STATE WAS NOT INCLUDED.\nCLASSIFICATION REMAINS UNRESOLVED UNTIL VIGIL HAS SUFFICIENT EVIDENCE.';
