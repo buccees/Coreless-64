@@ -4374,9 +4374,11 @@ function draw(){
    var latest=new Array(bins),suppliedBins=activeWaterfallFeed&&Array.isArray(activeWaterfallFeed.waterfall_bins)?activeWaterfallFeed.waterfall_bins:null;
    for(var bi=0;bi<bins;bi++){
      var supplied=suppliedBins?Number(suppliedBins[Math.floor(bi/bins*suppliedBins.length)]):null;
-     latest[bi]=suppliedBins&&Number.isFinite(supplied)?supplied:cameraState.sensitivity*(.025+.035*(.5+.5*Math.sin(bi*1.77+frame*.12))+.025*(.5+.5*Math.sin(bi*.47+frame*.055)));
+     // External waterfall bins are measured input: never blend synthetic noise into them.
+     latest[bi]=suppliedBins&&Number.isFinite(supplied)?Math.max(0,Math.min(1,supplied)):suppliedBins?0:cameraState.sensitivity*(.025+.035*(.5+.5*Math.sin(bi*1.77+frame*.12))+.025*(.5+.5*Math.sin(bi*.47+frame*.055)));
    }
-   visibleSonar.forEach(function(item){
+   // Regional exercise contacts are synthetic. Only add them to the training waterfall.
+   if(!suppliedBins)visibleSonar.forEach(function(item){
      var bin=Math.round(item.point.bearing/360*bins)%bins;
      var strength=Math.max(.3,Math.min(.95,.9-item.point.distance*.8));
      for(var spread=-3;spread<=3;spread++){var sbn=(bin+spread+bins)%bins;latest[sbn]+=strength*Math.exp(-spread*spread*.38);}
@@ -4399,7 +4401,7 @@ function draw(){
    [0,45,90,135,180,225,270,315].forEach(function(a){ctx.fillText(String(a).padStart(3,'0')+'°',wfX+a/360*wfW-8,wfY-5);});
    ctx.fillStyle='#5b8f75';ctx.fillText('NEWER',wfX+wfW-42,wfY+10);ctx.fillText('OLDER',wfX+wfW-42,wfY+wfH-5);
    ctx.fillStyle='#8fc8a4';ctx.font='9px Courier New';ctx.fillText('RELATIVE BEARING  →',wfX,wfY+wfH+13);
-   ctx.fillStyle='#5f977c';ctx.fillText('ACOUSTIC ENERGY  //  '+visibleSonar.length+' SIMULATED RETURNS',356,302);
+   ctx.fillStyle='#5f977c';ctx.fillText(suppliedBins?'ACOUSTIC ENERGY  //  '+String(activeWaterfallFeed.sensor_id||'EXTERNAL SENSOR')+' // MEASURED BINS':'ACOUSTIC ENERGY  //  '+visibleSonar.length+' SIMULATED RETURNS',356,302);
    drawFooter((observationIsExternal&&sensorObservation.stale?'EXTERNAL DATA STALE  /  ':'')+(observationFresh?(observationIsExternal?'EXTERNAL OBSERVATIONS':'PIPELINE OBSERVATIONS'):'REGIONAL TRAINING CONTACTS')+'  //  PASSIVE DISPLAY MODEL');
  }else if(isRadar){
    panel(10,43,408,270,'01  /  PLAN POSITION INDICATOR');
