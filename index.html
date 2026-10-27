@@ -4038,9 +4038,8 @@ function draw(){
    var visibleSonar=[];
    targets.forEach(function(t){var p=targetPoint(t,cx,cy,radius,'head-up');if(!p||!p.visible)return;drawTarget(p.x,p.y,t,'sonar');visibleSonar.push({target:t,point:p});});
    if(!visibleSonar.length){ctx.fillStyle='#6aa88c';ctx.font='9px Courier New';ctx.textAlign='center';ctx.fillText('NO RETURN',cx,cy+radius*.58);ctx.textAlign='left';}
-   ctx.fillStyle='#5a9978';ctx.font='9px Courier New';ctx.fillText('REL BRG',24,300);ctx.fillText('OUTER RING  /  TRAINING RANGE',24,300);
-   ctx.fillStyle='#69b48c';ctx.font='9px Courier New';ctx.fillText('OWN HDG '+(statusTrack?String(Math.round(statusTrack.heading_deg)).padStart(3,'0')+'°':'---'),22,65);
-   ctx.fillStyle='#c0e4cd';ctx.font='bold 11px Courier New';ctx.fillText(String(visibleSonar.length).padStart(2,'0')+' RETURNS',244,65);
+   ctx.fillStyle='#5a9978';ctx.font='9px Courier New';ctx.fillText('REL BRG  /  NORMALIZED RANGE',22,301);
+   ctx.fillStyle='#69b48c';ctx.font='9px Courier New';ctx.fillText('OWN HDG '+(statusTrack?String(Math.round(statusTrack.heading_deg)).padStart(3,'0')+'°':'---')+'  //  '+String(visibleSonar.length).padStart(2,'0')+' RETURNS',184,301);
    // Build and scroll a true waterfall history: the newest acoustic scan is at the top.
    var wfX=360,wfY=80,wfW=518,wfH=197,bins=72,rows=34,cellW=wfW/bins,cellH=wfH/rows;
    var latest=new Array(bins);
@@ -4073,7 +4072,7 @@ function draw(){
  }else if(isRadar){
    panel(10,43,408,270,'01  /  PLAN POSITION INDICATOR');
    panel(428,43,462,270,'02  /  TRACK DATA');
-   var cx=214,cy=181,radius=111;
+   var cx=214,cy=181,radius=102;
    ctx.save();ctx.beginPath();ctx.arc(cx,cy,radius,0,Math.PI*2);ctx.clip();
    var rg=ctx.createRadialGradient(cx,cy,4,cx,cy,radius);rg.addColorStop(0,'#07301f');rg.addColorStop(.7,'#032016');rg.addColorStop(1,'#010806');
    ctx.fillStyle=rg;ctx.fillRect(cx-radius,cy-radius,radius*2,radius*2);
@@ -4163,7 +4162,6 @@ function draw(){
    ctx.strokeStyle='#246347';ctx.strokeRect(w*.63,73,w*.3,207);ctx.beginPath();ctx.moveTo(w*.65,cy);ctx.lineTo(w*.91,cy);ctx.moveTo(w*.78,84);ctx.lineTo(w*.78,h-70);ctx.stroke();
    drawFooter('TRAINING SIMULATION / SENSOR TELEMETRY');
  }
- ctx.fillStyle='#59bda3';ctx.font='9px Courier New';ctx.fillText('VIGIL SENSOR SUITE  /  REV 01',16,h-7);
  frame++;
 }
 function choose(sensor){
