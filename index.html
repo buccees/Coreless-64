@@ -2725,7 +2725,17 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       modalities:Array.isArray(o.modalities)?o.modalities.slice():[modality],
       sensor_ids:Array.isArray(o.sensor_ids)?o.sensor_ids.slice():[sensorId],
       side:o.side==='friendly'?'friendly':o.side==='contact'?'contact':null,
-      external_timestamp:o.external_timestamp||null
+      external_timestamp:o.external_timestamp||null,
+      range_m:Number.isFinite(Number(o.range_m))?Number(o.range_m):null,
+      bearing_deg:Number.isFinite(Number(o.bearing_deg))?Number(o.bearing_deg):null,
+      depth_m:Number.isFinite(Number(o.depth_m))?Number(o.depth_m):null,
+      temperature_c:Number.isFinite(Number(o.temperature_c))?Number(o.temperature_c):null,
+      signal_strength_db:Number.isFinite(Number(o.signal_strength_db))?Number(o.signal_strength_db):null,
+      velocity_mps:Number.isFinite(Number(o.velocity_mps))?Number(o.velocity_mps):null,
+      measurement_value:Number.isFinite(Number(o.measurement_value))?Number(o.measurement_value):null,
+      measurement_units:String(o.measurement_units||''),
+      measurement_status:String(o.measurement_status||''),
+      measurements:o.measurements&&typeof o.measurements==='object'?Object.assign({},o.measurements):null
     };});
     sensorFeedRegistry[key]={sensor_id:sensorId,modality:modality,source:source==='external'?'external':'simulation',
       received_at:Number(receivedAt)||Date.now(),objects:copied,
@@ -2759,7 +2769,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         waterfall_bins:Array.isArray(feed.waterfall_bins)?feed.waterfall_bins.slice():null,
         image_available:!!feed.image_data_url,
         objects:feed.objects.map(function(o){return Object.assign({},o,{normalized_position:o.normalized_position?o.normalized_position.slice():null,
-          modalities:o.modalities.slice(),sensor_ids:o.sensor_ids.slice()});})};
+          modalities:o.modalities.slice(),sensor_ids:o.sensor_ids.slice(),measurements:o.measurements?Object.assign({},o.measurements):null});})};
       feeds.push(copy);
       copy.objects.forEach(function(o){observations.push(Object.assign({},o,{sensor_id:feed.sensor_id,modality:feed.modality,
         source:feed.source,feed_stale:stale,feed_age_ms:age,feed_received_at:copy.received_at}));});
@@ -2795,35 +2805,47 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     if(!Array.isArray(payload.contacts)&&!imageDataUrl)throw new Error('Provide contacts[] or an image_data_url camera frame.');
     var allowedWaterfall=payload.waterfall_bins;
 
-    if(allowed.indexOf(modality)<0)throw new Error('Unsupported sensor modality: '+modality);
     var suppliedWaterfall=null;
     if(allowedWaterfall!==undefined){if(!Array.isArray(allowedWaterfall)||allowedWaterfall.length!==180)throw new Error('waterfall_bins, when supplied, must contain exactly 180 normalized energy values.');suppliedWaterfall=allowedWaterfall.map(function(v){v=Number(v);if(!Number.isFinite(v)||v<0||v>1)throw new Error('Each waterfall energy value must be between 0 and 1.');return v;});}
     var objects=(Array.isArray(payload.contacts)?payload.contacts:[]).map(function(c,index){
-      if(!c||typeof c.contact_id!=='string'||!c.contact_id.trim()||!Array.isArray(c.normalized_position)||c.normalized_position.length<2)throw new Error('Each sensor contact needs contact_id and normalized_position: [x,y].');
-      var x=Number(c.normalized_position[0]),y=Number(c.normalized_position[1]),uncertainty=Number(c.uncertainty_m||0),confidence=Number(c.confidence);
-      if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>1||y<0||y>1)throw new Error('Contact '+c.contact_id+' coordinates must be normalized to 0..1.');
+      if(!c||typeof c.contact_id!=='string'||!c.contact_id.trim())throw new Error('Each sensor contact needs contact_id.');
+      var hasPosition=Array.isArray(c.normalized_position)&&c.normalized_position.length>=2;
+      var x=hasPosition?Number(c.normalized_position[0]):NaN,y=hasPosition?Number(c.normalized_position[1]):NaN;
+      if(hasPosition&&(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>1||y<0||y>1))throw new Error('Contact '+c.contact_id+' coordinates must be normalized to 0..1.');
+      var uncertainty=Number(c.uncertainty_m||0),confidence=Number(c.confidence);
       if(!Number.isFinite(uncertainty)||uncertainty<0)throw new Error('Contact '+c.contact_id+' uncertainty_m must be a non-negative number.');
-      if(!Number.isFinite(confidence))confidence=.5;
-      confidence=Math.max(0,Math.min(1,confidence));
+      if(!Number.isFinite(confidence))confidence=.5;confidence=Math.max(0,Math.min(1,confidence));
+      var measurements=c.measurements&&typeof c.measurements==='object'?Object.assign({},c.measurements):{};
+      ['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value','measurement_units','measurement_status'].forEach(function(k){if(c[k]!==undefined)measurements[k]=c[k];});
+      if(!hasPosition&&!Object.keys(measurements).length)throw new Error('Contact '+c.contact_id+' needs normalized_position or at least one sensor measurement field.');
       return{object_id:'EXT-'+payload.sensor_id.replace(/[^a-z0-9_-]/gi,'_')+'-'+c.contact_id.replace(/[^a-z0-9_-]/gi,'_'),
-        normalized_position:[x,y,0],uncertainty_m:uncertainty,observation_count:1,
-        sensor_ids:[payload.sensor_id],modalities:[modality],independence_groups:['external-'+payload.sensor_id],
-        calibration_status:'external-unverified',calibration_ids:[],lineage_declared:false,
+        normalized_position:hasPosition?[x,y,Number.isFinite(Number(c.normalized_position[2]))?Number(c.normalized_position[2]):0]:null,
+        uncertainty_m:uncertainty,observation_count:1,sensor_ids:[payload.sensor_id],modalities:[modality],
+        independence_groups:['external-'+payload.sensor_id],calibration_status:'external-unverified',calibration_ids:[],lineage_declared:false,
         conflict:false,confidence:confidence,classification:String(c.classification||'unclassified contact'),
-        external_timestamp:String(payload.timestamp||new Date().toISOString())};
+        range_m:Number.isFinite(Number(measurements.range_m))?Number(measurements.range_m):null,
+        bearing_deg:Number.isFinite(Number(measurements.bearing_deg))?Number(measurements.bearing_deg):null,
+        depth_m:Number.isFinite(Number(measurements.depth_m))?Number(measurements.depth_m):null,
+        temperature_c:Number.isFinite(Number(measurements.temperature_c))?Number(measurements.temperature_c):null,
+        signal_strength_db:Number.isFinite(Number(measurements.signal_strength_db))?Number(measurements.signal_strength_db):null,
+        velocity_mps:Number.isFinite(Number(measurements.velocity_mps))?Number(measurements.velocity_mps):null,
+        measurement_value:Number.isFinite(Number(measurements.measurement_value))?Number(measurements.measurement_value):null,
+        measurement_units:String(measurements.measurement_units||''),measurement_status:String(measurements.measurement_status||''),
+        measurements:measurements,external_timestamp:String(payload.timestamp||new Date().toISOString())};
     });
     var data={schema_version:1,model_id:'EXTERNAL-SENSOR-ARRAY',revision:String(payload.timestamp||Date.now()),
       frame_id:'normalized-regional-map-v1',metadata:{sonar_posture:modality==='sonar'||modality==='acoustic'?'passive monitoring':modality+' sensor input',source:'external-sensor-adapter'},
       objects:objects,waterfall_bins:suppliedWaterfall,image_data_url:imageDataUrl};
     externalSensorObservationActive=true;lastObservationData=data;lastExternalObservationReceivedAt=Date.now();
     recordSensorFeed(payload.sensor_id,modality,objects,suppliedWaterfall,'external',imageDataUrl,lastExternalObservationReceivedAt);
-    renderReconContacts(data);renderBathymetry(data);renderNavalSonar(data);
+    if(objects.some(function(o){return Array.isArray(o.normalized_position); })){renderReconContacts(data);renderBathymetry(data);}
+    if(modality==='sonar'||modality==='acoustic'||modality==='proximity')renderNavalSonar(data);
+    if(typeof window.vigilGetSensorInputSnapshot==='function')window.dispatchEvent(new CustomEvent('vigil:sensor-observation',{detail:{sensor_id:payload.sensor_id,modality:modality,track_count:objects.length,timestamp:data.revision}}));
     var sourceStatus=document.getElementById('vigil-sensor-source-status');
     if(sourceStatus)sourceStatus.textContent='SENSOR INPUT: EXTERNAL '+modality.toUpperCase()+' // '+payload.sensor_id+' // '+objects.length+' TRACK(S)';
     var telemetry=document.getElementById('sim-telemetry');
     if(telemetry)telemetry.textContent='SOURCE: EXTERNAL SENSOR ADAPTER'+(suppliedWaterfall?' // ADAPTER ENERGY BINS':' // SIMULATED ACOUSTIC WATERFALL')+'\\nSENSOR: '+payload.sensor_id+' / '+modality.toUpperCase()+'\\nTRACKS: '+objects.length+'\\nCOORDINATE FRAME: NORMALIZED REGIONAL MAP\\nCALIBRATION: EXTERNAL / NOT VERIFIED';
-    window.dispatchEvent(new CustomEvent('vigil:sensor-observation',{detail:{sensor_id:payload.sensor_id,modality:modality,track_count:objects.length,timestamp:data.revision}}));
-    return{accepted:true,track_count:objects.length,revision:data.revision};
+    return{accepted:true,track_count:objects.length,revision:data.revision,modality:modality,image_received:!!imageDataUrl};
   };
   // Read-only copy of the latest accepted sensor observation for other station displays.
   window.vigilGetLatestSensorObservation=function(){
@@ -2843,7 +2865,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         external_timestamp:o.external_timestamp||null
       };}),
       waterfall_bins:Array.isArray(lastObservationData.waterfall_bins)?lastObservationData.waterfall_bins.slice():null,
-      image_data_url:typeof lastObservationData.image_data_url==='string'?lastObservationData.image_data_url:null};
+      image_available:typeof lastObservationData.image_data_url==='string'&&!!lastObservationData.image_data_url};
   };
   var sonarWaterfallHistory=[];
   function renderNavalSonar(data){
