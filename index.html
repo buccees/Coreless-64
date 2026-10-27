@@ -2608,16 +2608,17 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       var hasPosition=Array.isArray(position)&&position.length>=2&&Number.isFinite(Number(position[0]))&&Number.isFinite(Number(position[1]));
       track.observations++;
       if(hasPosition){
-        for(var axis=0;axis<3;axis++)track.sumPosition[axis]+=axis<2?Number(position[axis]):(Number.isFinite(Number(position[axis]))?Number(position[axis]):0);
+        // Keep the latest fix paired with its own uncertainty; do not average fixes
+        // across sensors or reduce uncertainty without an independence model.
         track.positionCount++;
-        object.normalized_position=track.sumPosition.map(function(total){return total/track.positionCount;});
+        object.normalized_position=[Number(position[0]),Number(position[1]),Number.isFinite(Number(position[2]))?Number(position[2]):0];
       }else{
         // A new measurement can add evidence without creating a zero-coordinate position fix.
         object.normalized_position=null;
       }
       var reportedUncertainty=object.uncertainty_m;
-      // Preserve unknown uncertainty; only reduce a valid per-observation metre estimate.
-      object.uncertainty_m=typeof reportedUncertainty==='number'&&Number.isFinite(reportedUncertainty)&&reportedUncertainty>=0?Number((reportedUncertainty/Math.sqrt(track.observations)).toFixed(2)):null;
+      // Uncertainty describes this observation; repeated reads are not assumed independent.
+      object.uncertainty_m=typeof reportedUncertainty==='number'&&Number.isFinite(reportedUncertainty)&&reportedUncertainty>=0?Number(reportedUncertainty.toFixed(2)):null;
       object.observation_count=track.observations;
       track.last=object;
     });
