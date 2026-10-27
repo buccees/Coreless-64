@@ -3780,7 +3780,26 @@ function draw(){
    for(var k=0;k<8;k++){ctx.beginPath();ctx.moveTo(k*w/8,40);ctx.lineTo(k*w/8,h-1);ctx.stroke();}
    ctx.beginPath();ctx.moveTo(1,h*.68);ctx.lineTo(w*.2,h*.65);ctx.lineTo(w*.34,h*.45);ctx.lineTo(w*.5,h*.58);ctx.lineTo(w*.72,h*.38);ctx.lineTo(w-1,h*.62);ctx.stroke();
    ctx.strokeRect(w*.43,h*.27,w*.13,h*.36);ctx.beginPath();ctx.moveTo(w*.5,h*.27-12);ctx.lineTo(w*.5,h*.27+12);ctx.moveTo(w*.43-12,h*.45);ctx.lineTo(w*.43+12,h*.45);ctx.stroke();
-   ctx.fillStyle=lower.indexOf('thermal')>=0?'#ffbd63':'#29f5b2';ctx.font='12px Courier New';ctx.fillText(lower.indexOf('thermal')>=0?'THERMAL PALETTE // SIMULATED HEAT SIGNATURES':'OPTICAL FEED // SIMULATED TRAINING SCENE',18,h-16);
+   // Visual/thermal overlays only use observations explicitly tagged optical or lidar;
+   // sonar/radar tracks are not silently presented as camera detections.
+   var visualTracks=0;
+   var visualObjects=sensorObservation&&Array.isArray(sensorObservation.objects)?sensorObservation.objects:[];
+   visualObjects.forEach(function(o){
+     var modalities=Array.isArray(o.modalities)?o.modalities:[];
+     var visual=modalities.indexOf('optical')>=0||modalities.indexOf('lidar')>=0;
+     if(!visual)return;
+     var p=o.normalized_position;if(!Array.isArray(p)||p.length<2)return;
+     var px=Number(p[0])*w,py=Number(p[1])*h;
+     if(!Number.isFinite(px)||!Number.isFinite(py)||px<0||px>w||py<35||py>h-22)return;
+     var bw=Math.max(22,Math.min(74,(Number(o.uncertainty_m)||18)*1.2)),bh=bw*1.35;
+     ctx.strokeStyle=lower.indexOf('thermal')>=0?'#ffbd63':'#29f5b2';
+     ctx.lineWidth=1.5;ctx.strokeRect(px-bw/2,py-bh/2,bw,bh);
+     ctx.fillStyle=ctx.strokeStyle;ctx.font='10px Courier New';
+     ctx.fillText(String(o.object_id||'VISUAL TRACK')+' '+Math.round(Math.max(0,Math.min(1,Number(o.confidence)||0))*100)+'%',px-bw/2,py-bh/2-4);
+     visualTracks++;
+   });
+   ctx.fillStyle=lower.indexOf('thermal')>=0?'#ffbd63':'#29f5b2';ctx.font='12px Courier New';
+   ctx.fillText((lower.indexOf('thermal')>=0?'THERMAL VIEW':'OPTICAL VIEW')+' // '+visualTracks+' VISUAL TRACKS'+(visualTracks?'':' // NO VISUAL OBSERVATIONS'),18,h-16);
  }else if(lower.indexOf('range')>=0){
    ctx.strokeStyle='#29f5b2';ctx.beginPath();ctx.moveTo(25,h-40);ctx.lineTo(w-25,45);ctx.stroke();ctx.strokeRect(w*.55,h*.3,90,75);ctx.fillStyle='#29f5b2';ctx.font='15px Courier New';ctx.fillText('RANGE ESTIMATE: '+(120+Math.round(pulse*8))+' m',28,65);ctx.fillText('LASER / DEPTH SOLUTION // SIMULATED',28,88);
  }else{
