@@ -2797,6 +2797,8 @@ FIRE CONTROL: STANDBY</div>
     weaponSystem=weaponSystem||'main_battery';
     var shooter=regionalTrainingFleet.find(function(s){return s.id===shipId&&s.side==='friendly'&&s.afloat!==false;});
     var target=regionalTrainingFleet.find(function(s){return s.id===targetId&&s.side==='contact'&&s.afloat!==false;});
+    // Defense in depth: reject any target whose identity is present on the friendly roster.
+    if(target&&regionalTrainingFleet.some(function(s){return s.id===target.id&&s.side==='friendly'&&s.afloat!==false;}))target=null;
     if(!shooter||!target)return{ok:false,reason:'Select a controlled vessel and an authorized visible contact.'};
     var dx=target.x-shooter.x,dy=target.y-shooter.y,distance=Math.hypot(dx,dy);
     var profiles={main_battery:{range:shooter.weaponRange||.23,damage:shooter.weaponDamage||2,reload:shooter.weaponReloadSeconds||8,label:'MAIN BATTERY'},torpedo:{range:Math.max(shooter.weaponRange||.23,.42),damage:4,reload:14,label:'TORPEDO'},missile:{range:Math.max(shooter.weaponRange||.23,.65),damage:3,reload:18,label:'MISSILE'}};
@@ -2852,6 +2854,10 @@ FIRE CONTROL: STANDBY</div>
     var authorized=[];
     (Array.isArray(snapshot.authorized_observations)?snapshot.authorized_observations:[]).forEach(function(o){
       if(!o||typeof o.contact_id!=='string'||!o.contact_id||!Array.isArray(o.normalized_position)||o.normalized_position.length!==2)return;
+      // A friendly identity/allegiance can never enter the targetable contact ledger.
+      var allegiance=String(o.side||o.allegiance||o.team||o.faction_role||'').toLowerCase();
+      if(['friendly','ally','allied','player','own','blue'].indexOf(allegiance)>=0)return;
+      if(controlledIds.indexOf(o.contact_id)>=0||snapshot.ships.some(function(s){return s&&s.ship_id===o.contact_id&&String(s.side||s.allegiance||s.team||'').toLowerCase()!=='contact';}))return;
       var p=o.normalized_position;
       if(!p.every(function(v){return typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1;}))return;
       authorized.push({contactId:o.contact_id,normalizedPosition:[p[0],p[1]],
