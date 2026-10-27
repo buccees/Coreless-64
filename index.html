@@ -2711,16 +2711,83 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   }
   var externalSensorObservationActive=false;
   var lastExternalObservationReceivedAt=0;
-  // Adapter seam for the user's existing sensor-array software. The adapter must
-  // provide normalized map coordinates; raw sensor units are never guessed here.
+  var sensorFeedRegistry=Object.create(null);
+  var SENSOR_FEED_STALE_MS=15000;
+  var supportedSensorModalities=['sonar','radar','optical','ew','lidar','acoustic','simulated','thermal','infrared','camera','underwater_camera','depth','range','rangefinder','imu','inertial','proximity','csi','wifi_csi','navigation','telemetry','fire_control','perimeter_radar','fixed_camera','tracking','fused','esm','rf','motion','access_alarm','environmental'];
+  function recordSensorFeed(sensorId,modality,objects,waterfallBins,source,frameDataUrl,receivedAt){
+    sensorId=String(sensorId||'SIM-SENSOR');modality=String(modality||'simulated').toLowerCase();
+    var key=sensorId.toLowerCase()+'|'+modality;
+    var copied=(Array.isArray(objects)?objects:[]).map(function(o){return {
+      object_id:String(o.object_id||o.contact_id||'UNKNOWN'),
+      normalized_position:Array.isArray(o.normalized_position)?o.normalized_position.slice(0,3):null,
+      uncertainty_m:Number(o.uncertainty_m)||0,confidence:Number.isFinite(Number(o.confidence))?Math.max(0,Math.min(1,Number(o.confidence))):.5,
+      classification:String(o.classification||'unclassified contact'),
+      modalities:Array.isArray(o.modalities)?o.modalities.slice():[modality],
+      sensor_ids:Array.isArray(o.sensor_ids)?o.sensor_ids.slice():[sensorId],
+      side:o.side==='friendly'?'friendly':o.side==='contact'?'contact':null,
+      external_timestamp:o.external_timestamp||null
+    };});
+    sensorFeedRegistry[key]={sensor_id:sensorId,modality:modality,source:source==='external'?'external':'simulation',
+      received_at:Number(receivedAt)||Date.now(),objects:copied,
+      waterfall_bins:Array.isArray(waterfallBins)?waterfallBins.slice():null,
+      image_data_url:typeof frameDataUrl==='string'?frameDataUrl:null};
+    return key;
+  }
+  function recordSceneSensorFeeds(data){
+    if(!data||!Array.isArray(data.objects))return;
+    var groups=Object.create(null);
+    data.objects.forEach(function(o){
+      var modes=Array.isArray(o.modalities)&&o.modalities.length?o.modalities:[(document.getElementById('sim-sensor')||{}).value||'simulated'];
+      var ids=Array.isArray(o.sensor_ids)&&o.sensor_ids.length?o.sensor_ids:['SIM-'+String(modes[0]).toUpperCase()+'-01'];
+      modes.forEach(function(mode){ids.forEach(function(id){
+        var key=String(id)+'|'+String(mode).toLowerCase();
+        if(!groups[key])groups[key]={sensor_id:String(id),modality:String(mode).toLowerCase(),objects:[]};
+        groups[key].objects.push(o);
+      });});
+    });
+    Object.keys(groups).forEach(function(key){
+      var group=groups[key],bins=(group.modality==='sonar'||group.modality==='acoustic')?data.waterfall_bins:null;
+      recordSensorFeed(group.sensor_id,group.modality,group.objects,bins,'simulation',null,Date.now());
+    });
+  }
+  window.vigilGetSensorInputSnapshot=function(){
+    var now=Date.now(),feeds=[],observations=[];
+    Object.keys(sensorFeedRegistry).forEach(function(key){
+      var feed=sensorFeedRegistry[key],age=Math.max(0,now-feed.received_at),stale=feed.source==='external'&&age>SENSOR_FEED_STALE_MS;
+      var copy={sensor_id:feed.sensor_id,modality:feed.modality,source:feed.source,age_ms:age,stale:stale,
+        received_at:new Date(feed.received_at).toISOString(),
+        waterfall_bins:Array.isArray(feed.waterfall_bins)?feed.waterfall_bins.slice():null,
+        image_data_url:feed.image_data_url||null,
+        objects:feed.objects.map(function(o){return Object.assign({},o,{normalized_position:o.normalized_position?o.normalized_position.slice():null,
+          modalities:o.modalities.slice(),sensor_ids:o.sensor_ids.slice()});})};
+      feeds.push(copy);
+      copy.objects.forEach(function(o){observations.push(Object.assign({},o,{sensor_id:feed.sensor_id,modality:feed.modality,
+        source:feed.source,feed_stale:stale,feed_age_ms:age,feed_received_at:copy.received_at}));});
+    });
+    return {schema_version:1,captured_at:new Date(now).toISOString(),stale_after_ms:SENSOR_FEED_STALE_MS,feeds:feeds,observations:observations};
+  };
+  window.vigilGetSensorInputsFor=function(modalities){
+    var wanted=(Array.isArray(modalities)?modalities:[modalities]).filter(Boolean).map(function(v){return String(v).toLowerCase();});
+    var snapshot=window.vigilGetSensorInputSnapshot();
+    return snapshot.observations.filter(function(o){return wanted.indexOf(o.modality)>=0&&!o.feed_stale;});
+  };
+  // Adapter seam for all sensors in the shared VIGIL command panel. Spatial
+  // contacts use normalized map coordinates; image frames accept safe data URLs.
   window.vigilIngestSensorObservation=function(payload){
-    if(!payload||payload.schema_version!==1||typeof payload.sensor_id!=='string'||!payload.sensor_id.trim()||typeof payload.modality!=='string'||!Array.isArray(payload.contacts))throw new Error('Sensor adapter requires schema_version: 1, sensor_id, modality, and contacts[].');
-    var allowed=['sonar','radar','optical','ew','lidar','acoustic','simulated'];
-    var modality=payload.modality.toLowerCase();
+    if(!payload||payload.schema_version!==1||typeof payload.sensor_id!=='string'||!payload.sensor_id.trim()||typeof payload.modality!=='string')throw new Error('Sensor adapter requires schema_version: 1, sensor_id, and modality.');
+    var modality=payload.modality.toLowerCase().replace(/\s+/g,'_');
+    if(supportedSensorModalities.indexOf(modality)<0)throw new Error('Unsupported sensor modality: '+modality);
+    var imageDataUrl=payload.image_data_url||payload.frame_data_url||null;
+    if(imageDataUrl!==null){
+      if(typeof imageDataUrl!=='string'||imageDataUrl.length>8*1024*1024||!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=\r\n]+$/.test(imageDataUrl))throw new Error('Camera frames must be PNG, JPEG, or WebP base64 data URLs under 8 MB.');
+    }
+    if(!Array.isArray(payload.contacts)&&!imageDataUrl)throw new Error('Provide contacts[] or an image_data_url camera frame.');
+    var allowedWaterfall=payload.waterfall_bins;
+
     if(allowed.indexOf(modality)<0)throw new Error('Unsupported sensor modality: '+modality);
     var suppliedWaterfall=null;
-    if(payload.waterfall_bins!==undefined){if(!Array.isArray(payload.waterfall_bins)||payload.waterfall_bins.length!==180)throw new Error('waterfall_bins, when supplied, must contain exactly 180 normalized energy values.');suppliedWaterfall=payload.waterfall_bins.map(function(v){v=Number(v);if(!Number.isFinite(v)||v<0||v>1)throw new Error('Each waterfall energy value must be between 0 and 1.');return v;});}
-    var objects=payload.contacts.map(function(c,index){
+    if(allowedWaterfall!==undefined){if(!Array.isArray(allowedWaterfall)||allowedWaterfall.length!==180)throw new Error('waterfall_bins, when supplied, must contain exactly 180 normalized energy values.');suppliedWaterfall=allowedWaterfall.map(function(v){v=Number(v);if(!Number.isFinite(v)||v<0||v>1)throw new Error('Each waterfall energy value must be between 0 and 1.');return v;});}
+    var objects=(Array.isArray(payload.contacts)?payload.contacts:[]).map(function(c,index){
       if(!c||typeof c.contact_id!=='string'||!c.contact_id.trim()||!Array.isArray(c.normalized_position)||c.normalized_position.length<2)throw new Error('Each sensor contact needs contact_id and normalized_position: [x,y].');
       var x=Number(c.normalized_position[0]),y=Number(c.normalized_position[1]),uncertainty=Number(c.uncertainty_m||0),confidence=Number(c.confidence);
       if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>1||y<0||y>1)throw new Error('Contact '+c.contact_id+' coordinates must be normalized to 0..1.');
@@ -2736,8 +2803,9 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     });
     var data={schema_version:1,model_id:'EXTERNAL-SENSOR-ARRAY',revision:String(payload.timestamp||Date.now()),
       frame_id:'normalized-regional-map-v1',metadata:{sonar_posture:modality==='sonar'||modality==='acoustic'?'passive monitoring':modality+' sensor input',source:'external-sensor-adapter'},
-      objects:objects,waterfall_bins:suppliedWaterfall};
+      objects:objects,waterfall_bins:suppliedWaterfall,image_data_url:imageDataUrl};
     externalSensorObservationActive=true;lastObservationData=data;lastExternalObservationReceivedAt=Date.now();
+    recordSensorFeed(payload.sensor_id,modality,objects,suppliedWaterfall,'external',imageDataUrl,lastExternalObservationReceivedAt);
     renderReconContacts(data);renderBathymetry(data);renderNavalSonar(data);
     var sourceStatus=document.getElementById('vigil-sensor-source-status');
     if(sourceStatus)sourceStatus.textContent='SENSOR INPUT: EXTERNAL '+modality.toUpperCase()+' // '+payload.sensor_id+' // '+objects.length+' TRACK(S)';
@@ -2763,7 +2831,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         modalities:Array.isArray(o.modalities)?o.modalities.slice():[],
         external_timestamp:o.external_timestamp||null
       };}),
-      waterfall_bins:Array.isArray(lastObservationData.waterfall_bins)?lastObservationData.waterfall_bins.slice():null};
+      waterfall_bins:Array.isArray(lastObservationData.waterfall_bins)?lastObservationData.waterfall_bins.slice():null,
+      image_data_url:typeof lastObservationData.image_data_url==='string'?lastObservationData.image_data_url:null};
   };
   var sonarWaterfallHistory=[];
   function renderNavalSonar(data){
@@ -3569,7 +3638,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     externalSensorObservationActive=false;
     var sourceStatus=document.getElementById('vigil-sensor-source-status');if(sourceStatus)sourceStatus.textContent=regionalWorldSnapshotActive?'SENSOR INPUT: AUTHORIZED REGIONAL SNAPSHOT + SIMULATED SENSOR':'SENSOR INPUT: SYNTHETIC TRAINING FEED';
     if(countObservation)sweepCount++;
-    var data=generateScene();recordReconObservation(data);lastObservationData=data;renderReconContacts(data);renderBathymetry(data);renderNavalSonar(data);
+    var data=generateScene();recordReconObservation(data);lastObservationData=data;recordSceneSensorFeeds(data);renderReconContacts(data);renderBathymetry(data);renderNavalSonar(data);
     if(countObservation)observationCount+=data.objects.length;updateMetrics();
     if(countObservation){var result=document.getElementById('sim-recon-results');if(result)result.textContent='NEW OBSERVATIONS AVAILABLE // RUN EVALUATION TO COMPARE ESTIMATES WITH HIDDEN TRUTH.';}
     document.getElementById('sim-noise-value').textContent=Number(noise.value).toFixed(1);
