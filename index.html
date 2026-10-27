@@ -2726,13 +2726,13 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       sensor_ids:Array.isArray(o.sensor_ids)?o.sensor_ids.slice():[sensorId],
       side:o.side==='friendly'?'friendly':o.side==='contact'?'contact':null,
       external_timestamp:o.external_timestamp||null,
-      range_m:Number.isFinite(Number(o.range_m))?Number(o.range_m):null,
-      bearing_deg:Number.isFinite(Number(o.bearing_deg))?Number(o.bearing_deg):null,
-      depth_m:Number.isFinite(Number(o.depth_m))?Number(o.depth_m):null,
-      temperature_c:Number.isFinite(Number(o.temperature_c))?Number(o.temperature_c):null,
-      signal_strength_db:Number.isFinite(Number(o.signal_strength_db))?Number(o.signal_strength_db):null,
-      velocity_mps:Number.isFinite(Number(o.velocity_mps))?Number(o.velocity_mps):null,
-      measurement_value:Number.isFinite(Number(o.measurement_value))?Number(o.measurement_value):null,
+      range_m:o.range_m!==null&&o.range_m!==undefined&&o.range_m!==''&&Number.isFinite(Number(o.range_m))?Number(o.range_m):null,
+      bearing_deg:o.bearing_deg!==null&&o.bearing_deg!==undefined&&o.bearing_deg!==''&&Number.isFinite(Number(o.bearing_deg))?Number(o.bearing_deg):null,
+      depth_m:o.depth_m!==null&&o.depth_m!==undefined&&o.depth_m!==''&&Number.isFinite(Number(o.depth_m))?Number(o.depth_m):null,
+      temperature_c:o.temperature_c!==null&&o.temperature_c!==undefined&&o.temperature_c!==''&&Number.isFinite(Number(o.temperature_c))?Number(o.temperature_c):null,
+      signal_strength_db:o.signal_strength_db!==null&&o.signal_strength_db!==undefined&&o.signal_strength_db!==''&&Number.isFinite(Number(o.signal_strength_db))?Number(o.signal_strength_db):null,
+      velocity_mps:o.velocity_mps!==null&&o.velocity_mps!==undefined&&o.velocity_mps!==''&&Number.isFinite(Number(o.velocity_mps))?Number(o.velocity_mps):null,
+      measurement_value:o.measurement_value!==null&&o.measurement_value!==undefined&&o.measurement_value!==''&&Number.isFinite(Number(o.measurement_value))?Number(o.measurement_value):null,
       measurement_units:String(o.measurement_units||''),
       measurement_status:String(o.measurement_status||''),
       measurements:o.measurements&&typeof o.measurements==='object'?Object.assign({},o.measurements):null
@@ -4541,9 +4541,15 @@ function draw(){
  frame++;
 }
 function choose(sensor){
- activeSensor=sensor;title.textContent='ACTIVE UNIT SENSOR DISPLAY // '+sensor;
+ activeSensor=sensor;
+ title.textContent='ACTIVE UNIT SENSOR DISPLAY // '+sensor;
  Array.prototype.forEach.call(buttons.querySelectorAll('button'),function(b){b.setAttribute('aria-pressed',String(b.textContent===sensor));});
- var trackIds={ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'};var assigned=trackIds[unitId]||null;var linked=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(unitId); status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+sensor+' // '+(linked?'TRACK '+linked.id+' // HDG '+Math.round(linked.heading_deg)+'° // SPEED '+linked.speed.toFixed(3)+' / '+(Number(linked.max_speed)||0).toFixed(3):assigned?'ASSIGNED TRACK: '+assigned:'NO SIMULATION ENTITY ASSIGNED')+' // '+(window.vigilGetRegionalSensorContacts?window.vigilGetRegionalSensorContacts().length:0)+' REGIONAL TRACKS // SHARED CONTROL PANEL';
+ var controlsAreCamera=cameraModeActive();
+ if(cameraControls)cameraControls.hidden=!controlsAreCamera;
+ var linked=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(unitId);
+ status.textContent='SIMULATED SENSOR VIEW // '+unitId.toUpperCase()+' // '+sensor+' // '+
+   (linked?'TRACK '+linked.id+' // HDG '+Math.round(linked.heading_deg)+'° // SPEED '+Number(linked.speed).toFixed(3)+' / '+(Number(linked.max_speed)||0).toFixed(3):'NO SIMULATION ENTITY ASSIGNED')+
+   ' // '+(window.vigilGetRegionalSensorContacts?window.vigilGetRegionalSensorContacts().length:0)+' REGIONAL TRACKS // SHARED CONTROL PANEL';
  draw();
 }
 function changeUnitState(change){
@@ -4557,10 +4563,56 @@ display.querySelector('#vigil-unit-heading-left').addEventListener('click',funct
 display.querySelector('#vigil-unit-heading-right').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({heading:(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)+15});});
 display.querySelector('#vigil-unit-speed-down').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({speed:Math.max(0,(u.target_speed==null?u.speed:u.target_speed)-.005)});});
 display.querySelector('#vigil-unit-speed-up').addEventListener('click',function(){var u=window.vigilGetRegionalSimulationUnit(unitId);if(u)changeUnitState({speed:Math.min(Number(u.max_speed)||0,(u.target_speed==null?u.speed:u.target_speed)+.005)});});
+trackSelect.addEventListener('change',function(){
+ cameraState.selectedTrackId=trackSelect.value;cameraState.hold=false;
+ var hold=display.querySelector('#vigil-camera-track-hold');if(hold){hold.setAttribute('aria-pressed','false');hold.textContent='TRACK HOLD: OFF';}
+ setCommandMessage(cameraState.selectedTrackId?'TRACK SELECTED // '+cameraState.selectedTrackId:'TRACK SELECTION CLEARED');draw();
+});
+display.querySelector('#vigil-unit-course-to-track').addEventListener('click',function(){
+ var target=selectedTrack(),regional=typeof window.vigilGetRegionalSensorContacts==='function'?window.vigilGetRegionalSensorContacts():[],own=selectedOwnTrack(regional);
+ var bearing=bearingToTrack(target,own);
+ if(bearing===null){setCommandMessage('COURSE ORDER REJECTED // SELECT A POSITIONED TRACK');return;}
+ var result=changeUnitState({heading:bearing});
+ if(result!==false)setCommandMessage('COURSE ORDER // '+target.id+' // DESIRED HEADING '+Math.round(bearing)+'°');
+ draw();
+});
+display.querySelector('#vigil-unit-clear-track').addEventListener('click',function(){
+ cameraState.selectedTrackId='';cameraState.hold=false;if(trackSelect)trackSelect.value='';
+ var hold=display.querySelector('#vigil-camera-track-hold');if(hold){hold.setAttribute('aria-pressed','false');hold.textContent='TRACK HOLD: OFF';}
+ setCommandMessage('TRACK SELECTION CLEARED');draw();
+});
+function adjustCamera(key,amount,min,max,label){
+ cameraState[key]=Math.max(min,Math.min(max,cameraState[key]+amount));
+ if(key==='pan'||key==='tilt')cameraState.hold=false;
+ setCommandMessage(label+' // '+(cameraState[key]>=0&&key!=='zoom'?'+':'')+cameraState[key].toFixed(key==='zoom'?1:0)+(key==='zoom'?'×':'°'));draw();
+}
+display.querySelector('#vigil-camera-pan-left').addEventListener('click',function(){adjustCamera('pan',-5,-85,85,'GIMBAL PAN');});
+display.querySelector('#vigil-camera-pan-right').addEventListener('click',function(){adjustCamera('pan',5,-85,85,'GIMBAL PAN');});
+display.querySelector('#vigil-camera-tilt-up').addEventListener('click',function(){adjustCamera('tilt',-5,-45,45,'GIMBAL TILT');});
+display.querySelector('#vigil-camera-tilt-down').addEventListener('click',function(){adjustCamera('tilt',5,-45,45,'GIMBAL TILT');});
+display.querySelector('#vigil-camera-zoom-out').addEventListener('click',function(){adjustCamera('zoom',-.25,1,4,'OPTICAL ZOOM');});
+display.querySelector('#vigil-camera-zoom-in').addEventListener('click',function(){adjustCamera('zoom',.25,1,4,'OPTICAL ZOOM');});
+display.querySelector('#vigil-camera-slew').addEventListener('click',moveCameraToSelectedTrack);
+display.querySelector('#vigil-camera-track-hold').addEventListener('click',function(){
+ if(cameraState.hold){cameraState.hold=false;this.setAttribute('aria-pressed','false');this.textContent='TRACK HOLD: OFF';setCommandMessage('TRACK HOLD RELEASED');draw();return;}
+ if(!selectedTrack()){setCommandMessage('TRACK HOLD REJECTED // SELECT A POSITIONED TRACK');return;}
+ moveCameraToSelectedTrack();
+ this.setAttribute('aria-pressed','true');this.textContent='TRACK HOLD: ON';
+});
+gainInput.addEventListener('input',function(){cameraState.sensitivity=Number(gainInput.value)||1;gainValue.textContent=cameraState.sensitivity.toFixed(1)+'×';setCommandMessage('SENSOR GAIN // '+gainValue.textContent);draw();});
+window.addEventListener('vigil:sensor-observation',function(){draw();});
+window.addEventListener('vigil:simulation-unit-state-changed',function(){draw();});
+
 function updateUnit(unit){
  unit=unit||window.vigilGetActiveSimulationUnit&&window.vigilGetActiveSimulationUnit();
  if(!unit)return;
- unitId=unit.id||'ship';var sensors=profiles[unitId]||profiles.ship;
+ unitId=unit.id||'ship';
+ cameraState.pan=0;cameraState.tilt=0;cameraState.zoom=1;cameraState.hold=false;cameraState.selectedTrackId='';
+ trackOptionsSignature='';trackSelect.value='';
+ if(gainInput){gainInput.value='1';gainValue.textContent='1.0×';}cameraState.sensitivity=1;
+ var hold=display.querySelector('#vigil-camera-track-hold');if(hold){hold.setAttribute('aria-pressed','false');hold.textContent='TRACK HOLD: OFF';}
+ setCommandMessage('UNIT SELECTED // '+unitId.toUpperCase());
+ var sensors=profiles[unitId]||profiles.ship;
  buttons.textContent='';
  sensors.forEach(function(sensor){var b=document.createElement('button');b.type='button';b.textContent=sensor;b.setAttribute('aria-pressed','false');b.addEventListener('click',function(){choose(sensor);});buttons.appendChild(b);});
  choose(sensors.indexOf(activeSensor)>=0?activeSensor:sensors[0]);
