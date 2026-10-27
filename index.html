@@ -4307,7 +4307,10 @@ function selectedTrack(){
  // A stale selection must not survive a roster refresh that removed or invalidated its evidence.
  if(!track&&selectedId){
    cameraState.selectedTrackId='';
+   cameraState.hold=false;
    if(trackSelect)trackSelect.value='';
+   var holdButton=display&&display.querySelector('#vigil-camera-track-hold');
+   if(holdButton){holdButton.setAttribute('aria-pressed','false');holdButton.textContent='TRACK HOLD: OFF';}
    if(typeof syncFocusedFollowupButton==='function')syncFocusedFollowupButton();
  }
  return track;
