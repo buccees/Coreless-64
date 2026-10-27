@@ -4319,14 +4319,14 @@ function setCommandMessage(message){operatorMessage=String(message||'');if(comma
 function cameraModeActive(){var lower=activeSensor.toLowerCase();return lower.indexOf('camera')>=0||lower.indexOf('optical')>=0||lower.indexOf('thermal')>=0||lower.indexOf('infrared')>=0;}
 function moveCameraToSelectedTrack(){
  var target=selectedTrack(),regional=typeof window.vigilGetRegionalSensorContacts==='function'?window.vigilGetRegionalSensorContacts():[],own=selectedOwnTrack(regional),bearing=bearingToTrack(target,own);
- if(bearing===null){setCommandMessage('SLEW REJECTED // SELECT A VALID CONTACT WITH A POSITION FIX');draw();return;}
+ if(bearing===null){setCommandMessage('SLEW REJECTED // SELECT A VALID CONTACT WITH A POSITION FIX');draw();return false;}
  if(target.source==='sensor-conflict+regional'||target.confidenceState!=='reported'){
    var reason=target.source==='sensor-conflict+regional'?'CONFLICTING SENSOR POSITIONS':target.confidenceState==='low'?'LOW CONFIDENCE POSITION':'POSITION UNCERTAINTY NOT VERIFIED';
-   setCommandMessage('SLEW REJECTED // '+target.id+' // '+reason+' // REVIEW SENSOR EVIDENCE FIRST');draw();return;
+   setCommandMessage('SLEW REJECTED // '+target.id+' // '+reason+' // REVIEW SENSOR EVIDENCE FIRST');draw();return false;
  }
  cameraState.pan=Math.max(-85,Math.min(85,signedDegrees(bearing-(Number(own.heading_deg)||0))));
  cameraState.hold=true;cameraState.selectedTrackId=target.id;if(trackSelect)trackSelect.value=target.id;
- setCommandMessage('CAMERA SLEW // '+target.id+' // RELATIVE BEARING '+Math.round(cameraState.pan)+'° // REPORTED UNCERTAINTY '+target.uncertainty_m.toFixed(2)+'m // TRACK HOLD ENABLED');draw();
+ setCommandMessage('CAMERA SLEW // '+target.id+' // RELATIVE BEARING '+Math.round(cameraState.pan)+'° // REPORTED UNCERTAINTY '+target.uncertainty_m.toFixed(2)+'m // TRACK HOLD ENABLED');draw();return true;
 }
 function draw(){
  if(!ctx)return;
@@ -4921,7 +4921,7 @@ display.querySelector('#vigil-camera-slew').addEventListener('click',moveCameraT
 display.querySelector('#vigil-camera-track-hold').addEventListener('click',function(){
  if(cameraState.hold){cameraState.hold=false;this.setAttribute('aria-pressed','false');this.textContent='TRACK HOLD: OFF';setCommandMessage('TRACK HOLD RELEASED');draw();return;}
  if(!selectedTrack()){setCommandMessage('TRACK HOLD REJECTED // SELECT A POSITIONED TRACK');return;}
- moveCameraToSelectedTrack();
+ if(!moveCameraToSelectedTrack())return;
  this.setAttribute('aria-pressed','true');this.textContent='TRACK HOLD: ON';
 });
 gainInput.addEventListener('input',function(){cameraState.sensitivity=Number(gainInput.value)||1;gainValue.textContent=cameraState.sensitivity.toFixed(1)+'×';setCommandMessage('SENSOR GAIN // '+gainValue.textContent);draw();});
