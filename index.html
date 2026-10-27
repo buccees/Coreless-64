@@ -3095,6 +3095,29 @@ FIRE CONTROL: STANDBY</div>
   });
   window.addEventListener('vigil:regional-snapshot-error',function(e){regionalUiStatus('LINK ERROR // '+String(e.detail&&e.detail.message||'Regional snapshot unavailable'),true);});
   populateLocalRegionalCommandChoices();
+  // Shared station-state contract: navigation, sensors, fire control, and damage
+  // read the same regional simulation snapshot instead of maintaining station-local copies.
+  var vigilSharedStateLastEmit=0;
+  window.vigilGetRegionalSimulationState=function(){
+    return {
+      schema_version:1,
+      source:regionalWorldSnapshotActive?'authoritative-server-snapshot':'local-training-simulation',
+      timestamp:new Date().toISOString(),
+      ships:regionalTrainingFleet.map(function(ship){return {
+        id:ship.id,name:ship.name,side:ship.side,ship_class:ship.shipClass,
+        position:{x:Number(ship.x),y:Number(ship.y)},heading_deg:Number(ship.heading),
+        speed:Number(ship.speed),max_speed:Number(ship.maxSpeed),
+        afloat:ship.afloat!==false,hull:Number(ship.hull),max_hull:Number(ship.maxHull),
+        weapon_cooldown_remaining:Number(ship.weaponCooldownRemaining||0),
+        weapon_systems:Array.isArray(ship.weaponSystems)?ship.weaponSystems.slice():[]
+      };})
+    };
+  };
+  function publishVigilSharedSimulationState(now,force){
+    if(!force&&now-vigilSharedStateLastEmit<250)return;
+    vigilSharedStateLastEmit=now;
+    window.dispatchEvent(new CustomEvent('vigil:simulation-state',{detail:window.vigilGetRegionalSimulationState()}));
+  }
   function stepRegionalFleet(now){
     if(!regionalFleetLastTick)regionalFleetLastTick=now;
     var dt=Math.min(.25,Math.max(0,(now-regionalFleetLastTick)/1000));
@@ -3107,6 +3130,7 @@ FIRE CONTROL: STANDBY</div>
       if(ship.y<.05||ship.y>.95){ship.heading=(180-ship.heading+360)%360;ship.y=Math.max(.05,Math.min(.95,ship.y));}
     });
     renderBathymetry(lastObservationData);
+    publishVigilSharedSimulationState(now,false);
     if(regionalFleetTimer!==null)regionalFleetTimer=requestAnimationFrame(stepRegionalFleet);
   }
   function startRegionalFleet(){if(regionalWorldSnapshotActive||regionalFleetTimer!==null)return;regionalFleetLastTick=0;regionalFleetTimer=requestAnimationFrame(stepRegionalFleet);}
@@ -3116,6 +3140,7 @@ FIRE CONTROL: STANDBY</div>
     regionalTrainingFleet[0].x=.35;regionalTrainingFleet[0].y=.44;regionalTrainingFleet[0].heading=28;
     regionalTrainingFleet[1].x=.66;regionalTrainingFleet[1].y=.61;regionalTrainingFleet[1].heading=342;
     renderBathymetry(lastObservationData);
+    publishVigilSharedSimulationState(performance.now(),true);
   }
   function renderBathymetry(data){
     var canvas=document.getElementById('sim-bathymetry-map');if(!canvas)return;
