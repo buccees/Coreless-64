@@ -4191,9 +4191,16 @@ function sensorModalitiesForMode(lower){
  return null;
 }
 function updateTrackCandidates(regionalContacts,snapshot){
- var candidates=[],seen=Object.create(null),ownId=({ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'})[unitId];
+ var candidates=[],seen=Object.create(null),measurementOnlyIds=Object.create(null),ownId=({ship:'DDG-51',drone:'DRONE-01',submersible:'UUV-01',mech:'MECH-01',facility:'FAC-01'})[unitId];
+ // A measurement-only observation must not inherit a regional contact's position just because IDs collide.
+ (snapshot&&Array.isArray(snapshot.observations)?snapshot.observations:[]).forEach(function(o){
+   if(!o||o.feed_stale)return;
+   var id=o.object_id||o.contact_id,p=o.normalized_position;
+   var hasPosition=Array.isArray(p)&&p.length>=2&&Number.isFinite(Number(p[0]))&&Number.isFinite(Number(p[1]));
+   if(id&&!hasPosition)measurementOnlyIds[String(id)]=true;
+ });
  (regionalContacts||[]).forEach(function(c){
-   if(!c||!c.id||c.id===ownId||!Number.isFinite(Number(c.x))||!Number.isFinite(Number(c.y)))return;
+   if(!c||!c.id||c.id===ownId||measurementOnlyIds[String(c.id)]||!Number.isFinite(Number(c.x))||!Number.isFinite(Number(c.y)))return;
    var id=String(c.id);seen[id]=true;candidates.push({id:id,label:id+' // '+(c.side==='friendly'?'FRIENDLY':'CONTACT'),x:Number(c.x),y:Number(c.y),side:c.side||'contact',heading_deg:Number(c.heading_deg)||0,source:'regional'});
  });
  (snapshot&&Array.isArray(snapshot.observations)?snapshot.observations:[]).forEach(function(o){
