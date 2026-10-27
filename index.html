@@ -2729,7 +2729,7 @@ FIRE CONTROL: STANDBY</div>
     var sourceStatus=document.getElementById('vigil-sensor-source-status');
     if(sourceStatus)sourceStatus.textContent='SENSOR INPUT: EXTERNAL '+modality.toUpperCase()+' // '+payload.sensor_id+' // '+objects.length+' TRACK(S)';
     var telemetry=document.getElementById('sim-telemetry');
-    if(telemetry)telemetry.textContent='SOURCE: EXTERNAL SENSOR ADAPTER'+(suppliedWaterfall?' // REAL WATERFALL BINS':' // CONTACT-BASED WATERFALL')+'\\nSENSOR: '+payload.sensor_id+' / '+modality.toUpperCase()+'\\nTRACKS: '+objects.length+'\\nCOORDINATE FRAME: NORMALIZED REGIONAL MAP\\nCALIBRATION: EXTERNAL / NOT VERIFIED';
+    if(telemetry)telemetry.textContent='SOURCE: EXTERNAL SENSOR ADAPTER'+(suppliedWaterfall?' // EXTERNAL ENERGY BINS':' // CONTACT-DERIVED ESTIMATE; NOT RAW ACOUSTIC ENERGY')+'\\nSENSOR: '+payload.sensor_id+' / '+modality.toUpperCase()+'\\nTRACKS: '+objects.length+'\\nCOORDINATE FRAME: NORMALIZED REGIONAL MAP\\nCALIBRATION: EXTERNAL / NOT VERIFIED';
     window.dispatchEvent(new CustomEvent('vigil:sensor-observation',{detail:{sensor_id:payload.sensor_id,modality:modality,track_count:objects.length,timestamp:data.revision}}));
     return{accepted:true,track_count:objects.length,revision:data.revision};
   };
@@ -2754,8 +2754,9 @@ FIRE CONTROL: STANDBY</div>
         var center=Math.round(d.bearing/360*bins),width=2+Math.round((1-d.strength)*5),level=.35+d.strength*.55;
         for(var offset=-width*3;offset<=width*3;offset++){var idx=(center+offset+bins)%bins,profile=Math.exp(-(offset*offset)/(2*width*width)),pulse=.78+.22*Math.sin((sweepIndex+di*7+offset)*.31);energy[idx]=Math.min(1,energy[idx]+level*profile*pulse);}
       });
-      // Clutter is synthetic only when the external adapter does not supply real energy bins.
-      for(var clutter=0;clutter<4;clutter++){var noiseBin=Math.floor(Math.random()*bins);energy[noiseBin]=Math.min(1,energy[noiseBin]+.18+Math.random()*.3);}
+      // Do not invent noise/clutter when an external sensor supplied contacts but no energy bins.
+      // In that case this waterfall is a contact-derived visualization, not raw acoustic energy.
+      if(!externalSensorObservationActive){for(var clutter=0;clutter<4;clutter++){var noiseBin=Math.floor(Math.random()*bins);energy[noiseBin]=Math.min(1,energy[noiseBin]+.18+Math.random()*.3);}}
     }
     sonarWaterfallHistory.push(energy);if(sonarWaterfallHistory.length>90)sonarWaterfallHistory.shift();
     wc.fillStyle='#020807';wc.fillRect(0,0,waterfall.width,waterfall.height);
