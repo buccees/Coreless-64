@@ -41,15 +41,20 @@ class ArtifactReplayConsumer:
     def __call__(self, event: ReplayEvent) -> list[dict[str, Any]] | None:
         if not isinstance(event, ReplayEvent):
             raise TypeError("consumer accepts Coreless ReplayEvent instances only")
-        if event.kind != "UNIT_SUNK":
+        if event.kind not in ("UNIT_SUNK", "UNIT_REMOVED"):
             return None
         from collections.abc import Mapping
         if not isinstance(event.payload, Mapping):
-            raise ValueError("sinking replay payload must be a mapping")
+            raise ValueError("artifact recovery replay payload must be a mapping")
         unit_id = event.payload.get("unit_id")
         if not isinstance(unit_id, str) or not unit_id.strip():
             raise ValueError("sinking replay event requires unit_id")
         authoritative_state = self.resolve_unit_state(unit_id)
         if authoritative_state is None:
             raise ValueError("authoritative sunk-unit state is unavailable")
-        return self.bridge.on_replay_event(self.world_seed, event, authoritative_state)
+        if event.kind == "UNIT_SUNK":
+            return self.bridge.on_replay_event(self.world_seed, event, authoritative_state)
+        payload = dict(event.payload)
+        payload["kind"] = "UNIT_REMOVED"
+        payload["event_id"] = event.event_id
+        return self.bridge.on_carrier_removed(self.world_seed, payload, authoritative_state)
