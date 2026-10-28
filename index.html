@@ -5551,7 +5551,7 @@ function draw(){
  haze.addColorStop(0,'rgba(21,83,91,.04)');haze.addColorStop(.55,'rgba(10,49,55,.12)');haze.addColorStop(1,'rgba(1,14,19,.08)');
  ctx.fillStyle=haze;ctx.fillRect(0,horizon,w,h-horizon);
  for(var ray=0;ray<12;ray++){var rx=w*(.12+ray*.069);ctx.strokeStyle='rgba(89,180,174,'+(0.018+(ray%3)*.008)+')';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(w*.5,horizon);ctx.lineTo(rx,h*.88);ctx.stroke();}
- var rows=42,cols=56,points=[],cameraZ=heightAt(cameraX,cameraY)+Math.max(8,46+(depth-120)*.15);
+ var rows=42,cols=56,points=[],cameraZ=heightAt(cameraX,cameraY)+Math.max(8,46+(120-depth)*.15);
  for(var r=0;r<=rows;r++){
   points[r]=[];
   var d=9+Math.pow(r/rows,2.05)*760;
