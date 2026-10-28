@@ -123,3 +123,52 @@ def test_environment_live_replay_drops_artifact_at_authoritative_sink_position(t
     environment.disable_artifact_recovery()
     store.close()
     sinks.close()
+
+
+def test_confirm_unit_sunk_publishes_server_coordinates_to_artifact_recovery(tmp_path):
+    from vigil.artifact_simulation_bridge import ArtifactSimulationBridge
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+    from vigil.sinking_event_registry import SinkingEventRegistry
+
+    catalog = build_artifact_catalog()
+    store = HistoricalArtifactStore(catalog, tmp_path / "artifacts.sqlite3")
+    sinks = SinkingEventRegistry(tmp_path / "sinks.sqlite3")
+    bridge = ArtifactSimulationBridge(artifact_store=store, sinking_registry=sinks)
+    artifact = catalog[0]
+    carrier = {
+        "id": "UUV-AUTH", "crewId": "crew-alpha", "unitType": "submersible",
+        "x": artifact["x"], "y": artifact["y"], "afloat": True,
+        "lockedArtifactContainer": {"locked": True, "artifactIds": []},
+    }
+    store.discover("PELAGOS-01", artifact["id"])
+    store.collect("PELAGOS-01", artifact["id"], "UUV-AUTH", carrier)
+    sunk = {**carrier, "x": 0.371, "y": 0.824, "afloat": False}
+    environment = VigilEnvironment(enabled=True)
+    environment.configure_artifact_recovery(
+        world_seed="PELAGOS-01",
+        bridge=bridge,
+        resolve_unit_state=lambda unit_id: sunk if unit_id == "UUV-AUTH" else None,
+    )
+
+    event = environment.confirm_unit_sunk(
+        event_id="authoritative-sink-01",
+        timestamp_ns=900,
+        unit_id="UUV-AUTH",
+        authoritative_unit_state=sunk,
+    )
+    assert event.kind == "UNIT_SUNK"
+    assert event.payload["x"] == 0.371
+    assert event.payload["y"] == 0.824
+    recovered = next(item for item in store.inventory("PELAGOS-01") if item["id"] == artifact["id"])
+    assert recovered["status"] == "LOST"
+    assert recovered["location"] == {"x": 0.371, "y": 0.824}
+
+    with __import__("pytest").raises(ValueError, match="only an authoritative sunk submersible"):
+        environment.confirm_unit_sunk(
+            event_id="fake-sink-02", timestamp_ns=901, unit_id="UUV-AUTH",
+            authoritative_unit_state={**sunk, "afloat": True},
+        )
+    environment.disable_artifact_recovery()
+    store.close()
+    sinks.close()
