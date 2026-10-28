@@ -75,9 +75,28 @@ jobs:
           OVMF_DIR="${OVMF_CODE%/*}"
           OVMF_SUFFIX="${OVMF_CODE##*OVMF_CODE}"
           OVMF_VARS="$OVMF_DIR/OVMF_VARS$OVMF_SUFFIX"
+
+          # Ubuntu's OVMF package may ship secure-boot CODE firmware without
+          # a correspondingly named VARS template. Prefer an exact pair, then
+          # a same-size 4 MiB template, and finally the generic template.
           if [[ ! -s "$OVMF_VARS" ]]; then
-            echo "Matching OVMF variable-store image not found: $OVMF_VARS" >&2
+            for candidate in \
+              "$OVMF_DIR/OVMF_VARS_4M.fd" \
+              "$OVMF_DIR/OVMF_VARS_4M.ms.fd" \
+              "$OVMF_DIR/OVMF_VARS.fd"; do
+              if [[ -s "$candidate" ]]; then
+                OVMF_VARS="$candidate"
+                break
+              fi
+            done
+          fi
+          if [[ ! -s "$OVMF_VARS" ]]; then
+            OVMF_VARS="$(find /usr/share /usr/lib -type f \\( -iname 'OVMF_VARS_4M*.fd' -o -iname 'OVMF_VARS.fd' \\) -print -quit 2>/dev/null || true)"
+          fi
+          if [[ -z "$OVMF_VARS" || ! -s "$OVMF_VARS" ]]; then
+            echo "Compatible OVMF variable-store image not found for $OVMF_CODE" >&2
             dpkg -L ovmf >&2 || true
+            find /usr/share /usr/lib -type f -iname '*OVMF*VARS*.fd' >&2 || true
             exit 1
           fi
           OVMF_VARS_COPY="$RUNNER_TEMP/OVMF_VARS.fd"
