@@ -55,7 +55,9 @@ for (const required of [
 // Bathymetry regression checks: require a continuous, geomorphologically legible seabed,
 // not a high-frequency cloud surface or a mostly top-down wireframe.
 for (const required of [
-  'tilt=.68',
+  'tilt=-.68',
+  'positive seabed relief must still rise on screen',
+  'var yy=ry*Math.cos(tilt)+relief*.72*Math.sin(tilt),zz=ry*Math.sin(tilt)+relief*.18+330',
   'var ridgeAxis=y-.24*x-28, trenchAxis=y+.48*x-36, shelfAxis=y-.62*x+105',
   'broad basin, continental shelf, long ridge, and a narrow trench',
   'relief=z-285',
