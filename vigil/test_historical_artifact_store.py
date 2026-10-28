@@ -37,6 +37,16 @@ class HistoricalArtifactStoreTests(unittest.TestCase):
         self.assertEqual(first[0]["status"], "AT_SITE")
         self.assertFalse(first[0]["discovered"])
 
+    def test_undiscovered_artifact_location_is_hidden_until_discovery(self):
+        hidden = self.store.inventory("PELAGOS-01")[0]
+        self.assertFalse(hidden["discovered"])
+        self.assertIsNone(hidden["location"])
+        self.assertIsNone(hidden["sourceSiteId"])
+        revealed = self.store.discover("PELAGOS-01", "ART-ONE")
+        self.assertTrue(revealed["discovered"])
+        self.assertEqual(revealed["location"], {"x": 0.20, "y": 0.30})
+        self.assertEqual(revealed["sourceSiteId"], "SITE-ONE")
+
     def test_discovery_is_idempotent_and_site_bound(self):
         self.store.discover("PELAGOS-01", "ART-ONE")
         self.store.discover("PELAGOS-01", "ART-ONE")
