@@ -109,6 +109,65 @@ class VigilEnvironment:
         if unsubscribe is not None:
             unsubscribe()
 
+    def confirm_unit_sunk(self, *, event_id: str, timestamp_ns: int, unit_id: str, authoritative_unit_state) -> ReplayEvent:
+        """Publish a server-confirmed sinking transition to the live replay log.
+
+        Call only after the authoritative simulation has committed the unit's
+        sunk state. Coordinates are read from that state, never from a client
+        event payload. The method refuses afloat, mismatched, or incomplete units.
+        """
+        from collections.abc import Mapping
+        from .provenance import EventProvenance
+
+        if not isinstance(event_id, str) or not event_id.strip():
+            raise ValueError("event_id must be a non-empty string")
+        if not isinstance(unit_id, str) or not unit_id.strip():
+            raise ValueError("unit_id must be a non-empty string")
+        if not isinstance(timestamp_ns, int) or isinstance(timestamp_ns, bool) or timestamp_ns < 0:
+            raise ValueError("timestamp_ns must be a non-negative integer")
+        if not isinstance(authoritative_unit_state, Mapping):
+            raise ValueError("authoritative unit state is required")
+        if str(authoritative_unit_state.get("id", "")) != unit_id:
+            raise ValueError("sinking unit ID must match authoritative state")
+        if authoritative_unit_state.get("unitType") != "submersible" or authoritative_unit_state.get("afloat") is not False:
+            raise ValueError("only an authoritative sunk submersible can publish UNIT_SUNK")
+        crew_id = authoritative_unit_state.get("crewId")
+        if not isinstance(crew_id, str) or not crew_id.strip():
+            raise ValueError("sunk submersible must have an authoritative crew ID")
+        x, y = authoritative_unit_state.get("x"), authoritative_unit_state.get("y")
+        if isinstance(x, bool) or isinstance(y, bool):
+            raise ValueError("authoritative sinking coordinates must be numeric")
+        try:
+            x, y = float(x), float(y)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("authoritative sinking coordinates must be numeric") from exc
+        import math
+        if not math.isfinite(x) or not math.isfinite(y) or not 0 <= x <= 1 or not 0 <= y <= 1:
+            raise ValueError("authoritative sinking coordinates must be normalized finite values")
+        event = ReplayEvent(
+            event_id=event_id.strip(),
+            timestamp_ns=timestamp_ns,
+            kind="UNIT_SUNK",
+            payload={
+                "kind": "UNIT_SUNK",
+                "status": "CONFIRMED",
+                "event_id": event_id.strip(),
+                "unit_id": unit_id.strip(),
+                "crew_id": crew_id.strip(),
+                "x": x,
+                "y": y,
+            },
+            provenance=EventProvenance(
+                source_type="simulation",
+                source_ids=(unit_id.strip(),),
+                timestamp_ns=timestamp_ns,
+                confidence=1.0,
+                metadata={"transition": "authoritative-unit-state"},
+            ),
+        )
+        self.replay.append(event)
+        return event
+
     def enable(self) -> None:
         self.enabled = True
         self.input.enable(True)
