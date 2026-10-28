@@ -438,3 +438,58 @@ def test_historical_artifact_inventory_is_persistent_and_session_protected(tmp_p
     assert json.loads(body)["error"] == "authoritative_unit_state_unavailable"
 
     store.close()
+
+def test_historical_artifact_discovery_requires_authoritative_survey_record(tmp_path):
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+
+    artifact_id = "PEL-ARCHIVE-EXPEDITION-HANDBOOK"
+    # Represents a record produced by trusted simulation/survey processing, not request data.
+    verified_survey_records = {("PELAGOS-01", artifact_id, "SITE-ARCHIVE-01")}
+    catalog = build_artifact_catalog()
+    target = next(item for item in catalog if item["id"] == artifact_id)
+    verified_survey_records.add(("PELAGOS-01", artifact_id, target["siteId"]))
+
+    def authorize_discovery(crew_id, world_seed, requested_artifact_id):
+        # The callback consults trusted server-side survey results; clients cannot supply site IDs.
+        return (world_seed, requested_artifact_id, target["siteId"]) in verified_survey_records
+
+    page = tmp_path / "operator-display.html"
+    page.write_text("artifact display", encoding="utf-8")
+    store = HistoricalArtifactStore(catalog, tmp_path / "artifacts.sqlite3")
+    app = create_lan_app(
+        password="a-strong-test-password-123",
+        page_path=page,
+        system=CorelessSystem(storage_path=tmp_path / "owned-machine.img"),
+        historical_artifact_store=store,
+        artifact_discovery_authorizer=authorize_discovery,
+    )
+    response, _ = _request(
+        app, "/api/operator/login", method="POST",
+        body=json.dumps({"password": "a-strong-test-password-123"}).encode(),
+        origin="https://127.0.0.1:8443",
+    )
+    token = response["headers"]["Set-Cookie"].split(";", 1)[0]
+
+    def discover(seed, requested_id):
+        return _request(
+            app, "/api/vigil/historical-artifacts", method="POST", cookie=token,
+            origin="https://127.0.0.1:8443",
+            body=json.dumps({"world_seed": seed, "action": "discover",
+                             "artifact_id": requested_id}).encode(),
+        )
+
+    response, body = discover("PELAGOS-01", "PEL-UNKNOWN-ARTIFACT")
+    assert response["status"] == "403 Forbidden"
+    assert json.loads(body)["error"] == "discovery_not_authorized"
+
+    response, body = discover("PELAGOS-01", artifact_id)
+    assert response["status"] == "200 OK"
+    assert json.loads(body)["artifact"]["discovered"] is True
+    assert json.loads(body)["artifact"]["location"] == {"x": target["x"], "y": target["y"]}
+
+    response, body = discover("PELAGOS-01", artifact_id)
+    assert response["status"] == "200 OK"
+    assert len(store.events("PELAGOS-01", artifact_id)) == 1
+    store.close()
+
