@@ -4224,7 +4224,7 @@ function render(){
  p.sensors.forEach(function(sensor){var chip=document.createElement('span');chip.className='unit-sensor-chip active';chip.textContent=sensor;list.appendChild(chip);});
  note.textContent=p.note;
  context.dataset.activeUnit=select.value;
- Array.prototype.forEach.call(unitTabBar.querySelectorAll('[data-unit]'),function(tab){tab.setAttribute('aria-selected',String(tab.dataset.unit===select.value));});
+ Array.prototype.forEach.call(unitTabBar.querySelectorAll('[data-unit]'),function(tab){var selected=tab.dataset.unit===select.value;tab.setAttribute('aria-selected',String(selected));tab.setAttribute('tabindex',selected?'0':'-1');});
  window.vigilActiveSimulationUnit={id:select.value,label:p.title,sensors:p.sensors.slice(),updatedAt:new Date().toISOString()};
  window.dispatchEvent(new CustomEvent('vigil:active-unit-changed',{detail:{unit:window.vigilActiveSimulationUnit}}));
 }
