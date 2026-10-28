@@ -65,7 +65,17 @@ for (const required of [
   'var ridgeAxis=y-.24*x-28, trenchAxis=y+.48*x-36, shelfAxis=y-.62*x+105',
   'broad basin, continental shelf, long ridge, and a narrow trench',
   'FICTIONAL WORLD // REAL BATHYMETRY RUINS ONLY AT SPAWN',
+  'id="v3-course"',
+  'id="v3-set-course"',
+  'function setCourse(value)',
+  'NAVIGATION COURSE SET',
+  'Rotating sonar PPI inset',
+  'anim=(anim+1.8)%360',
+  'class="v3-helm"',
+  'class="v3-panel"',
+  'aria-label="Vehicle movement controls"',
+  'aria-label="Sensor and view controls"',
 ]) {
   assert.ok(html.includes(required), `missing first-person bathymetry contract: ${required}`);
 }
-console.log(`Validated syntax for ${parsed} inline JavaScript block(s), seafloor terrain and reconciliation, and simulation-bay unit controls.`);
+console.log(`Validated syntax for ${parsed} inline JavaScript block(s), seafloor terrain and reconciliation, navigation helm, rotating sonar, and mobile control panels.`);
