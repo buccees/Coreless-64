@@ -49,15 +49,43 @@ class ArtifactReplayConsumer:
         unit_id = event.payload.get("unit_id")
         if not isinstance(unit_id, str) or not unit_id.strip():
             raise ValueError("sinking replay event requires unit_id")
-        authoritative_state = self.resolve_unit_state(unit_id)
-        if authoritative_state is None:
-            raise ValueError("authoritative sunk-unit state is unavailable")
         if event.kind == "UNIT_SUNK":
+            authoritative_state = self.resolve_unit_state(unit_id)
+            if authoritative_state is None:
+                raise ValueError("authoritative sunk-unit state is unavailable")
             return self.bridge.on_replay_event(self.world_seed, event, authoritative_state)
+
+        # Removal deletes a unit from the live fleet, so a current-state resolver
+        # may correctly return None. A server-owned ReplayLog removal event is a
+        # tombstone: accept its last position only with simulation provenance,
+        # strong confidence, matching source ID, and complete confirmed fields.
+        provenance = event.provenance
+        if (provenance is None or provenance.source_type != "simulation"
+                or provenance.confidence is None or provenance.confidence < 0.8
+                or unit_id not in provenance.source_ids):
+            raise ValueError("unit-removal replay event requires trusted simulation provenance")
         payload = dict(event.payload)
+        if payload.get("status") != "CONFIRMED":
+            raise ValueError("unit removal requires a confirmed transition")
         payload["kind"] = "UNIT_REMOVED"
         payload["event_id"] = event.event_id
-        return self.bridge.on_carrier_removed(self.world_seed, payload, authoritative_state)
+        tombstone = {
+            "id": unit_id,
+            "unitType": "submersible",
+            "crewId": payload.get("crew_id"),
+            "x": payload.get("x"),
+            "y": payload.get("y"),
+        }
+        # If a resolver still knows the removed unit, cross-check its identity,
+        # type, crew, and coordinates. Missing live state is expected after removal.
+        live_state = self.resolve_unit_state(unit_id)
+        if live_state is not None:
+            for field, expected in (("id", unit_id), ("unitType", "submersible"),
+                                    ("crewId", tombstone["crewId"]),
+                                    ("x", tombstone["x"]), ("y", tombstone["y"])):
+                if live_state.get(field) != expected:
+                    raise ValueError("removal tombstone conflicts with authoritative unit state")
+        return self.bridge.on_carrier_removed(self.world_seed, payload, tombstone)
 
     def reconcile_recorded_events(self, replay_log) -> dict[str, Any]:
         """Retry artifact recovery for already-recorded lifecycle events.
