@@ -7,6 +7,8 @@ from dataclasses import dataclass
 class AuthorizationContext:
     session_id: str
     scopes: frozenset[str]
+    # Stable campaign identity, distinct from the short-lived login session.
+    crew_id: str | None = None
 
 
 class AuthorizationService:
