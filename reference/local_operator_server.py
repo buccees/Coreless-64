@@ -459,8 +459,17 @@ def serve_lan(
     key_path: str | Path,
     password: str,
     spatial_workspace: SpatialWorkspace | None = None,
+    artifact_unit_resolver=None,
+    artifact_unit_action_authorizer=None,
+    artifact_custody_authorizer=None,
+    artifact_verified_survey_resolver=None,
+    artifact_sinking_validator=None,
 ) -> None:
-    """Serve the operator display against the caller's already-running machine."""
+    """Serve the operator display against the caller's already-running machine.
+
+    Artifact discovery/custody remains fail-closed unless the caller supplies
+    resolvers backed by the authoritative running simulation.
+    """
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(str(cert_path), str(key_path))
@@ -468,7 +477,12 @@ def serve_lan(
         host,
         port,
         create_lan_app(
-            password=password, system=system, spatial_workspace=spatial_workspace
+            password=password, system=system, spatial_workspace=spatial_workspace,
+            artifact_unit_resolver=artifact_unit_resolver,
+            artifact_unit_action_authorizer=artifact_unit_action_authorizer,
+            artifact_custody_authorizer=artifact_custody_authorizer,
+            artifact_verified_survey_resolver=artifact_verified_survey_resolver,
+            artifact_sinking_validator=artifact_sinking_validator,
         ),
         server_class=WSGIServer,
         handler_class=QuietHandler,
