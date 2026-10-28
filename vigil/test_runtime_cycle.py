@@ -257,3 +257,53 @@ def test_recorded_sink_event_can_retry_recovery_after_transient_resolver_failure
     assert item["location"] == {"x": 0.23, "y": 0.76}
     store.close()
     sinks.close()
+
+def test_restore_state_rebinds_recovery_and_reconciles_recorded_events(tmp_path):
+    import pytest
+    from vigil.artifact_simulation_bridge import ArtifactSimulationBridge
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+    from vigil.provenance import EventProvenance
+    from vigil.simulation import ReplayEvent
+    from vigil.sinking_event_registry import SinkingEventRegistry
+
+    catalog = build_artifact_catalog()
+    store = HistoricalArtifactStore(catalog, tmp_path / "restart-artifacts.sqlite3")
+    sinks = SinkingEventRegistry(tmp_path / "restart-sinks.sqlite3")
+    artifact = catalog[0]
+    carrier = {"id": "UUV-RESTART", "crewId": "crew-alpha", "unitType": "submersible",
+               "x": artifact["x"], "y": artifact["y"], "afloat": True,
+               "lockedArtifactContainer": {"locked": True, "artifactIds": []}}
+    store.discover("PELAGOS-01", artifact["id"])
+    store.collect("PELAGOS-01", artifact["id"], "UUV-RESTART", carrier)
+    sunk = {**carrier, "x": 0.341, "y": 0.682, "afloat": False}
+    resolver_state = {"available": False}
+    resolve = lambda unit_id: sunk if unit_id == "UUV-RESTART" and resolver_state["available"] else None
+    bridge = ArtifactSimulationBridge(artifact_store=store, sinking_registry=sinks)
+
+    first = VigilEnvironment(enabled=True)
+    first.configure_artifact_recovery(world_seed="PELAGOS-01", bridge=bridge, resolve_unit_state=resolve)
+    event = ReplayEvent(
+        event_id="restart-sink-01", timestamp_ns=77, kind="UNIT_SUNK",
+        payload={"status": "CONFIRMED", "unit_id": "UUV-RESTART", "x": 0.341, "y": 0.682},
+        provenance=EventProvenance(source_type="simulation", source_ids=("UUV-RESTART",),
+                                   timestamp_ns=77, confidence=1.0),
+    )
+    with pytest.raises(ValueError, match="authoritative sunk-unit state is unavailable"):
+        first.replay.append(event)
+    saved_state = first.persistent_state()
+    first.disable_artifact_recovery()
+
+    resolver_state["available"] = True
+    restored = VigilEnvironment(enabled=True)
+    restored.configure_artifact_recovery(world_seed="PELAGOS-01", bridge=bridge, resolve_unit_state=resolve)
+    restored.restore_state(saved_state)
+    report = restored.artifact_recovery_status()
+    assert report["configured"] is True
+    assert report["report"] == {"processed": 1, "ignored": 0, "recovered": 1, "failures": []}
+    item = next(row for row in store.inventory("PELAGOS-01") if row["id"] == artifact["id"])
+    assert item["status"] == "LOST"
+    assert item["location"] == {"x": 0.341, "y": 0.682}
+    restored.disable_artifact_recovery()
+    store.close()
+    sinks.close()
