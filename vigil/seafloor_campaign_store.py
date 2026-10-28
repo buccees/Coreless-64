@@ -6,6 +6,7 @@ and a uniqueness constraint make retries safe across reconnects and concurrent c
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
@@ -122,9 +123,14 @@ class SeafloorCampaignStore:
                     accepted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     coverage_added INTEGER NOT NULL,
                     discoveries_added INTEGER NOT NULL,
+                    report_fingerprint TEXT NOT NULL DEFAULT '',
                     PRIMARY KEY (world_seed, report_id)
                 );
             """)
+            report_columns = {row["name"] for row in self._db.execute("PRAGMA table_info(seafloor_reports)")}
+            if "report_fingerprint" not in report_columns:
+                # Existing campaign databases remain readable after this additive migration.
+                self._db.execute("ALTER TABLE seafloor_reports ADD COLUMN report_fingerprint TEXT NOT NULL DEFAULT ''")
 
     def close(self) -> None:
         with self._lock:
@@ -156,14 +162,24 @@ class SeafloorCampaignStore:
         discoveries = [_discovery(item, seed) for item in raw_discoveries]
         if len({item["id"] for item in discoveries}) != len(discoveries):
             raise ValueError("report contains duplicate discovery IDs")
+        fingerprint_payload = {
+            "world_seed": seed,
+            "coverage": sorted(coverage),
+            "discoveries": sorted(discoveries, key=lambda item: item["id"]),
+        }
+        fingerprint = hashlib.sha256(
+            json.dumps(fingerprint_payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+        ).hexdigest()
         with self._lock:
             self._db.execute("BEGIN IMMEDIATE")
             try:
                 existing = self._db.execute(
-                    "SELECT coverage_added, discoveries_added FROM seafloor_reports WHERE world_seed=? AND report_id=?",
+                    "SELECT coverage_added, discoveries_added, report_fingerprint FROM seafloor_reports WHERE world_seed=? AND report_id=?",
                     (seed, report_id),
                 ).fetchone()
                 if existing:
+                    if existing["report_fingerprint"] and existing["report_fingerprint"] != fingerprint:
+                        raise ValueError("report_id was already used for different survey data")
                     self._db.execute("COMMIT")
                     return {"ok": True, "duplicate_report": True, "coverage_added": 0,
                             "discoveries_added": 0, "world_seed": seed}
@@ -182,8 +198,8 @@ class SeafloorCampaignStore:
                     )
                     discoveries_added += cur.rowcount
                 self._db.execute(
-                    "INSERT INTO seafloor_reports(world_seed,report_id,coverage_added,discoveries_added) VALUES(?,?,?,?)",
-                    (seed, report_id, coverage_added, discoveries_added),
+                    "INSERT INTO seafloor_reports(world_seed,report_id,coverage_added,discoveries_added,report_fingerprint) VALUES(?,?,?,?,?)",
+                    (seed, report_id, coverage_added, discoveries_added, fingerprint),
                 )
                 self._db.execute("COMMIT")
             except Exception:
