@@ -46,8 +46,8 @@ for (const required of [
   "event.key==='End'",
   "vigil:active-unit-changed",
   "vigilSetSimulationUnitState",
-  "vigil-nav-heading',
-  "vigil-nav-speed',
+  "vigil-nav-heading",
+  "vigil-nav-speed",
   "SEAFLOOR MAPPING",
 ]) {
   assert.ok(html.includes(required), `missing simulation-bay unit-control marker: ${required}`);
