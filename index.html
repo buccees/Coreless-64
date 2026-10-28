@@ -4186,8 +4186,25 @@ var head=consoleRoot.querySelector('.vigil-ops-head');
 if(head)head.insertAdjacentElement('afterend',context);else consoleRoot.insertBefore(context,consoleRoot.firstChild);
 if(head)head.insertAdjacentElement('afterend',unitTabBar);else consoleRoot.insertBefore(unitTabBar,context);
 var select=context.querySelector('#vigil-active-unit');
-Array.prototype.forEach.call(unitTabBar.querySelectorAll('[data-unit]'),function(tab){
- tab.addEventListener('click',function(){if(select.value!==tab.dataset.unit){select.value=tab.dataset.unit;select.dispatchEvent(new Event('change'));}});
+var unitTabs=Array.prototype.slice.call(unitTabBar.querySelectorAll('[data-unit]'));
+Array.prototype.forEach.call(unitTabs,function(tab,index){
+ tab.setAttribute('aria-controls','vigil-unit-sensor-profile');
+ tab.setAttribute('tabindex',tab.getAttribute('aria-selected')==='true'?'0':'-1');
+ tab.addEventListener('click',function(){
+  if(select.value!==tab.dataset.unit){select.value=tab.dataset.unit;select.dispatchEvent(new Event('change'));}
+  unitTabs.forEach(function(other){other.setAttribute('tabindex',other===tab?'0':'-1');});
+ });
+ tab.addEventListener('keydown',function(event){
+  var next=index;
+  if(event.key==='ArrowRight'||event.key==='ArrowDown')next=(index+1)%unitTabs.length;
+  else if(event.key==='ArrowLeft'||event.key==='ArrowUp')next=(index+unitTabs.length-1)%unitTabs.length;
+  else if(event.key==='Home')next=0;
+  else if(event.key==='End')next=unitTabs.length-1;
+  else return;
+  event.preventDefault();
+  unitTabs[next].focus();
+  unitTabs[next].click();
+ });
 });
 var status=context.querySelector('#vigil-active-unit-status');
 var list=context.querySelector('#vigil-unit-sensor-list');
