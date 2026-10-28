@@ -91,7 +91,7 @@ for (const required of [
   "terrainResizer.addEventListener('pointerdown'",
   "terrainResizer.addEventListener('pointermove'",
   "terrainResizer.addEventListener('pointerup'",
-  "e.key==='ArrowUp'",
+  "e.key!=='ArrowUp'",
   "say('ZOOM IN // '+Math.round(zoom*100)+'%')",
   'VIEW RESET // VEHICLE POSITION AND COURSE RETAINED',
   'z-index:10;pointer-events:auto',
