@@ -5463,6 +5463,7 @@ function boot(){
 style.textContent+='\n#vigil-3d-seafloor-view #v3-evidence{padding:12px;background:#03100b;border-top:1px solid #285b42;color:#b4e6c6}#vigil-3d-seafloor-view #v3-evidence h3{font-size:12px;letter-spacing:1px;margin:0 0 8px;color:#8de5b1}#vigil-3d-seafloor-view #v3-evidence p{font-size:11px;line-height:1.5;color:#86b99b}#vigil-3d-seafloor-view .v3-evidence-item{border:1px solid #285b42;padding:9px;margin:7px 0;background:#020906}#vigil-3d-seafloor-view .v3-evidence-item strong{display:block;color:#c3f4d4;font-size:11px}#vigil-3d-seafloor-view .v3-evidence-item small{display:block;color:#77a88c;margin:4px 0;font-size:10px}#vigil-3d-seafloor-view .v3-evidence-item p{margin:5px 0}#vigil-3d-seafloor-view .v3-evidence-item button{margin-top:6px;padding:7px 10px;background:#06190f;color:#b7f1c9;border:1px solid #39845b;font:10px monospace}#vigil-3d-seafloor-view .v3-evidence-state{color:#d7e8a4;font-size:10px;letter-spacing:.7px}';
 style.textContent += "\n#vigil-3d-seafloor-view #vigil-3d-terrain{display:block;flex:1 1 0;min-height:180px;width:100%;max-width:100%;height:1px;touch-action:none;resize:none}#vigil-3d-seafloor-view .v3-terrain-resizer{position:relative;z-index:12;display:flex;flex:0 0 11px;width:100%;height:11px;min-height:11px;align-items:center;justify-content:center;cursor:ns-resize;touch-action:none;background:linear-gradient(180deg,#061b12,#0d2d1e,#061b12);border-top:1px solid #23563b;border-bottom:1px solid #1a4831}#vigil-3d-seafloor-view .v3-terrain-resizer:after{content:'';display:block;width:76px;height:3px;border-top:1px solid #6bb78b;border-bottom:1px solid #6bb78b;opacity:.9}#vigil-3d-seafloor-view .v3-terrain-resizer:hover:after,#vigil-3d-seafloor-view .v3-terrain-resizer:focus-visible:after{border-color:#b9ffd0;opacity:1}#vigil-3d-seafloor-view .v3-terrain-resizer:focus-visible{outline:2px solid #74ffb1;outline-offset:-2px}#vigil-3d-seafloor-view{overflow-y:auto}#vigil-3d-seafloor-view>.v3-head,#vigil-3d-seafloor-view>.v3-meta,#vigil-3d-seafloor-view>.v3-fps-compass,#vigil-3d-seafloor-view>.v3-helm,#vigil-3d-seafloor-view>.v3-panel,#vigil-3d-seafloor-view>details,#vigil-3d-seafloor-view>.v3-foot{flex-shrink:0}#vigil-3d-seafloor-view button{background:linear-gradient(180deg,#103e2b,#061b12)!important;color:#d5f5e2!important;border:1px solid #397b58!important;cursor:pointer;pointer-events:auto}#vigil-3d-seafloor-view button:hover{background:linear-gradient(180deg,#1b6840,#092d1d)!important;border-color:#75e5a5!important;color:#fff!important}#vigil-3d-seafloor-view button:active,#vigil-3d-seafloor-view button.v3-clicked,#vigil-3d-seafloor-view button[aria-pressed=true]{background:linear-gradient(180deg,#287d50,#0c3e27)!important;border-color:#9bffc3!important;color:#fff!important}";
 style.textContent += "\n#vigil-3d-seafloor-view .v3-world-map-legend .v3-map-ground-key{color:#f0dca0;font-weight:bold}#vigil-3d-seafloor-view .v3-world-map-legend .v3-map-shallow-key{color:#65c7ae;font-weight:bold}#vigil-3d-seafloor-view .v3-world-map-legend .v3-map-deep-key{color:#65b6e8;font-weight:bold}#vigil-3d-seafloor-view .v3-world-map-legend .v3-map-trench-key{color:#b6a2ff;font-weight:bold}";
+style.textContent += "\n#vigil-3d-seafloor-view .v3-speed-hud{position:absolute;top:98px;left:12px;z-index:24;max-width:calc(100vw - 200px);padding:6px 9px;background:rgba(1,15,11,.94);border:1px solid #63bd8b;color:#d5ffe2;font: bold 11px/1.3 'Courier New',monospace;letter-spacing:.2px;box-shadow:0 2px 9px #0009;pointer-events:none;font-variant-numeric:tabular-nums}@media(max-width:620px){#vigil-3d-seafloor-view .v3-speed-hud{top:98px;left:7px;max-width:calc(100vw - 180px);font-size:9px;padding:5px 6px}}";
 document.head.appendChild(style);
 style.textContent+="\n#vigil-3d-seafloor-view .v3-world-map{z-index:20;pointer-events:auto}#vigil-3d-seafloor-view #vigil-3d-terrain{position:relative;z-index:1}#vigil-3d-seafloor-view .v3-meta{position:relative;z-index:21;background:#04100c}#vigil-3d-seafloor-view .v3-controls button{position:relative;z-index:22;pointer-events:auto}#vigil-3d-seafloor-view .v3-helm{position:relative;z-index:21}@media(max-width:620px){#vigil-3d-seafloor-view .v3-world-map{top:8px;right:8px;width:150px;min-width:0}#vigil-3d-seafloor-view .v3-meta{padding-right:165px;min-height:46px}#vigil-3d-seafloor-view .v3-meta span{font-size:9px}#vigil-3d-seafloor-view .v3-helm{grid-template-columns:minmax(0,1fr)}#vigil-3d-seafloor-view .v3-compass{grid-template-columns:repeat(4,minmax(34px,1fr))}}";
 var view=document.createElement('section');
@@ -5543,19 +5544,19 @@ function sampleSpawnBathymetry(x,y){
 }
 function ruptureLocalAt(x,y){var along=y+435,fade=Math.max(0,Math.min(1,(430-Math.abs(along))/68));if(fade<=0)return {core:0,wall:0,active:false};var axis=-405+18*Math.sin(along*.036)+5.3*Math.sin(along*.116),across=Math.abs(x-axis),core=Math.exp(-Math.pow(across/12,2))*fade,wall=Math.exp(-Math.pow((across-30)/8.5,2))*fade;return {core:core,wall:wall,active:core>.025||wall>.18,across:across,along:along};}
 function heightAt(x,y){var spawnHeight=sampleSpawnBathymetry(x,y),base;if(spawnHeight!==null)base=spawnHeight;else{var ridgeAxis=y-.24*x-28,trenchAxis=y+.48*x-36,shelfAxis=y-.62*x+105,ridge=92*Math.exp(-(ridgeAxis*ridgeAxis)/(2*58*58)),trench=-108*Math.exp(-(trenchAxis*trenchAxis)/(2*27*27)),shelf=42*Math.exp(-(shelfAxis*shelfAxis)/(2*100*100)),basin=24*Math.sin(x*.012+Math.sin(y*.009)*.8)+21*Math.cos(y*.014-x*.004),rolling=12*Math.sin(x*.027+Math.sin(y*.019))*Math.cos(y*.023);base=285+ridge+trench+shelf+basin+rolling+noise(x*.12,y*.12)*5;}var rift=ruptureLocalAt(x,y);if(rift.active)return base-240*rift.core+70*rift.wall+noise(x*.9,y*.9)*4*rift.core;return base;}
-function resize(){var dpr=Math.min(window.devicePixelRatio||1,2),w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
+function terrainElevationAt(x,y){var point=window.vigilNormalizePlanetPoint(x/1500+.5,.5-y/1500),sample=window.vigilGetWorldTerrainAt(point.x,point.y);if(!sample)return heightAt(x,y);var relief=heightAt(x,y)-285;return sample.isLand?95+Math.max(-20,Math.min(60,relief*.16)):-Math.sqrt(Math.max(0,Number(sample.depthMeters)||0))*2.3+relief*.12;}\nfunction resize(){var dpr=Math.min(window.devicePixelRatio||1,2),w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
 function worldToView(x,y,w,h,cameraZ){
  var rad=heading*Math.PI/180,fx=Math.sin(rad),fy=Math.cos(rad),rx=x-cameraX,ry=y-cameraY,
  forward=rx*fx+ry*fy,side=rx*fy-ry*fx;
  if(forward<3)return null;
  var focalX=w*.92*zoom,focalY=h*.92*zoom;
- return {x:w*.5+side*focalX/forward,y:h*.31+lookPitch+(cameraZ-heightAt(x,y))*focalY/forward,z:forward};
+ return {x:w*.5+side*focalX/forward,y:h*.31+lookPitch+(cameraZ-terrainElevationAt(x,y))*focalY/forward,z:forward};
 }
 function draw(){
  if(!ctx||!view.classList.contains('open'))return;
  var w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;
  var u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('submersible');
- if(u){if(u.depth_meters!==null&&u.depth_meters!==undefined)depth=Number(u.depth_meters)||0;var worldPoint=window.vigilNormalizePlanetPoint(u.x,u.y);if(!pilotWorldPoint){cameraX=(worldPoint.x-.5)*1500;cameraY=(.5-worldPoint.y)*1500;}else{var travel=window.vigilGetPlanetRangeBearing(pilotWorldPoint.x,pilotWorldPoint.y,worldPoint.x,worldPoint.y);if(travel.distance<.12){cameraX+=travel.east*1500;cameraY-=travel.north*1500;}else{cameraX=(worldPoint.x-.5)*1500;cameraY=(.5-worldPoint.y)*1500;}}pilotWorldPoint=worldPoint;heading=Number(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)||0;speed=Number(u.target_speed==null?u.speed:u.target_speed)||0;}
+ if(u){if(u.depth_meters!==null&&u.depth_meters!==undefined)depth=Number(u.depth_meters)||0;var worldPoint=window.vigilNormalizePlanetPoint(u.x,u.y);pilotWorldPoint=worldPoint;cameraX=(worldPoint.x-.5)*1500;cameraY=(.5-worldPoint.y)*1500;heading=Number(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)||0;speed=Number(u.target_speed==null?u.speed:u.target_speed)||0;}
  ctx.clearRect(0,0,w,h);
  var water=ctx.createLinearGradient(0,0,0,h);
  water.addColorStop(0,'#03131f');water.addColorStop(.42,'#07303b');water.addColorStop(1,'#0a252b');
@@ -5566,7 +5567,7 @@ function draw(){
  haze.addColorStop(0,'rgba(21,83,91,.04)');haze.addColorStop(.55,'rgba(10,49,55,.12)');haze.addColorStop(1,'rgba(1,14,19,.08)');
  ctx.fillStyle=haze;ctx.fillRect(0,horizon,w,h-horizon);
  for(var ray=0;ray<12;ray++){var rx=w*(.12+ray*.069);ctx.strokeStyle='rgba(89,180,174,'+(0.018+(ray%3)*.008)+')';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(w*.5,horizon);ctx.lineTo(rx,h*.88);ctx.stroke();}
- var rows=42,cols=56,points=[],cameraZ=heightAt(cameraX,cameraY)+Math.max(8,46+(120-depth)*.15);
+ var rows=42,cols=56,points=[],cameraZ=-Math.sqrt(Math.max(0,depth))*2.3;
  for(var r=0;r<=rows;r++){
   points[r]=[];
   var d=9+Math.pow(r/rows,2.05)*760;
@@ -5574,20 +5575,27 @@ function draw(){
    var side=(c/cols-.5)*Math.min(780,d*1.5),rad=heading*Math.PI/180;
    var wx=cameraX+Math.sin(rad)*d+Math.cos(rad)*side;
    var wy=cameraY+Math.cos(rad)*d-Math.sin(rad)*side;
-   var z=heightAt(wx,wy),focalX=w*.92*zoom/d,focalY=h*.92*zoom/d,riftSample=ruptureLocalAt(wx,wy);points[r][c]={x:w*.5+side*focalX,y:horizon+(cameraZ-z)*focalY,z:z,d:d,riftCore:riftSample.core,riftWall:riftSample.wall};
+   var localRelief=heightAt(wx,wy)-285,worldPoint=window.vigilNormalizePlanetPoint(wx/1500+.5,.5-wy/1500),bathymetry=window.vigilGetWorldTerrainAt(worldPoint.x,worldPoint.y),waterDepth=bathymetry&&!bathymetry.isLand?Math.max(0,Number(bathymetry.depthMeters)||0):0,z=bathymetry?(bathymetry.isLand?95+Math.max(-20,Math.min(60,localRelief*.16)):-Math.sqrt(waterDepth)*2.3+localRelief*.12):heightAt(wx,wy),focalX=w*.92*zoom/d,focalY=h*.92*zoom/d,riftSample=ruptureLocalAt(wx,wy);points[r][c]={x:w*.5+side*focalX,y:horizon+(cameraZ-z)*focalY,z:z,d:d,riftCore:riftSample.core,riftWall:riftSample.wall,isLand:!!(bathymetry&&bathymetry.isLand),depthMeters:waterDepth};
   }
  }
- for(var rr=0;rr<rows;rr++){
+ for(var rr=rows-1;rr>=0;rr--){
   for(var cc=0;cc<cols;cc++){
    var p1=points[rr][cc],p2=points[rr][cc+1],p3=points[rr+1][cc+1],p4=points[rr+1][cc];
    var mean=(p1.z+p2.z+p3.z+p4.z)*.25,near=1-rr/rows;
-   var depthTone=Math.max(0,Math.min(1,(mean-180)/250));
-   var slopeTone=Math.min(1,(Math.abs(p1.z-p3.z)+Math.abs(p2.z-p4.z))/34),ridgeTone=Math.min(1,Math.abs(p1.z-p3.z)/58),riftCoreMean=(p1.riftCore+p2.riftCore+p3.riftCore+p4.riftCore)/4,riftWallMean=(p1.riftWall+p2.riftWall+p3.riftWall+p4.riftWall)/4;
-   // Lighter sediment and strong slope highlights separate the solid seabed from the dark water column.
-   var red=Math.round(25+depthTone*40+slopeTone*65),green=Math.round(58+depthTone*54+slopeTone*76),blue=Math.round(70+depthTone*28+slopeTone*22);
-   if(riftCoreMean>.055){red=Math.round(2+riftCoreMean*4);green=Math.round(10+riftCoreMean*18);blue=Math.round(26+riftCoreMean*35);}else if(riftWallMean>.16){red=Math.round(35+riftWallMean*28);green=Math.round(100+riftWallMean*110);blue=Math.round(78+riftWallMean*86);}
+   var depthTone=Math.max(0,Math.min(1,(mean-170)/250)),landCoverage=[p1,p2,p3,p4].filter(function(p){return p.isLand;}).length,meanWaterDepth=([p1,p2,p3,p4].filter(function(p){return !p.isLand;}).reduce(function(sum,p){return sum+p.depthMeters;},0)/Math.max(1,4-landCoverage));
+   var slopeTone=Math.min(1,(Math.abs(p1.z-p3.z)+Math.abs(p2.z-p4.z))/28),ridgeTone=Math.min(1,Math.abs(p1.z-p3.z)/45),riftCoreMean=(p1.riftCore+p2.riftCore+p3.riftCore+p4.riftCore)/4,riftWallMean=(p1.riftWall+p2.riftWall+p3.riftWall+p4.riftWall)/4;
+   // Sand-colored land, bright shallows, deep blue water and violet trenches mirror the chart legend.
+   var red,green,blue;
+   if(landCoverage>=2){red=Math.round(188+slopeTone*55);green=Math.round(165+slopeTone*52);blue=Math.round(111+slopeTone*44);}
+   else if(meanWaterDepth>8000){red=34;green=35;blue=Math.round(82+slopeTone*78);}
+   else if(meanWaterDepth>5000){red=8;green=Math.round(36+slopeTone*65);blue=Math.round(91+slopeTone*95);}
+   else if(meanWaterDepth>2500){red=7;green=Math.round(75+slopeTone*86);blue=Math.round(132+slopeTone*65);}
+   else if(meanWaterDepth>900){red=7;green=Math.round(121+slopeTone*83);blue=Math.round(143+slopeTone*61);}
+   else{red=63;green=Math.round(172+slopeTone*72);blue=Math.round(160+slopeTone*60);}
+   if(riftCoreMean>.055){red=3;green=Math.round(12+riftCoreMean*15);blue=Math.round(42+riftCoreMean*52);}else if(riftWallMean>.16){red=72;green=Math.round(166+riftWallMean*65);blue=Math.round(111+riftWallMean*100);}
    ctx.fillStyle='rgb('+red+','+green+','+blue+')';
-   ctx.strokeStyle='rgba(193,239,198,'+(0.07+near*.19+slopeTone*.12)+')';ctx.lineWidth=.65;
+   var mixedLand=landCoverage>0&&landCoverage<4;
+   ctx.strokeStyle=mixedLand?'rgba(255,235,174,.98)':'rgba(200,242,224,'+(0.12+near*.20+slopeTone*.16)+')';ctx.lineWidth=mixedLand?1.4:.7;
    ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.lineTo(p3.x,p3.y);ctx.lineTo(p4.x,p4.y);ctx.closePath();ctx.fill();ctx.stroke();
   }
  }
@@ -5616,7 +5624,7 @@ function draw(){
  ctx.strokeStyle='rgba(151,220,199,.25)';ctx.beginPath();ctx.moveTo(12,40);ctx.lineTo(12,72);ctx.lineTo(42,72);ctx.moveTo(w-12,40);ctx.lineTo(w-12,72);ctx.lineTo(w-42,72);ctx.stroke();
  ctx.fillStyle='#c5f7df';ctx.font='11px Courier New';ctx.fillText('UUV PILOT VIEW // PELAGOS-01',20,160);ctx.fillStyle='#8cc9b0';ctx.fillText('HDG '+Math.round(heading)+'°',20,179);ctx.fillText('DEPTH '+Math.round(depth)+' m',20,194);ctx.fillText('ALTITUDE '+Math.round(cameraZ-heightAt(cameraX+Math.sin(heading*Math.PI/180)*30,cameraY+Math.cos(heading*Math.PI/180)*30))+' m',20,209);
  ctx.textAlign='right';ctx.fillText('TERRAIN: '+(spawnBathymetry?spawnBathymetry.region:'FICTIONAL / SPAWN DATA OFFLINE'),w-20,h-18);ctx.textAlign='left';var riftAhead=ruptureLocalAt(cameraX+Math.sin(heading*Math.PI/180)*180,cameraY+Math.cos(heading*Math.PI/180)*180);if(riftAhead.active){ctx.fillStyle='#caff92';ctx.font='bold 11px Courier New';ctx.fillText('CRUSTAL BREACH // PELAGOS ABYSSAL RIFT',20,230);ctx.fillStyle='#8fd9b3';ctx.font='10px Courier New';ctx.fillText('MULTIBEAM + SIDE-SCAN + SUB-BOTTOM ANOMALY',20,245);}
- if(u){document.getElementById('v3-heading').textContent='HEADING '+String(Math.round(heading)%360).padStart(3,'0')+'°';document.getElementById('v3-speed').textContent='TARGET SPEED '+Number(speed).toFixed(3);document.getElementById('v3-depth').textContent='DEPTH '+Math.round(Number(u.depth_meters==null?(u.depthMeters==null?depth:u.depthMeters):u.depth_meters))+' m';}
+ if(u){var actualSpeed=Number(u.speed)||0,targetSpeed=Number(u.target_speed==null?actualSpeed:u.target_speed)||0,maxSpeed=Number(u.max_speed)||0;document.getElementById('v3-heading').textContent='HEADING '+String(Math.round(heading)%360).padStart(3,'0')+'°';document.getElementById('v3-speed').textContent='SPEED '+actualSpeed.toFixed(3)+' / CMD '+targetSpeed.toFixed(3);var speedHud=view.querySelector('#v3-speed-hud');if(speedHud)speedHud.textContent='UUV SPEED // ACTUAL '+actualSpeed.toFixed(3)+' // TARGET '+targetSpeed.toFixed(3)+' // MAX '+maxSpeed.toFixed(3)+' SIM';document.getElementById('v3-depth').textContent='DEPTH '+Math.round(Number(u.depth_meters==null?(u.depthMeters==null?depth:u.depthMeters):u.depth_meters))+' m';}
  renderCourseReadout();
  var discoveries=window.vigilGetLocalSeafloorDiscoveries?window.vigilGetLocalSeafloorDiscoveries():[];
  document.getElementById('v3-survey').textContent='LOCAL DISCOVERIES '+discoveries.length+' // SURVEY LINK: LIVE';
