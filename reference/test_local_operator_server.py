@@ -558,3 +558,24 @@ def test_historical_artifact_discovery_uses_verified_survey_and_authoritative_un
     assert len(store.events("PELAGOS-01", artifact["id"])) == 1
     store.close()
 
+
+
+def test_operator_crew_identity_is_stable_across_login_sessions(monkeypatch):
+    from local_operator_server import LocalSessions
+
+    monkeypatch.setenv("CORELESS_OPERATOR_CREW_ID", "pelagos-test-crew")
+    sessions = LocalSessions()
+    _, first = sessions.create()
+    _, second = sessions.create()
+
+    assert first.crew_id == "pelagos-test-crew"
+    assert second.crew_id == "pelagos-test-crew"
+    assert first.session_id != second.session_id
+
+
+def test_operator_crew_identity_has_safe_single_operator_default(monkeypatch):
+    from local_operator_server import LocalSessions
+
+    monkeypatch.delenv("CORELESS_OPERATOR_CREW_ID", raising=False)
+    _, context = LocalSessions().create()
+    assert context.crew_id == "local-operator-crew"
