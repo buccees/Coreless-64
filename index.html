@@ -4183,8 +4183,8 @@ unitTabBar.className='vigil-simulation-unit-tabs';
 unitTabBar.setAttribute('aria-label','Simulation bay unit selection');
 unitTabBar.innerHTML='<h4>SIMULATION BAY // CONTROLLED UNITS</h4><div class="vigil-simulation-unit-tab-list" role="tablist" aria-label="Select unit to pilot"><button type="button" role="tab" data-unit="ship" aria-selected="false">SHIP <small>DDG-51</small></button><button type="button" role="tab" data-unit="drone" aria-selected="false">DRONE <small>DRONE-01</small></button><button type="button" role="tab" data-unit="submersible" aria-selected="true">UUV <small>UUV-01</small></button><button type="button" role="tab" data-unit="submarine" aria-selected="false">SUBMARINE <small>SSN-774</small></button><button type="button" role="tab" data-unit="mech" aria-selected="false">MECH <small>MECH-01</small></button><button type="button" role="tab" data-unit="facility" aria-selected="false">INSTALLATION <small>FAC-01</small></button></div>';
 var head=consoleRoot.querySelector('.vigil-ops-head');
-if(head)head.insertAdjacentElement('afterend',unitTabBar);else consoleRoot.insertBefore(unitTabBar,consoleRoot.firstChild);
-if(head)head.insertAdjacentElement('afterend',context);
+if(head)head.insertAdjacentElement('afterend',context);else consoleRoot.insertBefore(context,consoleRoot.firstChild);
+if(head)head.insertAdjacentElement('afterend',unitTabBar);else consoleRoot.insertBefore(unitTabBar,context);
 var select=context.querySelector('#vigil-active-unit');
 Array.prototype.forEach.call(unitTabBar.querySelectorAll('[data-unit]'),function(tab){
  tab.addEventListener('click',function(){if(select.value!==tab.dataset.unit){select.value=tab.dataset.unit;select.dispatchEvent(new Event('change'));}});
