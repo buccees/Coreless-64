@@ -3461,13 +3461,13 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       if(!fireState.ok||distance>fireState.max_range){regionalUiStatus('NO FIRE SOLUTION // RANGE '+distance.toFixed(3)+' / MAX '+Number(fireState.max_range||0).toFixed(3),true);return;}
       var hit=Math.random()<=Number(fireState.solution_quality||.5),damage=hit?Number(fireState.weapon_damage||1):0;
       if(hit)applyLocalWeaponHit(shooter,target,fireState);else shooter.weaponCooldownRemaining=Number(fireState.weapon_reload_seconds||shooter.weaponReloadSeconds||5);
-      var localEncounter={source:'local-training',shooter_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',authorization_id:window.vigilPendingAuthorizationId||'LOCAL-TRAINING-CO',hit:hit,assessment:hit?'HIT':'MISS',damage:damage,hull_after:target.hull,sunk:!target.afloat,occurred_at:new Date().toISOString()};
+      var localEncounter={source:'local-training',shooter_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',authorization_id:window.vigilPendingAuthorizationId||'LOCAL-TRAINING-CO',hit:hit,assessment:hit?'HIT':'MISS',damage:damage,hull_after:target.hull,sunk:!target.afloat,sink_x:!target.afloat?Number(target.x):undefined,sink_y:!target.afloat?Number(target.y):undefined,occurred_at:new Date().toISOString()};
       window.dispatchEvent(new CustomEvent('vigil:regional-encounter',{detail:localEncounter}));
       populateLocalRegionalCommandChoices();renderBathymetry(lastObservationData);
       regionalUiStatus((hit?(target.afloat?'LOCAL HIT CONFIRMED':'CONTACT SUNK'):'MISS CONFIRMED // NO HULL DAMAGE')+' // '+targetId+' // DAMAGE '+damage+' // HULL '+target.hull+'/'+target.maxHull+' // RELOAD '+shooter.weaponCooldownRemaining.toFixed(1)+'s',false);return;
     }
     try{var r=await window.sendVigilRegionalCommand(vigilRegionalUiOptions,'fire_weapon',{ship_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',authorization_id:window.vigilFireControlAuthorizationId||''});var cooldown=Number(r.weapon_cooldown_remaining)||0;var fireButton=document.getElementById('vigil-regional-fire');if(cooldown>0){fireButton.disabled=true;fireButton.textContent='RELOADING '+cooldown.toFixed(1)+'s';}
-      window.dispatchEvent(new CustomEvent('vigil:regional-encounter',{detail:{source:'authoritative-backend',shooter_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',hit:typeof r.hit==='boolean'?r.hit:undefined,assessment:typeof r.hit==='boolean'?(r.hit?'HIT':'MISS'):'UNRESOLVED',damage:Number(r.damage)||0,hull_after:Number(r.hull_after),sunk:!!r.sunk,occurred_at:new Date().toISOString()}}));
+      window.dispatchEvent(new CustomEvent('vigil:regional-encounter',{detail:{source:'authoritative-backend',shooter_id:shipId,target_id:targetId,weapon_system:window.vigilPendingWeaponSystem||'main_battery',hit:typeof r.hit==='boolean'?r.hit:undefined,assessment:typeof r.hit==='boolean'?(r.hit?'HIT':'MISS'):'UNRESOLVED',damage:Number(r.damage)||0,hull_after:Number(r.hull_after),sunk:!!r.sunk,sink_x:Number.isFinite(Number(r.sink_x))?Number(r.sink_x):undefined,sink_y:Number.isFinite(Number(r.sink_y))?Number(r.sink_y):undefined,occurred_at:new Date().toISOString()}}));
       regionalUiStatus((r.sunk?'CONTACT SUNK':r.hit===true?'HIT CONFIRMED':r.hit===false?'MISS CONFIRMED // NO HULL DAMAGE':'ENCOUNTER RESOLVED // HIT STATUS UNCONFIRMED')+' // '+targetId+' // DAMAGE '+(Number.isFinite(Number(r.damage))?r.damage:'—')+' // HULL '+(Number.isFinite(Number(r.hull_after))?r.hull_after:'UNREPORTED')+' // RELOAD '+cooldown.toFixed(1)+'s',r.hit===false||typeof r.hit!=='boolean');}
     catch(e){regionalUiStatus('FIRE SOLUTION REJECTED // '+String(e.message||e),true);}
   });
@@ -3721,13 +3721,19 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   window.vigilGetSubmersibleArtifactContainer=function(unitId){var unit=getVigilArtifactUnit(unitId);var container=unit&&ensureVigilLockedContainer(unit);return container?{unitId:String(unit.id),locked:container.locked===true,artifactIds:container.artifactIds.slice()}:null;};
   window.vigilIsHistoricalEvidenceUnique=function(id){return !!getVigilEvidenceRecord(String(id));};
   window.vigilIsHistoricalEvidenceIndestructible=function(){return false;};
-  // If an encounter sinks a carrier, every artifact in that carrier is dropped at the carrier's last reported coordinates.
+  // A sinking drop must use coordinates captured by the event producer at the transition.
+  // Backend-origin events fail closed without server-returned sinking coordinates.
   window.addEventListener('vigil:regional-encounter',function(event){
     var e=event&&event.detail;if(!e||e.sunk!==true||!e.target_id)return;
-    var carrierId=String(e.target_id),fleet=typeof regionalTrainingFleet!=='undefined'?regionalTrainingFleet:[];
-    var unit=fleet.find(function(item){return item&&String(item.id)===carrierId;});
-    var x=unit&&Number(unit.x),y=unit&&Number(unit.y);
-    if(!Number.isFinite(x)||!Number.isFinite(y))return;
+    var carrierId=String(e.target_id),x=Number(e.sink_x),y=Number(e.sink_y);
+    if(e.source==='authoritative-backend'){
+      if(!Number.isFinite(x)||!Number.isFinite(y))return;
+    }else if(!Number.isFinite(x)||!Number.isFinite(y)){
+      var fleet=typeof regionalTrainingFleet!=='undefined'?regionalTrainingFleet:[];
+      var unit=fleet.find(function(item){return item&&String(item.id)===carrierId;});
+      x=unit&&Number(unit.x);y=unit&&Number(unit.y);
+    }
+    if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>1||y<0||y>1)return;
     window.vigilGetHistoricalEvidenceInventory().forEach(function(item){
       if(item.status==='CARRIED'&&item.carrierId===carrierId)window.vigilLoseHistoricalEvidence(item.id,carrierId,x,y);
     });
