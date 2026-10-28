@@ -3514,7 +3514,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       if(!target||target.afloat===false){regionalUiStatus('TARGET UNAVAILABLE // No afloat target selected.',true);return;}
       if(shooter.weaponCooldownRemaining>0.01){regionalUiStatus('RELOADING // '+shooter.weaponCooldownRemaining.toFixed(1)+'s remaining.',true);return;}
       var fireState=window.vigilGetFireControlState(shipId,targetId,window.vigilPendingWeaponSystem||'main_battery');
-      var distance=Math.hypot(target.x-shooter.x,target.y-shooter.y);
+      var distance=Number(fireState.range_normalized);
       if(!fireState.ok||distance>fireState.max_range){regionalUiStatus('NO FIRE SOLUTION // RANGE '+distance.toFixed(3)+' / MAX '+Number(fireState.max_range||0).toFixed(3),true);return;}
       var hit=Math.random()<=Number(fireState.solution_quality||.5),damage=hit?Number(fireState.weapon_damage||1):0;
       if(hit)applyLocalWeaponHit(shooter,target,fireState);else shooter.weaponCooldownRemaining=Number(fireState.weapon_reload_seconds||shooter.weaponReloadSeconds||5);
