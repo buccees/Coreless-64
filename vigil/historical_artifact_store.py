@@ -134,10 +134,14 @@ class HistoricalArtifactStore:
 
     @staticmethod
     def _view(row: sqlite3.Row) -> dict[str, Any]:
+        # Do not leak coordinates or site identity for undiscovered artifacts.
+        # The server still retains their canonical position for discovery checks.
+        discovered = bool(row["discovered"])
         return {
             "id": row["artifact_id"], "status": row["status"],
-            "discovered": bool(row["discovered"]), "sourceSiteId": row["source_site_id"],
-            "location": {"x": row["x"], "y": row["y"]},
+            "discovered": discovered,
+            "sourceSiteId": row["source_site_id"] if discovered else None,
+            "location": {"x": row["x"], "y": row["y"]} if discovered else None,
             "carrierId": row["carrier_id"], "revision": row["revision"],
             "unique": True, "respawnable": False,
         }
