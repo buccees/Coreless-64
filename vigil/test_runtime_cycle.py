@@ -172,3 +172,42 @@ def test_confirm_unit_sunk_publishes_server_coordinates_to_artifact_recovery(tmp
     environment.disable_artifact_recovery()
     store.close()
     sinks.close()
+
+
+def test_confirm_unit_removed_recovers_carried_artifact_at_authoritative_position(tmp_path):
+    from vigil.artifact_simulation_bridge import ArtifactSimulationBridge
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+    from vigil.sinking_event_registry import SinkingEventRegistry
+
+    catalog = build_artifact_catalog()
+    store = HistoricalArtifactStore(catalog, tmp_path / "artifacts.sqlite3")
+    sinks = SinkingEventRegistry(tmp_path / "sinks.sqlite3")
+    bridge = ArtifactSimulationBridge(artifact_store=store, sinking_registry=sinks)
+    artifact = catalog[0]
+    carrier = {
+        "id": "UUV-REMOVED", "crewId": "crew-alpha", "unitType": "submersible",
+        "x": artifact["x"], "y": artifact["y"], "afloat": True,
+        "lockedArtifactContainer": {"locked": True, "artifactIds": []},
+    }
+    store.discover("PELAGOS-01", artifact["id"])
+    store.collect("PELAGOS-01", artifact["id"], "UUV-REMOVED", carrier)
+    removed = {**carrier, "x": 0.412, "y": 0.733}
+    environment = VigilEnvironment(enabled=True)
+    environment.configure_artifact_recovery(
+        world_seed="PELAGOS-01", bridge=bridge,
+        resolve_unit_state=lambda unit_id: removed if unit_id == "UUV-REMOVED" else None,
+    )
+
+    event = environment.confirm_unit_removed(
+        event_id="decommission-01", timestamp_ns=1000,
+        unit_id="UUV-REMOVED", authoritative_unit_state=removed,
+    )
+    assert event.kind == "UNIT_REMOVED"
+    recovered = next(item for item in store.inventory("PELAGOS-01") if item["id"] == artifact["id"])
+    assert recovered["status"] == "LOST"
+    assert recovered["location"] == {"x": 0.412, "y": 0.733}
+
+    environment.disable_artifact_recovery()
+    store.close()
+    sinks.close()
