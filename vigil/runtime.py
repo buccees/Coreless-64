@@ -80,6 +80,7 @@ class VigilEnvironment:
         self.replay = ReplayLog()
         self._artifact_recovery_consumer = None
         self._artifact_recovery_unsubscribe = None
+        self._artifact_recovery_report = None
 
     def configure_artifact_recovery(self, *, world_seed: str, bridge, resolve_unit_state):
         """Attach persistent artifact recovery to this environment's live replay log.
@@ -99,6 +100,9 @@ class VigilEnvironment:
         unsubscribe = consumer.attach(self.replay)
         self._artifact_recovery_consumer = consumer
         self._artifact_recovery_unsubscribe = unsubscribe
+        # Reconcile persisted lifecycle events immediately on startup/configuration.
+        # Keep the report so callers can inspect unresolved failures and retry.
+        self._artifact_recovery_report = consumer.reconcile_recorded_events(self.replay)
         return consumer
 
     def disable_artifact_recovery(self) -> None:
@@ -108,6 +112,19 @@ class VigilEnvironment:
         self._artifact_recovery_consumer = None
         if unsubscribe is not None:
             unsubscribe()
+
+    def artifact_recovery_status(self) -> dict[str, object]:
+        """Return the last startup/reconnect reconciliation report, if configured."""
+        if self._artifact_recovery_consumer is None:
+            return {"configured": False, "report": self._artifact_recovery_report}
+        return {"configured": True, "report": self._artifact_recovery_report}
+
+    def retry_artifact_recovery(self) -> dict[str, object]:
+        """Retry all recorded sinking/removal transitions against the current ledger."""
+        if self._artifact_recovery_consumer is None:
+            raise RuntimeError("artifact recovery is not configured")
+        self._artifact_recovery_report = self._artifact_recovery_consumer.reconcile_recorded_events(self.replay)
+        return dict(self._artifact_recovery_report)
 
     def confirm_unit_sunk(self, *, event_id: str, timestamp_ns: int, unit_id: str, authoritative_unit_state) -> ReplayEvent:
         """Publish a server-confirmed sinking transition to the live replay log.
@@ -607,6 +624,13 @@ class VigilEnvironment:
         fast_touch_state = state.get("fast_touch")
         if self.fast_touch is not None and isinstance(fast_touch_state, Mapping):
             self.fast_touch.restore_state(fast_touch_state)
+        # restore_state replaces ReplayLog. Rebind the recovery consumer to the
+        # restored log, then reconcile old lifecycle events before normal play.
+        if self._artifact_recovery_consumer is not None:
+            if self._artifact_recovery_unsubscribe is not None:
+                self._artifact_recovery_unsubscribe()
+            self._artifact_recovery_unsubscribe = self._artifact_recovery_consumer.attach(self.replay)
+            self._artifact_recovery_report = self._artifact_recovery_consumer.reconcile_recorded_events(self.replay)
         self.input.enable(self.enabled)
         if self.input_router is not None:
             self.input_router.vigil = self.input
