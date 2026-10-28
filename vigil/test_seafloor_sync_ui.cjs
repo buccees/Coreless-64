@@ -29,4 +29,27 @@ for (const required of [
 ]) {
   assert.ok(html.includes(required), `missing seafloor sync feature marker: ${required}`);
 }
-console.log(`Validated syntax for ${parsed} inline JavaScript block(s) and seafloor reconciliation markers.`);
+// Simulation-bay unit-tab regression checks: these exercise the declared UI/control contract
+// without launching a browser or adding Playwright to the routine workflow.
+for (const required of [
+  'vigil-simulation-unit-tabs',
+  'aria-label="Select unit to pilot"',
+  'data-unit="ship"',
+  'data-unit="drone"',
+  'data-unit="submersible"',
+  'data-unit="submarine"',
+  'data-unit="mech"',
+  'data-unit="facility"',
+  "event.key==='ArrowRight'",
+  "event.key==='ArrowLeft'",
+  "event.key==='Home'",
+  "event.key==='End'",
+  "vigil:active-unit-changed",
+  "vigilSetSimulationUnitState",
+  "vigil-nav-heading',
+  "vigil-nav-speed',
+  "SEAFLOOR MAPPING",
+]) {
+  assert.ok(html.includes(required), `missing simulation-bay unit-control marker: ${required}`);
+}
+console.log(`Validated syntax for ${parsed} inline JavaScript block(s), seafloor reconciliation, and simulation-bay unit controls.`);
