@@ -307,3 +307,42 @@ def test_restore_state_rebinds_recovery_and_reconciles_recorded_events(tmp_path)
     restored.disable_artifact_recovery()
     store.close()
     sinks.close()
+
+
+def test_confirmed_removal_tombstone_recovers_artifact_after_unit_leaves_live_fleet(tmp_path):
+    from vigil.artifact_simulation_bridge import ArtifactSimulationBridge
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+    from vigil.sinking_event_registry import SinkingEventRegistry
+
+    catalog = build_artifact_catalog()
+    store = HistoricalArtifactStore(catalog, tmp_path / "removed-tombstone.sqlite3")
+    sinks = SinkingEventRegistry(tmp_path / "removed-tombstone-sinks.sqlite3")
+    bridge = ArtifactSimulationBridge(artifact_store=store, sinking_registry=sinks)
+    artifact = catalog[0]
+    carrier = {
+        "id": "UUV-TOMBSTONE", "crewId": "crew-alpha", "unitType": "submersible",
+        "x": artifact["x"], "y": artifact["y"], "afloat": True,
+        "lockedArtifactContainer": {"locked": True, "artifactIds": []},
+    }
+    store.discover("PELAGOS-01", artifact["id"])
+    store.collect("PELAGOS-01", artifact["id"], "UUV-TOMBSTONE", carrier)
+
+    environment = VigilEnvironment(enabled=True)
+    environment.configure_artifact_recovery(
+        world_seed="PELAGOS-01", bridge=bridge,
+        # The real unit has already been removed from the active fleet.
+        resolve_unit_state=lambda unit_id: None,
+    )
+    event = environment.confirm_unit_removed(
+        event_id="removed-tombstone-01", timestamp_ns=1100,
+        unit_id="UUV-TOMBSTONE", authoritative_unit_state={**carrier, "x": 0.61, "y": 0.37},
+    )
+    assert event.provenance.source_type == "simulation"
+    item = next(row for row in store.inventory("PELAGOS-01") if row["id"] == artifact["id"])
+    assert item["status"] == "LOST"
+    assert item["location"] == {"x": 0.61, "y": 0.37}
+
+    environment.disable_artifact_recovery()
+    store.close()
+    sinks.close()
