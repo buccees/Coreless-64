@@ -136,8 +136,27 @@ class ReplayLog:
     def __init__(self, events: tuple[ReplayEvent, ...] = ()) -> None:
         self._events = ()
         self._last_timestamp = -1
+        self._append_listeners = []
         for event in events:
             self.append(event)
+
+    def subscribe(self, listener):
+        """Subscribe to newly appended authoritative events; returns an unsubscribe callable.
+
+        Existing history is deliberately not replayed to a new listener. Call
+        replay_into() explicitly when historical replay is intended.
+        """
+        if not callable(listener):
+            raise TypeError("listener must be callable")
+        if listener in self._append_listeners:
+            raise ValueError("listener is already subscribed")
+        self._append_listeners.append(listener)
+
+        def unsubscribe():
+            if listener in self._append_listeners:
+                self._append_listeners.remove(listener)
+
+        return unsubscribe
 
     @property
     def events(self) -> tuple[ReplayEvent, ...]:
@@ -150,6 +169,11 @@ class ReplayLog:
             raise ValueError("replay event_id must be unique")
         self._events = self._events + (event,)
         self._last_timestamp = event.timestamp_ns
+        # Listeners run only after the event is durably represented in the log.
+        # If a listener fails, the append remains recorded and the caller sees
+        # the failure; recovery can explicitly replay the event later.
+        for listener in tuple(self._append_listeners):
+            listener(event)
 
     def reset(self) -> None:
         self._last_timestamp = self._events[-1].timestamp_ns if self._events else -1
