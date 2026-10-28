@@ -493,3 +493,53 @@ def test_historical_artifact_discovery_requires_authoritative_survey_record(tmp_
     assert len(store.events("PELAGOS-01", artifact_id)) == 1
     store.close()
 
+def test_historical_artifact_discovery_uses_verified_survey_and_authoritative_unit(tmp_path):
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+
+    artifact = build_artifact_catalog()[0]
+    page = tmp_path / "operator-display.html"
+    page.write_text("artifact display", encoding="utf-8")
+    store = HistoricalArtifactStore(build_artifact_catalog(), tmp_path / "artifacts.sqlite3")
+    verified = {"survey_id": "survey-server-001", "world_seed": "PELAGOS-01",
+                "artifact_id": artifact["id"], "site_id": artifact["siteId"],
+                "unit_id": "UUV-01", "status": "CONFIRMED", "sensor_status": "accepted"}
+
+    def resolve_unit(unit_id):
+        if unit_id != "UUV-01":
+            return None
+        return {"id": "UUV-01", "crewId": active_crew[0], "unitType": "submersible",
+                "afloat": True, "x": artifact["x"], "y": artifact["y"]}
+
+    def resolve_survey(crew_id, seed, artifact_id):
+        if (seed, artifact_id) != ("PELAGOS-01", artifact["id"]):
+            return None
+        active_crew[0] = crew_id
+        return verified
+
+    active_crew = [""]
+    app = create_lan_app(
+        password="a-strong-test-password-123",
+        page_path=page,
+        system=CorelessSystem(storage_path=tmp_path / "owned-machine.img"),
+        historical_artifact_store=store,
+        artifact_unit_resolver=resolve_unit,
+        artifact_verified_survey_resolver=resolve_survey,
+    )
+    response, _ = _request(
+        app, "/api/operator/login", method="POST",
+        body=json.dumps({"password": "a-strong-test-password-123"}).encode(),
+        origin="https://127.0.0.1:8443",
+    )
+    token = response["headers"]["Set-Cookie"].split(";", 1)[0]
+    response, body = _request(
+        app, "/api/vigil/historical-artifacts", method="POST", cookie=token,
+        origin="https://127.0.0.1:8443",
+        body=json.dumps({"world_seed": "PELAGOS-01", "action": "discover",
+                         "artifact_id": artifact["id"]}).encode(),
+    )
+    assert response["status"] == "200 OK"
+    assert json.loads(body)["artifact"]["discovered"] is True
+    assert len(store.events("PELAGOS-01", artifact["id"])) == 1
+    store.close()
+
