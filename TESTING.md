@@ -85,3 +85,22 @@ This is an optimization layer over the existing Coreless machine architecture, n
 - worker sizing never exceeds executable resource capacity;
 - single-item dispatch avoids unnecessary worker-pool setup;
 - queue behavior preserves input/result ordering and fallback semantics.
+
+
+## Arduino bridge validation
+
+The automated suite uses a fake serial transport. It verifies protocol validation and timeout handling, but does not prove a physical board is connected.
+
+After flashing firmware/arduino/coreless_arduino_bridge.ino with ArduinoJson 6.x and selecting the correct DEVICE_ID, install pyserial on the host and run this read-only smoke test:
+
+    python -m pip install pyserial
+    python scripts/arduino-smoke-test.py --port COM4 --pin 14 --device-id arduino-1
+
+Replace COM4 and 14 with the serial device and numeric analog pin appropriate to the connected board. The test sends one analog_read command and waits for its matching acknowledgement; it does not configure or drive output pins. A successful software CI run is not a substitute for running this command against a physical board.
+
+
+## Input integration validation checkpoint
+
+The reference suite now also covers strict direct construction of the Coreless Input ABI, per-device increasing sequences/non-decreasing timestamps, defensive deep snapshots of raw and interpreted metadata, and optional VIGIL failure/malformed-output fallback. The Arduino smoke-test CLI is tested against a fake serial port and verifies that it sends only an `analog_read` command and validates the matching acknowledgement.
+
+These are software tests. The smoke-test procedure still needs to be run against a real board; the Java VIGIL adapter also remains a separate draft PR and is not yet bound through a live cross-process transport to the Python Coreless runtime.

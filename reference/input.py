@@ -7,8 +7,39 @@ raw-event routing. VIGIL may consume raw events and return derived events.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
+from types import MappingProxyType
 from enum import Enum
 from typing import Mapping, Protocol
+
+
+def _freeze_metadata_value(value: object) -> object:
+    """Recursively snapshot JSON-compatible metadata into immutable values."""
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError("metadata numeric values must be finite")
+        return value
+    if isinstance(value, Mapping):
+        snapshot: dict[str, object] = {}
+        for key, item in value.items():
+            if not isinstance(key, str) or not key.strip():
+                raise ValueError("metadata keys must be non-blank strings")
+            snapshot[key] = _freeze_metadata_value(item)
+        return MappingProxyType(snapshot)
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_metadata_value(item) for item in value)
+    raise ValueError("metadata values must be JSON-compatible")
+
+
+def _thaw_metadata_value(value: object) -> object:
+    """Convert immutable metadata snapshots back to JSON-native containers."""
+    if isinstance(value, Mapping):
+        return {key: _thaw_metadata_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_thaw_metadata_value(item) for item in value]
+    return value
 
 
 class InputEventType(str, Enum):
@@ -83,18 +114,51 @@ class InputEvent:
     ABI_VERSION = 1
 
     def __post_init__(self) -> None:
+        if isinstance(self.abi_version, bool) or not isinstance(self.abi_version, int):
+            raise ValueError("input ABI version must be an integer")
         if self.abi_version != self.ABI_VERSION:
             raise ValueError("unsupported input ABI version")
-        if not self.device_id:
+        if not isinstance(self.event_type, InputEventType):
+            raise ValueError("event_type must be a supported InputEventType")
+        if not isinstance(self.coordinate_frame, CoordinateFrame):
+            raise ValueError("coordinate_frame must be a supported CoordinateFrame")
+        if not isinstance(self.device_id, str) or not self.device_id.strip():
             raise ValueError("device_id must not be empty")
+        if isinstance(self.timestamp_ns, bool) or not isinstance(self.timestamp_ns, int):
+            raise ValueError("timestamp_ns must be an integer")
         if self.timestamp_ns < 0:
             raise ValueError("timestamp_ns must be non-negative")
+        if isinstance(self.sequence, bool) or not isinstance(self.sequence, int):
+            raise ValueError("sequence must be an integer")
         if self.sequence < 0:
             raise ValueError("sequence must be non-negative")
-        if self.x is not None and self.y is None:
+        if (self.x is None) != (self.y is None):
             raise ValueError("x and y must be supplied together")
-        if self.y is not None and self.x is None:
-            raise ValueError("x and y must be supplied together")
+        if self.x is not None:
+            for coordinate in (self.x, self.y):
+                if (
+                    isinstance(coordinate, bool)
+                    or not isinstance(coordinate, (int, float))
+                    or not math.isfinite(coordinate)
+                ):
+                    raise ValueError("coordinates must be finite numbers")
+        if self.pressure is not None and (
+            isinstance(self.pressure, bool)
+            or not isinstance(self.pressure, (int, float))
+            or not math.isfinite(self.pressure)
+        ):
+            raise ValueError("pressure must be a finite number")
+        if self.contact_id is not None and (
+            isinstance(self.contact_id, bool) or not isinstance(self.contact_id, int)
+        ):
+            raise ValueError("contact_id must be an integer or null")
+        if self.button is not None and (
+            isinstance(self.button, bool) or not isinstance(self.button, int)
+        ):
+            raise ValueError("button must be an integer or null")
+        if not isinstance(self.metadata, Mapping):
+            raise ValueError("metadata must be a mapping")
+        object.__setattr__(self, "metadata", _freeze_metadata_value(self.metadata))
 
 
 @dataclass(frozen=True)
@@ -108,14 +172,38 @@ class InterpretedInputEvent:
     confidence: float | None = None
 
     def __post_init__(self) -> None:
-        if not self.interpretation_id:
+        if not isinstance(self.interpretation_id, str) or not self.interpretation_id.strip():
             raise ValueError("interpretation_id must not be empty")
-        if not self.kind:
+        if not isinstance(self.kind, str) or not self.kind.strip():
             raise ValueError("kind must not be empty")
-        if not self.source_sequence:
-            raise ValueError("source_sequence must not be empty")
-        if self.confidence is not None and not 0.0 <= self.confidence <= 1.0:
-            raise ValueError("confidence must be between 0 and 1")
+        if not isinstance(self.device_id, str) or not self.device_id.strip():
+            raise ValueError("device_id must not be empty")
+        if isinstance(self.timestamp_ns, bool) or not isinstance(self.timestamp_ns, int):
+            raise ValueError("timestamp_ns must be an integer")
+        if self.timestamp_ns < 0:
+            raise ValueError("timestamp_ns must be non-negative")
+        if not isinstance(self.source_sequence, tuple) or not self.source_sequence:
+            raise ValueError("source_sequence must be a non-empty tuple")
+        previous = -1
+        for sequence in self.source_sequence:
+            if (
+                isinstance(sequence, bool)
+                or not isinstance(sequence, int)
+                or sequence < 0
+                or sequence <= previous
+            ):
+                raise ValueError("source_sequence values must increase monotonically")
+            previous = sequence
+        if not isinstance(self.metadata, Mapping):
+            raise ValueError("metadata must be a mapping")
+        object.__setattr__(self, "metadata", _freeze_metadata_value(self.metadata))
+        if self.confidence is not None and (
+            isinstance(self.confidence, bool)
+            or not isinstance(self.confidence, (int, float))
+            or not math.isfinite(self.confidence)
+            or not 0.0 <= self.confidence <= 1.0
+        ):
+            raise ValueError("confidence must be a finite number between 0 and 1")
 
 
 class VigilInputInterpreter(Protocol):
@@ -215,6 +303,7 @@ class CorelessInputRouter:
         self._raw_events: list[InputEvent] = []
         self._interpreted_events: list[InterpretedInputEvent] = []
         self._last_sequence_by_device: dict[str, int] = {}
+        self._last_timestamp_by_device: dict[str, int] = {}
 
     @property
     def raw_events(self) -> tuple[InputEvent, ...]:
@@ -251,17 +340,42 @@ class CorelessInputRouter:
         previous_sequence = self._last_sequence_by_device.get(event.device_id, -1)
         if event.sequence <= previous_sequence:
             raise ValueError("input event sequence must increase monotonically")
+        previous_timestamp = self._last_timestamp_by_device.get(event.device_id)
+        if previous_timestamp is not None and event.timestamp_ns < previous_timestamp:
+            raise ValueError("input event timestamp must not move backwards")
         self._last_sequence_by_device[event.device_id] = event.sequence
+        self._last_timestamp_by_device[event.device_id] = event.timestamp_ns
         self._raw_events.append(event)
 
         # Device-state telemetry is retained as raw state and is not interpreted
         # as a pointer/touch gesture by VIGIL.
         if event.event_type is InputEventType.DEVICE_STATE:
             return ()
-        if not self.vigil_enabled or self.vigil is None or not self.vigil.available():
+        if not self.vigil_enabled or self.vigil is None:
             return ()
 
-        derived = self.vigil.interpret(event, device)
+        # VIGIL is optional: an adapter failure must never interrupt the raw
+        # Coreless input path. Disable the failing interpreter for this router
+        # instance and continue with ordinary pointer/touch handling.
+        try:
+            if not self.vigil.available():
+                return ()
+            derived = self.vigil.interpret(event, device)
+            if not isinstance(derived, tuple):
+                raise TypeError("VIGIL interpreter must return a tuple of derived events")
+            for item in derived:
+                if not isinstance(item, InterpretedInputEvent):
+                    raise TypeError("VIGIL interpreter returned an invalid derived event")
+                if item.device_id != event.device_id:
+                    raise ValueError("VIGIL event device does not match raw input")
+                if event.sequence not in item.source_sequence:
+                    raise ValueError("VIGIL event provenance omits the triggering sequence")
+                if max(item.source_sequence) > event.sequence:
+                    raise ValueError("VIGIL event provenance references a future sequence")
+        except Exception:
+            self.vigil_enabled = False
+            return ()
+
         self._interpreted_events.extend(derived)
         return derived
 

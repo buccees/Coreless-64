@@ -267,3 +267,84 @@ def test_serial_discovery_validates_provider_and_serial_filter():
         discover_serial_devices(42)
     with pytest.raises(ValueError, match="serial_number"):
         discover_serial_devices(lambda: [], serial_number="  ")
+
+
+
+def test_arduino_serial_io_reports_empty_read_as_timeout():
+    class TimedOutSerial(FakeSerial):
+        def readline(self):
+            return b""
+
+    bridge = ArduinoSerialIO(TimedOutSerial(), "arduino-1")
+    with pytest.raises(TimeoutError, match="timed out waiting"):
+        bridge.receive_message()
+
+
+def test_reconnect_uses_fresh_bridge_for_device_sequence_restart():
+    # A device reboot restarts its firmware-side sequence counter. The old
+    # bridge correctly rejects sequence 0 as stale; a newly constructed bridge
+    # represents the new connection/session and accepts the first frame.
+    serial = FakeSerial()
+    serial.reads.append(frame(sequence=8))
+    old_bridge = ArduinoSerialIO(serial, "arduino-1")
+    assert old_bridge.receive_event()["sequence"] == 8
+
+    serial.reads.append(frame(sequence=0))
+    with pytest.raises(ValueError, match="not increasing"):
+        old_bridge.receive_message()
+
+    serial.reads.append(frame(sequence=0))
+    new_bridge = ArduinoSerialIO(serial, "arduino-1")
+    assert new_bridge.receive_event()["sequence"] == 0
+
+def test_coreless_input_sequence_survives_arduino_reconnect():
+    from host_io import MemoryInputTransport, decode_input_event
+    from input import (
+        CorelessInputRouter,
+        InputCapabilities,
+        PointingDevice,
+        PointingDeviceManager,
+    )
+
+    devices = PointingDeviceManager()
+    devices.discover([
+        PointingDevice(
+            "arduino-1",
+            "Arduino pointer",
+            InputCapabilities(pointer=True, absolute=True),
+        )
+    ])
+    devices.designate("arduino-1")
+    router = CorelessInputRouter(devices)
+
+    first_transport = MemoryInputTransport()
+    first_serial = FakeSerial()
+    first_serial.reads.append(
+        frame(sequence=8, payload={"event_type": "pointer_move", "x": 1, "y": 2})
+    )
+    first_adapter = ArduinoInputAdapter(
+        ArduinoSerialIO(first_serial, "arduino-1"), first_transport
+    )
+    assert first_adapter.pump_once()
+    first_event = decode_input_event(first_transport.receive_event())
+    router.submit(first_event)
+
+    # A reboot starts the Arduino wire counter over at zero. A fresh bridge and
+    # adapter must still produce a newer event in Coreless's host-side stream.
+    second_transport = MemoryInputTransport()
+    second_serial = FakeSerial()
+    second_serial.reads.append(
+        frame(sequence=0, payload={"event_type": "pointer_move", "x": 3, "y": 4})
+    )
+    second_adapter = ArduinoInputAdapter(
+        ArduinoSerialIO(second_serial, "arduino-1"), second_transport
+    )
+    assert second_adapter.pump_once()
+    second_event = decode_input_event(second_transport.receive_event())
+    router.submit(second_event)
+
+    assert first_event.metadata["arduino_sequence"] == 8
+    assert second_event.metadata["arduino_sequence"] == 0
+    assert second_event.sequence > first_event.sequence
+    assert len(router.raw_events) == 2
+

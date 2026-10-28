@@ -177,3 +177,238 @@ def test_device_state_from_undiscovered_device_is_rejected():
     )
     with pytest.raises(PermissionError, match="discovered"):
         router.submit(sensor)
+
+
+
+def test_input_timestamps_must_not_move_backwards_per_device():
+    import pytest
+
+    manager = PointingDeviceManager()
+    manager.discover([device()])
+    manager.designate("touch-1")
+    router = CorelessInputRouter(manager)
+
+    assert router.submit(event(sequence=2)) == ()
+    earlier_timestamp = InputEvent(
+        abi_version=1,
+        event_type=InputEventType.TOUCH_BEGIN,
+        device_id="touch-1",
+        timestamp_ns=1001,
+        sequence=3,
+        coordinate_frame=CoordinateFrame.CORELESS,
+        x=10.0,
+        y=20.0,
+        contact_id=1,
+    )
+    with pytest.raises(ValueError, match="timestamp must not move backwards"):
+        router.submit(earlier_timestamp)
+
+    assert len(router.raw_events) == 1
+    assert router.raw_events[0].sequence == 2
+
+
+
+def test_input_event_rejects_malformed_direct_construction():
+    import pytest
+
+    base = dict(
+        abi_version=1,
+        event_type=InputEventType.POINTER_MOVE,
+        device_id="mouse-1",
+        timestamp_ns=1,
+        sequence=1,
+        coordinate_frame=CoordinateFrame.HOST,
+        x=1.0,
+        y=2.0,
+    )
+    with pytest.raises(ValueError, match="timestamp_ns must be an integer"):
+        InputEvent(**{**base, "timestamp_ns": True})
+    with pytest.raises(ValueError, match="sequence must be an integer"):
+        InputEvent(**{**base, "sequence": True})
+    with pytest.raises(ValueError, match="coordinates must be finite"):
+        InputEvent(**{**base, "x": float("nan")})
+    with pytest.raises(ValueError, match="event_type must be"):
+        InputEvent(**{**base, "event_type": "pointer_move"})
+    with pytest.raises(ValueError, match="pressure must be a finite"):
+        InputEvent(**{**base, "pressure": float("inf")})
+
+
+
+def test_input_event_metadata_is_a_defensive_read_only_snapshot():
+    import pytest
+
+    original = {"source": "host", "sequence_hint": 7}
+    raw = InputEvent(
+        abi_version=1,
+        event_type=InputEventType.POINTER_MOVE,
+        device_id="mouse-1",
+        timestamp_ns=10,
+        sequence=1,
+        coordinate_frame=CoordinateFrame.HOST,
+        x=1.0,
+        y=2.0,
+        metadata=original,
+    )
+    original["source"] = "mutated"
+    original["extra"] = True
+
+    assert raw.metadata["source"] == "host"
+    assert "extra" not in raw.metadata
+    with pytest.raises(TypeError):
+        raw.metadata["source"] = "tampered"
+
+
+def test_interpreted_input_metadata_is_a_defensive_read_only_snapshot():
+    import pytest
+    from input import InterpretedInputEvent
+
+    original = {"source_sequence": 4}
+    derived = InterpretedInputEvent(
+        interpretation_id="interpretation-1",
+        kind="tap",
+        device_id="touch-1",
+        timestamp_ns=10,
+        source_sequence=(4,),
+        metadata=original,
+        confidence=0.8,
+    )
+    original["source_sequence"] = 99
+
+    assert derived.metadata["source_sequence"] == 4
+    with pytest.raises(TypeError):
+        derived.metadata["source_sequence"] = 99
+
+def test_raw_input_survives_vigil_adapter_exceptions():
+    class BrokenAvailability(FakeVigil):
+        def available(self):
+            raise RuntimeError("VIGIL transport unavailable")
+
+    class BrokenInterpreter(FakeVigil):
+        def interpret(self, event, device):
+            raise RuntimeError("VIGIL interpreter crashed")
+
+    import pytest
+
+    for broken in (BrokenAvailability(), BrokenInterpreter()):
+        manager = PointingDeviceManager()
+        manager.discover([device()])
+        manager.designate("touch-1")
+        router = CorelessInputRouter(manager, broken)
+
+        assert router.submit(event()) == ()
+        assert len(router.raw_events) == 1
+        assert router.vigil_enabled is False
+        # Once the optional adapter faults, normal raw input continues without
+        # repeatedly invoking the broken integration.
+        assert router.submit(event(sequence=2)) == ()
+        assert len(router.raw_events) == 2
+
+
+
+
+def test_malformed_vigil_derived_output_falls_back_to_raw_input():
+    from input import InterpretedInputEvent
+
+    class NullOutput(FakeVigil):
+        def interpret(self, event, device):
+            return None
+
+    class WrongProvenance(FakeVigil):
+        def interpret(self, event, device):
+            return (InterpretedInputEvent(
+                interpretation_id="wrong-source",
+                kind="gesture.tap",
+                device_id=device.device_id,
+                timestamp_ns=event.timestamp_ns,
+                source_sequence=(event.sequence + 1,),
+            ),)
+
+    import pytest
+
+    for broken in (NullOutput(), WrongProvenance()):
+        manager = PointingDeviceManager()
+        manager.discover([device()])
+        manager.designate("touch-1")
+        router = CorelessInputRouter(manager, broken)
+
+        assert router.submit(event()) == ()
+        assert len(router.raw_events) == 1
+        assert router.interpreted_events == ()
+        assert router.vigil_enabled is False
+        assert router.submit(event(sequence=2)) == ()
+        assert len(router.raw_events) == 2
+
+
+
+def test_interpreted_input_rejects_invalid_provenance_and_timestamp():
+    import pytest
+    from input import InterpretedInputEvent
+
+    with pytest.raises(ValueError, match="source_sequence values"):
+        InterpretedInputEvent(
+            interpretation_id="bad-seq",
+            kind="gesture.tap",
+            device_id="touch-1",
+            timestamp_ns=10,
+            source_sequence=(4, 3),
+        )
+    with pytest.raises(ValueError, match="timestamp_ns must be an integer"):
+        InterpretedInputEvent(
+            interpretation_id="bad-time",
+            kind="gesture.tap",
+            device_id="touch-1",
+            timestamp_ns=True,
+            source_sequence=(4,),
+        )
+
+
+def test_input_event_nested_metadata_is_deeply_immutable_and_round_trips_json():
+    import json
+    import pytest
+    from host_io import decode_input_event, encode_input_event
+
+    original = {"payload": {"reading": 512, "history": [1, 2]}}
+    raw = InputEvent(
+        abi_version=1,
+        event_type=InputEventType.DEVICE_STATE,
+        device_id="arduino-1",
+        timestamp_ns=10,
+        sequence=1,
+        coordinate_frame=CoordinateFrame.HOST,
+        metadata=original,
+    )
+
+    original["payload"]["reading"] = 0
+    original["payload"]["history"].append(3)
+    assert raw.metadata["payload"]["reading"] == 512
+    assert raw.metadata["payload"]["history"] == (1, 2)
+    with pytest.raises(TypeError):
+        raw.metadata["payload"]["reading"] = 0
+    with pytest.raises(AttributeError):
+        raw.metadata["payload"]["history"].append(3)
+
+    wire = encode_input_event(raw)
+    decoded_json = json.loads(wire.decode("utf-8"))
+    assert decoded_json["metadata"]["payload"]["history"] == [1, 2]
+    restored = decode_input_event(wire)
+    assert restored == raw
+
+
+def test_interpreted_input_metadata_is_deeply_immutable():
+    import pytest
+    from input import InterpretedInputEvent
+
+    original = {"provenance": {"sequences": [1, 2]}}
+    derived = InterpretedInputEvent(
+        interpretation_id="deep-immutability",
+        kind="gesture",
+        device_id="touch-1",
+        timestamp_ns=10,
+        source_sequence=(1, 2),
+        metadata=original,
+        confidence=0.5,
+    )
+    original["provenance"]["sequences"].append(3)
+    assert derived.metadata["provenance"]["sequences"] == (1, 2)
+    with pytest.raises(TypeError):
+        derived.metadata["provenance"]["source"] = "mutated"

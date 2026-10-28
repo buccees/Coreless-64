@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import math
 import time
+from itertools import count
 from typing import Any, Protocol
 
 from host_io import InputTransport, encode_input_event
@@ -18,6 +19,11 @@ from input import CoordinateFrame, InputEvent, InputEventType
 
 PROTOCOL_VERSION = 1
 MAX_FRAME_BYTES = 4096
+
+# Arduino sequence numbers restart on device reboot. Coreless input sequence
+# numbers belong to the host-side event stream, so keep them independent of the
+# wire sequence across bridge/adapter recreation during reconnect.
+_CORELESS_INPUT_SEQUENCE = count()
 
 
 def discover_serial_devices(
@@ -148,7 +154,12 @@ class ArduinoSerialIO:
     """Validated Coreless-to-Arduino command/event bridge over a serial port.
 
     Instantiate with a serial object such as serial.Serial(...). Opening and
-    closing the physical port is deliberately owned by the caller.
+    closing the physical port is deliberately owned by the caller. Construct a
+    fresh ArduinoSerialIO for each new physical connection/session: the firmware
+    sequence counter restarts after reboot, so reusing an old bridge would reject
+    legitimate post-reconnect frames as stale. Before constructing the new bridge,
+    the caller should reopen the port and discard any buffered partial/stale bytes.
+    The expected device_id is still checked on every received frame.
     """
 
     def __init__(self, serial_port: SerialPort, device_id: str) -> None:
@@ -189,6 +200,11 @@ class ArduinoSerialIO:
     def receive_message(self) -> dict:
         """Read one event/ack/error message, rejecting stale or misrouted frames."""
         frame = self._serial.readline()
+        # pyserial returns b"" when its configured read timeout expires.
+        # Report this as a transport timeout, not a malformed protocol frame,
+        # so callers can retry within an overall deadline.
+        if not frame:
+            raise TimeoutError("timed out waiting for an Arduino serial message")
         message = decode_message(frame, expected_device_id=self.device_id)
         if message["kind"] == "command":
             raise ValueError("Arduino sent a host-only command message")
@@ -269,12 +285,13 @@ class ArduinoInputAdapter:
             "arduino_sequence": message["sequence"],
             "payload": payload,
         }
+        timestamp_ns = time.monotonic_ns()
         return InputEvent(
             abi_version=InputEvent.ABI_VERSION,
             event_type=event_type,
             device_id=self.bridge.device_id,
-            timestamp_ns=time.monotonic_ns(),
-            sequence=message["sequence"],
+            timestamp_ns=timestamp_ns,
+            sequence=next(_CORELESS_INPUT_SEQUENCE),
             coordinate_frame=CoordinateFrame.HOST,
             x=x,
             y=y,
