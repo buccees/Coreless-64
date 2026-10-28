@@ -61,10 +61,10 @@ for (const required of [
   'var water=ctx.createLinearGradient(0,0,0,h)',
   'UUV PILOT VIEW // PELAGOS-01',
   'cameraX=(worldPoint.x-.5)*1500;cameraY=(.5-worldPoint.y)*1500',
+  "ctx.fillText('SPEED '+(u?Number(u.speed||0).toFixed(3):'---')+' / CMD '+(u?Number(u.target_speed==null?(u.speed||0):u.target_speed).toFixed(3):'---')+' / MAX '+(u?Number(u.max_speed||0).toFixed(3):'---')+' SIM',20,140)",
+  'var radarR=Math.max(35,Math.min(54,w*.105)),radarX=w-radarR-20',
   'function terrainElevationAt(x,y)',
   'bathymetry=window.vigilGetWorldTerrainAt(worldPoint.x,worldPoint.y)',
-  "id=\"v3-speed-hud\"" ,
-  "UUV SPEED // ACTUAL ",
   'for(var rr=rows-1;rr>=0;rr--)',
   'isLand:!!(bathymetry&&bathymetry.isLand),depthMeters:waterDepth',
   'heading=(drag.heading+(e.clientX-drag.x)*.22+360)%360',
@@ -124,7 +124,6 @@ for (const required of [
   'var cellPoint=window.vigilNormalizePlanetPoint((ix+.5)/42,(iy+.5)/42)',
   'window.vigilGetWorldTerrainAt(sample.x,sample.y)',
   'SPHERICAL STITCHED ATLAS // WRAPPED LONGITUDE AND CONNECTED POLES',
-  "SPEED '+actualSpeed.toFixed(3)+' / CMD '+targetSpeed.toFixed(3)",
 ]) {
   assert.ok(html.includes(required), `missing first-person bathymetry contract: ${required}`);
 }
