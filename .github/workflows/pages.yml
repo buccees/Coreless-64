@@ -1,14 +1,6 @@
 name: Publish VIGIL Lab Report to GitHub Pages
 
 on:
-  push:
-    branches:
-      - vigil-spatial-awareness
-    paths:
-      - "index.html"
-      - "assets/wallpapers/**"
-      - "operator-display.html"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
