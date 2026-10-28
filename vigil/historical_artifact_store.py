@@ -248,6 +248,29 @@ class HistoricalArtifactStore:
                 self._db.execute("ROLLBACK")
                 raise
 
+    def drop_on_sinking(self, world_seed: str, artifact_id: str, carrier_id: str,
+                         *, last_known_x: float, last_known_y: float,
+                         sink_event_authorized: bool) -> dict[str, Any]:
+        """Drop a carried artifact using a server-confirmed sink event and last track."""
+        seed, item = self._seed(world_seed), self._artifact(artifact_id)
+        uid = _text(carrier_id, "carrier id", MAX_UNIT_ID_LENGTH)
+        if sink_event_authorized is not True:
+            raise ValueError("artifact drop requires a server-confirmed sinking event")
+        x, y = _position({"x": last_known_x, "y": last_known_y})
+        with self._lock:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                row = self._ensure(seed, item)
+                if row["status"] != "CARRIED" or row["carrier_id"] != uid:
+                    raise ValueError("sunk unit does not hold this artifact")
+                result = self._mutate(seed, item, action="SINK_DROP", status="LOST",
+                                      carrier="", x=x, y=y, actor=uid)
+                self._db.execute("COMMIT")
+                return result
+            except Exception:
+                self._db.execute("ROLLBACK")
+                raise
+
     def transfer(self, world_seed: str, artifact_id: str, from_unit_id: str, to_unit_id: str,
                  authoritative_from: dict[str, Any], authoritative_to: dict[str, Any],
                  *, capture: bool = False) -> dict[str, Any]:
@@ -296,5 +319,5 @@ class HistoricalArtifactStore:
     def contract(self) -> dict[str, Any]:
         return {"schema": SCHEMA, "version": SCHEMA_VERSION,
                 "custodyAuthority": "server", "uniqueKey": ["world_seed", "artifact_id"],
-                "operations": ["inventory", "discover", "collect", "lose", "transfer", "capture", "events"],
+                "operations": ["inventory", "discover", "collect", "lose", "drop_on_sinking", "transfer", "capture", "events"],
                 "clientCoordinatesTrusted": False, "respawnable": False}
