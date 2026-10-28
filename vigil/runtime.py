@@ -168,6 +168,48 @@ class VigilEnvironment:
         self.replay.append(event)
         return event
 
+    def confirm_unit_removed(self, *, event_id: str, timestamp_ns: int, unit_id: str, authoritative_unit_state) -> ReplayEvent:
+        """Publish confirmed carrier removal at its last authoritative position."""
+        from collections.abc import Mapping
+        import math
+
+        if not isinstance(event_id, str) or not event_id.strip():
+            raise ValueError("event_id must be a non-empty string")
+        if not isinstance(unit_id, str) or not unit_id.strip():
+            raise ValueError("unit_id must be a non-empty string")
+        if not isinstance(timestamp_ns, int) or isinstance(timestamp_ns, bool) or timestamp_ns < 0:
+            raise ValueError("timestamp_ns must be a non-negative integer")
+        if not isinstance(authoritative_unit_state, Mapping):
+            raise ValueError("authoritative unit state is required")
+        if str(authoritative_unit_state.get("id", "")) != unit_id:
+            raise ValueError("removal unit ID must match authoritative state")
+        if authoritative_unit_state.get("unitType") != "submersible":
+            raise ValueError("only submersible removal can trigger artifact recovery")
+        crew_id = authoritative_unit_state.get("crewId")
+        if not isinstance(crew_id, str) or not crew_id.strip():
+            raise ValueError("removed submersible must have an authoritative crew ID")
+        x, y = authoritative_unit_state.get("x"), authoritative_unit_state.get("y")
+        if isinstance(x, bool) or isinstance(y, bool):
+            raise ValueError("authoritative removal coordinates must be numeric")
+        try:
+            x, y = float(x), float(y)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("authoritative removal coordinates must be numeric") from exc
+        if not math.isfinite(x) or not math.isfinite(y) or not 0 <= x <= 1 or not 0 <= y <= 1:
+            raise ValueError("authoritative removal coordinates must be normalized finite values")
+        event = ReplayEvent(
+            event_id=event_id.strip(), timestamp_ns=timestamp_ns, kind="UNIT_REMOVED",
+            payload={"kind": "UNIT_REMOVED", "status": "CONFIRMED",
+                     "event_id": event_id.strip(), "unit_id": unit_id.strip(),
+                     "crew_id": crew_id.strip(), "x": x, "y": y},
+            provenance=EventProvenance(
+                source_type="simulation", source_ids=(unit_id.strip(),),
+                timestamp_ns=timestamp_ns, confidence=1.0,
+                metadata={"transition": "authoritative-unit-removal"},
+            ),
+        )
+        self.replay.append(event)
+        return event
     def enable(self) -> None:
         self.enabled = True
         self.input.enable(True)
