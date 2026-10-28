@@ -3076,7 +3076,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     {id:'DDG-51',name:'ARLEIGH BURKE-CLASS',x:.35,y:.44,lengthM:153.92,beamM:18.0,heading:28,speed:.018,maxSpeed:.04,weaponRange:.4,weaponDamage:2,weaponReloadSeconds:8,weaponCooldownRemaining:0,hull:6,maxHull:6,shipClass:'destroyer',weaponSystems:['main_battery','torpedo','missile'],side:'friendly',afloat:true,source:'U.S. Navy DDG-51 fact sheet'},
     {id:'SSN-774',name:'VIRGINIA-CLASS ATTACK SUBMARINE',x:.27,y:.72,lengthM:115,beamM:10.4,heading:25,speed:.006,maxSpeed:.03,weaponRange:.42,weaponDamage:4,weaponReloadSeconds:14,weaponCooldownRemaining:0,hull:7,maxHull:7,shipClass:'submarine',weaponSystems:['torpedo','missile'],side:'friendly',afloat:true,source:'U.S. Navy Virginia-class fact sheet'},
     {id:'DRONE-01',name:'VIGIL RECONNAISSANCE DRONE',x:.39,y:.38,lengthM:3.2,beamM:2.1,heading:42,speed:.025,maxSpeed:.06,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:2,maxHull:2,shipClass:'drone',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'drone',parentId:'DDG-51',stationKeepingEnabled:true,stationOffsetForward:.035,stationOffsetStarboard:.028,stationKeepingGain:1.15},
-    {id:'UUV-01',name:'VIGIL UNCREWED SUBMERSIBLE',x:.22,y:.79,lengthM:4.5,beamM:1.1,heading:31,speed:.012,maxSpeed:.035,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:2,maxHull:2,shipClass:'submersible',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'submersible',lockedArtifactContainer:{locked:true,artifactIds:[]},parentId:'SSN-774',stationKeepingEnabled:true,stationOffsetForward:-.045,stationOffsetStarboard:-.012,stationKeepingGain:.7},
+    {id:'UUV-01',name:'VIGIL UNCREWED SUBMERSIBLE',x:.22,y:.79,lengthM:4.5,beamM:1.1,heading:31,speed:.012,maxSpeed:.035,depthMeters:120,targetDepthMeters:120,maxVerticalSpeedMps:8,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:2,maxHull:2,shipClass:'submersible',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'submersible',lockedArtifactContainer:{locked:true,artifactIds:[]},parentId:'SSN-774',stationKeepingEnabled:true,stationOffsetForward:-.045,stationOffsetStarboard:-.012,stationKeepingGain:.7},
     {id:'MECH-01',name:'VIGIL GROUND MECH',x:.52,y:.47,lengthM:4.2,beamM:2.4,heading:90,speed:.008,maxSpeed:.025,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:3,maxHull:3,shipClass:'mech',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'mech'},
     {id:'FAC-01',name:'VIGIL FORWARD SENSOR FACILITY',x:.15,y:.22,lengthM:0,beamM:0,heading:0,speed:0,maxSpeed:0,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:5,maxHull:5,shipClass:'facility',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'facility'},
     {id:'CVN',name:'NIMITZ-CLASS',x:.66,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.025,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
@@ -3100,8 +3100,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         steering_heading_deg:Number(s.avoidanceHeading==null?(s.navigationHeading==null?(s.desiredHeading==null?s.heading:s.desiredHeading):s.navigationHeading):s.avoidanceHeading)||0,avoidance_active:s.avoidanceActive===true,
         navigation_heading_deg:Number(s.navigationHeading==null?s.heading:s.navigationHeading)||0,
         speed:Number(s.speed)||0,target_speed:Number(s.targetSpeed==null?s.speed:s.targetSpeed)||0,
-        navigation_target_speed:Number(s.navigationTargetSpeed==null?(s.targetSpeed==null?s.speed:s.targetSpeed):s.navigationTargetSpeed)||0,max_speed:Number(s.maxSpeed)||0,
-        parent_id:s.parentId?String(s.parentId):null,station_keeping_enabled:s.stationKeepingEnabled===true,formation_active:s.formationActive===true,
+        navigation_target_speed:Number(s.navigationTargetSpeed==null?(s.targetSpeed==null?s.speed:s.targetSpeed):s.navigationTargetSpeed)||0,max_speed:Number(s.maxSpeed)||0,depth_meters:s.depthMeters==null?null:Number(s.depthMeters),target_depth_meters:s.targetDepthMeters==null?(s.depthMeters==null?null:Number(s.depthMeters)):Number(s.targetDepthMeters),
+         parent_id:s.parentId?String(s.parentId):null,station_keeping_enabled:s.stationKeepingEnabled===true,formation_active:s.formationActive===true,
         formation_target:s.formationTarget&&Number.isFinite(Number(s.formationTarget.x))&&Number.isFinite(Number(s.formationTarget.y))?{x:Number(s.formationTarget.x),y:Number(s.formationTarget.y)}:null,
         formation_distance:s.formationDistance==null?null:Number(s.formationDistance),
         turn_rate_deg_s:Number(s.maxTurnRateDegPerSec)||0,acceleration_per_s:Number(s.accelerationPerSec)||0,
@@ -3145,15 +3145,15 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     }
     if(nextHeading!==undefined)unit.desiredHeading=nextHeading;
     if(nextSpeed!==undefined)unit.targetSpeed=nextSpeed;
-    if(nextDepth!==undefined)unit.depthMeters=nextDepth;
+    if(nextDepth!==undefined){unit.targetDepthMeters=nextDepth;if(unit.depthMeters==null)unit.depthMeters=nextDepth;}
     if(changes.station_keeping!==undefined)unit.stationKeepingEnabled=changes.station_keeping;
     else if(changes.heading!==undefined||changes.speed!==undefined)unit.stationKeepingEnabled=false;
     window.dispatchEvent(new CustomEvent('vigil:simulation-unit-state-changed',{detail:{
-      unit_id:unit.id,heading:unit.heading,desired_heading:unit.desiredHeading,speed:unit.speed,target_speed:unit.targetSpeed,depth_meters:unit.depthMeters,
+      unit_id:unit.id,heading:unit.heading,desired_heading:unit.desiredHeading,speed:unit.speed,target_speed:unit.targetSpeed,depth_meters:unit.depthMeters==null?null:Number(unit.depthMeters),target_depth_meters:unit.targetDepthMeters==null?(unit.depthMeters==null?null:Number(unit.depthMeters)):Number(unit.targetDepthMeters),
       parent_id:unit.parentId||null,station_keeping_enabled:unit.stationKeepingEnabled===true
     }}));
     return {ok:true,unit_id:unit.id,heading:unit.heading,desired_heading:unit.desiredHeading,speed:unit.speed,
-      target_speed:unit.targetSpeed,max_speed:Number(unit.maxSpeed)||0,depth_meters:unit.depthMeters,parent_id:unit.parentId||null,
+      target_speed:unit.targetSpeed,max_speed:Number(unit.maxSpeed)||0,depth_meters:unit.depthMeters==null?null:Number(unit.depthMeters),target_depth_meters:unit.targetDepthMeters==null?(unit.depthMeters==null?null:Number(unit.depthMeters)):Number(unit.targetDepthMeters),parent_id:unit.parentId||null,
       station_keeping_enabled:unit.stationKeepingEnabled===true};
   };
 
@@ -3586,7 +3586,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         ship.formationActive=false;ship.formationTarget=null;ship.formationDistance=null;ship.formationTargetSpeed=null;
         ship.avoidanceActive=false;ship.avoidanceHeading=ship.heading;return;
       }
-      var desired=((Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading)%360)+360)%360;
+      if(ship.shipClass==='submersible'){var currentDepth=Math.max(0,Number(ship.depthMeters==null?120:ship.depthMeters)||0),targetDepth=Math.max(0,Math.min(6000,Number(ship.targetDepthMeters==null?currentDepth:ship.targetDepthMeters)||0)),verticalStep=Math.max(0,Number(ship.maxVerticalSpeedMps)||8)*dt,depthDelta=targetDepth-currentDepth;ship.depthMeters=Math.abs(depthDelta)<=verticalStep?targetDepth:currentDepth+Math.sign(depthDelta)*verticalStep;}
+       var desired=((Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading)%360)+360)%360;
       var navigationHeading=desired;
       var navigationTargetSpeed=Math.max(0,Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed)||0);
       ship.formationActive=false;ship.formationTarget=null;ship.formationDistance=null;ship.formationTargetSpeed=null;
@@ -5539,7 +5540,7 @@ function draw(){
  if(!ctx||!view.classList.contains('open'))return;
  var w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;
  var u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('submersible');
- if(u){var worldPoint=window.vigilNormalizePlanetPoint(u.x,u.y);if(!pilotWorldPoint){cameraX=(worldPoint.x-.5)*1500;cameraY=(.5-worldPoint.y)*1500;}else{var travel=window.vigilGetPlanetRangeBearing(pilotWorldPoint.x,pilotWorldPoint.y,worldPoint.x,worldPoint.y);if(travel.distance<.12){cameraX+=travel.east*1500;cameraY-=travel.north*1500;}else{cameraX=(worldPoint.x-.5)*1500;cameraY=(.5-worldPoint.y)*1500;}}pilotWorldPoint=worldPoint;heading=Number(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)||0;speed=Number(u.target_speed==null?u.speed:u.target_speed)||0;}
+ if(u){if(u.depth_meters!==null&&u.depth_meters!==undefined)depth=Number(u.depth_meters)||0;var worldPoint=window.vigilNormalizePlanetPoint(u.x,u.y);if(!pilotWorldPoint){cameraX=(worldPoint.x-.5)*1500;cameraY=(.5-worldPoint.y)*1500;}else{var travel=window.vigilGetPlanetRangeBearing(pilotWorldPoint.x,pilotWorldPoint.y,worldPoint.x,worldPoint.y);if(travel.distance<.12){cameraX+=travel.east*1500;cameraY-=travel.north*1500;}else{cameraX=(worldPoint.x-.5)*1500;cameraY=(.5-worldPoint.y)*1500;}}pilotWorldPoint=worldPoint;heading=Number(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)||0;speed=Number(u.target_speed==null?u.speed:u.target_speed)||0;}
  ctx.clearRect(0,0,w,h);
  var water=ctx.createLinearGradient(0,0,0,h);
  water.addColorStop(0,'#03131f');water.addColorStop(.42,'#07303b');water.addColorStop(1,'#0a252b');
@@ -5550,7 +5551,7 @@ function draw(){
  haze.addColorStop(0,'rgba(21,83,91,.04)');haze.addColorStop(.55,'rgba(10,49,55,.12)');haze.addColorStop(1,'rgba(1,14,19,.08)');
  ctx.fillStyle=haze;ctx.fillRect(0,horizon,w,h-horizon);
  for(var ray=0;ray<12;ray++){var rx=w*(.12+ray*.069);ctx.strokeStyle='rgba(89,180,174,'+(0.018+(ray%3)*.008)+')';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(w*.5,horizon);ctx.lineTo(rx,h*.88);ctx.stroke();}
- var rows=42,cols=56,points=[],cameraZ=heightAt(cameraX,cameraY)+Math.max(8,46+(120-depth)*.15);
+ var rows=42,cols=56,points=[],cameraZ=heightAt(cameraX,cameraY)+Math.max(8,46+(depth-120)*.15);
  for(var r=0;r<=rows;r++){
   points[r]=[];
   var d=9+Math.pow(r/rows,2.05)*760;
@@ -5586,7 +5587,7 @@ function draw(){
  });
  /* Rotating sonar PPI inset: sweep angle advances continuously, while the FPS terrain remains the main view. */
  anim=(anim+1.8)%360;
- var radarR=Math.max(35,Math.min(54,w*.105)),radarX=radarR+20,radarY=radarR+24;
+ var radarR=Math.max(35,Math.min(54,w*.105)),radarX=radarR+20,radarY=Math.max(radarR+24,h-radarR-30);
  ctx.save();ctx.globalAlpha=.92;ctx.fillStyle='rgba(1,15,14,.78)';ctx.strokeStyle='rgba(117,220,176,.68)';ctx.lineWidth=1;
  ctx.beginPath();ctx.arc(radarX,radarY,radarR,0,Math.PI*2);ctx.fill();ctx.stroke();
  for(var ring=1;ring<=3;ring++){ctx.beginPath();ctx.arc(radarX,radarY,radarR*ring/3,0,Math.PI*2);ctx.strokeStyle='rgba(117,220,176,.24)';ctx.stroke();}
@@ -5605,7 +5606,7 @@ function draw(){
 }
 function command(changes){if(typeof window.vigilSetSimulationUnitState!=='function'){say('SIMULATION BRIDGE UNAVAILABLE');return;}var result=window.vigilSetSimulationUnitState('submersible',changes);if(!result||!result.ok){say('COMMAND REJECTED // '+(result&&result.reason||'UNIT UNAVAILABLE'));return;}if(result.desired_heading!==undefined)heading=Number(result.desired_heading)||0;if(result.target_speed!==undefined)speed=Number(result.target_speed)||0;if(courseInput)courseInput.value=String(Math.round(heading)%360).padStart(3,'0');say('UUV-01 // '+String(Math.round(heading)%360).padStart(3,'0')+'° // TARGET SPEED '+speed.toFixed(3)+' / '+Number(result.max_speed||0).toFixed(3));draw();}
 function say(s){document.getElementById('v3-status').textContent=s;}
-function step(dir){var u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('submersible');var hdg=Number(u&&(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg))||0;var spd=Number(u&&(u.target_speed==null?u.speed:u.target_speed))||0;var max=Number(u&&(u.max_speed==null?u.maxSpeed:u.max_speed))||.035;var increment=Math.max(.001,max*.1);if(dir==='left')command({heading:(hdg+345)%360});else if(dir==='right')command({heading:(hdg+15)%360});else if(dir==='forward')command({speed:Math.min(max,spd+increment)});else if(dir==='back')command({speed:Math.max(0,spd-increment)});else if(dir==='faster')command({speed:Math.min(max,spd+increment)});else if(dir==='slower')command({speed:Math.max(0,spd-increment)});else if(dir==='up'||dir==='down'){var current=Number(u&&(u.depth_meters==null?u.depthMeters:u.depth_meters));if(!Number.isFinite(current))current=depth;depth=Math.max(0,Math.min(6000,current+(dir==='up'?-10:10)));command({depth:depth});say((dir==='up'?'ASCENT':'DESCENT')+' COMMAND // DEPTH TARGET '+depth+' M');}draw();}
+function step(dir){var u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('submersible');var hdg=Number(u&&(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg))||0;var spd=Number(u&&(u.target_speed==null?u.speed:u.target_speed))||0;var max=Number(u&&(u.max_speed==null?u.maxSpeed:u.max_speed))||.035;var increment=Math.max(.001,max*.25);if(dir==='left')command({heading:(hdg+345)%360});else if(dir==='right')command({heading:(hdg+15)%360});else if(dir==='forward')command({speed:Math.min(max,spd+increment)});else if(dir==='back')command({speed:Math.max(0,spd-increment)});else if(dir==='faster')command({speed:Math.min(max,spd+increment)});else if(dir==='slower')command({speed:Math.max(0,spd-increment)});else if(dir==='up'||dir==='down'){var current=Number(u&&(u.depth_meters==null?u.depthMeters:u.depth_meters));if(!Number.isFinite(current))current=depth;depth=Math.max(0,Math.min(6000,current+(dir==='up'?-10:10)));command({depth:depth});say((dir==='up'?'ASCENT':'DESCENT')+' COMMAND // DEPTH TARGET '+depth+' M');}draw();}
 var mapCanvas=view.querySelector('#vigil-3d-world-map-canvas'),mapCtx=mapCanvas.getContext('2d'),mapMode='local';
 function setMapMode(mode){mapMode=mode==='regional'?'regional':'local';view.querySelector('#v3-map-local').setAttribute('aria-pressed',String(mapMode==='local'));view.querySelector('#v3-map-regional').setAttribute('aria-pressed',String(mapMode==='regional'));view.querySelector('#v3-world-map-title').textContent=mapMode==='local'?'LOCAL MAP // NEARBY':'REGIONAL MAP // WORLD';drawWorldMap();}
 view.querySelector('#v3-map-local').addEventListener('click',function(){setMapMode('local');});view.querySelector('#v3-map-regional').addEventListener('click',function(){setMapMode('regional');});
