@@ -211,3 +211,49 @@ def test_confirm_unit_removed_recovers_carried_artifact_at_authoritative_positio
     environment.disable_artifact_recovery()
     store.close()
     sinks.close()
+
+def test_recorded_sink_event_can_retry_recovery_after_transient_resolver_failure(tmp_path):
+    from vigil.artifact_replay_consumer import ArtifactReplayConsumer
+    from vigil.artifact_simulation_bridge import ArtifactSimulationBridge
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+    from vigil.provenance import EventProvenance
+    from vigil.simulation import ReplayEvent, ReplayLog
+    from vigil.sinking_event_registry import SinkingEventRegistry
+    import pytest
+
+    catalog = build_artifact_catalog()
+    store = HistoricalArtifactStore(catalog, tmp_path / "retry-artifacts.sqlite3")
+    sinks = SinkingEventRegistry(tmp_path / "retry-sinks.sqlite3")
+    artifact = catalog[0]
+    carrier = {"id": "UUV-RETRY", "crewId": "crew-alpha", "unitType": "submersible",
+               "x": artifact["x"], "y": artifact["y"], "afloat": True,
+               "lockedArtifactContainer": {"locked": True, "artifactIds": []}}
+    store.discover("PELAGOS-01", artifact["id"])
+    store.collect("PELAGOS-01", artifact["id"], "UUV-RETRY", carrier)
+    sunk = {**carrier, "x": 0.23, "y": 0.76, "afloat": False}
+    state = {"available": False}
+    consumer = ArtifactReplayConsumer(
+        world_seed="PELAGOS-01",
+        bridge=ArtifactSimulationBridge(artifact_store=store, sinking_registry=sinks),
+        resolve_unit_state=lambda unit_id: sunk if state["available"] else None,
+    )
+    log = ReplayLog()
+    consumer.attach(log)
+    event = ReplayEvent(
+        event_id="retry-sink-01", timestamp_ns=1, kind="UNIT_SUNK",
+        payload={"status": "CONFIRMED", "unit_id": "UUV-RETRY", "x": 0.23, "y": 0.76},
+        provenance=EventProvenance(source_type="simulation", source_ids=("UUV-RETRY",),
+                                   timestamp_ns=1, confidence=1.0),
+    )
+    with pytest.raises(ValueError, match="authoritative sunk-unit state is unavailable"):
+        log.append(event)
+    assert log.events == (event,)
+    state["available"] = True
+    result = consumer.reconcile_recorded_events(log)
+    assert result == {"processed": 1, "ignored": 0, "recovered": 1, "failures": []}
+    item = next(row for row in store.inventory("PELAGOS-01") if row["id"] == artifact["id"])
+    assert item["status"] == "LOST"
+    assert item["location"] == {"x": 0.23, "y": 0.76}
+    store.close()
+    sinks.close()
