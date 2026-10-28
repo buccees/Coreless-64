@@ -157,3 +157,49 @@ def test_replay_consumer_fails_closed_when_authoritative_unit_missing(tmp_path):
         consumer(event)
     artifacts.close()
     sinks.close()
+
+def test_live_replay_log_append_triggers_artifact_recovery(tmp_path):
+    """A real append to the running simulation log immediately drops custody."""
+    from vigil.artifact_replay_consumer import ArtifactReplayConsumer
+    from vigil.provenance import EventProvenance
+    from vigil.simulation import ReplayEvent, ReplayLog
+
+    catalog = build_artifact_catalog()
+    artifacts = HistoricalArtifactStore(catalog, tmp_path / "artifacts.sqlite3")
+    sinks = SinkingEventRegistry(tmp_path / "sinks.sqlite3")
+    bridge = ArtifactSimulationBridge(artifact_store=artifacts, sinking_registry=sinks)
+    artifact = catalog[0]
+    carrier = {
+        "id": "UUV-LIVE", "crewId": "crew-alpha", "unitType": "submersible",
+        "x": artifact["x"], "y": artifact["y"], "afloat": True,
+        "lockedArtifactContainer": {"locked": True, "artifactIds": []},
+    }
+    artifacts.discover("PELAGOS-01", artifact["id"])
+    artifacts.collect("PELAGOS-01", artifact["id"], "UUV-LIVE", carrier)
+    sink_x, sink_y = 0.413, 0.627
+    live_state = {**carrier, "x": sink_x, "y": sink_y, "afloat": False}
+    log = ReplayLog()
+    consumer = ArtifactReplayConsumer(
+        world_seed="PELAGOS-01", bridge=bridge,
+        resolve_unit_state=lambda unit_id: live_state if unit_id == "UUV-LIVE" else None,
+    )
+    unsubscribe = consumer.attach(log)
+
+    # The authoritative simulation's state transition appends its confirmed event.
+    log.append(ReplayEvent(
+        event_id="live-sink-01", timestamp_ns=100, kind="UNIT_SUNK",
+        payload={"status": "CONFIRMED", "unit_id": "UUV-LIVE", "x": sink_x, "y": sink_y},
+        provenance=EventProvenance(
+            source_type="simulation", source_ids=("UUV-LIVE",),
+            timestamp_ns=100, confidence=0.99,
+        ),
+    ))
+    item = artifacts.inventory("PELAGOS-01")[0]
+    assert item["status"] == "LOST"
+    assert item["location"] == {"x": sink_x, "y": sink_y}
+    assert len([entry for entry in artifacts.inventory("PELAGOS-01") if entry["id"] == artifact["id"]]) == 1
+
+    # Unsubscribing stops live callbacks; it does not alter the ledger.
+    unsubscribe()
+    artifacts.close()
+    sinks.close()
