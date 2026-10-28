@@ -90,6 +90,38 @@ class HistoricalArtifactStoreTests(unittest.TestCase):
         self.assertEqual(dropped["location"], {"x": .24, "y": .31})
         self.assertEqual(dropped["carrierId"], "")
 
+    def test_sinking_drops_every_carried_artifact_at_the_exact_event_position(self):
+        for artifact_id in ("ART-ONE", "ART-TWO"):
+            self.store.discover("PELAGOS-01", artifact_id)
+        carrier = sub("UUV-1", .20, .30)
+        self.store.collect("PELAGOS-01", "ART-ONE", "UUV-1", carrier)
+        carrier["x"], carrier["y"] = .80, .70
+        self.store.collect("PELAGOS-01", "ART-TWO", "UUV-1", carrier)
+
+        with self.assertRaisesRegex(ValueError, "server-confirmed"):
+            self.store.drop_all_on_sinking(
+                "PELAGOS-01", "UUV-1", sinking_x=.413, sinking_y=.627,
+                sink_event_authorized=False,
+            )
+        dropped = self.store.drop_all_on_sinking(
+            "PELAGOS-01", "UUV-1", sinking_x=.413, sinking_y=.627,
+            sink_event_authorized=True,
+        )
+        self.assertEqual([item["id"] for item in dropped], ["ART-ONE", "ART-TWO"])
+        self.assertTrue(all(item["status"] == "LOST" for item in dropped))
+        self.assertTrue(all(item["location"] == {"x": .413, "y": .627} for item in dropped))
+        self.assertTrue(all(item["carrierId"] == "" for item in dropped))
+        self.assertEqual(self.store.events("PELAGOS-01", "ART-ONE")[-1]["action"], "SINK_DROP")
+        self.assertEqual(self.store.inventory("PELAGOS-01")[0]["location"], {"x": .413, "y": .627})
+        self.assertEqual(self.store.inventory("PELAGOS-01")[1]["location"], {"x": .413, "y": .627})
+
+    def test_sinking_without_carried_artifacts_is_a_safe_noop(self):
+        self.store.inventory("PELAGOS-01")
+        self.assertEqual(self.store.drop_all_on_sinking(
+            "PELAGOS-01", "UUV-EMPTY", sinking_x=.4, sinking_y=.6,
+            sink_event_authorized=True,
+        ), [])
+
     def test_transfer_and_capture_require_proximity_and_faction_rules(self):
         self.store.discover("PELAGOS-01", "ART-ONE")
         self.store.collect("PELAGOS-01", "ART-ONE", "UUV-1", sub("UUV-1", .20, .30))
