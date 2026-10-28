@@ -5201,4 +5201,59 @@ window.vigilGetActiveSensorDisplay=function(){return {unit:unitId,sensor:activeS
 window.setInterval(draw,180);
 })();
 </script>
+
+<script>
+/* VIGIL 3D seafloor piloting view: presentation layer over the existing simulation. */
+(function(){
+'use strict';
+function boot(){
+ var display=document.getElementById('vigil-unit-sensor-display');
+ var controls=document.getElementById('vigil-seafloor-controls');
+ if(!display||!controls||document.getElementById('vigil-3d-seafloor-launch'))return false;
+ var launch=document.createElement('button');
+ launch.type='button';launch.id='vigil-3d-seafloor-launch';launch.textContent='LAUNCH 3D SEAFLOOR';
+ launch.setAttribute('aria-haspopup','dialog');
+ launch.title='Open the full-screen, mobile-friendly 3D submersible piloting display';
+ controls.insertBefore(launch,controls.firstChild);
+ var style=document.createElement('style');
+ style.textContent='#vigil-3d-seafloor-launch{font-weight:bold!important;color:#d7f8e4!important;border-color:#63bd8b!important;background:#103a25!important}#vigil-3d-seafloor-view{position:fixed;inset:0;z-index:2147483000;background:#020a0b;color:#bde9d0;font:12px/1.4 "Courier New",monospace;display:none;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);box-sizing:border-box}#vigil-3d-seafloor-view.open{display:flex}#vigil-3d-seafloor-view *{box-sizing:border-box}#vigil-3d-seafloor-view .v3-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:#071b16;border-bottom:1px solid #276449}#vigil-3d-seafloor-view button{background:#0b281c;color:#d5f5e2;border:1px solid #397b58;padding:9px 11px;font:inherit;touch-action:manipulation}#vigil-3d-seafloor-view .v3-meta{display:flex;flex-wrap:wrap;gap:8px 16px;padding:7px 12px;color:#8ec8a5;font-size:11px}#vigil-3d-terrain{display:block;flex:1;min-height:0;width:100%;height:100%;touch-action:none;background:#03151a}#vigil-3d-seafloor-view .v3-controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:8px;background:#06130f;border-top:1px solid #24563c}#vigil-3d-seafloor-view .v3-controls button{min-height:42px;padding:7px 3px;font-size:11px}#vigil-3d-seafloor-view .v3-foot{padding:6px 10px;color:#83b99a;font-size:10px;background:#04100c}@media(min-width:900px){#vigil-3d-seafloor-view .v3-controls{grid-template-columns:repeat(6,minmax(0,1fr))}#vigil-3d-seafloor-view .v3-head{padding:12px 18px}}';
+document.head.appendChild(style);
+var view=document.createElement('section');
+view.id='vigil-3d-seafloor-view';view.setAttribute('role','dialog');view.setAttribute('aria-modal','true');view.setAttribute('aria-label','3D seafloor submersible piloting');
+view.innerHTML='<div class="v3-head"><strong>VIGIL // 3D BATHYMETRY &amp; UUV PILOTING</strong><button type="button" id="v3-close">RETURN TO SIMULATION BAY</button></div><div class="v3-meta"><span id="v3-depth">DEPTH —</span><span id="v3-heading">HEADING —</span><span id="v3-speed">SPEED —</span><span id="v3-survey">SURVEY LINK: LIVE</span></div><canvas id="vigil-3d-terrain" aria-label="Interactive three-dimensional bathymetric terrain"></canvas><div class="v3-controls"><button data-move="left">TURN LEFT</button><button data-move="forward">FORWARD</button><button data-move="right">TURN RIGHT</button><button data-move="back">REVERSE</button><button data-move="up">ASCEND</button><button data-move="down">DESCEND</button><button data-move="slower">SPEED −</button><button data-move="faster">SPEED +</button><button id="v3-scan">START / PAUSE SURVEY</button><button id="v3-zoomout">ZOOM −</button><button id="v3-zoomin">ZOOM +</button><button id="v3-reset">RESET VIEW</button></div><div class="v3-foot" id="v3-status" role="status" aria-live="polite">LIVE TERRAIN VIEW // CONTROLS COMMAND THE EXISTING SIMULATION</div>';
+document.body.appendChild(view);
+var canvas=view.querySelector('#vigil-3d-terrain'),ctx=canvas.getContext('2d'),heading=0,speed=0,depth=120,zoom=1,tilt=.25,offset=0,anim=0,last=0,drag=null,active=false;
+var seed=0x51a7;
+var world=window.vigilGetCampaignWorld&&window.vigilGetCampaignWorld();if(world&&world.seed){for(var si=0;si<world.seed.length;si++)seed=(Math.imul(seed^world.seed.charCodeAt(si),16777619)>>>0);}
+function noise(x,y){var v=Math.sin((x+seed%997)*.17+Math.cos((y+seed%317)*.13))*Math.cos(y*.11+x*.07);return v;}
+function heightAt(x,y){return 260+120*noise(x,y)+55*Math.sin(x*.12)*Math.cos(y*.08)+28*Math.sin((x+y)*.24);}
+function resize(){var dpr=Math.min(window.devicePixelRatio||1,2),w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
+function project(x,y,z,w,h){var ca=Math.cos(heading*Math.PI/180),sa=Math.sin(heading*Math.PI/180),rx=x*ca-y*sa,ry=x*sa+y*ca+offset;var yy=ry*Math.cos(tilt)-z*.42*Math.sin(tilt),zz=ry*Math.sin(tilt)+z*.42*Math.cos(tilt)+260;var perspective=650/(650+zz);return {x:w*.5+rx*perspective*zoom,y:h*.47+yy*perspective*zoom,z:zz};}
+function draw(){if(!ctx||!view.classList.contains('open'))return;var w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;ctx.clearRect(0,0,w,h);var sky=ctx.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#03151c');sky.addColorStop(.55,'#07313a');sky.addColorStop(1,'#01090b');ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+var rows=24,cols=36,step=22,points=[];for(var r=0;r<=rows;r++){points[r]=[];for(var c=0;c<=cols;c++){var x=(c-cols/2)*step,y=(r-rows/2)*step,z=heightAt(x,y);points[r][c]=project(x,y,z,w,h);}}
+for(var r2=0;r2<rows;r2++){for(var c2=0;c2<cols;c2++){var a=points[r2][c2],b=points[r2][c2+1],d=points[r2+1][c2],e=points[r2+1][c2+1];var avg=(heightAt((c2-cols/2)*step,(r2-rows/2)*step)+heightAt(((c2+1)-cols/2)*step,((r2+1)-rows/2)*step))/2;var dep=Math.max(0,Math.min(1,(avg-100)/400));var rr=Math.round(8+dep*34),gg=Math.round(85-dep*43),bb=Math.round(95-dep*48);ctx.fillStyle='rgb('+rr+','+gg+','+bb+')';ctx.strokeStyle='rgba(120,205,192,.18)';ctx.lineWidth=.6;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(e.x,e.y);ctx.lineTo(d.x,d.y);ctx.closePath();ctx.fill();ctx.stroke();}}
+ctx.strokeStyle='rgba(150,226,210,.18)';ctx.lineWidth=1;for(var gy=1;gy<5;gy++){ctx.beginPath();ctx.moveTo(0,h*gy/5);ctx.lineTo(w,h*gy/5);ctx.stroke();}
+ctx.strokeStyle='#b7f6d5';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(w/2,h*.43);ctx.lineTo(w/2,h*.49);ctx.moveTo(w/2-7,h*.46);ctx.lineTo(w/2+7,h*.46);ctx.stroke();
+ctx.fillStyle='#c5f7df';ctx.font='10px Courier New';ctx.fillText('BATHYMETRY // RELATIVE DEPTH MODEL',10,16);ctx.fillStyle='#8cc9b0';ctx.fillText('DEPTH CONTOURS: SIMULATED TERRAIN',10,30);
+var u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('submersible');if(u){heading=Number(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)||0;speed=Number(u.target_speed==null?u.speed:u.target_speed)||0;document.getElementById('v3-heading').textContent='HEADING '+Math.round(heading)+'°';document.getElementById('v3-speed').textContent='SPEED '+speed.toFixed(2);document.getElementById('v3-depth').textContent='DEPTH '+Math.round(depth)+' m';}var discoveries=window.vigilGetLocalSeafloorDiscoveries?window.vigilGetLocalSeafloorDiscoveries():[];document.getElementById('v3-survey').textContent='LOCAL DISCOVERIES '+discoveries.length+' // SURVEY LINK: LIVE';
+}
+function command(changes){if(typeof window.vigilSetSimulationUnitState!=='function'){say('SIMULATION BRIDGE UNAVAILABLE');return;}var result=window.vigilSetSimulationUnitState('submersible',changes);if(!result||!result.ok){say('COMMAND REJECTED // '+(result&&result.reason||'UNIT UNAVAILABLE'));return;}say('COMMAND ACCEPTED // '+(result.unit_id||'UUV'));draw();}
+function say(s){document.getElementById('v3-status').textContent=s;}
+function step(dir){var u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('submersible');var hdg=Number(u&&(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg))||0;var spd=Number(u&&(u.target_speed==null?u.speed:u.target_speed))||0;var max=Number(u&&u.max_speed)||1;if(dir==='left')command({heading:(hdg+345)%360});else if(dir==='right')command({heading:(hdg+15)%360});else if(dir==='forward')command({speed:Math.min(max,spd+.1)});else if(dir==='back')command({speed:Math.max(0,spd-.1)});else if(dir==='faster')command({speed:Math.min(max,spd+.1)});else if(dir==='slower')command({speed:Math.max(0,spd-.1)});else if(dir==='up'){depth=Math.max(0,depth-10);say('ASCENT COMMAND // DEPTH TARGET '+depth+' M // SIMULATED VEHICLE STATE RETAINED');}else if(dir==='down'){depth=Math.min(6000,depth+10);say('DESCENT COMMAND // DEPTH TARGET '+depth+' M // SIMULATED VEHICLE STATE RETAINED');}offset+=dir==='forward'?-10:dir==='back'?10:0;draw();}
+function open(){view.classList.add('open');active=true;document.body.style.overflow='hidden';var u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('submersible');if(u){heading=Number(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)||0;speed=Number(u.target_speed==null?u.speed:u.target_speed)||0;}resize();say('3D VIEW ACTIVE // SHARED UUV NAVIGATION AND EXISTING SURVEY RECORDS');document.getElementById('v3-close').focus();}
+function close(){active=false;view.classList.remove('open');document.body.style.overflow='';launch.focus();}
+launch.addEventListener('click',open);view.querySelector('#v3-close').addEventListener('click',close);
+view.querySelectorAll('[data-move]').forEach(function(b){b.addEventListener('click',function(){step(b.dataset.move);});});
+view.querySelector('#v3-scan').addEventListener('click',function(){var b=document.getElementById('vigil-seafloor-scan');if(b)b.click();say('SURVEY COMMAND SENT TO EXISTING SEAFLOOR MAPPING ENGINE');});
+view.querySelector('#v3-zoomin').addEventListener('click',function(){zoom=Math.min(1.8,zoom+.1);draw();});view.querySelector('#v3-zoomout').addEventListener('click',function(){zoom=Math.max(.5,zoom-.1);draw();});view.querySelector('#v3-reset').addEventListener('click',function(){zoom=1;tilt=.25;offset=0;draw();});
+view.addEventListener('click',function(e){if(e.target===view)close();});document.addEventListener('keydown',function(e){if(!active)return;if(e.key==='Escape'){close();return;}var keys={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'forward',ArrowDown:'back','+':'zoomin','-':'zoomout'};if(keys[e.key]){e.preventDefault();if(keys[e.key]==='zoomin')zoom=Math.min(1.8,zoom+.1);else if(keys[e.key]==='zoomout')zoom=Math.max(.5,zoom-.1);else step(keys[e.key]);draw();}});
+canvas.addEventListener('pointerdown',function(e){drag={x:e.clientX,y:e.clientY,tilt:tilt,offset:offset};canvas.setPointerCapture(e.pointerId);});canvas.addEventListener('pointermove',function(e){if(!drag)return;tilt=Math.max(-.05,Math.min(.85,drag.tilt+(e.clientY-drag.y)/300));offset=drag.offset+(e.clientX-drag.x)*.7;draw();});canvas.addEventListener('pointerup',function(){drag=null;});canvas.addEventListener('pointercancel',function(){drag=null;});
+window.addEventListener('resize',resize);window.addEventListener('vigil:simulation-unit-state-changed',draw);window.addEventListener('vigil:seafloor-survey-merged',draw);
+function loop(t){if(active&&t-last>120){draw();last=t;}requestAnimationFrame(loop);}requestAnimationFrame(loop);
+return true;
+}
+if(!boot()){var attempts=0;var retry=setInterval(function(){attempts++;if(boot()||attempts>40)clearInterval(retry);},250);}
+})();
+</script>
+
 </body></html>
