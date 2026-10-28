@@ -5226,40 +5226,60 @@ var canvas=view.querySelector('#vigil-3d-terrain'),ctx=canvas.getContext('2d'),h
 var seed=0x51a7;
 var world=window.vigilGetCampaignWorld&&window.vigilGetCampaignWorld();if(world&&world.seed){for(var si=0;si<world.seed.length;si++)seed=(Math.imul(seed^world.seed.charCodeAt(si),16777619)>>>0);}
 function noise(x,y){var v=Math.sin((x+seed%997)*.17+Math.cos((y+seed%317)*.13))*Math.cos(y*.11+x*.07);return v;}
-/* Real-world bathymetry is used only to choose plausible spawn origins.
-   The playable world terrain remains wholly fictional and can be authored independently. */
-var spawnBathymetry=null,spawnBathymetryState='SPAWN ORIGIN: LOADING NOAA ETOPO1',spawnBathymetryError='';
+/* Real bathymetry is warped into ruin-like terrain ONLY inside the active player-spawn patch.
+   Outside that patch, the world's terrain remains fully fictional and procedural. */
+var spawnBathymetry=null,spawnBathymetryState='SPAWN RUIN PATCH: LOADING REAL BATHYMETRY',spawnBathymetryError='';
 var spawnRegions=[
- {name:'NORTH PACIFIC',lat:35,lon:160,query:'(35.0):30:(35.0)][(160.0):30:(160.0)'},
- {name:'MARIANA TRENCH REGION',lat:15,lon:147,query:'(15.0):30:(15.0)][(147.0):30:(147.0)'},
- {name:'SOUTH ATLANTIC',lat:-35,lon:-15,query:'(-35.0):30:(-35.0)][(-15.0):30:(-15.0)'},
- {name:'INDIAN OCEAN',lat:-20,lon:80,query:'(-20.0):30:(-20.0)][(80.0):30:(80.0)'},
- {name:'NORTH ATLANTIC',lat:40,lon:-40,query:'(40.0):30:(40.0)][(-40.0):30:(-40.0)'}
+ {name:'NORTH PACIFIC',lat:35,lon:160},
+ {name:'MARIANA TRENCH REGION',lat:15,lon:147},
+ {name:'SOUTH ATLANTIC',lat:-35,lon:-15},
+ {name:'INDIAN OCEAN',lat:-20,lon:80},
+ {name:'NORTH ATLANTIC',lat:40,lon:-40}
 ];
 var selectedSpawnRegion=0;
+var spawnPatchHalfSize=260;
 function loadSpawnBathymetry(){
- var region=spawnRegions[selectedSpawnRegion];
- /* Query one real-world reference coordinate; never use this elevation to deform fictional terrain. */
- var url='https://oceanwatch.aoml.noaa.gov/erddap/griddap/etopo360.csv?altitude[('+region.lat.toFixed(1)+')][('+region.lon.toFixed(1)+')]';
+ var region=spawnRegions[selectedSpawnRegion],lat0=region.lat+5,lat1=region.lat-5,lon0=region.lon-5,lon1=region.lon+5;
+ /* NOAA ETOPO1 is sampled only for this spawn patch; it is never used as global world terrain. */
+ var url='https://oceanwatch.aoml.noaa.gov/erddap/griddap/etopo360.csv?altitude[('+lat0.toFixed(2)+'):30:('+lat1.toFixed(2)+')][('+lon0.toFixed(2)+'):30:('+lon1.toFixed(2)+')]';
+ spawnBathymetryState='LOADING NOAA SPAWN PATCH: '+region.name;draw();
  fetch(url,{mode:'cors'}).then(function(res){if(!res.ok)throw new Error('HTTP '+res.status);return res.text();}).then(function(csv){
-  var lines=csv.trim().split(/\\r?\\n/),elevation=null;
+  var lines=csv.trim().split(/\\r?\\n/),values=[];
   for(var li=0;li<lines.length;li++){
-   var parts=lines[li].split(',');
-   if(parts.length<3)continue;
-   var n=Number(parts[0]);
-   if(Number.isFinite(n)&&parts[0].trim()!==''){elevation=n;break;}
+   var line=lines[li].trim();if(!line||/^(altitude|latitude|longitude|time)/i.test(line))continue;
+   var n=Number(line.split(',')[0]);if(Number.isFinite(n))values.push(n);
   }
-  if(elevation===null)throw new Error('No numeric elevation returned for spawn reference');
-  spawnBathymetry={region:region.name,lat:region.lat,lon:region.lon,elevation_m:elevation};
-  spawnBathymetryState=elevation<0?'REAL BATHYMETRY SPAWN: '+region.name+' / '+Math.round(-elevation)+' M WATER DEPTH':'REAL TERRAIN REFERENCE: '+region.name+' / ELEVATION '+Math.round(elevation)+' M';
-  spawnBathymetryError='';draw();
+  var side=Math.round(Math.sqrt(values.length));
+  if(values.length<100||side*side!==values.length)throw new Error('NOAA returned an incomplete elevation grid ('+values.length+' samples)');
+  spawnBathymetry={values:values,rows:side,cols:side,region:region.name,lat:region.lat,lon:region.lon,min:Math.min.apply(null,values),max:Math.max.apply(null,values)};
+  spawnBathymetryState='REAL BATHYMETRY SCRAMBLED AS RUINS // SPAWN ZONE: '+region.name;spawnBathymetryError='';draw();
  }).catch(function(err){
-  spawnBathymetry=null;spawnBathymetryState='SPAWN REFERENCE OFFLINE // FICTIONAL WORLD UNCHANGED';
+  spawnBathymetry=null;spawnBathymetryState='SPAWN RUIN PATCH OFFLINE // FICTIONAL TERRAIN ACTIVE';
   spawnBathymetryError=String(err&&err.message||err);draw();
  });
 }
+function sampleSpawnBathymetry(x,y){
+ if(!spawnBathymetry||Math.abs(x)>spawnPatchHalfSize||Math.abs(y)>spawnPatchHalfSize)return null;
+ /* Strong coordinate folds, shear and compression make the real seabed look tectonically crushed. */
+ var wx=x+49*Math.sin(y*.031)+21*Math.sin((x+y)*.061)+17*Math.sin(y*.103);
+ var wy=y+42*Math.sin(x*.027)+18*Math.sin((x-y)*.057)+13*Math.sin(x*.091);
+ var fx=(wx+spawnPatchHalfSize)/(spawnPatchHalfSize*2)*(spawnBathymetry.cols-1);
+ var fy=(wy+spawnPatchHalfSize)/(spawnPatchHalfSize*2)*(spawnBathymetry.rows-1);
+ fx=Math.max(0,Math.min(spawnBathymetry.cols-1,fx));fy=Math.max(0,Math.min(spawnBathymetry.rows-1,fy));
+ var x0=Math.floor(fx),y0=Math.floor(fy),x1=Math.min(spawnBathymetry.cols-1,x0+1),y1=Math.min(spawnBathymetry.rows-1,y0+1),tx=fx-x0,ty=fy-y0,v=spawnBathymetry.values;
+ var a=v[y0*spawnBathymetry.cols+x0]*(1-tx)+v[y0*spawnBathymetry.cols+x1]*tx;
+ var b=v[y1*spawnBathymetry.cols+x0]*(1-tx)+v[y1*spawnBathymetry.cols+x1]*tx;
+ var elevation=a*(1-ty)+b*ty;
+ /* Normalize real elevations into the local rendering range, then add sharp fictional fracture ridges. */
+ var normalized=245+(Math.max(-6500,Math.min(1000,elevation))+3000)*.055;
+ var fracture=Math.abs(Math.sin(wx*.081+Math.sin(wy*.037)*2)*Math.cos(wy*.069));
+ var ridge=fracture>0.79?(fracture-.79)*310:0;
+ var terrace=Math.sin(wx*.018+wy*.012)*Math.sin(wy*.021)*24;
+ return normalized+ridge+terrace+noise(wx*.65,wy*.65)*22;
+}
 function heightAt(x,y){
- /* Procedural invented geography only. Real-world bathymetry must never shape the fictional map. */
+ var spawnHeight=sampleSpawnBathymetry(x,y);if(spawnHeight!==null)return spawnHeight;
+ /* Non-spawn areas are exclusively fictional terrain. */
  return 260+120*noise(x,y)+55*Math.sin(x*.12)*Math.cos(y*.08)+28*Math.sin((x+y)*.24)+34*Math.sin(x*.037+y*.019)*Math.cos(y*.043-x*.016);
 }
 function resize(){var dpr=Math.min(window.devicePixelRatio||1,2),w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
@@ -5281,7 +5301,7 @@ contourLevels.forEach(function(level,li){
 });
 ctx.strokeStyle='rgba(150,226,210,.18)';ctx.lineWidth=1;for(var gy=1;gy<5;gy++){ctx.beginPath();ctx.moveTo(0,h*gy/5);ctx.lineTo(w,h*gy/5);ctx.stroke();}
 ctx.strokeStyle='#b7f6d5';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(w/2,h*.43);ctx.lineTo(w/2,h*.49);ctx.moveTo(w/2-7,h*.46);ctx.lineTo(w/2+7,h*.46);ctx.stroke();
-ctx.fillStyle='#c5f7df';ctx.font='10px Courier New';ctx.fillText('FICTIONAL BATHYMETRY // CRUMPLED DROWNED WORLD',10,16);ctx.fillStyle='#8cc9b0';ctx.fillText(spawnBathymetryState,10,30);
+ctx.fillStyle='#c5f7df';ctx.font='10px Courier New';ctx.fillText('FICTIONAL WORLD // REAL BATHYMETRY RUINS ONLY AT SPAWN',10,16);ctx.fillStyle='#8cc9b0';ctx.fillText(spawnBathymetryState,10,30);
 var u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('submersible');if(u){heading=Number(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)||0;speed=Number(u.target_speed==null?u.speed:u.target_speed)||0;document.getElementById('v3-heading').textContent='HEADING '+Math.round(heading)+'°';document.getElementById('v3-speed').textContent='SPEED '+speed.toFixed(2);document.getElementById('v3-depth').textContent='DEPTH '+Math.round(depth)+' m';}var discoveries=window.vigilGetLocalSeafloorDiscoveries?window.vigilGetLocalSeafloorDiscoveries():[];document.getElementById('v3-survey').textContent='LOCAL DISCOVERIES '+discoveries.length+' // SURVEY LINK: LIVE';
 }
 function command(changes){if(typeof window.vigilSetSimulationUnitState!=='function'){say('SIMULATION BRIDGE UNAVAILABLE');return;}var result=window.vigilSetSimulationUnitState('submersible',changes);if(!result||!result.ok){say('COMMAND REJECTED // '+(result&&result.reason||'UNIT UNAVAILABLE'));return;}say('COMMAND ACCEPTED // '+(result.unit_id||'UUV'));draw();}
