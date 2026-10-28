@@ -4258,8 +4258,22 @@ var activeSensor='',unitId='ship',frame=0,waterfallHistory=[],waterfallHistoryKe
 var seafloorState={scanning:false,range:.12,contrast:1,coverage:Object.create(null),discoveries:Object.create(null),scanBearing:0,sweepCount:0};
 var seafloorSurveyStorageKey='vigil-survey-v1-'+(typeof window.vigilGetCampaignWorld==='function'?window.vigilGetCampaignWorld().seed:'PELAGOS-01');
 function loadSeafloorSurvey(){try{var saved=JSON.parse(localStorage.getItem(seafloorSurveyStorageKey)||'null');if(saved&&saved.coverage&&typeof saved.coverage==='object'){Object.keys(saved.coverage).forEach(function(k){if(saved.coverage[k]===true)seafloorState.coverage[k]=true;});}if(saved&&saved.discoveries&&typeof saved.discoveries==='object'){Object.keys(saved.discoveries).forEach(function(k){var d=saved.discoveries[k];if(d&&typeof d.id==='string')seafloorState.discoveries[k]=d;});}seafloorState.sweepCount=Math.max(0,Number(saved&&saved.sweepCount)||0);}catch(e){/* Storage can be unavailable in private or restricted contexts. */}}
-function saveSeafloorSurvey(){try{localStorage.setItem(seafloorSurveyStorageKey,JSON.stringify({version:2,seed:'PELAGOS-01',coverage:seafloorState.coverage,discoveries:seafloorState.discoveries,sweepCount:seafloorState.sweepCount,updatedAt:new Date().toISOString()}));}catch(e){/* The live survey continues for this session if storage is unavailable. */}}
+function currentSeafloorWorldSeed(){var world=typeof window.vigilGetCampaignWorld==='function'?window.vigilGetCampaignWorld():null;return String(world&&world.seed||'PELAGOS-01');}
+function saveSeafloorSurvey(){try{localStorage.setItem(seafloorSurveyStorageKey,JSON.stringify({version:2,seed:currentSeafloorWorldSeed(),coverage:seafloorState.coverage,discoveries:seafloorState.discoveries,sweepCount:seafloorState.sweepCount,updatedAt:new Date().toISOString()}));}catch(e){/* The live survey continues for this session if storage is unavailable. */}}
 window.vigilGetLocalSeafloorDiscoveries=function(){return Object.keys(seafloorState.discoveries).map(function(k){return Object.assign({},seafloorState.discoveries[k]);});};
+// Export a versioned, seed-bound survey package for the future authenticated campaign sync API.
+window.vigilExportSeafloorCampaignSurvey=function(){return {schema:'vigil.seafloor-survey',version:1,world_seed:currentSeafloorWorldSeed(),coverage:Object.keys(seafloorState.coverage).filter(function(k){return seafloorState.coverage[k]===true;}),discoveries:window.vigilGetLocalSeafloorDiscoveries(),sweep_count:seafloorState.sweepCount,exported_at:new Date().toISOString()};};
+// Merge only records from the same world seed. Server responses can be merged without replacing local-only progress.
+window.vigilMergeSeafloorCampaignSurvey=function(payload){
+ if(!payload||payload.schema!=='vigil.seafloor-survey'||Number(payload.version)!==1||payload.world_seed!==currentSeafloorWorldSeed())return {ok:false,reason:'schema_or_world_seed_mismatch',merged:0};
+ var merged=0,coverage=Array.isArray(payload.coverage)?payload.coverage:[],discoveries=Array.isArray(payload.discoveries)?payload.discoveries:[];
+ coverage.forEach(function(key){if(typeof key==='string'&&key.length<=80&&!seafloorState.coverage[key]){seafloorState.coverage[key]=true;merged++;}});
+ discoveries.forEach(function(d){if(!d||typeof d.id!=='string'||d.id.length>160||!Number.isFinite(Number(d.x))||!Number.isFinite(Number(d.y))||Number(d.x)<0||Number(d.x)>1||Number(d.y)<0||Number(d.y)>1||d.seed!==currentSeafloorWorldSeed())return;
+  if(!seafloorState.discoveries[d.id]){seafloorState.discoveries[d.id]={id:d.id,kind:String(d.kind||'UNKNOWN').slice(0,80),x:Number(d.x),y:Number(d.y),scale:String(d.scale||'').slice(0,40),seed:currentSeafloorWorldSeed(),status:String(d.status||'SONAR INDICATION').slice(0,40),discoveredAt:String(d.discoveredAt||''),depthMeters:Number.isFinite(Number(d.depthMeters))?Number(d.depthMeters):null};merged++;}
+ });
+ if(merged){saveSeafloorSurvey();window.dispatchEvent(new CustomEvent('vigil:seafloor-survey-merged',{detail:{merged:merged,world_seed:currentSeafloorWorldSeed()}}));}
+ return {ok:true,merged:merged,coverage_cells:Object.keys(seafloorState.coverage).length,discoveries:Object.keys(seafloorState.discoveries).length};
+};
 loadSeafloorSurvey();
 var profiles={
  ship:['SONAR','RADAR','EO CAMERA','THERMAL / IR','ESM / RF','NAVIGATION / IMU','RANGEFINDER','OBJECT TRACKING','FUSED VIEW','FIRE CONTROL','TELEMETRY'],
