@@ -4155,7 +4155,7 @@ var context=document.createElement('section');
 context.className='vigil-unit-context';
 context.id='vigil-unit-sensor-profile';
 context.setAttribute('aria-label','Active simulation unit and sensor capabilities');
-context.innerHTML='<div class="unit-context-controls"><label for="vigil-active-unit">ACTIVE SIMULATION UNIT<select id="vigil-active-unit"><option value="ship">SHIP // SHIPBOARD SENSORS</option><option value="drone">LAUNCH / CONTROL SIMULATED DRONE</option><option value="submersible">UNCREWED SUBMERSIBLE</option><option value="mech">MECH UNIT</option><option value="facility">FIXED INSTALLATION</option></select></label><div><strong id="vigil-active-unit-status" class="green">UNIT PROFILE // SHIP</strong><p class="unit-context-note">EQUIPMENT PROFILE // SENSOR ASSIGNMENTS</p></div></div><div id="vigil-unit-sensor-list" class="unit-sensor-list" aria-live="polite"></div><p id="vigil-unit-sensor-note" class="unit-context-note"></p>';
+context.innerHTML='<div class="unit-context-controls"><label for="vigil-active-unit">ACTIVE SIMULATION UNIT<select id="vigil-active-unit"><option value="ship">SHIP // SHIPBOARD SENSORS</option><option value="drone">LAUNCH / CONTROL SIMULATED DRONE</option><option value="submersible">UNCREWED SUBMERSIBLE</option><option value="mech">MECH UNIT</option><option value="facility">FIXED INSTALLATION</option></select></label><div><strong id="vigil-active-unit-status" class="green">UNIT PROFILE // SHIP</strong><p class="unit-context-note">EQUIPMENT PROFILE // SENSOR ASSIGNMENTS</p></div></div><div id="vigil-unit-sensor-list" class="unit-sensor-list" aria-live="polite"></div><p id="vigil-unit-sensor-note" class="unit-context-note"></p><div id="vigil-navigation-controls" style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><h4 style="margin:0 0 8px;color:var(--g);font-size:11px;letter-spacing:1px">VEHICLE NAVIGATION / HELM</h4><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end"><label style="font-size:10px;color:var(--dim)">COURSE / HEADING °<input id="vigil-nav-heading" type="number" min="0" max="359" step="1" value="0" style="display:block;width:105px;padding:8px;background:#010604;color:var(--g);border:1px solid var(--line);font:inherit"></label><label style="font-size:10px;color:var(--dim)">TARGET SPEED <input id="vigil-nav-speed" type="number" min="0" max="1" step="0.01" value="0" style="display:block;width:105px;padding:8px;background:#010604;color:var(--g);border:1px solid var(--line);font:inherit"></label><button type="button" id="vigil-nav-apply" style="padding:9px 12px;background:#073324;color:var(--g);border:1px solid var(--g);font:inherit;cursor:pointer">SET COURSE / SPEED</button><button type="button" id="vigil-nav-stop" style="padding:9px 12px;background:#160a08;color:#ffb39c;border:1px solid #804633;font:inherit;cursor:pointer">STOP / ZERO SPEED</button></div><p id="vigil-nav-status" class="unit-context-note" role="status" aria-live="polite">SIMULATION HELM // SELECT A MOBILE UNIT</p></div>';
 var head=consoleRoot.querySelector('.vigil-ops-head');
 if(head)head.insertAdjacentElement('afterend',context);else consoleRoot.insertBefore(context,consoleRoot.firstChild);
 var select=context.querySelector('#vigil-active-unit');
@@ -4165,7 +4165,7 @@ var note=context.querySelector('#vigil-unit-sensor-note');
 var profiles={
  ship:{title:'SHIP',sensors:['SONAR','RADAR','EO CAMERA','THERMAL / IR','ESM / RF','NAVIGATION / IMU','RANGEFINDER','OBJECT TRACKING','FUSED VIEW','FIRE CONTROL','TELEMETRY'],note:'Complete shipboard station roster; sensor, tracking, navigation and fire-control stations are listed here and available in the shared console.'},
  drone:{title:'SIMULATED DRONE',sensors:['EO CAMERA','THERMAL / IR','RANGEFINDER','SPATIAL RANGING','OBJECT TRACKING','FUSED VIEW','NAVIGATION / IMU','PROXIMITY SENSOR','TELEMETRY'],note:'Complete drone-mounted station roster; stations are rendered through the same shared console.'},
- submersible:{title:'UNCREWED SUBMERSIBLE',sensors:['IMAGING SONAR','FORWARD-LOOKING SONAR','UNDERWATER CAMERA','DEPTH SENSOR','INERTIAL NAVIGATION','PROXIMITY SONAR','OBJECT TRACKING','FUSED VIEW','TELEMETRY'],note:'Complete underwater vehicle station roster; sonar, camera, depth and tracking evidence share the common console.'},
+ submersible:{title:'UNCREWED SUBMERSIBLE',sensors:['IMAGING SONAR','FORWARD-LOOKING SONAR','SEAFLOOR MAPPING','UNDERWATER CAMERA','DEPTH SENSOR','INERTIAL NAVIGATION','PROXIMITY SONAR','OBJECT TRACKING','FUSED VIEW','TELEMETRY'],note:'Complete underwater vehicle station roster; sonar, seafloor mapping, camera, depth and tracking evidence share the common console.'},
  mech:{title:'MECH UNIT',sensors:['EO CAMERA','THERMAL / IR','LASER RANGEFINDER','PROXIMITY SENSOR','INERTIAL NAVIGATION','OBJECT TRACKING','FUSED VIEW','TELEMETRY'],note:'Complete mech station roster; optical, thermal, ranging, proximity, inertial and tracking stations use the shared console.'},
  facility:{title:'FIXED INSTALLATION',sensors:['FIXED CAMERA','THERMAL / IR','PERIMETER RADAR','ACOUSTIC / MOTION','ESM / RF','OBJECT TRACKING','FUSED VIEW','ACCESS / ALARM','TELEMETRY'],note:'Complete fixed-installation station roster; surveillance, environmental awareness and alarm status remain represented in the shared console.'}
 };
@@ -4180,8 +4180,33 @@ function render(){
  window.dispatchEvent(new CustomEvent('vigil:active-unit-changed',{detail:{unit:window.vigilActiveSimulationUnit}}));
 }
 select.addEventListener('change',render);
+var navHeading=context.querySelector('#vigil-nav-heading'),navSpeed=context.querySelector('#vigil-nav-speed'),navApply=context.querySelector('#vigil-nav-apply'),navStop=context.querySelector('#vigil-nav-stop'),navStatus=context.querySelector('#vigil-nav-status');
+function refreshNavigationControls(){
+ var profile=select.value,unit=typeof window.vigilGetRegionalSimulationUnit==='function'?window.vigilGetRegionalSimulationUnit(profile):null;
+ var movable=profile!=='facility'&&!!unit;
+ navHeading.disabled=!movable;navSpeed.disabled=!movable;navApply.disabled=!movable;navStop.disabled=!movable;
+ navApply.style.opacity=navStop.style.opacity=movable?'1':'.45';
+ if(unit){navHeading.value=Math.round(Number(unit.desired_heading_deg==null?unit.heading_deg:unit.desired_heading_deg)||0);navSpeed.max=String(Math.max(0,Number(unit.max_speed)||0));navSpeed.value=String(Math.max(0,Math.min(Number(navSpeed.max),Number(unit.target_speed==null?unit.speed:unit.target_speed)||0)).toFixed(2));navStatus.textContent='HELM READY // '+unit.id+' // HDG '+navHeading.value+'° // SPEED '+Number(unit.speed||0).toFixed(2)+' / '+navSpeed.max+' // SIMULATED MOTION';}
+ else navStatus.textContent=profile==='facility'?'FIXED INSTALLATION // NAVIGATION LOCKED':'HELM WAITING // SIMULATION UNIT NOT AVAILABLE';
+}
+function sendNavigation(changes){
+ if(typeof window.vigilSetSimulationUnitState!=='function'){navStatus.textContent='COMMAND REJECTED // SIMULATION CONTROL BRIDGE UNAVAILABLE';return;}
+ var result=window.vigilSetSimulationUnitState(select.value,changes);
+ if(!result||!result.ok){navStatus.textContent='COMMAND REJECTED // '+(result&&result.reason?result.reason:'UNIT CONTROL UNAVAILABLE');return;}
+ navStatus.textContent='COMMAND ACCEPTED // '+result.unit_id+' // COURSE '+Math.round(result.desired_heading||0)+'° // TARGET SPEED '+Number(result.target_speed||0).toFixed(2)+' / '+Number(result.max_speed||0).toFixed(2);
+ refreshNavigationControls();
+}
+navApply.addEventListener('click',function(){
+ var heading=Number(navHeading.value),speed=Number(navSpeed.value);
+ if(!Number.isFinite(heading)||heading<0||heading>359){navStatus.textContent='INVALID COURSE // ENTER 0–359 DEGREES';return;}
+ if(!Number.isFinite(speed)||speed<0||speed>Number(navSpeed.max)){navStatus.textContent='INVALID SPEED // ENTER 0 TO UNIT MAXIMUM';return;}
+ sendNavigation({heading:heading,speed:speed});
+});
+navStop.addEventListener('click',function(){sendNavigation({speed:0});});
+window.addEventListener('vigil:simulation-unit-state-changed',refreshNavigationControls);
 window.vigilGetActiveSimulationUnit=function(){return window.vigilActiveSimulationUnit||null;};
 render();
+refreshNavigationControls();
 })();
 </script>
 
