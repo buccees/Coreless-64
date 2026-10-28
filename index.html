@@ -5545,11 +5545,41 @@ function step(dir){var u=window.vigilGetRegionalSimulationUnit&&window.vigilGetR
 var mapCanvas=view.querySelector('#vigil-3d-world-map-canvas'),mapCtx=mapCanvas.getContext('2d'),mapMode='local';
 function setMapMode(mode){mapMode=mode==='regional'?'regional':'local';view.querySelector('#v3-map-local').setAttribute('aria-pressed',String(mapMode==='local'));view.querySelector('#v3-map-regional').setAttribute('aria-pressed',String(mapMode==='regional'));view.querySelector('#v3-world-map-title').textContent=mapMode==='local'?'LOCAL MAP // NEARBY':'REGIONAL MAP // WORLD';drawWorldMap();}
 view.querySelector('#v3-map-local').addEventListener('click',function(){setMapMode('local');});view.querySelector('#v3-map-regional').addEventListener('click',function(){setMapMode('regional');});
-function drawWorldMap(){if(!mapCtx||!view.classList.contains('open'))return;var w=mapCanvas.clientWidth,h=mapCanvas.clientHeight;if(!w||!h)return;var dpr=Math.min(window.devicePixelRatio||1,2);if(mapCanvas.width!==Math.round(w*dpr)||mapCanvas.height!==Math.round(h*dpr)){mapCanvas.width=Math.round(w*dpr);mapCanvas.height=Math.round(h*dpr);}mapCtx.setTransform(dpr,0,0,dpr,0,0);mapCtx.clearRect(0,0,w,h);mapCtx.fillStyle='#03120f';mapCtx.fillRect(0,0,w,h);mapCtx.strokeStyle='rgba(95,175,133,.19)';mapCtx.lineWidth=1;for(var gx=0;gx<=4;gx++){mapCtx.beginPath();mapCtx.moveTo(w*gx/4,0);mapCtx.lineTo(w*gx/4,h);mapCtx.stroke();}for(var gy=0;gy<=4;gy++){mapCtx.beginPath();mapCtx.moveTo(0,h*gy/4);mapCtx.lineTo(w,h*gy/4);mapCtx.stroke();}var units=['ship','drone','submersible','submarine','mech','facility'].map(function(id){return window.vigilGetRegionalSimulationUnit?window.vigilGetRegionalSimulationUnit(id):null;}).filter(function(u){return u&&Number.isFinite(Number(u.x))&&Number.isFinite(Number(u.y));});var own=units.find(function(u){return u.id==='UUV-01';})||units[0]||{x:.5,y:.5};var radius=mapMode==='local'?.17:.5;function project(x,y){return {x:w*.5+(Number(x)-Number(own.x))/(radius*2)*w,y:h*.5+(Number(y)-Number(own.y))/(radius*2)*h};}if(mapMode==='regional'){own={x:.5,y:.5};radius=.5;}
-if(mapMode==='local'){mapCtx.strokeStyle='rgba(111,227,160,.42)';mapCtx.beginPath();mapCtx.arc(w*.5,h*.5,Math.min(w,h)*.39,0,Math.PI*2);mapCtx.stroke();}
-units.forEach(function(u){var p=project(u.x,u.y);if(p.x<-8||p.x>w+8||p.y<-8||p.y>h+8)return;var activeUnit=u.id==='UUV-01';mapCtx.fillStyle=activeUnit?'#a2ffbf':'#58c98b';mapCtx.beginPath();mapCtx.arc(p.x,p.y,activeUnit?4.5:3,0,Math.PI*2);mapCtx.fill();if(w>170){mapCtx.fillStyle='#b9e9ca';mapCtx.font='8px Courier New';mapCtx.textAlign='left';mapCtx.fillText(u.id,p.x+5,p.y-4);}});
-var known=typeof window.vigilGetKnownWorldMapContacts==='function'?window.vigilGetKnownWorldMapContacts():[];known.forEach(function(c){var p=project(c.x,c.y);if(p.x<2||p.x>w-2||p.y<2||p.y>h-2)return;mapCtx.fillStyle='#ffd27b';mapCtx.beginPath();mapCtx.arc(p.x,p.y,3,0,Math.PI*2);mapCtx.fill();});mapCtx.strokeStyle='#b9ffe0';mapCtx.lineWidth=1.5;mapCtx.beginPath();mapCtx.moveTo(w*.5,h*.5-7);mapCtx.lineTo(w*.5+5,h*.5+5);mapCtx.lineTo(w*.5-5,h*.5+5);mapCtx.closePath();mapCtx.stroke();mapCtx.fillStyle='#91c6a5';mapCtx.font='8px Courier New';mapCtx.textAlign='left';mapCtx.fillText(mapMode==='local'?'LOCAL GRID':'REGIONAL GRID',5,h-5);}
-function open(){view.classList.add('open');active=true;document.body.style.overflow='hidden';var u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('submersible');if(u){heading=Number(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)||0;speed=Number(u.target_speed==null?u.speed:u.target_speed)||0;cameraX=(Number(u.x)-.5)*1500;cameraY=(.5-Number(u.y))*1500;}if(courseInput)courseInput.value=String(Math.round(heading)%360).padStart(3,'0');resize();say('3D VIEW ACTIVE // SHARED UUV NAVIGATION AND EXISTING SURVEY RECORDS');document.getElementById('v3-close').focus();}
+function drawWorldMap(){
+ if(!mapCtx||!view.classList.contains('open'))return;
+ var w=mapCanvas.clientWidth,h=mapCanvas.clientHeight;if(!w||!h)return;
+ var dpr=Math.min(window.devicePixelRatio||1,2);
+ if(mapCanvas.width!==Math.round(w*dpr)||mapCanvas.height!==Math.round(h*dpr)){mapCanvas.width=Math.round(w*dpr);mapCanvas.height=Math.round(h*dpr);}
+ mapCtx.setTransform(dpr,0,0,dpr,0,0);mapCtx.clearRect(0,0,w,h);mapCtx.fillStyle='#03120f';mapCtx.fillRect(0,0,w,h);
+ var units=['ship','drone','submersible','submarine','mech','facility'].map(function(id){return window.vigilGetRegionalSimulationUnit?window.vigilGetRegionalSimulationUnit(id):null;}).filter(function(u){return u&&Number.isFinite(Number(u.x))&&Number.isFinite(Number(u.y));});
+ var own=units.find(function(u){return u.id==='UUV-01';})||units[0]||{x:.5,y:.5};
+ var center=mapMode==='regional'?{x:.5,y:.5}:{x:Number(own.x),y:Number(own.y)};
+ var radius=mapMode==='regional'?.5:.17;
+ function project(x,y){return {x:w*.5+(Number(x)-center.x)/(radius*2)*w,y:h*.5+(Number(y)-center.y)/(radius*2)*h};}
+ /* Compact bathymetry shading: same procedural/real-spawn terrain source as the pilot view. */
+ var cells=mapMode==='regional'?18:16;
+ for(var gy=0;gy<cells;gy++)for(var gx=0;gx<cells;gx++){
+  var nx=center.x+(((gx+.5)/cells)-.5)*radius*2,ny=center.y+(((gy+.5)/cells)-.5)*radius*2;
+  if(nx<0||nx>1||ny<0||ny>1)continue;
+  var z=heightAt((nx-.5)*1500,(.5-ny)*1500);
+  mapCtx.fillStyle=z<190?'#071d2b':z<245?'#0b3039':z<300?'#10433f':z<355?'#235346':z<410?'#41634b':'#647453';
+  mapCtx.fillRect(gx*w/cells,gy*h/cells,w/cells+1,h/cells+1);
+ }
+ mapCtx.strokeStyle='rgba(180,231,194,.24)';mapCtx.lineWidth=1;
+ for(var gx=0;gx<=4;gx++){mapCtx.beginPath();mapCtx.moveTo(w*gx/4,0);mapCtx.lineTo(w*gx/4,h);mapCtx.stroke();}
+ for(var gy=0;gy<=4;gy++){mapCtx.beginPath();mapCtx.moveTo(0,h*gy/4);mapCtx.lineTo(w,h*gy/4);mapCtx.stroke();}
+ if(mapMode==='local'){mapCtx.strokeStyle='rgba(153,239,180,.55)';mapCtx.beginPath();mapCtx.arc(w*.5,h*.5,Math.min(w,h)*.39,0,Math.PI*2);mapCtx.stroke();}
+ units.forEach(function(u){
+  var p=project(u.x,u.y);if(p.x<-12||p.x>w+12||p.y<-12||p.y>h+12)return;
+  var activeUnit=u.id==='UUV-01';mapCtx.fillStyle=activeUnit?'#a2ffbf':'#58c98b';
+  if(activeUnit){var a=(Number(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)||0)*Math.PI/180,sz=6;mapCtx.beginPath();mapCtx.moveTo(p.x+Math.sin(a)*sz,p.y-Math.cos(a)*sz);mapCtx.lineTo(p.x+Math.sin(a+2.45)*sz*.78,p.y-Math.cos(a+2.45)*sz*.78);mapCtx.lineTo(p.x+Math.sin(a-2.45)*sz*.78,p.y-Math.cos(a-2.45)*sz*.78);mapCtx.closePath();mapCtx.fill();}
+  else{mapCtx.beginPath();mapCtx.arc(p.x,p.y,3,0,Math.PI*2);mapCtx.fill();}
+  if(w>170){mapCtx.fillStyle='#d4f5df';mapCtx.font='8px Courier New';mapCtx.textAlign='left';mapCtx.fillText(u.id,p.x+5,p.y-4);}
+ });
+ var known=typeof window.vigilGetKnownWorldMapContacts==='function'?window.vigilGetKnownWorldMapContacts():[];
+ known.forEach(function(c){var p=project(c.x,c.y);if(p.x<2||p.x>w-2||p.y<2||p.y>h-2)return;mapCtx.fillStyle='#ffd27b';mapCtx.beginPath();mapCtx.arc(p.x,p.y,3,0,Math.PI*2);mapCtx.fill();});
+ mapCtx.fillStyle='#e0ffe9';mapCtx.font='8px Courier New';mapCtx.textAlign='left';mapCtx.fillText(mapMode==='local'?'LOCAL BATHYMETRY':'PELAGOS-01 // REGIONAL',5,h-5);
+}function open(){view.classList.add('open');active=true;document.body.style.overflow='hidden';var u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('submersible');if(u){heading=Number(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg)||0;speed=Number(u.target_speed==null?u.speed:u.target_speed)||0;cameraX=(Number(u.x)-.5)*1500;cameraY=(.5-Number(u.y))*1500;}if(courseInput)courseInput.value=String(Math.round(heading)%360).padStart(3,'0');resize();say('3D VIEW ACTIVE // SHARED UUV NAVIGATION AND EXISTING SURVEY RECORDS');document.getElementById('v3-close').focus();}
 function close(){active=false;view.classList.remove('open');document.body.style.overflow='';launch.focus();}
 launch.addEventListener('click',open);view.querySelector('#v3-close').addEventListener('click',close);
 view.querySelectorAll('[data-move]').forEach(function(b){b.addEventListener('click',function(){step(b.dataset.move);});});
