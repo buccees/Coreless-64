@@ -493,6 +493,7 @@ def serve_lan(
     key_path: str | Path,
     password: str,
     spatial_workspace: SpatialWorkspace | None = None,
+    historical_artifact_store=None,
     artifact_unit_resolver=None,
     artifact_unit_action_authorizer=None,
     artifact_custody_authorizer=None,
@@ -514,6 +515,7 @@ def serve_lan(
         port,
         create_lan_app(
             password=password, system=system, spatial_workspace=spatial_workspace,
+            historical_artifact_store=historical_artifact_store,
             artifact_unit_resolver=artifact_unit_resolver,
             artifact_unit_action_authorizer=artifact_unit_action_authorizer,
             artifact_custody_authorizer=artifact_custody_authorizer,
@@ -566,6 +568,12 @@ def main() -> int:
     from vigil.historical_artifact_store import HistoricalArtifactStore
     artifact_database = Path(os.environ.get("CORELESS_HISTORICAL_ARTIFACT_DB", str(args.image.with_name(args.image.name + ".historical-artifacts.sqlite3"))))
     artifact_store = HistoricalArtifactStore(build_artifact_catalog(), artifact_database)
+    from vigil.sinking_event_registry import SinkingEventRegistry
+    sinking_database = Path(os.environ.get(
+        "CORELESS_SINKING_EVENT_DB",
+        str(args.image.with_name(args.image.name + ".sinking-events.sqlite3")),
+    ))
+    sinking_registry = SinkingEventRegistry(sinking_database)
     spatial_workspace = SpatialWorkspace(registry_store=spatial_store)
     if args.blueprint:
         spatial_workspace.import_blueprint(args.blueprint.read_bytes(), activate=True)
@@ -582,11 +590,13 @@ def main() -> int:
             system, host=args.host, port=args.port, cert_path=args.cert, key_path=args.key,
             password=password, spatial_workspace=spatial_workspace,
             historical_artifact_store=artifact_store,
+            artifact_sinking_registry=sinking_registry,
         )
     finally:
         system.machine.save_state()
         spatial_store.close()
         artifact_store.close()
+        sinking_registry.close()
     return 0
 
 
