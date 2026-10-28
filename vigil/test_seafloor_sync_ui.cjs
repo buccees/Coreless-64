@@ -64,9 +64,9 @@ for (const required of [
   'function terrainElevationAt(x,y)',
   'bathymetry=window.vigilGetWorldTerrainAt(worldPoint.x,worldPoint.y)',
   "id=\"v3-speed-hud\"" ,
-  "UUV SPEED // ACTUAL '
+  "UUV SPEED // ACTUAL ",
   'for(var rr=rows-1;rr>=0;rr--)',
-  'isLand:!!(bathymetry&&bathymetry.isLand),depthMeters:waterDepth'
+  'isLand:!!(bathymetry&&bathymetry.isLand),depthMeters:waterDepth',
   'heading=(drag.heading+(e.clientX-drag.x)*.22+360)%360',
   'cameraX=(p.x-.5)*1500;cameraY=(.5-p.y)*1500;',
   'var ridgeAxis=y-.24*x-28,trenchAxis=y+.48*x-36,shelfAxis=y-.62*x+105',
