@@ -3299,6 +3299,17 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       ' // '+result+' // DAMAGE '+(Number.isFinite(damage)?damage:'—')+' // HULL '+(Number.isFinite(hull)?hull:'—')+(e.sunk?' // SUNK':'')+
       ' // '+new Date(e.occurred_at||Date.now()).toLocaleTimeString();
     regionalEncounterHistory.unshift(summary);regionalEncounterHistory=regionalEncounterHistory.slice(0,6);
+    // A locally simulated sinking is a real local unit-lifecycle transition:
+    // decommission the sunk training submersible so its unique carried artifacts
+    // are dropped at its last valid coordinates. Server-originated combat remains
+    // server-authoritative and must be reconciled from its trusted lifecycle feed.
+    if(e.sunk===true&&e.source!=='authoritative-backend'&&typeof window.vigilDecommissionRegionalUnit==='function'){
+      var sunkUnitId=String(e.target_id||'');
+      if(sunkUnitId&&typeof regionalTrainingFleet!=='undefined'&&Array.isArray(regionalTrainingFleet)){
+        var sunkUnit=regionalTrainingFleet.find(function(unit){return unit&&String(unit.id)===sunkUnitId&&unit.afloat!==false;});
+        if(sunkUnit)window.vigilDecommissionRegionalUnit(sunkUnitId);
+      }
+    }
     var log=document.getElementById('vigil-regional-encounter-log');if(!log)return;
     log.replaceChildren();
     regionalEncounterHistory.forEach(function(line){var item=document.createElement('li');item.textContent=line;log.appendChild(item);});
