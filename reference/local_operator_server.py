@@ -134,6 +134,7 @@ def create_lan_app(
     artifact_verified_survey_resolver=None,
     artifact_verified_survey_registry=None,
     artifact_sinking_validator=None,
+    artifact_sinking_registry=None,
 ):
     if not isinstance(password, str) or len(password) < 16:
         raise ValueError("CORELESS_OPERATOR_PASSWORD must contain at least 16 characters")
@@ -182,6 +183,13 @@ def create_lan_app(
             resolve_unit=artifact_unit_resolver,
             resolve_verified_survey=artifact_verified_survey_resolver,
         )
+    if artifact_sinking_registry is not None:
+        from vigil.sinking_event_registry import SinkingEventRegistry
+        if not isinstance(artifact_sinking_registry, SinkingEventRegistry):
+            raise TypeError("artifact_sinking_registry must be a SinkingEventRegistry")
+        if artifact_sinking_validator is not None:
+            raise ValueError("supply either artifact_sinking_registry or artifact_sinking_validator, not both")
+        artifact_sinking_validator = artifact_sinking_registry.resolve_sinking_event
     sessions = LocalSessions()
     telemetry = create_coreless_operator_app(
         system,
@@ -418,7 +426,7 @@ def create_lan_app(
                         raise ValueError("unit_id and sinking_event_id are required")
                     if not callable(artifact_sinking_validator):
                         return _json(start_response, "503 Service Unavailable", {"error": "sinking_event_validation_unavailable"})
-                    event = artifact_sinking_validator(seed, unit_id, event_id)
+                    event = artifact_sinking_validator(crew_id, seed, unit_id, event_id)
                     if not isinstance(event, dict):
                         return _json(start_response, "403 Forbidden", {"error": "sinking_event_not_authorized"})
                     # Use the authoritative position at the actual sinking event;
@@ -491,6 +499,7 @@ def serve_lan(
     artifact_verified_survey_resolver=None,
     artifact_verified_survey_registry=None,
     artifact_sinking_validator=None,
+    artifact_sinking_registry=None,
 ) -> None:
     """Serve the operator display against the caller's already-running machine.
 
@@ -511,6 +520,7 @@ def serve_lan(
             artifact_verified_survey_resolver=artifact_verified_survey_resolver,
             artifact_verified_survey_registry=artifact_verified_survey_registry,
             artifact_sinking_validator=artifact_sinking_validator,
+            artifact_sinking_registry=artifact_sinking_registry,
         ),
         server_class=WSGIServer,
         handler_class=QuietHandler,
