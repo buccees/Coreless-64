@@ -129,6 +129,36 @@ class HistoricalArtifactStoreTests(unittest.TestCase):
             sink_event_authorized=True,
         ), [])
 
+    def test_carrier_removal_drops_artifacts_at_authorized_recovery_location(self):
+        for artifact_id in ("ART-ONE", "ART-TWO"):
+            self.store.discover("PELAGOS-01", artifact_id)
+        self.store.collect("PELAGOS-01", "ART-ONE", "UUV-1", sub("UUV-1", .20, .30))
+        self.store.collect("PELAGOS-01", "ART-TWO", "UUV-1", sub("UUV-1", .80, .70))
+
+        with self.assertRaisesRegex(ValueError, "authorized server event"):
+            self.store.reconcile_carrier_removal(
+                "PELAGOS-01", "UUV-1", recovery_x=.411, recovery_y=.622,
+                removal_event_authorized=False,
+            )
+        dropped = self.store.reconcile_carrier_removal(
+            "PELAGOS-01", "UUV-1", recovery_x=.411, recovery_y=.622,
+            removal_event_authorized=True,
+        )
+        self.assertEqual([item["id"] for item in dropped], ["ART-ONE", "ART-TWO"])
+        self.assertTrue(all(item["status"] == "LOST" for item in dropped))
+        self.assertTrue(all(item["location"] == {"x": .411, "y": .622} for item in dropped))
+        self.assertTrue(all(item["carrierId"] == "" for item in dropped))
+        self.assertEqual(self.store.events("PELAGOS-01", "ART-ONE")[-1]["action"],
+                         "CARRIER_REMOVAL_DROP")
+        self.assertEqual(len(self.store.inventory("PELAGOS-01")), 2)
+
+    def test_carrier_removal_without_artifacts_is_a_safe_noop(self):
+        self.store.inventory("PELAGOS-01")
+        self.assertEqual(self.store.reconcile_carrier_removal(
+            "PELAGOS-01", "UUV-EMPTY", recovery_x=.4, recovery_y=.6,
+            removal_event_authorized=True,
+        ), [])
+
     def test_transfer_and_capture_require_proximity_and_faction_rules(self):
         self.store.discover("PELAGOS-01", "ART-ONE")
         self.store.collect("PELAGOS-01", "ART-ONE", "UUV-1", sub("UUV-1", .20, .30))
