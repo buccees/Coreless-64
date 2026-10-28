@@ -25,6 +25,19 @@ class ArtifactReplayConsumer:
         self.bridge = bridge
         self.resolve_unit_state = resolve_unit_state
 
+    def attach(self, replay_log):
+        """Subscribe this consumer to future authoritative ReplayLog appends.
+
+        The log must be owned by the running simulation. This does not create
+        sink events; it handles real UNIT_SUNK events once the simulation appends
+        them. Historical replay remains an explicit operation.
+        """
+        from .simulation import ReplayLog
+
+        if not isinstance(replay_log, ReplayLog):
+            raise TypeError("replay_log must be a Coreless ReplayLog")
+        return replay_log.subscribe(self)
+
     def __call__(self, event: ReplayEvent) -> list[dict[str, Any]] | None:
         if not isinstance(event, ReplayEvent):
             raise TypeError("consumer accepts Coreless ReplayEvent instances only")
