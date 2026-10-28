@@ -57,9 +57,16 @@ for (const required of [
 for (const required of [
   'cameraX=0,cameraY=0,lookPitch=0',
   'function worldToView(x,y,w,h,cameraZ)',
-  'var rows=42,cols=56,points=[],cameraZ=heightAt(cameraX,cameraY)+Math.max(8,46+(120-depth)*.15)',
+  'var rows=42,cols=56,points=[],cameraZ=-Math.sqrt(Math.max(0,depth))*2.3',
   'var water=ctx.createLinearGradient(0,0,0,h)',
   'UUV PILOT VIEW // PELAGOS-01',
+  'cameraX=(worldPoint.x-.5)*1500;cameraY=(.5-worldPoint.y)*1500',
+  'function terrainElevationAt(x,y)',
+  'bathymetry=window.vigilGetWorldTerrainAt(worldPoint.x,worldPoint.y)',
+  "id=\"v3-speed-hud\"" ,
+  "UUV SPEED // ACTUAL '
+  'for(var rr=rows-1;rr>=0;rr--)',
+  'isLand:!!(bathymetry&&bathymetry.isLand),depthMeters:waterDepth'
   'heading=(drag.heading+(e.clientX-drag.x)*.22+360)%360',
   'cameraX=(p.x-.5)*1500;cameraY=(.5-p.y)*1500;',
   'var ridgeAxis=y-.24*x-28,trenchAxis=y+.48*x-36,shelfAxis=y-.62*x+105',
