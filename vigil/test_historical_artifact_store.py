@@ -70,6 +70,16 @@ class HistoricalArtifactStoreTests(unittest.TestCase):
         self.assertEqual([e["action"] for e in self.store.events("PELAGOS-01", "ART-ONE")],
                          ["DISCOVER", "COLLECT", "LOSS", "COLLECT"])
 
+    def test_confirmed_sinking_drops_artifact_at_last_known_track(self):
+        self.store.discover("PELAGOS-01", "ART-ONE")
+        self.store.collect("PELAGOS-01", "ART-ONE", "UUV-1", sub("UUV-1", .20, .30))
+        with self.assertRaises(ValueError):
+            self.store.drop_on_sinking("PELAGOS-01", "ART-ONE", "UUV-1", last_known_x=.24, last_known_y=.31, sink_event_authorized=False)
+        dropped = self.store.drop_on_sinking("PELAGOS-01", "ART-ONE", "UUV-1", last_known_x=.24, last_known_y=.31, sink_event_authorized=True)
+        self.assertEqual(dropped["status"], "LOST")
+        self.assertEqual(dropped["location"], {"x": .24, "y": .31})
+        self.assertEqual(dropped["carrierId"], "")
+
     def test_transfer_and_capture_require_proximity_and_faction_rules(self):
         self.store.discover("PELAGOS-01", "ART-ONE")
         self.store.collect("PELAGOS-01", "ART-ONE", "UUV-1", sub("UUV-1", .20, .30))
