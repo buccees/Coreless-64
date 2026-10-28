@@ -7,11 +7,13 @@ The public seafloor-survey HTTP endpoint must never write to this registry.
 from __future__ import annotations
 
 import json
-import re
 import sqlite3
 import threading
 from pathlib import Path
 from typing import Any
+
+from .historical_artifact_catalog import build_artifact_catalog
+from .historical_artifact_store import MAX_RANGE
 
 
 MAX_ID_LENGTH = 160
@@ -65,6 +67,68 @@ class VerifiedSurveyRegistry:
     def close(self) -> None:
         with self._lock:
             self._db.close()
+
+    def record_from_simulation(
+        self,
+        *,
+        crew_id: str,
+        world_seed: str,
+        artifact_id: str,
+        survey_event: dict[str, Any],
+        unit_state: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Validate a trusted simulation event against authoritative unit state.
+
+        Call only from internal simulation code after it has independently
+        validated the sensor observation. HTTP/client report handlers must not
+        call this method with request payloads.
+        """
+        crew = _text(crew_id, "crew_id")
+        seed = _text(world_seed, "world_seed", MAX_SEED_LENGTH)
+        artifact = _text(artifact_id, "artifact_id")
+        if not isinstance(survey_event, dict) or not isinstance(unit_state, dict):
+            raise ValueError("survey_event and unit_state must be objects")
+        catalog = {item["id"]: item for item in build_artifact_catalog()}
+        target = catalog.get(artifact)
+        if target is None:
+            raise ValueError("artifact is not in the canonical catalog")
+        if survey_event.get("world_seed") != seed or survey_event.get("artifact_id") != artifact:
+            raise ValueError("survey event world or artifact does not match request context")
+        if survey_event.get("site_id") != target["siteId"]:
+            raise ValueError("survey event does not match the canonical artifact site")
+        if survey_event.get("status") != "CONFIRMED" or survey_event.get("sensor_status") != "accepted":
+            raise ValueError("survey event must be confirmed and sensor-accepted")
+        survey_id = _text(survey_event.get("survey_id"), "survey_id")
+        unit_id = _text(survey_event.get("unit_id"), "survey unit_id")
+        if unit_state.get("id") != unit_id:
+            raise ValueError("survey unit does not match authoritative unit state")
+        if unit_state.get("crewId") != crew or unit_state.get("unitType") != "submersible":
+            raise ValueError("survey unit must be a submersible owned by this crew")
+        if unit_state.get("afloat") is False:
+            raise ValueError("survey unit is not afloat")
+        x, y = unit_state.get("x"), unit_state.get("y")
+        if isinstance(x, bool) or isinstance(y, bool):
+            raise ValueError("unit coordinates must be finite numbers")
+        try:
+            x, y = float(x), float(y)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("unit coordinates must be finite numbers") from exc
+        import math
+        if not math.isfinite(x) or not math.isfinite(y) or not (0 <= x <= 1 and 0 <= y <= 1):
+            raise ValueError("unit coordinates must be within normalized world bounds")
+        if math.hypot(x - target["x"], y - target["y"]) > MAX_RANGE:
+            raise ValueError("survey unit is outside the artifact-site verification range")
+        return self.record_confirmed_survey(
+            crew_id=crew,
+            world_seed=seed,
+            artifact_id=artifact,
+            site_id=target["siteId"],
+            survey_id=survey_id,
+            unit_id=unit_id,
+            sensor_status="accepted",
+            status="CONFIRMED",
+            evidence={"unit_x": x, "unit_y": y},
+        )
 
     def record_confirmed_survey(
         self,
