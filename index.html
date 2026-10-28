@@ -5413,6 +5413,9 @@ contourLevels.forEach(function(level,li){
  }}
  ctx.stroke();
 });
+/* Render the single persistent artifact instance at its current world coordinates. Carried items are represented by custody, never by a second map object. */
+var artifactRecords=window.vigilGetHistoricalEvidenceInventory?window.vigilGetHistoricalEvidenceInventory():[];
+artifactRecords.forEach(function(item){if(!item.discovered||(item.status!=='AT_SITE'&&item.status!=='LOST'))return;var ax=(Number(item.location.x)-.5)*792,ay=(Number(item.location.y)-.5)*792,ap=project(ax,ay,heightAt(ax,ay)+18,w,h);if(ap.z<5||ap.x<-30||ap.x>w+30||ap.y<-30||ap.y>h+30)return;ctx.save();ctx.strokeStyle=item.status==='LOST'?'#ffb36b':'#b8f7e0';ctx.fillStyle=item.status==='LOST'?'rgba(255,179,107,.18)':'rgba(184,247,224,.16)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(ap.x,ap.y,7,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(ap.x-11,ap.y);ctx.lineTo(ap.x+11,ap.y);ctx.moveTo(ap.x,ap.y-11);ctx.lineTo(ap.x,ap.y+11);ctx.stroke();ctx.fillStyle=item.status==='LOST'?'#ffd0a0':'#d8fff0';ctx.font='10px Courier New';ctx.fillText(item.status==='LOST'?'LOST // '+item.title:'ARTIFACT // '+item.title,ap.x+12,ap.y-8);ctx.restore();});
 ctx.strokeStyle='rgba(150,226,210,.18)';ctx.lineWidth=1;for(var gy=1;gy<5;gy++){ctx.beginPath();ctx.moveTo(0,h*gy/5);ctx.lineTo(w,h*gy/5);ctx.stroke();}
 ctx.strokeStyle='#b7f6d5';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(w/2,h*.43);ctx.lineTo(w/2,h*.49);ctx.moveTo(w/2-7,h*.46);ctx.lineTo(w/2+7,h*.46);ctx.stroke();
 ctx.fillStyle='#c5f7df';ctx.font='10px Courier New';ctx.fillText('FICTIONAL WORLD // REAL BATHYMETRY RUINS ONLY AT SPAWN',10,16);ctx.fillStyle='#8cc9b0';ctx.fillText(spawnBathymetryState,10,30);
