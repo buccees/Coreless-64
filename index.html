@@ -5247,7 +5247,11 @@ function loadSpawnBathymetry(){
   var lines=csv.trim().split(/\\r?\\n/),values=[];
   for(var li=0;li<lines.length;li++){
    var line=lines[li].trim();if(!line||/^(altitude|latitude|longitude|time)/i.test(line))continue;
-   var n=Number(line.split(',')[0]);if(Number.isFinite(n))values.push(n);
+   /* ERDDAP grid CSVs may return either a single value column or coordinate columns plus elevation.
+      Read the last numeric field so coordinates are never mistaken for depth. */
+   var fields=line.split(','),n=NaN;
+   for(var fi=fields.length-1;fi>=0;fi--){var candidate=Number(fields[fi].trim());if(fields[fi].trim()!==''&&Number.isFinite(candidate)){n=candidate;break;}}
+   if(Number.isFinite(n))values.push(n);
   }
   var side=Math.round(Math.sqrt(values.length));
   if(values.length<100||side*side!==values.length)throw new Error('NOAA returned an incomplete elevation grid ('+values.length+' samples)');
@@ -5255,7 +5259,10 @@ function loadSpawnBathymetry(){
   spawnBathymetryState='REAL BATHYMETRY SCRAMBLED AS RUINS // SPAWN ZONE: '+region.name;spawnBathymetryError='';draw();
  }).catch(function(err){
   spawnBathymetry=null;spawnBathymetryState='SPAWN RUIN PATCH OFFLINE // FICTIONAL TERRAIN ACTIVE';
-  spawnBathymetryError=String(err&&err.message||err);draw();
+  spawnBathymetryError=String(err&&err.message||err);
+  var status=document.getElementById('v3-status');
+  if(status)status.textContent='NOAA SPAWN DATA UNAVAILABLE — FICTIONAL TERRAIN ACTIVE. TAP SPAWN AREA TO RETRY. '+spawnBathymetryError;
+  draw();
  });
 }
 function sampleSpawnBathymetry(x,y){
