@@ -64,7 +64,7 @@ for (const required of [
   'cameraX+=Math.sin(rad)*distance;cameraY+=Math.cos(rad)*distance;',
   'var ridgeAxis=y-.24*x-28, trenchAxis=y+.48*x-36, shelfAxis=y-.62*x+105',
   'broad basin, continental shelf, long ridge, and a narrow trench',
-  'FICTIONAL WORLD // REAL BATHYMETRY RUINS ONLY AT SPAWN',
+  'Real bathymetry is warped into ruin-like terrain ONLY inside the active player-spawn patch.',
   'id="v3-course"',
   'id="v3-set-course"',
   'id="v3-course-west"',
