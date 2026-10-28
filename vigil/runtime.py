@@ -105,6 +105,93 @@ class VigilEnvironment:
         self._artifact_recovery_report = consumer.reconcile_recorded_events(self.replay)
         return consumer
 
+    def connect_authoritative_unit_lifecycle(self, lifecycle_source, *, resolve_unit_state):
+        """Connect a server-owned lifecycle publisher to artifact recovery.
+
+        The source must expose subscribe_lifecycle(callback), returning an
+        unsubscribe callable. It must publish confirmed UNIT_SUNK or
+        UNIT_REMOVED records containing event_id, timestamp_ns, and unit_id.
+        The resolver must read server-owned state; browser-originated lifecycle
+        events are never accepted here.
+        """
+        from collections.abc import Mapping
+        import math
+
+        subscribe = getattr(lifecycle_source, "subscribe_lifecycle", None)
+        if not callable(subscribe):
+            raise TypeError("lifecycle_source must expose subscribe_lifecycle(callback)")
+        if not callable(resolve_unit_state):
+            raise TypeError("resolve_unit_state must be callable")
+        if self._artifact_recovery_consumer is None:
+            raise RuntimeError("configure_artifact_recovery must run before lifecycle connection")
+
+        def publish(event):
+            if not isinstance(event, Mapping):
+                raise ValueError("authoritative lifecycle event must be a mapping")
+            kind = event.get("kind")
+            if kind not in ("UNIT_SUNK", "UNIT_REMOVED"):
+                return None
+            if event.get("status") != "CONFIRMED":
+                raise ValueError("unit lifecycle event must be confirmed")
+            event_id, unit_id = event.get("event_id"), event.get("unit_id")
+            timestamp_ns = event.get("timestamp_ns")
+            if not isinstance(event_id, str) or not event_id.strip():
+                raise ValueError("lifecycle event requires event_id")
+            if not isinstance(unit_id, str) or not unit_id.strip():
+                raise ValueError("lifecycle event requires unit_id")
+            if not isinstance(timestamp_ns, int) or isinstance(timestamp_ns, bool) or timestamp_ns < 0:
+                raise ValueError("lifecycle event timestamp_ns must be a non-negative integer")
+            state = resolve_unit_state(unit_id)
+            if state is None and kind == "UNIT_REMOVED":
+                # Removal publishers should include a server-generated final
+                # state snapshot, because the active fleet may already omit it.
+                state = event.get("final_unit_state")
+            if not isinstance(state, Mapping):
+                raise ValueError("authoritative lifecycle unit state is unavailable")
+            if str(state.get("id", "")) != unit_id:
+                raise ValueError("lifecycle unit ID does not match authoritative state")
+            if kind == "UNIT_SUNK":
+                if state.get("afloat") is not False:
+                    raise ValueError("sinking lifecycle event requires a confirmed sunk state")
+                return self.confirm_unit_sunk(
+                    event_id=event_id, timestamp_ns=timestamp_ns,
+                    unit_id=unit_id, authoritative_unit_state=state,
+                )
+            if state.get("unitType") != "submersible":
+                raise ValueError("only submersible removal triggers artifact recovery")
+            # Use the final state snapshot, not any client-provided coordinates.
+            x, y = state.get("x"), state.get("y")
+            if isinstance(x, bool) or isinstance(y, bool):
+                raise ValueError("final unit coordinates must be numeric")
+            try:
+                x, y = float(x), float(y)
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise ValueError("final unit coordinates must be numeric") from exc
+            if not math.isfinite(x) or not math.isfinite(y) or not 0 <= x <= 1 or not 0 <= y <= 1:
+                raise ValueError("final unit coordinates must be normalized finite values")
+            snapshot = dict(state)
+            snapshot["x"], snapshot["y"] = x, y
+            return self.confirm_unit_removed(
+                event_id=event_id, timestamp_ns=timestamp_ns,
+                unit_id=unit_id, authoritative_unit_state=snapshot,
+            )
+
+        unsubscribe = subscribe(publish)
+        if not callable(unsubscribe):
+            raise TypeError("subscribe_lifecycle must return an unsubscribe callable")
+        previous = getattr(self, "_unit_lifecycle_unsubscribe", None)
+        if callable(previous):
+            previous()
+        self._unit_lifecycle_unsubscribe = unsubscribe
+        return unsubscribe
+
+    def disconnect_authoritative_unit_lifecycle(self) -> None:
+        """Detach the lifecycle publisher without deleting replay or artifact data."""
+        unsubscribe = getattr(self, "_unit_lifecycle_unsubscribe", None)
+        if callable(unsubscribe):
+            unsubscribe()
+        self._unit_lifecycle_unsubscribe = None
+
     def disable_artifact_recovery(self) -> None:
         """Detach artifact recovery without changing the artifact ledger."""
         unsubscribe = self._artifact_recovery_unsubscribe
