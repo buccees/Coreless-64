@@ -4320,7 +4320,7 @@ window.vigilMergeSeafloorCampaignSurvey=function(payload){
  var merged=0,coverage=Array.isArray(payload.coverage)?payload.coverage:[],discoveries=Array.isArray(payload.discoveries)?payload.discoveries:[];
  coverage.forEach(function(key){if(typeof key==='string'&&key.length<=80&&!seafloorState.coverage[key]){seafloorState.coverage[key]=true;merged++;}});
  discoveries.forEach(function(d){if(!d||typeof d.id!=='string'||d.id.length>160||!Number.isFinite(Number(d.x))||!Number.isFinite(Number(d.y))||Number(d.x)<0||Number(d.x)>1||Number(d.y)<0||Number(d.y)>1||d.seed!==currentSeafloorWorldSeed())return;
-  if(!seafloorState.discoveries[d.id]){seafloorState.discoveries[d.id]={id:d.id,kind:String(d.kind||'UNKNOWN').slice(0,80),x:Number(d.x),y:Number(d.y),scale:String(d.scale||'').slice(0,40),seed:currentSeafloorWorldSeed(),status:String(d.status||'SONAR INDICATION').slice(0,40),discoveredAt:String(d.discoveredAt||''),depthMeters:Number.isFinite(Number(d.depthMeters))?Number(d.depthMeters):null};merged++;}
+  if(!seafloorState.discoveries[d.id]){seafloorState.discoveries[d.id]={id:d.id,name:String(d.name||d.id).slice(0,120),kind:String(d.kind||'UNKNOWN').slice(0,80),x:Number(d.x),y:Number(d.y),scale:String(d.scale||'').slice(0,40),seed:currentSeafloorWorldSeed(),questLocation:d.questLocation===true,status:String(d.status||'SONAR INDICATION').slice(0,40),discoveredAt:String(d.discoveredAt||''),depthMeters:Number.isFinite(Number(d.depthMeters))?Number(d.depthMeters):null};merged++;}
  });
  if(merged){saveSeafloorSurvey();window.dispatchEvent(new CustomEvent('vigil:seafloor-survey-merged',{detail:{merged:merged,world_seed:currentSeafloorWorldSeed()}}));}
  return {ok:true,merged:merged,coverage_cells:Object.keys(seafloorState.coverage).length,discoveries:Object.keys(seafloorState.discoveries).length};
@@ -4608,11 +4608,13 @@ function draw(){
      for(var cyi=0;cyi<rows;cyi++)for(var cxi=0;cxi<cols;cxi++){
        var localEast=((cxi+.5)/cols-.5)*rangeSpan*2,localNorth=(.5-(cyi+.5)/rows)*rangeSpan*2;
        var wx=ownX+localEast,wy=ownY-localNorth,dx=wx-ownX,dy=wy-ownY,dist=Math.hypot(dx,dy),bearing=(Math.atan2(dx,-dy)*180/Math.PI+360)%360,diff=Math.abs(((bearing-scanAngle+540)%360)-180),key=coverageKey(wx,wy);
-       if(wx>=0&&wx<=1&&wy>=0&&wy<=1&&dist<=rangeSpan&&diff<7.5&&!seafloorState.coverage[key]){
-         seafloorState.coverage[key]=true;coverageChanged=true;
+       if(wx>=0&&wx<=1&&wy>=0&&wy<=1&&dist<=rangeSpan&&diff<7.5){
+         if(!seafloorState.coverage[key]){seafloorState.coverage[key]=true;coverageChanged=true;}
+         // Re-check covered cells too, so landmarks added after an earlier survey can still be discovered.
          var discoveredEntity=seabedEntity(wx,wy);
          if(discoveredEntity&&!seafloorState.discoveries[discoveredEntity.id]){
-           seafloorState.discoveries[discoveredEntity.id]={id:discoveredEntity.id,kind:discoveredEntity.kind,x:discoveredEntity.x,y:discoveredEntity.y,scale:discoveredEntity.scale,seed:'PELAGOS-01',status:'SONAR INDICATION',discoveredAt:new Date().toISOString(),depthMeters:terrainDepth(wx,wy)};
+           seafloorState.discoveries[discoveredEntity.id]={id:discoveredEntity.id,name:String(discoveredEntity.name||discoveredEntity.id),kind:discoveredEntity.kind,x:discoveredEntity.x,y:discoveredEntity.y,scale:discoveredEntity.scale,seed:currentSeafloorWorldSeed(),questLocation:discoveredEntity.questLocation===true,status:'SONAR INDICATION',discoveredAt:new Date().toISOString(),depthMeters:terrainDepth(wx,wy)};
+           coverageChanged=true;
          }
        }
      }
@@ -5162,7 +5164,7 @@ function renderSeafloorSyncMeta(state){
  var lines=['RECORD STATE KEY // SHARED = PRESENT IN LAST VERIFIED SNAPSHOT // SYNC PENDING = RECORD NOT YET ACCEPTED BY SERVER // UPLOAD ACCEPTED / VERIFY PENDING = SERVER ACCEPTED RECORD BUT NOT YET VISIBLE IN SNAPSHOT','SUMMARY // SHARED '+sharedCellCount+' CELLS / '+sharedSiteCount+' SITES // LOCAL ONLY '+localOnlyCells.length+' CELLS / '+localOnlySiteIds.length+' SITES // SYNC PENDING '+pendingRecords+' RECORDS // UPLOAD ACCEPTED / VERIFY PENDING '+verifyRecords+' RECORDS','COVERAGE CELLS ('+localCoverage.length+')'];
  lines=lines.concat(localCoverage.map(function(k){return (sharedCellSet[k]?'SHARED':ackCells[k]?'UPLOAD ACCEPTED / VERIFY PENDING':'SYNC PENDING')+' // CELL // '+k;}));
  lines.push('DISCOVERIES ('+localSites.length+')');
- lines=lines.concat(localSites.map(function(id){var d=seafloorState.discoveries[id]||{};return (sharedSiteSet[id]?'SHARED':ackSites[id]?'UPLOAD ACCEPTED / VERIFY PENDING':'SYNC PENDING')+' // SITE // '+id+' // '+String(d.kind||'UNKNOWN')+' // '+String(d.status||'SONAR INDICATION');}));
+ lines=lines.concat(localSites.map(function(id){var d=seafloorState.discoveries[id]||{};return (sharedSiteSet[id]?'SHARED':ackSites[id]?'UPLOAD ACCEPTED / VERIFY PENDING':'SYNC PENDING')+' // SITE // '+String(d.name||id)+' // '+String(d.kind||'UNKNOWN')+(d.questLocation?' // MAIN QUEST LANDMARK':'')+' // '+String(d.status||'SONAR INDICATION');}));
  seafloorDeltaPanel.textContent=lines.join('\\n');
 }
 seafloorDeltaToggle.addEventListener('click',function(){var open=this.getAttribute('aria-expanded')!=='true';this.setAttribute('aria-expanded',String(open));seafloorDeltaPanel.hidden=!open;});
