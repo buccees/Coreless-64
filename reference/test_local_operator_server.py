@@ -276,3 +276,102 @@ def test_alert_acknowledgement_requires_auth_and_persists_active_incident(tmp_pa
     )
     assert response["status"] == "409 Conflict"
     store.close()
+
+
+def test_seafloor_campaign_api_requires_auth_and_merges_then_exports_shared_survey(tmp_path):
+    from vigil.seafloor_campaign_store import SeafloorCampaignStore
+
+    page = tmp_path / "operator-display.html"
+    page.write_text("survey display", encoding="utf-8")
+    survey_store = SeafloorCampaignStore(tmp_path / "campaign.sqlite3")
+    app = create_lan_app(
+        password="a-strong-test-password-123",
+        page_path=page,
+        system=CorelessSystem(storage_path=tmp_path / "owned-machine.img"),
+        seafloor_campaign_store=survey_store,
+    )
+    payload = {
+        "schema": "vigil.seafloor-survey",
+        "version": 1,
+        "report_id": "report-alpha-1",
+        "world_seed": "PELAGOS-01",
+        "coverage": ["10,11", "10,12"],
+        "discoveries": [{
+            "id": "PELAGOS-01:entity:10,11", "kind": "SEAMOUNT",
+            "x": 0.25, "y": 0.5, "scale": "LOCAL", "seed": "PELAGOS-01",
+            "status": "CONFIRMED", "discoveredAt": "2026-10-27T12:00:00Z",
+            "depthMeters": 1800,
+        }],
+    }
+    response, body = _request(
+        app, "/api/vigil/seafloor-survey", method="POST",
+        body=json.dumps(payload).encode(), origin="https://127.0.0.1:8443",
+    )
+    assert response["status"] == "401 Unauthorized"
+
+    response, body = _request(
+        app, "/api/operator/login", method="POST",
+        body=json.dumps({"password": "a-strong-test-password-123"}).encode(),
+        origin="https://127.0.0.1:8443",
+    )
+    token = response["headers"]["Set-Cookie"].split(";", 1)[0]
+    response, body = _request(
+        app, "/api/vigil/seafloor-survey", method="POST", cookie=token,
+        origin="https://127.0.0.1:8443", body=json.dumps(payload).encode(),
+    )
+    assert response["status"] == "200 OK"
+    assert json.loads(body)["discoveries_added"] == 1
+
+    response, body = _request(
+        app, "/api/vigil/seafloor-survey?world_seed=PELAGOS-01",
+        cookie=token, origin="https://127.0.0.1:8443",
+    )
+    assert response["status"] == "200 OK"
+    merged = json.loads(body)
+    assert merged["coverage"] == ["10,11", "10,12"]
+    assert merged["discoveries"][0]["status"] == "SONAR INDICATION"
+
+    response, body = _request(
+        app, "/api/vigil/seafloor-survey", method="POST", cookie=token,
+        origin="https://127.0.0.1:8443", body=json.dumps(payload).encode(),
+    )
+    assert response["status"] == "200 OK"
+    assert json.loads(body)["duplicate_report"] is True
+    survey_store.close()
+
+
+def test_seafloor_campaign_api_rejects_cross_origin_and_invalid_payload(tmp_path):
+    from vigil.seafloor_campaign_store import SeafloorCampaignStore
+
+    page = tmp_path / "operator-display.html"
+    page.write_text("survey display", encoding="utf-8")
+    survey_store = SeafloorCampaignStore(tmp_path / "campaign.sqlite3")
+    app = create_lan_app(
+        password="a-strong-test-password-123",
+        page_path=page,
+        system=CorelessSystem(storage_path=tmp_path / "owned-machine.img"),
+        seafloor_campaign_store=survey_store,
+    )
+    response, body = _request(
+        app, "/api/operator/login", method="POST",
+        body=json.dumps({"password": "a-strong-test-password-123"}).encode(),
+        origin="https://127.0.0.1:8443",
+    )
+    token = response["headers"]["Set-Cookie"].split(";", 1)[0]
+    payload = {
+        "schema": "vigil.seafloor-survey", "version": 1, "report_id": "bad-report",
+        "world_seed": "PELAGOS-01", "coverage": [],
+        "discoveries": [{"id": "bad", "kind": "WRECK", "x": 2, "y": 0.5,
+                         "scale": "LOCAL", "seed": "PELAGOS-01"}],
+    }
+    response, _ = _request(
+        app, "/api/vigil/seafloor-survey", method="POST", cookie=token,
+        origin="https://attacker.invalid", body=json.dumps(payload).encode(),
+    )
+    assert response["status"] == "403 Forbidden"
+    response, body = _request(
+        app, "/api/vigil/seafloor-survey", method="POST", cookie=token,
+        origin="https://127.0.0.1:8443", body=json.dumps(payload).encode(),
+    )
+    assert response["status"] == "400 Bad Request"
+    survey_store.close()
