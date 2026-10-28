@@ -20,7 +20,9 @@ def make_historical_artifact_handler(
     store: HistoricalArtifactStore,
     *,
     authenticate: Callable[[BaseHTTPRequestHandler], str | None],
-    resolve_unit: Callable[[str, str], dict[str, Any] | None],
+    resolve_unit: Callable[[str], dict[str, Any] | None],
+    authorize_unit_action: Callable[[str, str, str], bool],
+    authorize_custody_action: Callable[[str, str, str, str], bool],
     authorize_discovery: Callable[[str, str, str], bool],
     validate_sinking_event: Callable[[str, str, str], dict[str, Any] | None] | None = None,
 ) -> type[BaseHTTPRequestHandler]:
@@ -36,7 +38,7 @@ def make_historical_artifact_handler(
     """
     if not isinstance(store, HistoricalArtifactStore):
         raise TypeError("store must be a HistoricalArtifactStore")
-    if not callable(authenticate) or not callable(resolve_unit) or not callable(authorize_discovery):
+    if not callable(authenticate) or not callable(resolve_unit) or not callable(authorize_unit_action) or not callable(authorize_custody_action) or not callable(authorize_discovery):
         raise TypeError("authentication, unit resolution, and discovery authorization callbacks are required")
 
     class HistoricalArtifactHandler(BaseHTTPRequestHandler):
