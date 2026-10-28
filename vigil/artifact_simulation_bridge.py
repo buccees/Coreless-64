@@ -35,6 +35,39 @@ class ArtifactSimulationBridge:
             sink_event_authorized=True,
         )
 
+    def on_carrier_removed(self, world_seed: str, event: Any, authoritative_unit_state: Any) -> list[dict[str, Any]]:
+        """Recover carried artifacts after a confirmed carrier-removal transition."""
+        from collections.abc import Mapping
+        import math
+
+        if not isinstance(event, Mapping):
+            raise ValueError("carrier-removal event must be a mapping")
+        if event.get("kind") != "UNIT_REMOVED" or event.get("status") != "CONFIRMED":
+            raise ValueError("carrier removal requires a confirmed UNIT_REMOVED event")
+        unit_id = event.get("unit_id")
+        if not isinstance(unit_id, str) or not unit_id.strip():
+            raise ValueError("carrier-removal event requires unit_id")
+        if not isinstance(authoritative_unit_state, Mapping):
+            raise ValueError("authoritative removed-unit state is required")
+        if str(authoritative_unit_state.get("id", "")) != unit_id:
+            raise ValueError("removed unit ID must match authoritative state")
+        if authoritative_unit_state.get("unitType") != "submersible":
+            raise ValueError("only submersible carrier removal is supported")
+        if event.get("crew_id") != authoritative_unit_state.get("crewId"):
+            raise ValueError("removal event crew must match authoritative unit")
+        try:
+            x, y = float(event.get("x")), float(event.get("y"))
+            state_x, state_y = float(authoritative_unit_state.get("x")), float(authoritative_unit_state.get("y"))
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("authoritative removal coordinates are required") from exc
+        if not all(math.isfinite(v) and 0 <= v <= 1 for v in (x, y, state_x, state_y)):
+            raise ValueError("removal coordinates must be normalized finite values")
+        if (x, y) != (state_x, state_y):
+            raise ValueError("removal coordinates must match authoritative unit position")
+        return self.artifact_store.reconcile_carrier_removal(
+            world_seed, unit_id, recovery_x=x, recovery_y=y, removal_event_authorized=True,
+        )
+
     def on_replay_event(self, world_seed: str, replay_event: Any, authoritative_unit_state: Any) -> list[dict[str, Any]]:
         """Consume a provenance-bearing Coreless ReplayEvent from trusted simulation code."""
         from collections.abc import Mapping
