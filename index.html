@@ -3134,7 +3134,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     }
     if(changes.depth!==undefined){
       nextDepth=Number(changes.depth);
-      if(!Number.isFinite(nextDepth)||nextDepth<0||nextDepth>6000)return {ok:false,reason:'Depth target must be between 0 and 6000 metres.'};
+      if(!Number.isFinite(nextDepth)||nextDepth<0||nextDepth>30000)return {ok:false,reason:'Depth target must be between 0 and 30000 metres.'};
     }
     if(changes.station_keeping!==undefined){
       if(typeof changes.station_keeping!=='boolean')return {ok:false,reason:'Station-keeping must be true or false.'};
@@ -3586,7 +3586,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         ship.formationActive=false;ship.formationTarget=null;ship.formationDistance=null;ship.formationTargetSpeed=null;
         ship.avoidanceActive=false;ship.avoidanceHeading=ship.heading;return;
       }
-      if(ship.shipClass==='submersible'){var currentDepth=Math.max(0,Number(ship.depthMeters==null?120:ship.depthMeters)||0),targetDepth=Math.max(0,Math.min(6000,Number(ship.targetDepthMeters==null?currentDepth:ship.targetDepthMeters)||0)),verticalStep=Math.max(0,Number(ship.maxVerticalSpeedMps)||8)*dt,depthDelta=targetDepth-currentDepth;ship.depthMeters=Math.abs(depthDelta)<=verticalStep?targetDepth:currentDepth+Math.sign(depthDelta)*verticalStep;}
+      if(ship.shipClass==='submersible'){var currentDepth=Math.max(0,Number(ship.depthMeters==null?120:ship.depthMeters)||0),targetDepth=Math.max(0,Math.min(30000,Number(ship.targetDepthMeters==null?currentDepth:ship.targetDepthMeters)||0)),verticalStep=Math.max(0,Number(ship.maxVerticalSpeedMps)||8)*dt,depthDelta=targetDepth-currentDepth;ship.depthMeters=Math.abs(depthDelta)<=verticalStep?targetDepth:currentDepth+Math.sign(depthDelta)*verticalStep;}
        var desired=((Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading)%360)+360)%360;
       var navigationHeading=desired;
       var navigationTargetSpeed=Math.max(0,Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed)||0);
@@ -3688,8 +3688,14 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     // Multiple seeded island chains are distributed over the stitched spherical surface.
     var landField=vigilPlanetNoise(point.x,point.y,4.2,17)*.58+vigilPlanetNoise(point.x,point.y,9.4,18)*.42;
     var land=landField>.69 && broad>.28 && broad<.82;
-    var depthNorm=Math.max(0,Math.min(1,.48+broad*.28+mid*.19+fine*.08+trench*.18-ridge*.14-shelf*.12));
-    return {seed:VIGIL_WORLD_SEED,x:point.x,y:point.y,isLand:land,depthMeters:land?0:Math.max(35,Math.min(6200,120+depthNorm*4700)),depthNorm:depthNorm,biome:land?'ISLAND / CONTINENTAL LAND':trench>.25?'ABYSSAL TRENCH':ridge>.24?'MID-OCEAN RIDGE':shelf>.2?'CONTINENTAL SHELF':'DEEP OCEAN'};
+    // PELAGOS ABYSSAL RIFT: long, curved, seeded crustal breach near the UUV operating area.
+    var riftRange=vigilPlanetRangeBearing(.23,.79,point.x,point.y),riftAlong=riftRange.north,riftCross=Math.abs(riftRange.east-(.012*Math.sin(riftAlong*55)+.0035*Math.sin(riftAlong*171)));
+    var riftSpan=Math.max(0,Math.min(1,(.285-Math.abs(riftAlong))/.055)),riftCore=Math.exp(-Math.pow(riftCross/.0065,2))*riftSpan,riftWall=Math.exp(-Math.pow((riftCross-.014)/.0045,2))*riftSpan;
+    var riftActive=riftCore>.045||riftWall>.22;land=land&&riftCore<.12;
+    var baseDepthNorm=Math.max(0,Math.min(1,.48+broad*.28+mid*.19+fine*.08+trench*.18-ridge*.14-shelf*.12));
+    var depthNorm=Math.max(baseDepthNorm,Math.max(0,Math.min(1,.76+riftCore*.24-riftWall*.06)));
+    var depthMeters=land?0:Math.max(35,Math.min(6200,120+baseDepthNorm*4700));if(!land&&riftCore>.045)depthMeters=Math.max(depthMeters,6500+riftCore*18000);
+    return {seed:VIGIL_WORLD_SEED,x:point.x,y:point.y,isLand:land,depthMeters:depthMeters,depthNorm:depthNorm,rupture:riftActive,riftCore:riftCore,riftWall:riftWall,biome:riftCore>.12?'PELAGOS ABYSSAL RIFT // CRUSTAL BREACH':land?'ISLAND / CONTINENTAL LAND':trench>.25?'ABYSSAL TRENCH':ridge>.24?'MID-OCEAN RIDGE':shelf>.2?'CONTINENTAL SHELF':'DEEP OCEAN'};
   }
   window.vigilGetCampaignWorld=function(){return {id:'PELAGOS-01',name:'PELAGOS',seed:VIGIL_WORLD_SEED,version:1,topology:'SPHERICAL STITCHED ATLAS // WRAPPED LONGITUDE AND CONNECTED POLES',description:'Fictional ocean world on a continuous spherical surface, with seeded islands, shelves, ridges and trenches; not Earth geography.'};};
   window.vigilGetWorldTerrainAt=function(x,y){return vigilWorldAt(Number(x),Number(y));};
@@ -5525,18 +5531,8 @@ function sampleSpawnBathymetry(x,y){
  var terrace=Math.sin(wx*.012+wy*.009)*Math.sin(wy*.014)*18;
  return normalized+ridge+terrace+noise(wx*.16,wy*.16)*8;
 }
-function heightAt(x,y){
- var spawnHeight=sampleSpawnBathymetry(x,y);if(spawnHeight!==null)return spawnHeight;
- /* Non-spawn areas are fictional, but shaped as coherent geomorphology rather than random cloud noise:
-    broad basin, continental shelf, long ridge, and a narrow trench all continue across the map. */
- var ridgeAxis=y-.24*x-28, trenchAxis=y+.48*x-36, shelfAxis=y-.62*x+105;
- var ridge=92*Math.exp(-(ridgeAxis*ridgeAxis)/(2*58*58));
- var trench=-108*Math.exp(-(trenchAxis*trenchAxis)/(2*27*27));
- var shelf=42*Math.exp(-(shelfAxis*shelfAxis)/(2*100*100));
- var basin=24*Math.sin(x*.012+Math.sin(y*.009)*.8)+21*Math.cos(y*.014-x*.004);
- var rolling=12*Math.sin(x*.027+Math.sin(y*.019))*Math.cos(y*.023);
- return 285+ridge+trench+shelf+basin+rolling+noise(x*.12,y*.12)*5;
-}
+function ruptureLocalAt(x,y){var along=y+435,fade=Math.max(0,Math.min(1,(430-Math.abs(along))/68));if(fade<=0)return {core:0,wall:0,active:false};var axis=-405+18*Math.sin(along*.036)+5.3*Math.sin(along*.116),across=Math.abs(x-axis),core=Math.exp(-Math.pow(across/12,2))*fade,wall=Math.exp(-Math.pow((across-30)/8.5,2))*fade;return {core:core,wall:wall,active:core>.025||wall>.18,across:across,along:along};}
+function heightAt(x,y){var spawnHeight=sampleSpawnBathymetry(x,y),base;if(spawnHeight!==null)base=spawnHeight;else{var ridgeAxis=y-.24*x-28,trenchAxis=y+.48*x-36,shelfAxis=y-.62*x+105,ridge=92*Math.exp(-(ridgeAxis*ridgeAxis)/(2*58*58)),trench=-108*Math.exp(-(trenchAxis*trenchAxis)/(2*27*27)),shelf=42*Math.exp(-(shelfAxis*shelfAxis)/(2*100*100)),basin=24*Math.sin(x*.012+Math.sin(y*.009)*.8)+21*Math.cos(y*.014-x*.004),rolling=12*Math.sin(x*.027+Math.sin(y*.019))*Math.cos(y*.023);base=285+ridge+trench+shelf+basin+rolling+noise(x*.12,y*.12)*5;}var rift=ruptureLocalAt(x,y);if(rift.active)return base-240*rift.core+70*rift.wall+noise(x*.9,y*.9)*4*rift.core;return base;}
 function resize(){var dpr=Math.min(window.devicePixelRatio||1,2),w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
 function worldToView(x,y,w,h,cameraZ){
  var rad=heading*Math.PI/180,fx=Math.sin(rad),fy=Math.cos(rad),rx=x-cameraX,ry=y-cameraY,
@@ -5568,8 +5564,7 @@ function draw(){
    var side=(c/cols-.5)*Math.min(780,d*1.5),rad=heading*Math.PI/180;
    var wx=cameraX+Math.sin(rad)*d+Math.cos(rad)*side;
    var wy=cameraY+Math.cos(rad)*d-Math.sin(rad)*side;
-   var z=heightAt(wx,wy),focal=Math.min(w,h)*.92*zoom/d;
-   points[r][c]={x:w*.5+side*focal,y:horizon+(cameraZ-z)*focal,z:z,d:d};
+   var z=heightAt(wx,wy),focal=Math.min(w,h)*.92*zoom/d,riftSample=ruptureLocalAt(wx,wy);points[r][c]={x:w*.5+side*focal,y:horizon+(cameraZ-z)*focal,z:z,d:d,riftCore:riftSample.core,riftWall:riftSample.wall};
   }
  }
  for(var rr=0;rr<rows;rr++){
@@ -5577,8 +5572,9 @@ function draw(){
    var p1=points[rr][cc],p2=points[rr][cc+1],p3=points[rr+1][cc+1],p4=points[rr+1][cc];
    var mean=(p1.z+p2.z+p3.z+p4.z)*.25,near=1-rr/rows;
    var depthTone=Math.max(0,Math.min(1,(mean-170)/330));
-   var ridgeTone=Math.min(1,Math.abs(p1.z-p3.z)/80);
+   var ridgeTone=Math.min(1,Math.abs(p1.z-p3.z)/80),riftCoreMean=(p1.riftCore+p2.riftCore+p3.riftCore+p4.riftCore)/4,riftWallMean=(p1.riftWall+p2.riftWall+p3.riftWall+p4.riftWall)/4;
    var red=Math.round(15+depthTone*15+ridgeTone*12),green=Math.round(47+depthTone*22+ridgeTone*16),blue=Math.round(51+depthTone*20+ridgeTone*14);
+   if(riftCoreMean>.055){red=Math.round(3+riftCoreMean*3);green=Math.round(14+riftCoreMean*16);blue=Math.round(25+riftCoreMean*26);}else if(riftWallMean>.16){red=Math.round(14+riftWallMean*10);green=Math.round(76+riftWallMean*68);blue=Math.round(77+riftWallMean*72);}
    ctx.fillStyle='rgb('+red+','+green+','+blue+')';
    ctx.strokeStyle='rgba(126,194,184,'+(0.025+near*.045)+')';ctx.lineWidth=.5;
    ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.lineTo(p3.x,p3.y);ctx.lineTo(p4.x,p4.y);ctx.closePath();ctx.fill();ctx.stroke();
@@ -5608,7 +5604,7 @@ function draw(){
  ctx.strokeStyle='rgba(183,246,213,.72)';ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(w*.5-12,h*.5);ctx.lineTo(w*.5-4,h*.5);ctx.moveTo(w*.5+4,h*.5);ctx.lineTo(w*.5+12,h*.5);ctx.moveTo(w*.5,h*.5-12);ctx.lineTo(w*.5,h*.5-4);ctx.moveTo(w*.5,h*.5+4);ctx.lineTo(w*.5,h*.5+12);ctx.stroke();
  ctx.strokeStyle='rgba(151,220,199,.25)';ctx.beginPath();ctx.moveTo(12,40);ctx.lineTo(12,72);ctx.lineTo(42,72);ctx.moveTo(w-12,40);ctx.lineTo(w-12,72);ctx.lineTo(w-42,72);ctx.stroke();
  ctx.fillStyle='#c5f7df';ctx.font='11px Courier New';ctx.fillText('UUV PILOT VIEW // PELAGOS-01',20,160);ctx.fillStyle='#8cc9b0';ctx.fillText('HDG '+Math.round(heading)+'°',20,179);ctx.fillText('DEPTH '+Math.round(depth)+' m',20,194);ctx.fillText('ALTITUDE '+Math.round(cameraZ-heightAt(cameraX+Math.sin(heading*Math.PI/180)*30,cameraY+Math.cos(heading*Math.PI/180)*30))+' m',20,209);
- ctx.textAlign='right';ctx.fillText('TERRAIN: '+(spawnBathymetry?spawnBathymetry.region:'FICTIONAL / SPAWN DATA OFFLINE'),w-20,h-18);ctx.textAlign='left';
+ ctx.textAlign='right';ctx.fillText('TERRAIN: '+(spawnBathymetry?spawnBathymetry.region:'FICTIONAL / SPAWN DATA OFFLINE'),w-20,h-18);ctx.textAlign='left';var riftAhead=ruptureLocalAt(cameraX+Math.sin(heading*Math.PI/180)*180,cameraY+Math.cos(heading*Math.PI/180)*180);if(riftAhead.active){ctx.fillStyle='#caff92';ctx.font='bold 11px Courier New';ctx.fillText('CRUSTAL BREACH // PELAGOS ABYSSAL RIFT',20,230);ctx.fillStyle='#8fd9b3';ctx.font='10px Courier New';ctx.fillText('MULTIBEAM + SIDE-SCAN + SUB-BOTTOM ANOMALY',20,245);}
  if(u){document.getElementById('v3-heading').textContent='HEADING '+String(Math.round(heading)%360).padStart(3,'0')+'°';document.getElementById('v3-speed').textContent='TARGET SPEED '+Number(speed).toFixed(3);document.getElementById('v3-depth').textContent='DEPTH '+Math.round(Number(u.depth_meters==null?(u.depthMeters==null?depth:u.depthMeters):u.depth_meters))+' m';}
  renderCourseReadout();
  var discoveries=window.vigilGetLocalSeafloorDiscoveries?window.vigilGetLocalSeafloorDiscoveries():[];
@@ -5616,7 +5612,7 @@ function draw(){
 }
 function command(changes){if(typeof window.vigilSetSimulationUnitState!=='function'){say('SIMULATION BRIDGE UNAVAILABLE');return;}var result=window.vigilSetSimulationUnitState('submersible',changes);if(!result||!result.ok){say('COMMAND REJECTED // '+(result&&result.reason||'UNIT UNAVAILABLE'));return;}if(result.desired_heading!==undefined)heading=Number(result.desired_heading)||0;if(result.target_speed!==undefined)speed=Number(result.target_speed)||0;if(courseInput)courseInput.value=String(Math.round(heading)%360).padStart(3,'0');say('UUV-01 // '+String(Math.round(heading)%360).padStart(3,'0')+'° // TARGET SPEED '+speed.toFixed(3)+' / '+Number(result.max_speed||0).toFixed(3));draw();}
 function say(s){document.getElementById('v3-status').textContent=s;}
-function step(dir){var u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('submersible');var hdg=Number(u&&(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg))||0;var spd=Number(u&&(u.target_speed==null?u.speed:u.target_speed))||0;var max=Number(u&&(u.max_speed==null?u.maxSpeed:u.max_speed))||.035;var increment=Math.max(.001,max*.1);if(dir==='left')command({heading:(hdg+345)%360});else if(dir==='right')command({heading:(hdg+15)%360});else if(dir==='forward')command({speed:Math.min(max,spd+increment)});else if(dir==='back')command({speed:Math.max(0,spd-increment)});else if(dir==='faster')command({speed:Math.min(max,spd+increment)});else if(dir==='slower')command({speed:Math.max(0,spd-increment)});else if(dir==='up'||dir==='down'){var current=Number(u&&(u.depth_meters==null?u.depthMeters:u.depth_meters));if(!Number.isFinite(current))current=depth;depth=Math.max(0,Math.min(6000,current+(dir==='up'?-10:10)));command({depth:depth});say((dir==='up'?'ASCENT':'DESCENT')+' COMMAND // DEPTH TARGET '+depth+' M');}draw();}
+function step(dir){var u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('submersible');var hdg=Number(u&&(u.desired_heading_deg==null?u.heading_deg:u.desired_heading_deg))||0;var spd=Number(u&&(u.target_speed==null?u.speed:u.target_speed))||0;var max=Number(u&&(u.max_speed==null?u.maxSpeed:u.max_speed))||.035;var increment=Math.max(.001,max*.1);if(dir==='left')command({heading:(hdg+345)%360});else if(dir==='right')command({heading:(hdg+15)%360});else if(dir==='forward')command({speed:Math.min(max,spd+increment)});else if(dir==='back')command({speed:Math.max(0,spd-increment)});else if(dir==='faster')command({speed:Math.min(max,spd+increment)});else if(dir==='slower')command({speed:Math.max(0,spd-increment)});else if(dir==='up'||dir==='down'){var current=Number(u&&(u.depth_meters==null?u.depthMeters:u.depth_meters));if(!Number.isFinite(current))current=depth;depth=Math.max(0,Math.min(30000,current+(dir==='up'?-10:10)));command({depth:depth});say((dir==='up'?'ASCENT':'DESCENT')+' COMMAND // DEPTH TARGET '+depth+' M');}draw();}
 var mapCanvas=view.querySelector('#vigil-3d-world-map-canvas'),mapCtx=mapCanvas.getContext('2d'),mapMode='local',mapExpanded=false,mapLayer='FUSED',mapLayers=['FUSED','MULTIBEAM','SIDE-SCAN','SUB-BOTTOM','MAGNETIC'];
 function setMapMode(mode){mapMode=mode==='regional'?'regional':'local';view.querySelector('#v3-map-local').setAttribute('aria-pressed',String(mapMode==='local'));view.querySelector('#v3-map-regional').setAttribute('aria-pressed',String(mapMode==='regional'));view.querySelector('#v3-world-map-title').textContent=mapMode==='local'?'LOCAL MAP // WIDE SWATH':'REGIONAL MAP // WORLD';drawWorldMap();}
 view.querySelector('#v3-map-local').addEventListener('click',function(){setMapMode('local');});view.querySelector('#v3-map-regional').addEventListener('click',function(){setMapMode('regional');});function setMapExpanded(expanded){mapExpanded=!!expanded;var panel=view.querySelector('#v3-world-map-panel'),button=view.querySelector('#v3-map-expand');panel.classList.toggle('expanded',mapExpanded);button.setAttribute('aria-expanded',String(mapExpanded));button.textContent=mapExpanded?'SHRINK MAP':'EXPAND MAP';drawWorldMap();}view.querySelector('#v3-map-expand').addEventListener('click',function(){setMapExpanded(!mapExpanded);});view.querySelector('#v3-map-layer').addEventListener('click',function(){mapLayer=mapLayers[(mapLayers.indexOf(mapLayer)+1)%mapLayers.length];this.textContent=mapLayer;this.setAttribute('aria-label','Sensor layer: '+mapLayer);drawWorldMap();});
