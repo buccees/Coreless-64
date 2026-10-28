@@ -346,3 +346,67 @@ def test_confirmed_removal_tombstone_recovers_artifact_after_unit_leaves_live_fl
     environment.disable_artifact_recovery()
     store.close()
     sinks.close()
+
+
+def test_authoritative_fleet_lifecycle_subscription_routes_removed_submersible_to_ledger(tmp_path):
+    from vigil.artifact_simulation_bridge import ArtifactSimulationBridge
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+    from vigil.sinking_event_registry import SinkingEventRegistry
+    import pytest
+
+    class FakeFleetLifecycle:
+        def __init__(self):
+            self.listeners = []
+
+        def subscribe_lifecycle(self, callback):
+            self.listeners.append(callback)
+            return lambda: self.listeners.remove(callback)
+
+        def publish(self, event):
+            return [callback(event) for callback in tuple(self.listeners)]
+
+    catalog = build_artifact_catalog()
+    store = HistoricalArtifactStore(catalog, tmp_path / "fleet-lifecycle.sqlite3")
+    sinks = SinkingEventRegistry(tmp_path / "fleet-lifecycle-sinks.sqlite3")
+    bridge = ArtifactSimulationBridge(artifact_store=store, sinking_registry=sinks)
+    artifact = catalog[0]
+    carrier = {
+        "id": "UUV-FLEET-HOOK", "crewId": "crew-alpha", "unitType": "submersible",
+        "x": artifact["x"], "y": artifact["y"], "afloat": True,
+        "lockedArtifactContainer": {"locked": True, "artifactIds": []},
+    }
+    store.discover("PELAGOS-01", artifact["id"])
+    store.collect("PELAGOS-01", artifact["id"], "UUV-FLEET-HOOK", carrier)
+    environment = VigilEnvironment(enabled=True)
+    environment.configure_artifact_recovery(
+        world_seed="PELAGOS-01", bridge=bridge,
+        # Removed units no longer exist in the active fleet lookup.
+        resolve_unit_state=lambda unit_id: None,
+    )
+    fleet = FakeFleetLifecycle()
+    environment.connect_authoritative_unit_lifecycle(
+        fleet, resolve_unit_state=lambda unit_id: None,
+    )
+
+    with pytest.raises(ValueError, match="must be confirmed"):
+        fleet.publish({
+            "kind": "UNIT_REMOVED", "status": "PENDING",
+            "event_id": "fleet-remove-pending", "timestamp_ns": 10,
+            "unit_id": "UUV-FLEET-HOOK", "final_unit_state": {**carrier, "x": 0.71, "y": 0.19},
+        })
+
+    fleet.publish({
+        "kind": "UNIT_REMOVED", "status": "CONFIRMED",
+        "event_id": "fleet-remove-confirmed", "timestamp_ns": 11,
+        "unit_id": "UUV-FLEET-HOOK", "final_unit_state": {**carrier, "x": 0.71, "y": 0.19},
+    })
+    item = next(row for row in store.inventory("PELAGOS-01") if row["id"] == artifact["id"])
+    assert item["status"] == "LOST"
+    assert item["location"] == {"x": 0.71, "y": 0.19}
+    assert environment.replay.events[-1].kind == "UNIT_REMOVED"
+
+    environment.disconnect_authoritative_unit_lifecycle()
+    environment.disable_artifact_recovery()
+    store.close()
+    sinks.close()
