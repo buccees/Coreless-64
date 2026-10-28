@@ -341,6 +341,21 @@ def test_seafloor_campaign_api_requires_auth_and_merges_then_exports_shared_surv
     )
     assert response["status"] == "200 OK"
     assert json.loads(body)["duplicate_report"] is True
+
+    # Even an authenticated client report containing a claimed discovery must
+    # not become trusted evidence for unique historical artifact discovery.
+    response, body = _request(
+        app, "/api/vigil/historical-artifacts", method="POST", cookie=token,
+        origin="https://127.0.0.1:8443",
+        body=json.dumps({
+            "world_seed": "PELAGOS-01",
+            "action": "discover",
+            "artifact_id": "PEL-ARCHIVE-EXPEDITION-HANDBOOK",
+        }).encode(),
+    )
+    assert response["status"] == "403 Forbidden"
+    assert json.loads(body)["error"] == "discovery_not_authorized"
+
     survey_store.close()
 
 
