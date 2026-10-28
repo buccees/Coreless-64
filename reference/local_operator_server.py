@@ -16,6 +16,8 @@ import threading
 import time
 from http.cookies import SimpleCookie
 from pathlib import Path
+from urllib.parse import parse_qs
+
 from typing import Any
 from wsgiref.simple_server import WSGIServer, WSGIRequestHandler, make_server
 import ssl
@@ -120,6 +122,7 @@ def _cookie_token(environ) -> str | None:
 def create_lan_app(
     *, password: str, system: CorelessSystem, page_path: Path | None = None,
     spatial_workspace: SpatialWorkspace | None = None,
+    seafloor_campaign_store=None,
 ):
     if not isinstance(password, str) or len(password) < 16:
         raise ValueError("CORELESS_OPERATOR_PASSWORD must contain at least 16 characters")
@@ -131,6 +134,16 @@ def create_lan_app(
         raise TypeError("system must be the active CorelessSystem instance")
     if spatial_workspace is not None and not isinstance(spatial_workspace, SpatialWorkspace):
         raise TypeError("spatial_workspace must be a SpatialWorkspace when provided")
+    if seafloor_campaign_store is None:
+        from vigil.seafloor_campaign_store import SeafloorCampaignStore
+        database_path = os.environ.get(
+            "CORELESS_SEAFLOOR_CAMPAIGN_DB",
+            str(ROOT / "data" / "pelagos-campaign.sqlite3"),
+        )
+        seafloor_campaign_store = SeafloorCampaignStore(database_path)
+    from vigil.seafloor_campaign_store import SeafloorCampaignStore
+    if not isinstance(seafloor_campaign_store, SeafloorCampaignStore):
+        raise TypeError("seafloor_campaign_store must be a SeafloorCampaignStore")
     sessions = LocalSessions()
     telemetry = create_coreless_operator_app(
         system,
@@ -250,6 +263,48 @@ def create_lan_app(
             return _json(start_response, "200 OK", {
                 "alert_id": alert_id, "acknowledged": acknowledged,
             })
+
+        if path == "/api/vigil/seafloor-survey":
+            if method not in ("GET", "POST"):
+                return _json(start_response, "405 Method Not Allowed",
+                             {"error": "method_not_allowed"}, [("Allow", "GET, POST")])
+            if context is None:
+                return _json(start_response, "401 Unauthorized", {"error": "unauthorized"})
+            origin = environ.get("HTTP_ORIGIN")
+            expected_origin = "https://" + environ.get("HTTP_HOST", "")
+            if not origin or origin != expected_origin:
+                return _json(start_response, "403 Forbidden", {"error": "origin_not_allowed"})
+            if method == "GET":
+                query = parse_qs(environ.get("QUERY_STRING", ""), strict_parsing=False)
+                world_seed = query.get("world_seed", [""])[0]
+                if not world_seed:
+                    return _json(start_response, "400 Bad Request",
+                                 {"error": "invalid_query", "detail": "world_seed is required"})
+                try:
+                    payload = seafloor_campaign_store.export_survey(world_seed)
+                except ValueError as exc:
+                    return _json(start_response, "400 Bad Request",
+                                 {"error": "invalid_query", "detail": str(exc)})
+                return _json(start_response, "200 OK", payload)
+            try:
+                length = int(environ.get("CONTENT_LENGTH") or "0")
+                if length < 1 or length > 2_000_000:
+                    raise ValueError("invalid body size")
+                payload = json.loads(environ["wsgi.input"].read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("request body must be a JSON object")
+                result = seafloor_campaign_store.merge_report(
+                    payload, crew_id=context.session_id
+                )
+            except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+                return _json(start_response, "400 Bad Request",
+                             {"error": "invalid_payload", "detail": str(exc)})
+            except Exception:
+                return _json(start_response, "503 Service Unavailable", {
+                    "error": "seafloor_survey_unavailable",
+                    "detail": "The campaign survey could not be saved.",
+                })
+            return _json(start_response, "200 OK", result)
 
         if path == "/api/vigil/spatial":
             if method != "GET":
