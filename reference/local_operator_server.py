@@ -129,6 +129,7 @@ def create_lan_app(
     artifact_custody_authorizer=None,
     artifact_discovery_authorizer=None,
     artifact_verified_survey_resolver=None,
+    artifact_verified_survey_registry=None,
     artifact_sinking_validator=None,
 ):
     if not isinstance(password, str) or len(password) < 16:
@@ -162,6 +163,14 @@ def create_lan_app(
     from vigil.historical_artifact_store import HistoricalArtifactStore
     if not isinstance(historical_artifact_store, HistoricalArtifactStore):
         raise TypeError("historical_artifact_store must be a HistoricalArtifactStore")
+
+    if artifact_verified_survey_registry is not None:
+        from vigil.verified_survey_registry import VerifiedSurveyRegistry
+        if not isinstance(artifact_verified_survey_registry, VerifiedSurveyRegistry):
+            raise TypeError("artifact_verified_survey_registry must be a VerifiedSurveyRegistry")
+        if artifact_verified_survey_resolver is not None:
+            raise ValueError("supply either artifact_verified_survey_registry or artifact_verified_survey_resolver, not both")
+        artifact_verified_survey_resolver = artifact_verified_survey_registry.resolve_verified_survey
     # Only a server-owned survey resolver can unlock discovery. Client-submitted
     # campaign reports remain indications and are deliberately not used here.
     if artifact_discovery_authorizer is None and callable(artifact_verified_survey_resolver):
@@ -463,6 +472,7 @@ def serve_lan(
     artifact_unit_action_authorizer=None,
     artifact_custody_authorizer=None,
     artifact_verified_survey_resolver=None,
+    artifact_verified_survey_registry=None,
     artifact_sinking_validator=None,
 ) -> None:
     """Serve the operator display against the caller's already-running machine.
@@ -482,6 +492,7 @@ def serve_lan(
             artifact_unit_action_authorizer=artifact_unit_action_authorizer,
             artifact_custody_authorizer=artifact_custody_authorizer,
             artifact_verified_survey_resolver=artifact_verified_survey_resolver,
+            artifact_verified_survey_registry=artifact_verified_survey_registry,
             artifact_sinking_validator=artifact_sinking_validator,
         ),
         server_class=WSGIServer,
