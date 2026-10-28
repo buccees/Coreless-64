@@ -4635,8 +4635,11 @@ function draw(){
          var discoveredEntity=seabedEntity(wx,wy);
          if(discoveredEntity&&!seafloorState.discoveries[discoveredEntity.id]){
            seafloorState.discoveries[discoveredEntity.id]={id:discoveredEntity.id,name:String(discoveredEntity.name||discoveredEntity.id),kind:discoveredEntity.kind,x:discoveredEntity.x,y:discoveredEntity.y,scale:discoveredEntity.scale,seed:currentSeafloorWorldSeed(),questLocation:discoveredEntity.questLocation===true,evidenceIds:Array.isArray(discoveredEntity.evidenceIds)?discoveredEntity.evidenceIds.slice():[],status:'SONAR INDICATION',discoveredAt:new Date().toISOString(),depthMeters:terrainDepth(wx,wy)};
-           if(Array.isArray(discoveredEntity.evidenceIds)&&typeof window.vigilDiscoverHistoricalEvidence==='function'){discoveredEntity.evidenceIds.forEach(function(evidenceId){window.vigilDiscoverHistoricalEvidence(evidenceId,discoveredEntity.id);});}
            coverageChanged=true;
+         }
+         // Evidence discovery is idempotent and runs even when the site itself was recorded by an older survey.
+         if(discoveredEntity&&Array.isArray(discoveredEntity.evidenceIds)&&typeof window.vigilDiscoverHistoricalEvidence==='function'){
+           discoveredEntity.evidenceIds.forEach(function(evidenceId){window.vigilDiscoverHistoricalEvidence(evidenceId,discoveredEntity.id);});
          }
        }
      }
