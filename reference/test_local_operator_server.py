@@ -379,3 +379,50 @@ def test_seafloor_campaign_api_rejects_cross_origin_and_invalid_payload(tmp_path
     )
     assert response["status"] == "400 Bad Request"
     survey_store.close()
+
+
+def test_historical_artifact_inventory_is_persistent_and_session_protected(tmp_path):
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+
+    page = tmp_path / "operator-display.html"
+    page.write_text("artifact display", encoding="utf-8")
+    db = tmp_path / "artifacts.sqlite3"
+    store = HistoricalArtifactStore(build_artifact_catalog(), db)
+    app = create_lan_app(
+        password="a-strong-test-password-123",
+        page_path=page,
+        system=CorelessSystem(storage_path=tmp_path / "owned-machine.img"),
+        historical_artifact_store=store,
+    )
+
+    response, body = _request(app, "/api/vigil/historical-artifacts?world_seed=PELAGOS-01")
+    assert response["status"] == "401 Unauthorized"
+    assert json.loads(body)["error"] == "unauthorized"
+
+    response, body = _request(
+        app, "/api/operator/login", method="POST",
+        body=json.dumps({"password": "a-strong-test-password-123"}).encode(),
+        origin="https://127.0.0.1:8443",
+    )
+    assert response["status"] == "200 OK"
+    token = response["headers"]["Set-Cookie"].split(";", 1)[0]
+
+    response, body = _request(app, "/api/vigil/historical-artifacts?world_seed=PELAGOS-01", cookie=token)
+    assert response["status"] == "200 OK"
+    payload = json.loads(body)
+    assert payload["count"] == 6
+    assert all(item["unique"] and not item["respawnable"] for item in payload["artifacts"])
+    assert payload["artifacts"][0]["location"] == {"x": 5.5 / 42, "y": 7.5 / 42}
+
+    response, body = _request(
+        app, "/api/vigil/historical-artifacts", method="POST", cookie=token,
+        origin="https://127.0.0.1:8443",
+        body=json.dumps({"world_seed": "PELAGOS-01", "action": "collect",
+                         "artifact_id": "PEL-ARCHIVE-EXPEDITION-HANDBOOK",
+                         "unit_id": "UUV-01"}).encode(),
+    )
+    assert response["status"] == "503 Service Unavailable"
+    assert json.loads(body)["error"] == "authoritative_unit_state_unavailable"
+
+    store.close()
