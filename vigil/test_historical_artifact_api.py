@@ -31,7 +31,7 @@ class HistoricalArtifactApiTests(unittest.TestCase):
             resolve_unit=lambda unit_id: self.units.get(unit_id),
             authorize_unit_action=lambda crew, unit_id, action: crew == "crew-blue" and unit_id == "UUV-1",
             authorize_custody_action=lambda crew, source, target, action:
-                crew == "crew-blue" and (source == "UUV-1" or (action == "capture" and target == "UUV-1")),
+                crew == "crew-blue" and ((action == "capture" and target == "UUV-1") or (action == "transfer" and source == "UUV-1" and target == "UUV-1")),
             authorize_discovery=lambda crew, seed, artifact: crew == "crew-blue" and artifact == "ART-ONE",
             validate_sinking_event=lambda seed, uid, event_id:
                 {"x": .25, "y": .35} if (uid, event_id) == ("UUV-1", "sink-1") else None,
