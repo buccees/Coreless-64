@@ -99,7 +99,7 @@ for (const required of [
   'v3-map-shallow-key',
   'v3-map-deep-key',
   'v3-map-trench-key',
-  'slopeTone=Math.min(1,(Math.abs(p1.z-p3.z)+Math.abs(p2.z-p4.z))/34)',
+  'slopeTone=Math.min(1,(Math.abs(p1.z-p3.z)+Math.abs(p2.z-p4.z))/28)',
   "rgba(3,19,31,.38)",
   'window.vigilGetKnownWorldMapContacts=function()',
   'The world map plots only reported observations, never hidden enemy truth.',
