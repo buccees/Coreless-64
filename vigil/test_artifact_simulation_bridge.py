@@ -99,3 +99,61 @@ def test_replay_sink_event_requires_simulation_provenance(tmp_path):
         bridge.on_replay_event("PELAGOS-01", replay, {})
     artifacts.close()
     sinks.close()
+
+
+def test_replay_log_consumer_resolves_server_state_and_drops_at_sink(tmp_path):
+    from vigil.artifact_replay_consumer import ArtifactReplayConsumer
+    from vigil.provenance import EventProvenance
+    from vigil.simulation import ReplayEvent, ReplayLog
+
+    catalog = build_artifact_catalog()
+    artifacts = HistoricalArtifactStore(catalog, tmp_path / "artifacts.sqlite3")
+    sinks = SinkingEventRegistry(tmp_path / "sinks.sqlite3")
+    bridge = ArtifactSimulationBridge(artifact_store=artifacts, sinking_registry=sinks)
+    artifact = catalog[0]
+    carrier = {"id": "UUV-LOG", "crewId": "crew-alpha", "unitType": "submersible",
+               "x": artifact["x"], "y": artifact["y"], "afloat": True,
+               "lockedArtifactContainer": {"locked": True, "artifactIds": []}}
+    artifacts.discover("PELAGOS-01", artifact["id"])
+    artifacts.collect("PELAGOS-01", artifact["id"], "UUV-LOG", carrier)
+    sink_x, sink_y = 0.21, 0.87
+    event = ReplayEvent(
+        event_id="log-sink-01", timestamp_ns=42, kind="UNIT_SUNK",
+        payload={"status": "CONFIRMED", "unit_id": "UUV-LOG", "x": sink_x, "y": sink_y},
+        provenance=EventProvenance(source_type="simulation", source_ids=("UUV-LOG",),
+                                   timestamp_ns=42, confidence=0.98),
+    )
+    non_sink = ReplayEvent(event_id="log-sonar-01", timestamp_ns=41, kind="SONAR_RETURN", payload={})
+    # ReplayLog requires monotonic timestamps, so sonar precedes sinking.
+    log = ReplayLog((non_sink, event))
+    resolved = []
+    consumer = ArtifactReplayConsumer(
+        world_seed="PELAGOS-01", bridge=bridge,
+        resolve_unit_state=lambda unit_id: resolved.append(unit_id) or {
+            **carrier, "x": sink_x, "y": sink_y, "afloat": False,
+        },
+    )
+    results = log.replay_into(consumer)
+    assert resolved == ["UUV-LOG"]
+    assert len(results) == 1
+    assert results[0][0]["location"] == {"x": sink_x, "y": sink_y}
+    assert artifacts.inventory("PELAGOS-01")[0]["status"] == "LOST"
+    artifacts.close()
+    sinks.close()
+
+
+def test_replay_consumer_fails_closed_when_authoritative_unit_missing(tmp_path):
+    from vigil.artifact_replay_consumer import ArtifactReplayConsumer
+    from vigil.provenance import EventProvenance
+    from vigil.simulation import ReplayEvent
+    artifacts = HistoricalArtifactStore(build_artifact_catalog(), tmp_path / "artifacts.sqlite3")
+    sinks = SinkingEventRegistry()
+    bridge = ArtifactSimulationBridge(artifact_store=artifacts, sinking_registry=sinks)
+    consumer = ArtifactReplayConsumer(world_seed="PELAGOS-01", bridge=bridge, resolve_unit_state=lambda _: None)
+    event = ReplayEvent(event_id="missing-unit", timestamp_ns=1, kind="UNIT_SUNK",
+        payload={"unit_id": "UUV-404", "status": "CONFIRMED", "x": 0.4, "y": 0.6},
+        provenance=EventProvenance(source_type="simulation", timestamp_ns=1, confidence=0.9))
+    with __import__("pytest").raises(ValueError, match="authoritative sunk-unit state"):
+        consumer(event)
+    artifacts.close()
+    sinks.close()
