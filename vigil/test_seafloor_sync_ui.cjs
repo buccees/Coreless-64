@@ -73,7 +73,7 @@ for (const required of [
   'anim=(anim+1.8)%360',
   'class="v3-helm"',
   'class="v3-panel"',
-  'class="v3-collapsible"',
+  'v3-collapsible',
   'aria-label="Vehicle movement controls"',
   'aria-label="Sensor and view controls"',
   'id="vigil-3d-world-map-canvas"',
