@@ -141,5 +141,79 @@ class VerifiedSurveyRegistryTests(unittest.TestCase):
         self.assertEqual(record["raw_quality"], "calibrated")
 
 
+    def test_coreless_sensor_observation_can_enter_verified_registry(self):
+        from vigil.model import Observation, Provenance, SensorState
+        artifact, event, unit = self.simulation_inputs()
+        observation = Observation(
+            observation_id="obs-001",
+            source_id="sonar-UUV-01",
+            timestamp_ns=100,
+            payload={
+                "survey_id": event["survey_id"],
+                "world_seed": event["world_seed"],
+                "artifact_id": event["artifact_id"],
+                "site_id": event["site_id"],
+                "unit_id": event["unit_id"],
+                "status": event["status"],
+                "sensor_status": event["sensor_status"],
+            },
+            confidence=0.95,
+            provenance=Provenance(
+                source_id="sonar-UUV-01",
+                source_type="sonar",
+                created_ns=100,
+            ),
+            sensor_state=SensorState.HEALTHY,
+        )
+        result = self.registry.record_observation_from_simulation(
+            crew_id="crew-alpha",
+            world_seed="PELAGOS-01",
+            artifact_id=artifact["id"],
+            observation=observation,
+            unit_state=unit,
+        )
+        self.assertEqual(result["survey_id"], "sim-survey-001")
+        self.assertEqual(
+            self.registry.resolve_verified_survey(
+                "crew-alpha", "PELAGOS-01", artifact["id"]
+            )["unit_id"],
+            "UUV-01",
+        )
+
+    def test_coreless_sensor_bridge_rejects_degraded_low_confidence_or_missing_provenance(self):
+        from vigil.model import Observation, Provenance, SensorState
+        artifact, event, unit = self.simulation_inputs()
+        payload = dict(event)
+        valid_provenance = Provenance(
+            source_id="sonar-UUV-01", source_type="sonar", created_ns=100
+        )
+        cases = [
+            {"sensor_state": SensorState.DEGRADED, "confidence": 0.99,
+             "provenance": valid_provenance},
+            {"sensor_state": SensorState.HEALTHY, "confidence": 0.5,
+             "provenance": valid_provenance},
+            {"sensor_state": SensorState.HEALTHY, "confidence": 0.99,
+             "provenance": None},
+        ]
+        for index, options in enumerate(cases):
+            observation = Observation(
+                observation_id=f"obs-bad-{index}",
+                source_id="sonar-UUV-01",
+                timestamp_ns=100,
+                payload=payload,
+                **options,
+            )
+            with self.subTest(index=index), self.assertRaises(ValueError):
+                self.registry.record_observation_from_simulation(
+                    crew_id="crew-alpha",
+                    world_seed="PELAGOS-01",
+                    artifact_id=artifact["id"],
+                    observation=observation,
+                    unit_state=unit,
+                )
+        self.assertIsNone(self.registry.resolve_verified_survey(
+            "crew-alpha", "PELAGOS-01", artifact["id"]
+        ))
+
 if __name__ == "__main__":
     unittest.main()
