@@ -123,6 +123,12 @@ def create_lan_app(
     *, password: str, system: CorelessSystem, page_path: Path | None = None,
     spatial_workspace: SpatialWorkspace | None = None,
     seafloor_campaign_store=None,
+    historical_artifact_store=None,
+    artifact_unit_resolver=None,
+    artifact_unit_action_authorizer=None,
+    artifact_custody_authorizer=None,
+    artifact_discovery_authorizer=None,
+    artifact_sinking_validator=None,
 ):
     if not isinstance(password, str) or len(password) < 16:
         raise ValueError("CORELESS_OPERATOR_PASSWORD must contain at least 16 characters")
@@ -144,6 +150,17 @@ def create_lan_app(
     from vigil.seafloor_campaign_store import SeafloorCampaignStore
     if not isinstance(seafloor_campaign_store, SeafloorCampaignStore):
         raise TypeError("seafloor_campaign_store must be a SeafloorCampaignStore")
+    if historical_artifact_store is None:
+        from vigil.historical_artifact_catalog import build_artifact_catalog
+        from vigil.historical_artifact_store import HistoricalArtifactStore
+        artifact_db = os.environ.get(
+            "CORELESS_HISTORICAL_ARTIFACT_DB",
+            str(ROOT / "data" / "pelagos-historical-artifacts.sqlite3"),
+        )
+        historical_artifact_store = HistoricalArtifactStore(build_artifact_catalog(), artifact_db)
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+    if not isinstance(historical_artifact_store, HistoricalArtifactStore):
+        raise TypeError("historical_artifact_store must be a HistoricalArtifactStore")
     sessions = LocalSessions()
     telemetry = create_coreless_operator_app(
         system,
@@ -307,6 +324,90 @@ def create_lan_app(
                 })
             return _json(start_response, "200 OK", result)
 
+        if path == "/api/vigil/historical-artifacts":
+            if method not in ("GET", "POST"):
+                return _json(start_response, "405 Method Not Allowed",
+                             {"error": "method_not_allowed"}, [("Allow", "GET, POST")])
+            if context is None:
+                return _json(start_response, "401 Unauthorized", {"error": "unauthorized"})
+            if method == "POST":
+                origin = environ.get("HTTP_ORIGIN")
+                expected_origin = "https://" + environ.get("HTTP_HOST", "")
+                if not origin or origin != expected_origin:
+                    return _json(start_response, "403 Forbidden", {"error": "origin_not_allowed"})
+            if method == "GET":
+                query = parse_qs(environ.get("QUERY_STRING", ""), strict_parsing=False)
+                seeds = query.get("world_seed", [])
+                if len(seeds) != 1 or not seeds[0]:
+                    return _json(start_response, "400 Bad Request",
+                                 {"error": "invalid_query", "detail": "exactly one world_seed is required"})
+                try:
+                    inventory = historical_artifact_store.inventory(seeds[0])
+                except ValueError as exc:
+                    return _json(start_response, "400 Bad Request",
+                                 {"error": "invalid_query", "detail": str(exc)})
+                return _json(start_response, "200 OK", {
+                    "schema": "vigil.historical-artifact-ledger", "version": 1,
+                    "world_seed": seeds[0], "count": len(inventory), "artifacts": inventory,
+                })
+            try:
+                length = int(environ.get("CONTENT_LENGTH") or "0")
+                if length < 1 or length > 16384:
+                    raise ValueError("invalid body size")
+                payload = json.loads(environ["wsgi.input"].read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("request body must be a JSON object")
+                seed, action, artifact_id = payload.get("world_seed"), payload.get("action"), payload.get("artifact_id")
+                if not all(isinstance(v, str) and v.strip() for v in (seed, action, artifact_id)):
+                    raise ValueError("world_seed, action, and artifact_id are required strings")
+                # Crew identity comes only from the authenticated server session.
+                crew_id = context.session_id
+                if action == "discover":
+                    if not callable(artifact_discovery_authorizer) or artifact_discovery_authorizer(crew_id, seed, artifact_id) is not True:
+                        return _json(start_response, "403 Forbidden", {"error": "discovery_not_authorized"})
+                    result = historical_artifact_store.discover(seed, artifact_id)
+                elif action in ("collect", "lose"):
+                    unit_id = payload.get("unit_id")
+                    if not isinstance(unit_id, str) or not unit_id.strip():
+                        raise ValueError("unit_id is required")
+                    if not callable(artifact_unit_action_authorizer) or artifact_unit_action_authorizer(crew_id, unit_id, action) is not True:
+                        return _json(start_response, "403 Forbidden", {"error": "unit_not_authorized"})
+                    unit = artifact_unit_resolver(unit_id) if callable(artifact_unit_resolver) else None
+                    if unit is None:
+                        return _json(start_response, "503 Service Unavailable", {"error": "authoritative_unit_state_unavailable"})
+                    result = (historical_artifact_store.collect(seed, artifact_id, unit_id, unit)
+                              if action == "collect" else historical_artifact_store.lose(seed, artifact_id, unit_id, unit))
+                elif action in ("transfer", "capture"):
+                    source_id, target_id = payload.get("from_unit_id"), payload.get("to_unit_id")
+                    if not isinstance(source_id, str) or not isinstance(target_id, str):
+                        raise ValueError("from_unit_id and to_unit_id are required")
+                    if not callable(artifact_custody_authorizer) or artifact_custody_authorizer(crew_id, source_id, target_id, action) is not True:
+                        return _json(start_response, "403 Forbidden", {"error": "custody_action_not_authorized"})
+                    if not callable(artifact_unit_resolver):
+                        return _json(start_response, "503 Service Unavailable", {"error": "authoritative_unit_state_unavailable"})
+                    source, target = artifact_unit_resolver(source_id), artifact_unit_resolver(target_id)
+                    if source is None or target is None:
+                        return _json(start_response, "503 Service Unavailable", {"error": "authoritative_unit_state_unavailable"})
+                    result = historical_artifact_store.transfer(seed, artifact_id, source_id, target_id, source, target, capture=(action == "capture"))
+                elif action == "drop_on_sinking":
+                    unit_id, event_id = payload.get("unit_id"), payload.get("sinking_event_id")
+                    if not isinstance(unit_id, str) or not isinstance(event_id, str):
+                        raise ValueError("unit_id and sinking_event_id are required")
+                    if not callable(artifact_sinking_validator):
+                        return _json(start_response, "503 Service Unavailable", {"error": "sinking_event_validation_unavailable"})
+                    event = artifact_sinking_validator(seed, unit_id, event_id)
+                    if not isinstance(event, dict):
+                        return _json(start_response, "403 Forbidden", {"error": "sinking_event_not_authorized"})
+                    result = historical_artifact_store.drop_on_sinking(seed, artifact_id, unit_id,
+                        last_known_x=event.get("x"), last_known_y=event.get("y"), sink_event_authorized=True)
+                else:
+                    return _json(start_response, "400 Bad Request", {"error": "unsupported_action"})
+            except (ValueError, TypeError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+                return _json(start_response, "409 Conflict", {"error": "action_rejected", "detail": str(exc)})
+            except Exception:
+                return _json(start_response, "503 Service Unavailable", {"error": "historical_artifact_action_unavailable"})
+            return _json(start_response, "200 OK", {"ok": True, "artifact": result})
+
         if path == "/api/vigil/spatial":
             if method != "GET":
                 return _json(start_response, "405 Method Not Allowed",
@@ -400,6 +501,10 @@ def main() -> int:
     system.boot()
     spatial_database = args.spatial_db or args.image.with_name(args.image.name + ".vigil-spatial.sqlite3")
     spatial_store = SpatialRegistryStore(str(spatial_database))
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+    artifact_database = Path(os.environ.get("CORELESS_HISTORICAL_ARTIFACT_DB", str(args.image.with_name(args.image.name + ".historical-artifacts.sqlite3"))))
+    artifact_store = HistoricalArtifactStore(build_artifact_catalog(), artifact_database)
     spatial_workspace = SpatialWorkspace(registry_store=spatial_store)
     if args.blueprint:
         spatial_workspace.import_blueprint(args.blueprint.read_bytes(), activate=True)
@@ -415,10 +520,12 @@ def main() -> int:
         serve_lan(
             system, host=args.host, port=args.port, cert_path=args.cert, key_path=args.key,
             password=password, spatial_workspace=spatial_workspace,
+            historical_artifact_store=artifact_store,
         )
     finally:
         system.machine.save_state()
         spatial_store.close()
+        artifact_store.close()
     return 0
 
 
