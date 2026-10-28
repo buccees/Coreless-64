@@ -40,7 +40,7 @@ const worldEndMarker = "window.vigilGetWorldTerrainAt=function(x,y){return vigil
 const worldEnd = html.indexOf(worldEndMarker, worldStart);
 assert.ok(worldStart >= 0 && worldEnd > worldStart, "seeded spherical terrain generator must be embedded in the page");
 const worldScope = {};
-new Function("window", html.slice(worldStart, worldEnd + worldEndMarker.length))(worldScope);
+new Function("window", html.slice(helperStart, helperEnd + helperEndMarker.length) + html.slice(worldStart, worldEnd + worldEndMarker.length))(worldScope);
 const worldAt = worldScope.vigilGetWorldTerrainAt;
 const seamA = worldAt(0, 0.37);
 const seamB = worldAt(1, 0.37);
