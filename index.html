@@ -2492,6 +2492,11 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   var mode={value:'solo',addEventListener:function(){}};var status=document.getElementById('sim-turn-status');
   var sensor=document.getElementById('sim-sensor'),noise=document.getElementById('sim-noise');
   var enemyFleet=[],playerFleet={},shotsByPlayer={},aiShots={},activePlayer=1,shotCount=0,hitCount=0,observationCount=0,gameOver=false,sequence=0,aiHitCount=0,ownFleetView=false,placementMode=false,placementIndex=0,placementVertical=false,sweepCount=0,reconTracks=Object.create(null),lastObservationData=null,selectedReconTrackId=null,reconTruthById=Object.create(null),reconIdentityBySource=Object.create(null);
+  // The world map plots only reported observations, never hidden enemy truth.
+  window.vigilGetKnownWorldMapContacts=function(){
+    var objects=lastObservationData&&Array.isArray(lastObservationData.objects)?lastObservationData.objects:[];
+    return objects.filter(function(o){return o&&Array.isArray(o.normalized_position)&&o.normalized_position.length>=2&&Number.isFinite(Number(o.normalized_position[0]))&&Number.isFinite(Number(o.normalized_position[1]));}).map(function(o){return {id:String(o.object_id||'OBSERVED CONTACT'),x:Number(o.normalized_position[0]),y:Number(o.normalized_position[1]),uncertainty_m:Number(o.uncertainty_m)||null,observation_count:Number(o.observation_count)||1};});
+  };
   function key(r,c){return r+','+c;}
   function randomInt(n){return Math.floor(Math.random()*n);}
   function occupied(fleet,r,c){return fleet.some(function(v){return v.cells.some(function(p){return p[0]===r&&p[1]===c;});});}
