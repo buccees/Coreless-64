@@ -124,7 +124,7 @@ for (const required of [
   'var cellPoint=window.vigilNormalizePlanetPoint((ix+.5)/42,(iy+.5)/42)',
   'window.vigilGetWorldTerrainAt(sample.x,sample.y)',
   'SPHERICAL STITCHED ATLAS // WRAPPED LONGITUDE AND CONNECTED POLES',
-  "TARGET SPEED '+Number(speed).toFixed(3)",
+  "SPEED '+actualSpeed.toFixed(3)+' / CMD '+targetSpeed.toFixed(3)",
 ]) {
   assert.ok(html.includes(required), `missing first-person bathymetry contract: ${required}`);
 }
