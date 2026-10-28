@@ -5232,6 +5232,18 @@ function project(x,y,z,w,h){var ca=Math.cos(heading*Math.PI/180),sa=Math.sin(hea
 function draw(){if(!ctx||!view.classList.contains('open'))return;var w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;ctx.clearRect(0,0,w,h);var sky=ctx.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#03151c');sky.addColorStop(.55,'#07313a');sky.addColorStop(1,'#01090b');ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
 var rows=24,cols=36,step=22,points=[];for(var r=0;r<=rows;r++){points[r]=[];for(var c=0;c<=cols;c++){var x=(c-cols/2)*step,y=(r-rows/2)*step,z=heightAt(x,y);points[r][c]=project(x,y,z,w,h);}}
 for(var r2=0;r2<rows;r2++){for(var c2=0;c2<cols;c2++){var a=points[r2][c2],b=points[r2][c2+1],d=points[r2+1][c2],e=points[r2+1][c2+1];var avg=(heightAt((c2-cols/2)*step,(r2-rows/2)*step)+heightAt(((c2+1)-cols/2)*step,((r2+1)-rows/2)*step))/2;var dep=Math.max(0,Math.min(1,(avg-100)/400));var rr=Math.round(8+dep*34),gg=Math.round(85-dep*43),bb=Math.round(95-dep*48);ctx.fillStyle='rgb('+rr+','+gg+','+bb+')';ctx.strokeStyle='rgba(120,205,192,.18)';ctx.lineWidth=.6;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(e.x,e.y);ctx.lineTo(d.x,d.y);ctx.closePath();ctx.fill();ctx.stroke();}}
+/* Isobaths: trace equal-depth lines across the sampled terrain grid. */
+var contourLevels=[180,220,260,300,340,380,420,460,500];
+contourLevels.forEach(function(level,li){
+ ctx.beginPath();ctx.strokeStyle=li%2===0?'rgba(190,231,216,.72)':'rgba(126,198,183,.48)';ctx.lineWidth=li%2===0?1.15:.7;
+ for(var cr=0;cr<rows;cr++){for(var cc=0;cc<cols;cc++){
+  var vals=[heightAt((cc-cols/2)*step,(cr-rows/2)*step),heightAt(((cc+1)-cols/2)*step,(cr-rows/2)*step),heightAt(((cc+1)-cols/2)*step,((cr+1)-rows/2)*step),heightAt((cc-cols/2)*step,((cr+1)-rows/2)*step)];
+  var ps=[points[cr][cc],points[cr][cc+1],points[cr+1][cc+1],points[cr+1][cc]],hits=[];
+  for(var ed=0;ed<4;ed++){var en=(ed+1)%4,v1=vals[ed],v2=vals[en];if((v1<level&&v2>=level)||(v2<level&&v1>=level)){var t=(level-v1)/(v2-v1);hits.push({x:ps[ed].x+(ps[en].x-ps[ed].x)*t,y:ps[ed].y+(ps[en].y-ps[ed].y)*t});}}
+  for(var hp=0;hp+1<hits.length;hp+=2){ctx.moveTo(hits[hp].x,hits[hp].y);ctx.lineTo(hits[hp+1].x,hits[hp+1].y);}
+ }}
+ ctx.stroke();
+});
 ctx.strokeStyle='rgba(150,226,210,.18)';ctx.lineWidth=1;for(var gy=1;gy<5;gy++){ctx.beginPath();ctx.moveTo(0,h*gy/5);ctx.lineTo(w,h*gy/5);ctx.stroke();}
 ctx.strokeStyle='#b7f6d5';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(w/2,h*.43);ctx.lineTo(w/2,h*.49);ctx.moveTo(w/2-7,h*.46);ctx.lineTo(w/2+7,h*.46);ctx.stroke();
 ctx.fillStyle='#c5f7df';ctx.font='10px Courier New';ctx.fillText('BATHYMETRY // RELATIVE DEPTH MODEL',10,16);ctx.fillStyle='#8cc9b0';ctx.fillText('DEPTH CONTOURS: SIMULATED TERRAIN',10,30);
