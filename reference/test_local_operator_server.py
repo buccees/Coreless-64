@@ -572,9 +572,9 @@ def test_sinking_endpoint_drops_all_carried_artifacts_at_server_event_position(t
         page_path=page,
         system=CorelessSystem(storage_path=tmp_path / "owned-machine.img"),
         historical_artifact_store=store,
-        artifact_sinking_validator=lambda seed, unit_id, event_id: (
-            {"x": 0.413, "y": 0.627} if (seed, unit_id, event_id) ==
-            ("PELAGOS-01", "UUV-01", "sink-event-01") else None
+        artifact_sinking_validator=lambda crew_id, seed, unit_id, event_id: (
+            {"x": 0.413, "y": 0.627} if (crew_id, seed, unit_id, event_id) ==
+            ("local-operator-crew", "PELAGOS-01", "UUV-01", "sink-event-01") else None
         ),
     )
     response, _ = _request(
