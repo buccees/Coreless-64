@@ -107,7 +107,7 @@ jobs:
           # Place an explicit opt-in marker on the dedicated state partition.
           # The guest console uses it to save a deterministic virtual CPU/RAM
           # fixture on boot one and assert those exact values on boot two.
-          RECOVERY_LOOP="$(sudo losetup --find --show --partscan "$IMAGE")"
+          RECOVERY_LOOP=$(sudo losetup --find --show --partscan "$IMAGE")
           sudo partprobe "$RECOVERY_LOOP" 2>/dev/null || true
           for _ in $(seq 1 20); do [[ -b "${RECOVERY_LOOP}p3" ]] && break; sleep 0.25; done
           [[ -b "${RECOVERY_LOOP}p3" ]] || { echo "State partition device missing for recovery fixture" >&2; exit 1; }
