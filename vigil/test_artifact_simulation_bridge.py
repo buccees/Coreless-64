@@ -50,3 +50,52 @@ def test_bridge_rejects_unconfirmed_sink_without_dropping_artifact(tmp_path):
     assert all(item["status"] == "UNDISCOVERED" for item in artifacts.inventory("PELAGOS-01"))
     artifacts.close()
     sinks.close()
+
+def test_coreless_replay_sink_event_routes_through_trusted_bridge(tmp_path):
+    from vigil.provenance import EventProvenance
+    from vigil.simulation import ReplayEvent
+
+    catalog = build_artifact_catalog()
+    artifacts = HistoricalArtifactStore(catalog, tmp_path / "artifacts.sqlite3")
+    sinks = SinkingEventRegistry(tmp_path / "sinks.sqlite3")
+    bridge = ArtifactSimulationBridge(artifact_store=artifacts, sinking_registry=sinks)
+    artifact = catalog[0]
+    carrier = {"id": "UUV-REPLAY", "crewId": "crew-alpha", "unitType": "submersible",
+               "x": artifact["x"], "y": artifact["y"], "afloat": True,
+               "lockedArtifactContainer": {"locked": True, "artifactIds": []}}
+    artifacts.discover("PELAGOS-01", artifact["id"])
+    artifacts.collect("PELAGOS-01", artifact["id"], "UUV-REPLAY", carrier)
+    sink_x, sink_y = 0.61, 0.73
+    replay = ReplayEvent(
+        event_id="replay-sink-01",
+        timestamp_ns=1234,
+        kind="UNIT_SUNK",
+        payload={"status": "CONFIRMED", "unit_id": "UUV-REPLAY", "x": sink_x, "y": sink_y},
+        provenance=EventProvenance(
+            source_type="simulation", source_ids=("UUV-REPLAY",),
+            timestamp_ns=1234, confidence=0.99,
+        ),
+    )
+    dropped = bridge.on_replay_event(
+        "PELAGOS-01", replay,
+        {**carrier, "x": sink_x, "y": sink_y, "afloat": False},
+    )
+    assert dropped[0]["location"] == {"x": sink_x, "y": sink_y}
+    assert dropped[0]["status"] == "LOST"
+    artifacts.close()
+    sinks.close()
+
+
+def test_replay_sink_event_requires_simulation_provenance(tmp_path):
+    from vigil.simulation import ReplayEvent
+    artifacts = HistoricalArtifactStore(build_artifact_catalog(), tmp_path / "artifacts.sqlite3")
+    sinks = SinkingEventRegistry()
+    bridge = ArtifactSimulationBridge(artifact_store=artifacts, sinking_registry=sinks)
+    replay = ReplayEvent(
+        event_id="untrusted-sink", timestamp_ns=1, kind="UNIT_SUNK",
+        payload={"status": "CONFIRMED", "unit_id": "UUV-01", "x": 0.4, "y": 0.6},
+    )
+    with __import__("pytest").raises(ValueError, match="simulation provenance"):
+        bridge.on_replay_event("PELAGOS-01", replay, {})
+    artifacts.close()
+    sinks.close()
