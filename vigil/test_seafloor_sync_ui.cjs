@@ -60,7 +60,7 @@ for (const required of [
   'var rows=42,cols=56,points=[],cameraZ=heightAt(cameraX,cameraY)+46',
   'var water=ctx.createLinearGradient(0,0,0,h)',
   'UUV PILOT VIEW // PELAGOS-01',
-  'mouse-look heading and pitch',
+  'heading=(drag.heading+(e.clientX-drag.x)*.22+360)%360',
   'cameraX+=Math.sin(rad)*distance;cameraY+=Math.cos(rad)*distance;',
   'var ridgeAxis=y-.24*x-28, trenchAxis=y+.48*x-36, shelfAxis=y-.62*x+105',
   'broad basin, continental shelf, long ridge, and a narrow trench',
