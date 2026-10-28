@@ -567,15 +567,21 @@ def test_sinking_endpoint_drops_all_carried_artifacts_at_server_event_position(t
     page = tmp_path / "operator-display.html"
     page.write_text("artifact display", encoding="utf-8")
     store = HistoricalArtifactStore(catalog, tmp_path / "artifacts.sqlite3")
+    from vigil.sinking_event_registry import SinkingEventRegistry
+    sinking_registry = SinkingEventRegistry(tmp_path / "sinking.sqlite3")
+    sinking_registry.record_from_simulation(
+        "PELAGOS-01",
+        {"kind": "UNIT_SUNK", "status": "CONFIRMED", "event_id": "sink-event-01",
+         "unit_id": "UUV-01", "x": 0.413, "y": 0.627},
+        {"id": "UUV-01", "crewId": "local-operator-crew", "unitType": "submersible",
+         "afloat": False, "x": 0.413, "y": 0.627},
+    )
     app = create_lan_app(
         password="a-strong-test-password-123",
         page_path=page,
         system=CorelessSystem(storage_path=tmp_path / "owned-machine.img"),
         historical_artifact_store=store,
-        artifact_sinking_validator=lambda crew_id, seed, unit_id, event_id: (
-            {"x": 0.413, "y": 0.627} if (crew_id, seed, unit_id, event_id) ==
-            ("local-operator-crew", "PELAGOS-01", "UUV-01", "sink-event-01") else None
-        ),
+        artifact_sinking_registry=sinking_registry,
     )
     response, _ = _request(
         app, "/api/operator/login", method="POST",
@@ -608,6 +614,7 @@ def test_sinking_endpoint_drops_all_carried_artifacts_at_server_event_position(t
     assert all(store.inventory("PELAGOS-01")[i]["location"] == {"x": 0.413, "y": 0.627}
                for i in range(2))
     store.close()
+    sinking_registry.close()
 
 
 def test_operator_crew_identity_is_stable_across_login_sessions(monkeypatch):
