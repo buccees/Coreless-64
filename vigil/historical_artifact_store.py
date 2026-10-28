@@ -164,16 +164,17 @@ class HistoricalArtifactStore:
             self._db.execute("BEGIN IMMEDIATE")
             try:
                 row = self._ensure(seed, item)
-                self._db.execute(
-                    """UPDATE historical_artifacts SET discovered=1,revision=revision+1,
-                       updated_at=CURRENT_TIMESTAMP WHERE world_seed=? AND artifact_id=? AND discovered=0""",
-                    (seed, item["id"]),
-                )
-                row = self._db.execute(
-                    "SELECT * FROM historical_artifacts WHERE world_seed=? AND artifact_id=?",
-                    (seed, item["id"]),
-                ).fetchone()
-                if row["revision"]:
+                newly_discovered = not bool(row["discovered"])
+                if newly_discovered:
+                    self._db.execute(
+                        """UPDATE historical_artifacts SET discovered=1,revision=revision+1,
+                           updated_at=CURRENT_TIMESTAMP WHERE world_seed=? AND artifact_id=?""",
+                        (seed, item["id"]),
+                    )
+                    row = self._db.execute(
+                        "SELECT * FROM historical_artifacts WHERE world_seed=? AND artifact_id=?",
+                        (seed, item["id"]),
+                    ).fetchone()
                     self._event(seed, item["id"], "DISCOVER", "", "", row["x"], row["y"], row["revision"])
                 self._db.execute("COMMIT")
                 return self._view(row)
