@@ -78,6 +78,36 @@ class VigilEnvironment:
         self.authorization = AuthorizationService()
         self.ai = CorelessVigilAI(ai_registry)
         self.replay = ReplayLog()
+        self._artifact_recovery_consumer = None
+        self._artifact_recovery_unsubscribe = None
+
+    def configure_artifact_recovery(self, *, world_seed: str, bridge, resolve_unit_state):
+        """Attach persistent artifact recovery to this environment's live replay log.
+
+        The caller must supply the server-owned artifact bridge and a resolver
+        for authoritative unit state. This method never accepts browser state.
+        Calling it twice replaces the previous subscription.
+        """
+        from .artifact_replay_consumer import ArtifactReplayConsumer
+
+        self.disable_artifact_recovery()
+        consumer = ArtifactReplayConsumer(
+            world_seed=world_seed,
+            bridge=bridge,
+            resolve_unit_state=resolve_unit_state,
+        )
+        unsubscribe = consumer.attach(self.replay)
+        self._artifact_recovery_consumer = consumer
+        self._artifact_recovery_unsubscribe = unsubscribe
+        return consumer
+
+    def disable_artifact_recovery(self) -> None:
+        """Detach artifact recovery without changing the artifact ledger."""
+        unsubscribe = self._artifact_recovery_unsubscribe
+        self._artifact_recovery_unsubscribe = None
+        self._artifact_recovery_consumer = None
+        if unsubscribe is not None:
+            unsubscribe()
 
     def enable(self) -> None:
         self.enabled = True
