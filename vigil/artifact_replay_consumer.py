@@ -1,0 +1,42 @@
+"""ReplayLog consumer that routes trusted sinking events to the artifact bridge."""
+from __future__ import annotations
+
+from typing import Any, Callable
+
+from .artifact_simulation_bridge import ArtifactSimulationBridge
+from .simulation import ReplayEvent
+
+
+class ArtifactReplayConsumer:
+    """Adapt ReplayLog.replay_into() to authoritative unit-state lookups.
+
+    The resolver must read current server-owned simulation state, not a browser
+    payload. Non-sinking events are ignored; invalid sink events fail closed.
+    """
+
+    def __init__(self, *, world_seed: str, bridge: ArtifactSimulationBridge, resolve_unit_state: Callable[[str], Any]):
+        if not isinstance(world_seed, str) or not world_seed.strip():
+            raise ValueError("world_seed must be a non-empty string")
+        if not isinstance(bridge, ArtifactSimulationBridge):
+            raise TypeError("bridge must be an ArtifactSimulationBridge")
+        if not callable(resolve_unit_state):
+            raise TypeError("resolve_unit_state must be callable")
+        self.world_seed = world_seed.strip()
+        self.bridge = bridge
+        self.resolve_unit_state = resolve_unit_state
+
+    def __call__(self, event: ReplayEvent) -> list[dict[str, Any]] | None:
+        if not isinstance(event, ReplayEvent):
+            raise TypeError("consumer accepts Coreless ReplayEvent instances only")
+        if event.kind != "UNIT_SUNK":
+            return None
+        from collections.abc import Mapping
+        if not isinstance(event.payload, Mapping):
+            raise ValueError("sinking replay payload must be a mapping")
+        unit_id = event.payload.get("unit_id")
+        if not isinstance(unit_id, str) or not unit_id.strip():
+            raise ValueError("sinking replay event requires unit_id")
+        authoritative_state = self.resolve_unit_state(unit_id)
+        if authoritative_state is None:
+            raise ValueError("authoritative sunk-unit state is unavailable")
+        return self.bridge.on_replay_event(self.world_seed, event, authoritative_state)
