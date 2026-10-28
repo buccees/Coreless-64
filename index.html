@@ -3083,7 +3083,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   ];
   // Handling rates are game-tuning values, not claims about real-world classified performance.
   regionalTrainingFleet.forEach(function(ship){
-    var handling={destroyer:{turn:7,accel:.006},submarine:{turn:3.5,accel:.0025},carrier:{turn:2.2,accel:.0018},drone:{turn:24,accel:.012},submersible:{turn:5,accel:.003},mech:{turn:18,accel:.008},facility:{turn:0,accel:0}}[ship.unitType||ship.shipClass]||{turn:5,accel:.003};
+    var handling={destroyer:{turn:7,accel:.006},submarine:{turn:3.5,accel:.0025},carrier:{turn:2.2,accel:.0018},drone:{turn:24,accel:.012},submersible:{turn:5,accel:.012},mech:{turn:18,accel:.008},facility:{turn:0,accel:0}}[ship.unitType||ship.shipClass]||{turn:5,accel:.003};
     ship.maxTurnRateDegPerSec=handling.turn;ship.accelerationPerSec=handling.accel;
     ship.desiredHeading=((Number(ship.heading)||0)%360+360)%360;ship.targetSpeed=Number(ship.speed)||0;
     ship.stationKeepingEnabled=!!ship.parentId&&ship.stationKeepingEnabled!==false;
