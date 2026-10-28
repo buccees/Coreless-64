@@ -6,6 +6,7 @@ on:
       - vigil-spatial-awareness
     paths:
       - "index.html"
+      - "assets/wallpapers/**"
       - "operator-display.html"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
@@ -33,7 +34,9 @@ jobs:
           mkdir -p site
           cp index.html site/index.html
           cp operator-display.html site/operator-display.html
+          if [ -d assets ]; then cp -R assets site/assets; fi
           test -s site/index.html
+          test -s site/assets/wallpapers/vigil-deepwater-command.svg
           test -s site/operator-display.html
 
       - name: Configure Pages
