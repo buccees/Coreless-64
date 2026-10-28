@@ -53,7 +53,13 @@ class ArtifactSimulationBridge:
             raise ValueError("removed unit ID must match authoritative state")
         if authoritative_unit_state.get("unitType") != "submersible":
             raise ValueError("only submersible carrier removal is supported")
-        if event.get("crew_id") != authoritative_unit_state.get("crewId"):
+        event_crew_id = event.get("crew_id")
+        state_crew_id = authoritative_unit_state.get("crewId")
+        if not isinstance(event_crew_id, str) or not event_crew_id.strip():
+            raise ValueError("carrier-removal event requires an authoritative crew ID")
+        if not isinstance(state_crew_id, str) or not state_crew_id.strip():
+            raise ValueError("removed submersible state requires an authoritative crew ID")
+        if event_crew_id != state_crew_id:
             raise ValueError("removal event crew must match authoritative unit")
         try:
             x, y = float(event.get("x")), float(event.get("y"))
