@@ -109,3 +109,47 @@ console.log('browser decommission lifecycle regression checks passed');
 
 def test_browser_local_decommission_drops_carried_artifacts_once_at_last_position():
     _run_decommissioning_snippet()
+
+
+def test_local_combat_sinking_invokes_artifact_preserving_decommission():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required for browser lifecycle JavaScript tests")
+    html = INDEX.read_text(encoding="utf-8")
+    start_marker = "  var regionalEncounterHistory=[];"
+    end_marker = "  function syncRegionalSpeedInput(snapshot)"
+    start = html.find(start_marker)
+    end = html.find(end_marker, start)
+    assert start >= 0 and end > start, "production encounter listener must remain discoverable"
+    snippet = html[start:end]
+    harness = r"""
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const listeners = {};
+const regionalTrainingFleet = [
+  {id:'UUV-SUNK', unitType:'submersible', x:0.3, y:0.7, afloat:true}
+];
+const calls = [];
+const window = {
+  addEventListener(name, callback) { (listeners[name] ||= []).push(callback); },
+  vigilDecommissionRegionalUnit(id) { calls.push(id); return {ok:true}; }
+};
+const document = {getElementById() { return null; }};
+const context = {window, document, regionalTrainingFleet};
+vm.runInNewContext(require('node:fs').readFileSync(0, 'utf8'), context);
+for (const callback of listeners['vigil:regional-encounter'] || []) {
+  callback({detail:{sunk:true, source:'local-simulation', target_id:'UUV-SUNK'}});
+}
+assert.deepEqual(calls, ['UUV-SUNK'], 'local sinking must enter the decommission/drop lifecycle');
+for (const callback of listeners['vigil:regional-encounter'] || []) {
+  callback({detail:{sunk:true, source:'authoritative-backend', target_id:'UUV-SUNK'}});
+}
+assert.deepEqual(calls, ['UUV-SUNK'], 'browser must not decommission server-owned units from combat notifications');
+console.log('local combat sinking lifecycle integration passed');
+"""
+    completed = subprocess.run(
+        [node, "-e", harness], input=snippet, text=True,
+        capture_output=True, cwd=ROOT, check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert "local combat sinking lifecycle integration passed" in completed.stdout
