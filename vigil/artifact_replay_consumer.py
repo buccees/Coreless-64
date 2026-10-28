@@ -58,3 +58,32 @@ class ArtifactReplayConsumer:
         payload["kind"] = "UNIT_REMOVED"
         payload["event_id"] = event.event_id
         return self.bridge.on_carrier_removed(self.world_seed, payload, authoritative_state)
+
+    def reconcile_recorded_events(self, replay_log) -> dict[str, Any]:
+        """Retry artifact recovery for already-recorded lifecycle events.
+
+        ReplayLog is append-only, so a listener failure never erases the event.
+        Re-running the ledger transition is safe: artifacts already dropped are
+        no longer carried and therefore cannot be duplicated by a retry.
+        """
+        from .simulation import ReplayLog
+
+        if not isinstance(replay_log, ReplayLog):
+            raise TypeError("replay_log must be a Coreless ReplayLog")
+        processed = 0
+        ignored = 0
+        recovered = 0
+        failures = []
+        for event in replay_log.events:
+            if event.kind not in ("UNIT_SUNK", "UNIT_REMOVED"):
+                ignored += 1
+                continue
+            try:
+                result = self(event)
+                processed += 1
+                recovered += len(result or ())
+            except Exception as exc:
+                failures.append({"event_id": event.event_id, "kind": event.kind,
+                                 "error": str(exc)})
+        return {"processed": processed, "ignored": ignored,
+                "recovered": recovered, "failures": failures}
