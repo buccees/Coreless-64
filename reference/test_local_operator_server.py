@@ -559,6 +559,57 @@ def test_historical_artifact_discovery_uses_verified_survey_and_authoritative_un
 
 
 
+def test_sinking_endpoint_drops_all_carried_artifacts_at_server_event_position(tmp_path):
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+
+    catalog = build_artifact_catalog()
+    page = tmp_path / "operator-display.html"
+    page.write_text("artifact display", encoding="utf-8")
+    store = HistoricalArtifactStore(catalog, tmp_path / "artifacts.sqlite3")
+    app = create_lan_app(
+        password="a-strong-test-password-123",
+        page_path=page,
+        system=CorelessSystem(storage_path=tmp_path / "owned-machine.img"),
+        historical_artifact_store=store,
+        artifact_sinking_validator=lambda seed, unit_id, event_id: (
+            {"x": 0.413, "y": 0.627} if (seed, unit_id, event_id) ==
+            ("PELAGOS-01", "UUV-01", "sink-event-01") else None
+        ),
+    )
+    response, _ = _request(
+        app, "/api/operator/login", method="POST",
+        body=json.dumps({"password": "a-strong-test-password-123"}).encode(),
+        origin="https://127.0.0.1:8443",
+    )
+    token = response["headers"]["Set-Cookie"].split(";", 1)[0]
+    for artifact in catalog[:2]:
+        store.discover("PELAGOS-01", artifact["id"])
+        store.collect(
+            "PELAGOS-01", artifact["id"], "UUV-01",
+            {"id": "UUV-01", "unitType": "submersible", "x": artifact["x"],
+             "y": artifact["y"], "afloat": True,
+             "lockedArtifactContainer": {"locked": True, "artifactIds": []}},
+        )
+
+    response, body = _request(
+        app, "/api/vigil/historical-artifacts", method="POST", cookie=token,
+        origin="https://127.0.0.1:8443",
+        body=json.dumps({"world_seed": "PELAGOS-01", "action": "drop_all_on_sinking",
+                         "unit_id": "UUV-01", "sinking_event_id": "sink-event-01",
+                         "x": 0.999, "y": 0.001}).encode(),
+    )
+    assert response["status"] == "200 OK"
+    dropped = json.loads(body)["artifacts"]
+    assert len(dropped) == 2
+    assert all(item["status"] == "LOST" for item in dropped)
+    assert all(item["location"] == {"x": 0.413, "y": 0.627} for item in dropped)
+    assert all(item["carrierId"] == "" for item in dropped)
+    assert all(store.inventory("PELAGOS-01")[i]["location"] == {"x": 0.413, "y": 0.627}
+               for i in range(2))
+    store.close()
+
+
 def test_operator_crew_identity_is_stable_across_login_sessions(monkeypatch):
     from local_operator_server import LocalSessions
 
