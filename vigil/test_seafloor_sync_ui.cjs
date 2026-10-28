@@ -52,20 +52,21 @@ for (const required of [
 ]) {
   assert.ok(html.includes(required), `missing simulation-bay unit-control marker: ${required}`);
 }
-// Bathymetry regression checks: require a continuous, geomorphologically legible seabed,
-// not a high-frequency cloud surface or a mostly top-down wireframe.
+// Bathymetry / first-person pilot-view regression checks. These validate the actual view contract
+// without launching a browser or adding Playwright to the routine workflow.
 for (const required of [
-  'tilt=-.68',
-  'positive seabed relief must still rise on screen',
-  'var yy=ry*Math.cos(tilt)+relief*.72*Math.sin(tilt),zz=ry*Math.sin(tilt)+relief*.18+330',
+  'cameraX=0,cameraY=0,lookPitch=0',
+  'function worldToView(x,y,w,h,cameraZ)',
+  'var rows=42,cols=56,points=[],cameraZ=heightAt(cameraX,cameraY)+46',
+  'var water=ctx.createLinearGradient(0,0,0,h)',
+  'UUV PILOT VIEW // PELAGOS-01',
+  'mouse-look heading and pitch',
+  'cameraX+=Math.sin(rad)*distance;cameraY+=Math.cos(rad)*distance;',
   'var ridgeAxis=y-.24*x-28, trenchAxis=y+.48*x-36, shelfAxis=y-.62*x+105',
   'broad basin, continental shelf, long ridge, and a narrow trench',
-  'relief=z-285',
-  'var rows=32,cols=48,step=18,points=[]',
-  "ctx.strokeStyle='rgba(159,203,202,.07)'",
   'var contourLevels=[180,220,260,300,340,380,420,460,500]',
   'FICTIONAL WORLD // REAL BATHYMETRY RUINS ONLY AT SPAWN',
 ]) {
-  assert.ok(html.includes(required), `missing recognizable bathymetry contract: ${required}`);
+  assert.ok(html.includes(required), `missing first-person bathymetry contract: ${required}`);
 }
 console.log(`Validated syntax for ${parsed} inline JavaScript block(s), seafloor terrain and reconciliation, and simulation-bay unit controls.`);
