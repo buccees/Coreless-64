@@ -3740,6 +3740,31 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     });
   });
 
+  // Local training decommissioning is an explicit lifecycle transition. It preserves
+  // the last valid position and routes every carried artifact through the same
+  // permanent-drop path used by confirmed sinking events.
+  window.vigilDecommissionRegionalUnit=function(unitId){
+    if(regionalWorldSnapshotActive)return {ok:false,reason:'AUTHORITATIVE SERVER MUST CONFIRM UNIT REMOVAL'};
+    var unit=typeof regionalTrainingFleet!=='undefined'&&regionalTrainingFleet.find(function(item){return item&&String(item.id)===String(unitId);});
+    if(!unit)return {ok:false,reason:'UNKNOWN UNIT'};
+    if(unit.afloat===false)return {ok:false,reason:'UNIT ALREADY INACTIVE'};
+    var x=Number(unit.x),y=Number(unit.y);
+    if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>1||y<0||y>1)return {ok:false,reason:'LAST VALID UNIT POSITION REQUIRED'};
+    unit.afloat=false;unit.speed=0;unit.targetSpeed=0;unit.navigationTargetSpeed=0;
+    var detail={source:'local-training',unit_id:String(unit.id),removed:true,removal_x:x,removal_y:y,occurred_at:new Date().toISOString()};
+    window.dispatchEvent(new CustomEvent('vigil:regional-unit-removed',{detail:detail}));
+    window.dispatchEvent(new CustomEvent('vigil:regional-snapshot-updated',{detail:{source:'local-training',unit_id:String(unit.id),afloat:false}}));
+    return {ok:true,unit_id:String(unit.id),position:{x:x,y:y},artifacts_reconciled:true};
+  };
+  window.addEventListener('vigil:regional-unit-removed',function(event){
+    var e=event&&event.detail;if(!e||e.source!=='local-training'||e.removed!==true||!e.unit_id)return;
+    var x=Number(e.removal_x),y=Number(e.removal_y),unitId=String(e.unit_id);
+    if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>1||y<0||y>1)return;
+    window.vigilGetHistoricalEvidenceInventory().forEach(function(item){
+      if(item.status==='CARRIED'&&item.carrierId===unitId)window.vigilLoseHistoricalEvidence(item.id,unitId,x,y);
+    });
+  });
+
   window.vigilGetStableWorldEntity=function(ix,iy){ix=Math.floor(Number(ix));iy=Math.floor(Number(iy));/* Fixed, named locations adapted from Daggerfall's main quest; these are fictional Pelagos-01 sites, not Earth coordinates. */var questSites=[{x:21,y:21,id:'PEL-DAGGERFALL-01',name:'Daggerfall',kind:'DAGGERFALL SEAFLOOR VILLAGE',scale:1.8,description:'The permanent seafloor village of Daggerfall, built across drowned ridges. Survey its structures and chart the settlement.'},{x:22,y:20,id:'PEL-CASTLE-DAGGERFALL',name:'Castle Daggerfall',scale:1.55,description:'The drowned royal castle where the Lysandus investigation, the Totem decision, and several court intrigues converge.'},{x:5,y:7,id:'PEL-PRIVATEERS-HOLD',name:"Privateer's Hold",scale:1.35,description:'A collapsed sea-cave stronghold and wreck approach; the opening expedition begins here.'},{x:14,y:8,id:'PEL-CASTLE-WAYREST',name:'Castle Wayrest',scale:1.5,description:'A drowned royal citadel with sealed chambers, political records, and evidence tied to the Iliac succession.'},{x:33,y:12,id:'PEL-CASTLE-SENTINEL',name:'Castle Sentinel',scale:1.5,description:'A fortified reef-city ruin guarding an old shipping channel and records of a missing prince.'},{x:24,y:31,id:'PEL-SHEDUNGENT',name:'Shedungent',scale:1.3,description:'A remote mountain-root complex beneath the seabed, associated with Nulfaga and the Lysandus mystery.'},{x:8,y:28,id:'PEL-ORSINIUM',name:'Orsinium',scale:1.5,description:'A fortified undersea enclave with recovered correspondence, rare texts, and a contested political claim.'},{x:30,y:29,id:'PEL-DIRENNI-TOWER',name:'Direnni Tower',scale:1.35,description:'A towering submerged structure sealed by an ancient curse and a pressure-locked inner gate.'},{x:18,y:15,id:'PEL-LYSANDUS-TOMB',name:"Lysandus' Tomb",scale:1.4,description:'A burial complex beneath a fractured shelf, central to the investigation into the restless king.'},{x:12,y:34,id:'PEL-CASTLE-WOODBORNE',name:'Castle Woodborne',scale:1.4,description:'A fortified wreck-site holding evidence that can expose the truth behind Lysandus’ murder.'},{x:27,y:5,id:'PEL-SCOURG-BARROW',name:'Scourg Barrow',scale:1.35,description:'A sprawling barrow and necromantic archive with branching passages and a concealed relic chamber.'},{x:35,y:23,id:'PEL-MANTELLA-REVEALED',name:'The Mantella Vault',scale:1.4,description:'A deep containment site linked to the lost Mantella and the ancient machine.'},{x:7,y:18,id:'PEL-UNDERKING-WATCH',name:'The Ancient Watcher',scale:1.2,description:'A silent observation station associated with the Underking’s agents and a conflict with necromancers.'},{x:17,y:37,id:'PEL-TOTEM-VAULT',name:'Totem Vault',scale:1.4,description:'A heavily defended royal vault containing the key to a campaign-defining choice of allegiance.'},{x:37,y:7,id:'PEL-MANTELLAN-CRUX',name:'Mantellan Crux Anomaly',scale:1.6,description:'A remote abyssal anomaly represented as a deep-sea rift; its far side is a campaign-only extraplanar destination.'},{x:3,y:24,id:'PEL-NUMIDIUM-SITE',name:'Numidium Foundry',scale:1.6,description:'A colossal machine-site buried in the ocean floor, whose activation could reshape the balance of power.'}];for(var qi=0;qi<questSites.length;qi++){var site=questSites[qi];if(ix===site.x&&iy===site.y)var evidenceIds=vigilHistoricalEvidence.filter(function(record){return record.siteId===site.id;}).map(function(record){return record.id;});return {id:site.id,name:site.name,kind:site.id==='PEL-DAGGERFALL-01'?'DAGGERFALL SEAFLOOR VILLAGE':'MAIN QUEST SITE',x:(ix+.5)/42,y:(iy+.5)/42,scale:site.scale,seed:VIGIL_WORLD_SEED,description:site.description,questLocation:true,evidenceIds:evidenceIds};}var roll=vigilWorldHash(ix,iy,31);if(roll>.11)return null;var kinds=['VENT FIELD','BOULDER FIELD','SIMULATED WRECK SITE','SEAMOUNT','CABLE RELAY RUIN'];var k=Math.floor(vigilWorldHash(ix,iy,37)*kinds.length);return {id:'PEL-'+ix+'-'+iy+'-'+k,kind:kinds[k],x:(ix+.18+vigilWorldHash(ix,iy,41)*.64)/42,y:(iy+.18+vigilWorldHash(ix,iy,43)*.64)/42,scale:.55+vigilWorldHash(ix,iy,47)*.9,seed:VIGIL_WORLD_SEED};};
   function renderBathymetry(data){
     var canvas=document.getElementById('sim-bathymetry-map');if(!canvas)return;
