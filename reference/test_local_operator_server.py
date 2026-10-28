@@ -394,6 +394,7 @@ def test_historical_artifact_inventory_is_persistent_and_session_protected(tmp_p
         page_path=page,
         system=CorelessSystem(storage_path=tmp_path / "owned-machine.img"),
         historical_artifact_store=store,
+        artifact_unit_action_authorizer=lambda crew_id, unit_id, action: True,
     )
 
     response, body = _request(app, "/api/vigil/historical-artifacts?world_seed=PELAGOS-01")
