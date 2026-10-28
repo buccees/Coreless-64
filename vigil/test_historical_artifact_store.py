@@ -34,6 +34,13 @@ class HistoricalArtifactStoreTests(unittest.TestCase):
         self.assertEqual(len(again), 2)
         self.assertEqual(len(other_world), 2)
         self.assertTrue(all(x["unique"] and not x["respawnable"] for x in first))
+        self.assertTrue(all(x["indestructible"] and x["permanentExistence"] and x["recoverableAfterLoss"] for x in first))
+        contract = self.store.contract()
+        self.assertTrue(contract["indestructible"])
+        self.assertTrue(contract["permanentExistence"])
+        self.assertTrue(contract["recoverableAfterLoss"])
+        self.assertNotIn("destroy", contract["operations"])
+        self.assertNotIn("delete", contract["operations"])
         self.assertEqual(first[0]["status"], "AT_SITE")
         self.assertFalse(first[0]["discovered"])
 
