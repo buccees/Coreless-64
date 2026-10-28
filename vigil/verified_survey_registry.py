@@ -130,6 +130,51 @@ class VerifiedSurveyRegistry:
             evidence={"unit_x": x, "unit_y": y},
         )
 
+    def record_observation_from_simulation(
+        self,
+        *,
+        crew_id: str,
+        world_seed: str,
+        artifact_id: str,
+        observation,
+        unit_state: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Bridge a trusted VIGIL sensor observation into artifact verification.
+
+        This accepts only a Coreless Observation with healthy sensor state,
+        adequate confidence, and provenance. The caller must be trusted internal
+        simulation code and must pass the authoritative unit state; never call
+        this from an HTTP/client-report handler.
+        """
+        from .model import Observation, SensorState
+
+        if not isinstance(observation, Observation):
+            raise ValueError("observation must be a Coreless Observation")
+        if observation.sensor_state is not SensorState.HEALTHY:
+            raise ValueError("artifact survey observation requires a healthy sensor")
+        if observation.confidence < 0.8:
+            raise ValueError("artifact survey observation confidence is too low")
+        provenance = observation.provenance
+        if provenance is None or provenance.source_id != observation.source_id:
+            raise ValueError("artifact survey observation requires matching provenance")
+        payload = observation.payload
+        survey_event = {
+            "survey_id": payload.get("survey_id"),
+            "world_seed": payload.get("world_seed"),
+            "artifact_id": payload.get("artifact_id"),
+            "site_id": payload.get("site_id"),
+            "unit_id": payload.get("unit_id"),
+            "status": payload.get("status"),
+            "sensor_status": payload.get("sensor_status"),
+        }
+        return self.record_from_simulation(
+            crew_id=crew_id,
+            world_seed=world_seed,
+            artifact_id=artifact_id,
+            survey_event=survey_event,
+            unit_state=unit_state,
+        )
+
     def record_confirmed_survey(
         self,
         *,
