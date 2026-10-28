@@ -5574,7 +5574,7 @@ function draw(){
  var artifactRecords=window.vigilGetHistoricalEvidenceInventory?window.vigilGetHistoricalEvidenceInventory():[];
  artifactRecords.forEach(function(item){
   if(!item.discovered||(item.status!=='AT_SITE'&&item.status!=='LOST'))return;
-  var ax=(Number(item.location.x)-.5)*792,ay=(Number(item.location.y)-.5)*792,ap=worldToView(ax,ay,w,h,cameraZ);
+  var artifactPoint=window.vigilNormalizePlanetPoint(item.location.x,item.location.y),pilotPoint=pilotWorldPoint||{x:.5,y:.5},relative=window.vigilGetPlanetRangeBearing(pilotPoint.x,pilotPoint.y,artifactPoint.x,artifactPoint.y),ax=cameraX+relative.east*1500,ay=cameraY-relative.north*1500,ap=worldToView(ax,ay,w,h,cameraZ);
   if(!ap||ap.x<-30||ap.x>w+30||ap.y<-30||ap.y>h+30||ap.z>760)return;
   ctx.save();ctx.strokeStyle=item.status==='LOST'?'#ffb36b':'#b8f7e0';ctx.fillStyle=item.status==='LOST'?'rgba(255,179,107,.18)':'rgba(184,247,224,.16)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(ap.x,ap.y,7,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle=item.status==='LOST'?'#ffd0a0':'#d8fff0';ctx.font='10px Courier New';ctx.fillText(item.status==='LOST'?'LOST // '+item.title:'ARTIFACT // '+item.title,ap.x+10,ap.y-8);ctx.restore();
  });
