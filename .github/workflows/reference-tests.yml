@@ -42,3 +42,5 @@ jobs:
         run: node vigil/test_spatial_review_logic.cjs
       - name: Validate VIGIL seafloor sync UI JavaScript
         run: node vigil/test_seafloor_sync_ui.cjs
+      - name: Validate VIGIL spherical water-world topology
+        run: node vigil/test_planetary_topology.cjs
