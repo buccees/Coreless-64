@@ -410,3 +410,30 @@ def test_authoritative_fleet_lifecycle_subscription_routes_removed_submersible_t
     environment.disable_artifact_recovery()
     store.close()
     sinks.close()
+
+
+
+def test_carrier_removal_rejects_missing_authoritative_crew_identity(tmp_path):
+    import pytest
+    from vigil.artifact_simulation_bridge import ArtifactSimulationBridge
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+    from vigil.sinking_event_registry import SinkingEventRegistry
+
+    catalog = build_artifact_catalog()
+    store = HistoricalArtifactStore(catalog, tmp_path / "missing-crew.sqlite3")
+    sinks = SinkingEventRegistry(tmp_path / "missing-crew-sinks.sqlite3")
+    bridge = ArtifactSimulationBridge(artifact_store=store, sinking_registry=sinks)
+    event = {
+        "kind": "UNIT_REMOVED", "status": "CONFIRMED",
+        "event_id": "remove-missing-crew", "unit_id": "UUV-NO-CREW",
+        "crew_id": None, "x": 0.4, "y": 0.6,
+    }
+    state = {
+        "id": "UUV-NO-CREW", "unitType": "submersible",
+        "crewId": None, "x": 0.4, "y": 0.6,
+    }
+    with pytest.raises(ValueError, match="authoritative crew ID"):
+        bridge.on_carrier_removed("PELAGOS-01", event, state)
+    store.close()
+    sinks.close()
