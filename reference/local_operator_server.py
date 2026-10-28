@@ -382,7 +382,7 @@ def create_lan_app(
                 if not all(isinstance(v, str) and v.strip() for v in (seed, action, artifact_id)):
                     raise ValueError("world_seed, action, and artifact_id are required strings")
                 # Crew identity comes only from the authenticated server session.
-                crew_id = context.session_id
+                crew_id = context.crew_id or context.session_id
                 if action == "discover":
                     if not callable(artifact_discovery_authorizer) or artifact_discovery_authorizer(crew_id, seed, artifact_id) is not True:
                         return _json(start_response, "403 Forbidden", {"error": "discovery_not_authorized"})
