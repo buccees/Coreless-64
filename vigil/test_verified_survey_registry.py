@@ -70,6 +70,66 @@ class VerifiedSurveyRegistryTests(unittest.TestCase):
         self.assertEqual(evidence["status"], "CONFIRMED")
         self.assertEqual(evidence["sensor_status"], "accepted")
 
+    def simulation_inputs(self, **event_overrides):
+        from vigil.historical_artifact_catalog import build_artifact_catalog
+        artifact = build_artifact_catalog()[0]
+        event = {
+            "world_seed": "PELAGOS-01",
+            "artifact_id": artifact["id"],
+            "site_id": artifact["siteId"],
+            "survey_id": "sim-survey-001",
+            "unit_id": "UUV-01",
+            "status": "CONFIRMED",
+            "sensor_status": "accepted",
+        }
+        event.update(event_overrides)
+        unit = {
+            "id": "UUV-01", "crewId": "crew-alpha",
+            "unitType": "submersible", "afloat": True,
+            "x": artifact["x"], "y": artifact["y"],
+        }
+        return artifact, event, unit
+
+    def test_simulation_ingestion_validates_canonical_site_and_authoritative_unit(self):
+        artifact, event, unit = self.simulation_inputs()
+        record = self.registry.record_from_simulation(
+            crew_id="crew-alpha", world_seed="PELAGOS-01",
+            artifact_id=artifact["id"], survey_event=event, unit_state=unit,
+        )
+        self.assertEqual(record["site_id"], artifact["siteId"])
+        self.assertEqual(record["unit_id"], "UUV-01")
+        self.assertEqual(
+            self.registry.resolve_verified_survey(
+                "crew-alpha", "PELAGOS-01", artifact["id"]
+            )["survey_id"],
+            "sim-survey-001",
+        )
+
+    def test_simulation_ingestion_rejects_mismatched_or_untrusted_events(self):
+        cases = [
+            ({"site_id": "FAKE-SITE"}, {}),
+            ({"status": "SONAR INDICATION"}, {}),
+            ({"sensor_status": "context"}, {}),
+            ({"unit_id": "CLIENT-UNIT"}, {}),
+            ({}, {"crewId": "crew-bravo"}),
+            ({}, {"unitType": "surface-ship"}),
+            ({}, {"afloat": False}),
+            ({}, {"x": 0.99, "y": 0.99}),
+            ({}, {"x": float("nan")}),
+        ]
+        for event_changes, unit_changes in cases:
+            artifact, event, unit = self.simulation_inputs(**event_changes)
+            unit.update(unit_changes)
+            with self.subTest(event_changes=event_changes, unit_changes=unit_changes):
+                with self.assertRaises(ValueError):
+                    self.registry.record_from_simulation(
+                        crew_id="crew-alpha", world_seed="PELAGOS-01",
+                        artifact_id=artifact["id"], survey_event=event, unit_state=unit,
+                    )
+                self.assertIsNone(self.registry.resolve_verified_survey(
+                    "crew-alpha", "PELAGOS-01", artifact["id"]
+                ))
+
     def test_optional_evidence_cannot_override_authoritative_fields(self):
         record = self.record(evidence={
             "unit_id": "CLIENT-FAKE",
