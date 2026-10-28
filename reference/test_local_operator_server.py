@@ -13,8 +13,12 @@ def _app(password, page, tmp_path):
 
 
 def _request(app, path="/", method="GET", body=b"", cookie=None, origin=None):
+    from urllib.parse import urlsplit
+
+    parsed_path = urlsplit(path)
     environ = {
-        "PATH_INFO": path,
+        "PATH_INFO": parsed_path.path or "/",
+        "QUERY_STRING": parsed_path.query,
         "REQUEST_METHOD": method,
         "CONTENT_LENGTH": str(len(body)),
         "wsgi.input": io.BytesIO(body),
