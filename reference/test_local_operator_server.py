@@ -414,7 +414,9 @@ def test_historical_artifact_inventory_is_persistent_and_session_protected(tmp_p
     payload = json.loads(body)
     assert payload["count"] == 6
     assert all(item["unique"] and not item["respawnable"] for item in payload["artifacts"])
-    assert payload["artifacts"][0]["location"] == {"x": 5.5 / 42, "y": 7.5 / 42}
+    assert payload["artifacts"][0]["location"] is None
+    assert payload["artifacts"][0]["sourceSiteId"] is None
+    assert payload["artifacts"][0]["discovered"] is False
 
     response, body = _request(
         app, "/api/vigil/historical-artifacts", method="POST", cookie=token,
