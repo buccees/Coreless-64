@@ -128,6 +128,7 @@ def create_lan_app(
     artifact_unit_action_authorizer=None,
     artifact_custody_authorizer=None,
     artifact_discovery_authorizer=None,
+    artifact_verified_survey_resolver=None,
     artifact_sinking_validator=None,
 ):
     if not isinstance(password, str) or len(password) < 16:
@@ -161,6 +162,14 @@ def create_lan_app(
     from vigil.historical_artifact_store import HistoricalArtifactStore
     if not isinstance(historical_artifact_store, HistoricalArtifactStore):
         raise TypeError("historical_artifact_store must be a HistoricalArtifactStore")
+    # Only a server-owned survey resolver can unlock discovery. Client-submitted
+    # campaign reports remain indications and are deliberately not used here.
+    if artifact_discovery_authorizer is None and callable(artifact_verified_survey_resolver):
+        from vigil.historical_artifact_authority import make_artifact_discovery_authorizer
+        artifact_discovery_authorizer = make_artifact_discovery_authorizer(
+            resolve_unit=artifact_unit_resolver,
+            resolve_verified_survey=artifact_verified_survey_resolver,
+        )
     sessions = LocalSessions()
     telemetry = create_coreless_operator_app(
         system,
