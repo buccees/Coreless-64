@@ -437,3 +437,52 @@ def test_carrier_removal_rejects_missing_authoritative_crew_identity(tmp_path):
         bridge.on_carrier_removed("PELAGOS-01", event, state)
     store.close()
     sinks.close()
+
+
+
+def test_authoritative_fleet_publisher_drives_persistent_artifact_recovery_after_removal(tmp_path):
+    from vigil.authoritative_fleet_lifecycle import AuthoritativeFleetLifecycle
+    from vigil.artifact_simulation_bridge import ArtifactSimulationBridge
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+    from vigil.sinking_event_registry import SinkingEventRegistry
+
+    catalog = build_artifact_catalog()
+    store = HistoricalArtifactStore(catalog, tmp_path / "authoritative-publisher.sqlite3")
+    sinks = SinkingEventRegistry(tmp_path / "authoritative-publisher-sinks.sqlite3")
+    bridge = ArtifactSimulationBridge(artifact_store=store, sinking_registry=sinks)
+    artifact = catalog[0]
+    state = {
+        "id": "UUV-PUBLISHER", "crewId": "crew-alpha", "unitType": "submersible",
+        "x": artifact["x"], "y": artifact["y"], "afloat": True,
+        "lockedArtifactContainer": {"locked": True, "artifactIds": []},
+    }
+    store.discover("PELAGOS-01", artifact["id"])
+    store.collect("PELAGOS-01", artifact["id"], state["id"], state)
+
+    environment = VigilEnvironment(enabled=True)
+    environment.configure_artifact_recovery(
+        world_seed="PELAGOS-01", bridge=bridge, resolve_unit_state=lambda unit_id: None,
+    )
+    live = {state["id"]: state}
+    publisher = AuthoritativeFleetLifecycle(lambda unit_id: live.get(unit_id))
+    environment.connect_authoritative_unit_lifecycle(
+        publisher, resolve_unit_state=lambda unit_id: live.get(unit_id),
+    )
+
+    final_state = dict(live.pop(state["id"]))
+    final_state.update(x=0.83, y=0.26)
+    publisher.confirm_removed(
+        event_id="server-remove-artifact-carrier", timestamp_ns=1200,
+        unit_id=state["id"], final_unit_state=final_state,
+    )
+
+    item = next(row for row in store.inventory("PELAGOS-01") if row["id"] == artifact["id"])
+    assert item["status"] == "LOST"
+    assert item["location"] == {"x": 0.83, "y": 0.26}
+    assert environment.replay.events[-1].kind == "UNIT_REMOVED"
+
+    environment.disconnect_authoritative_unit_lifecycle()
+    environment.disable_artifact_recovery()
+    store.close()
+    sinks.close()
