@@ -57,7 +57,7 @@ for (const required of [
 for (const required of [
   'cameraX=0,cameraY=0,lookPitch=0',
   'function worldToView(x,y,w,h,cameraZ)',
-  'var rows=42,cols=56,points=[],cameraZ=heightAt(cameraX,cameraY)+46',
+  'var rows=42,cols=56,points=[],cameraZ=heightAt(cameraX,cameraY)+Math.max(8,46+(120-depth)*.15)',
   'var water=ctx.createLinearGradient(0,0,0,h)',
   'UUV PILOT VIEW // PELAGOS-01',
   'heading=(drag.heading+(e.clientX-drag.x)*.22+360)%360',
@@ -83,6 +83,10 @@ for (const required of [
   'window.vigilGetKnownWorldMapContacts=function()',
   'The world map plots only reported observations, never hidden enemy truth.',
   'var increment=Math.max(.001,max*.1)',
+  'Math.min(w,h)*.92*zoom',
+  "say('ZOOM IN // '+Math.round(zoom*100)+'%')",
+  'VIEW RESET // VEHICLE POSITION AND COURSE RETAINED',
+  'z-index:10;pointer-events:auto',
   "TARGET SPEED '+Number(speed).toFixed(3)",
 ]) {
   assert.ok(html.includes(required), `missing first-person bathymetry contract: ${required}`);
