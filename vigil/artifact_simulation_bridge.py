@@ -34,3 +34,24 @@ class ArtifactSimulationBridge:
             world_seed, record["unit_id"], sinking_x=record["x"], sinking_y=record["y"],
             sink_event_authorized=True,
         )
+
+    def on_replay_event(self, world_seed: str, replay_event: Any, authoritative_unit_state: Any) -> list[dict[str, Any]]:
+        """Consume a provenance-bearing Coreless ReplayEvent from trusted simulation code."""
+        from collections.abc import Mapping
+        from .simulation import ReplayEvent
+
+        if not isinstance(replay_event, ReplayEvent):
+            raise TypeError("replay_event must be a Coreless ReplayEvent")
+        if replay_event.kind != "UNIT_SUNK":
+            raise ValueError("replay event must be UNIT_SUNK")
+        provenance = replay_event.provenance
+        if provenance is None or provenance.source_type != "simulation":
+            raise ValueError("sinking replay event requires simulation provenance")
+        if provenance.confidence is not None and provenance.confidence < 0.8:
+            raise ValueError("sinking replay event confidence is too low")
+        if not isinstance(replay_event.payload, Mapping):
+            raise ValueError("sinking replay payload must be a mapping")
+        event = dict(replay_event.payload)
+        event["kind"] = "UNIT_SUNK"
+        event["event_id"] = replay_event.event_id
+        return self.on_unit_sunk(world_seed, event, authoritative_unit_state)
