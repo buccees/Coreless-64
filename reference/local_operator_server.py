@@ -379,8 +379,10 @@ def create_lan_app(
                 if not isinstance(payload, dict):
                     raise ValueError("request body must be a JSON object")
                 seed, action, artifact_id = payload.get("world_seed"), payload.get("action"), payload.get("artifact_id")
-                if not all(isinstance(v, str) and v.strip() for v in (seed, action, artifact_id)):
-                    raise ValueError("world_seed, action, and artifact_id are required strings")
+                if not isinstance(seed, str) or not seed.strip() or not isinstance(action, str) or not action.strip():
+                    raise ValueError("world_seed and action are required strings")
+                if action != "drop_all_on_sinking" and (not isinstance(artifact_id, str) or not artifact_id.strip()):
+                    raise ValueError("artifact_id is required for this action")
                 # Crew identity comes only from the authenticated server session.
                 crew_id = context.crew_id or context.session_id
                 if action == "discover":
@@ -410,7 +412,7 @@ def create_lan_app(
                     if source is None or target is None:
                         return _json(start_response, "503 Service Unavailable", {"error": "authoritative_unit_state_unavailable"})
                     result = historical_artifact_store.transfer(seed, artifact_id, source_id, target_id, source, target, capture=(action == "capture"))
-                elif action == "drop_on_sinking":
+                elif action in ("drop_on_sinking", "drop_all_on_sinking"):
                     unit_id, event_id = payload.get("unit_id"), payload.get("sinking_event_id")
                     if not isinstance(unit_id, str) or not isinstance(event_id, str):
                         raise ValueError("unit_id and sinking_event_id are required")
@@ -419,15 +421,27 @@ def create_lan_app(
                     event = artifact_sinking_validator(seed, unit_id, event_id)
                     if not isinstance(event, dict):
                         return _json(start_response, "403 Forbidden", {"error": "sinking_event_not_authorized"})
-                    result = historical_artifact_store.drop_on_sinking(seed, artifact_id, unit_id,
-                        last_known_x=event.get("x"), last_known_y=event.get("y"), sink_event_authorized=True)
+                    # Use the authoritative position at the actual sinking event;
+                    # client coordinates and stale tracks are ignored.
+                    if action == "drop_all_on_sinking":
+                        result = historical_artifact_store.drop_all_on_sinking(
+                            seed, unit_id, sinking_x=event.get("x"), sinking_y=event.get("y"),
+                            sink_event_authorized=True,
+                        )
+                    else:
+                        result = historical_artifact_store.drop_on_sinking(seed, artifact_id, unit_id,
+                            last_known_x=event.get("x"), last_known_y=event.get("y"), sink_event_authorized=True)
                 else:
                     return _json(start_response, "400 Bad Request", {"error": "unsupported_action"})
             except (ValueError, TypeError, UnicodeDecodeError, json.JSONDecodeError) as exc:
                 return _json(start_response, "409 Conflict", {"error": "action_rejected", "detail": str(exc)})
             except Exception:
                 return _json(start_response, "503 Service Unavailable", {"error": "historical_artifact_action_unavailable"})
-            return _json(start_response, "200 OK", {"ok": True, "artifact": result})
+            return _json(start_response, "200 OK", (
+                {"ok": True, "artifacts": result}
+                if action == "drop_all_on_sinking"
+                else {"ok": True, "artifact": result}
+            ))
 
         if path == "/api/vigil/spatial":
             if method != "GET":
