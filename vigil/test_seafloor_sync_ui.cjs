@@ -93,6 +93,8 @@ for (const required of [
   'var nextPlanetPoint=window.vigilAdvancePlanetPoint(ship.x,ship.y,ship.heading,ship.speed*dt)',
   'var separation=window.vigilGetPlanetRangeBearing(own.x,own.y,other.x,other.y)',
   'var geometry=window.vigilGetPlanetRangeBearing(shooter.x,shooter.y,target.x,target.y)',
+  'var distance=Number(fireState.range_normalized)',
+  'var cellPoint=window.vigilNormalizePlanetPoint((ix+.5)/42,(iy+.5)/42)',
   'window.vigilGetWorldTerrainAt(sample.x,sample.y)',
   'SPHERICAL STITCHED ATLAS // WRAPPED LONGITUDE AND CONNECTED POLES',
   "TARGET SPEED '+Number(speed).toFixed(3)",
