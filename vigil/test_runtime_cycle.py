@@ -75,3 +75,51 @@ def test_camera_cycle_records_complete_derived_pipeline_in_replay():
         "vigil.attention",
         "vigil.presentation",
     )
+
+
+def test_environment_live_replay_drops_artifact_at_authoritative_sink_position(tmp_path):
+    from vigil.artifact_simulation_bridge import ArtifactSimulationBridge
+    from vigil.historical_artifact_catalog import build_artifact_catalog
+    from vigil.historical_artifact_store import HistoricalArtifactStore
+    from vigil.provenance import EventProvenance
+    from vigil.simulation import ReplayEvent
+    from vigil.sinking_event_registry import SinkingEventRegistry
+
+    catalog = build_artifact_catalog()
+    store = HistoricalArtifactStore(catalog, tmp_path / "artifacts.sqlite3")
+    sinks = SinkingEventRegistry(tmp_path / "sinks.sqlite3")
+    bridge = ArtifactSimulationBridge(artifact_store=store, sinking_registry=sinks)
+    artifact = catalog[0]
+    carrier = {
+        "id": "UUV-RUNTIME", "crewId": "crew-alpha", "unitType": "submersible",
+        "x": artifact["x"], "y": artifact["y"], "afloat": True,
+        "lockedArtifactContainer": {"locked": True, "artifactIds": []},
+    }
+    store.discover("PELAGOS-01", artifact["id"])
+    store.collect("PELAGOS-01", artifact["id"], "UUV-RUNTIME", carrier)
+    sink_x, sink_y = 0.418, 0.629
+    authoritative_state = {**carrier, "x": sink_x, "y": sink_y, "afloat": False}
+
+    environment = VigilEnvironment(enabled=True)
+    environment.configure_artifact_recovery(
+        world_seed="PELAGOS-01",
+        bridge=bridge,
+        resolve_unit_state=lambda unit_id: authoritative_state if unit_id == "UUV-RUNTIME" else None,
+    )
+    environment.replay.append(ReplayEvent(
+        event_id="runtime-sink-01",
+        timestamp_ns=500,
+        kind="UNIT_SUNK",
+        payload={"status": "CONFIRMED", "unit_id": "UUV-RUNTIME", "x": sink_x, "y": sink_y},
+        provenance=EventProvenance(
+            source_type="simulation", source_ids=("UUV-RUNTIME",),
+            timestamp_ns=500, confidence=0.99,
+        ),
+    ))
+    item = next(row for row in store.inventory("PELAGOS-01") if row["id"] == artifact["id"])
+    assert item["status"] == "LOST"
+    assert item["location"] == {"x": sink_x, "y": sink_y}
+
+    environment.disable_artifact_recovery()
+    store.close()
+    sinks.close()
