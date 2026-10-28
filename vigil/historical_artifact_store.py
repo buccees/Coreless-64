@@ -319,6 +319,49 @@ class HistoricalArtifactStore:
                 self._db.execute("ROLLBACK")
                 raise
 
+    def reconcile_carrier_removal(
+        self,
+        world_seed: str,
+        carrier_id: str,
+        *,
+        recovery_x: float,
+        recovery_y: float,
+        removal_event_authorized: bool,
+    ) -> list[dict[str, Any]]:
+        """Make every artifact recoverable when its carrier leaves service.
+
+        The caller must provide coordinates from a validated authoritative
+        removal/decommissioning event or the last authoritative position. Client
+        supplied coordinates are never sufficient. Artifacts are placed at that
+        fixed world location, not deleted or respawned.
+        """
+        seed = self._seed(world_seed)
+        uid = _text(carrier_id, "carrier id", MAX_UNIT_ID_LENGTH)
+        if removal_event_authorized is not True:
+            raise ValueError("carrier reconciliation requires an authorized server event")
+        x, y = _position({"x": recovery_x, "y": recovery_y})
+        with self._lock:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                rows = self._db.execute(
+                    """SELECT artifact_id FROM historical_artifacts
+                       WHERE world_seed=? AND status='CARRIED' AND carrier_id=?
+                       ORDER BY artifact_id""",
+                    (seed, uid),
+                ).fetchall()
+                results = []
+                for held in rows:
+                    item = self._artifact(held["artifact_id"])
+                    results.append(self._mutate(
+                        seed, item, action="CARRIER_REMOVAL_DROP", status="LOST",
+                        carrier="", x=x, y=y, actor=uid,
+                    ))
+                self._db.execute("COMMIT")
+                return results
+            except Exception:
+                self._db.execute("ROLLBACK")
+                raise
+
     def transfer(self, world_seed: str, artifact_id: str, from_unit_id: str, to_unit_id: str,
                  authoritative_from: dict[str, Any], authoritative_to: dict[str, Any],
                  *, capture: bool = False) -> dict[str, Any]:
@@ -367,7 +410,7 @@ class HistoricalArtifactStore:
     def contract(self) -> dict[str, Any]:
         return {"schema": SCHEMA, "version": SCHEMA_VERSION,
                 "custodyAuthority": "server", "uniqueKey": ["world_seed", "artifact_id"],
-                "operations": ["inventory", "discover", "collect", "lose", "drop_on_sinking", "transfer", "capture", "events"],
+                "operations": ["inventory", "discover", "collect", "lose", "drop_on_sinking", "reconcile_carrier_removal", "transfer", "capture", "events"],
                 "clientCoordinatesTrusted": False, "respawnable": False,
                 "indestructible": True, "permanentExistence": True,
                 "recoverableAfterLoss": True}
