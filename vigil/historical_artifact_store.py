@@ -275,6 +275,48 @@ class HistoricalArtifactStore:
                 self._db.execute("ROLLBACK")
                 raise
 
+    def drop_all_on_sinking(
+        self,
+        world_seed: str,
+        carrier_id: str,
+        *,
+        sinking_x: float,
+        sinking_y: float,
+        sink_event_authorized: bool,
+    ) -> list[dict[str, Any]]:
+        """Atomically place every carried artifact at the confirmed sinking position.
+
+        Coordinates must come from a validated authoritative sinking event, never
+        from the browser or a stale last-seen position. All held artifacts share
+        the event location, and the entire drop succeeds or rolls back.
+        """
+        seed = self._seed(world_seed)
+        uid = _text(carrier_id, "carrier id", MAX_UNIT_ID_LENGTH)
+        if sink_event_authorized is not True:
+            raise ValueError("artifact drop requires a server-confirmed sinking event")
+        x, y = _position({"x": sinking_x, "y": sinking_y})
+        with self._lock:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                rows = self._db.execute(
+                    """SELECT artifact_id FROM historical_artifacts
+                       WHERE world_seed=? AND status='CARRIED' AND carrier_id=?
+                       ORDER BY artifact_id""",
+                    (seed, uid),
+                ).fetchall()
+                results = []
+                for held in rows:
+                    item = self._artifact(held["artifact_id"])
+                    results.append(self._mutate(
+                        seed, item, action="SINK_DROP", status="LOST", carrier="",
+                        x=x, y=y, actor=uid,
+                    ))
+                self._db.execute("COMMIT")
+                return results
+            except Exception:
+                self._db.execute("ROLLBACK")
+                raise
+
     def transfer(self, world_seed: str, artifact_id: str, from_unit_id: str, to_unit_id: str,
                  authoritative_from: dict[str, Any], authoritative_to: dict[str, Any],
                  *, capture: bool = False) -> dict[str, Any]:
