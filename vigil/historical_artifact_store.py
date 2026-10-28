@@ -144,6 +144,8 @@ class HistoricalArtifactStore:
             "location": {"x": row["x"], "y": row["y"]} if discovered else None,
             "carrierId": row["carrier_id"], "revision": row["revision"],
             "unique": True, "respawnable": False,
+            "indestructible": True, "permanentExistence": True,
+            "recoverableAfterLoss": True,
         }
 
     def inventory(self, world_seed: str) -> list[dict[str, Any]]:
@@ -366,4 +368,6 @@ class HistoricalArtifactStore:
         return {"schema": SCHEMA, "version": SCHEMA_VERSION,
                 "custodyAuthority": "server", "uniqueKey": ["world_seed", "artifact_id"],
                 "operations": ["inventory", "discover", "collect", "lose", "drop_on_sinking", "transfer", "capture", "events"],
-                "clientCoordinatesTrusted": False, "respawnable": False}
+                "clientCoordinatesTrusted": False, "respawnable": False,
+                "indestructible": True, "permanentExistence": True,
+                "recoverableAfterLoss": True}
