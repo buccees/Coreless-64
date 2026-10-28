@@ -3672,7 +3672,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   function getVigilEvidenceRecord(id){return vigilHistoricalEvidence.find(function(record){return record.id===id;})||null;}
   function getVigilArtifactState(id){var record=getVigilEvidenceRecord(String(id));if(!record)return null;if(!vigilEvidenceState.records[record.id])vigilEvidenceState.records[record.id]=makeVigilArtifactState(record);return vigilEvidenceState.records[record.id];}
   function getVigilArtifactUnit(unitId){var fleet=typeof regionalTrainingFleet!=='undefined'?regionalTrainingFleet:[];return fleet.find(function(unit){return unit&&String(unit.id)===String(unitId)&&unit.unitType==='submersible'&&unit.afloat!==false;})||null;}
-  function ensureVigilLockedContainer(unit){if(!unit||unit.unitType!=='submersible')return null;if(!unit.lockedArtifactContainer)unit.lockedArtifactContainer={locked:true,artifactIds:[]};if(!Array.isArray(unit.lockedArtifactContainer.artifactIds))unit.lockedArtifactContainer.artifactIds=[];return unit.lockedArtifactContainer;}
+  function ensureVigilLockedContainer(unit){if(!unit||unit.unitType!=='submersible'||!unit.lockedArtifactContainer)return null;if(!Array.isArray(unit.lockedArtifactContainer.artifactIds))unit.lockedArtifactContainer.artifactIds=[];return unit.lockedArtifactContainer;}
   function removeVigilArtifactFromCarrier(id,carrierId){var unit=getVigilArtifactUnit(carrierId);var container=unit&&ensureVigilLockedContainer(unit);if(container)container.artifactIds=container.artifactIds.filter(function(itemId){return itemId!==id;});}
   function publishVigilArtifactUpdate(id,state){saveVigilEvidenceState();window.dispatchEvent(new CustomEvent('vigil:historical-evidence-updated',{detail:{id:id,status:state.status,carrierId:state.carrierId||'',location:state.location}}));}
   loadVigilArtifactState();
@@ -3683,8 +3683,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     var state=getVigilArtifactState(record.id);if(!state.discovered)return {ok:false,reason:'NOT DISCOVERED — SURVEY ITS RECOVERY SITE FIRST'};
     if(state.status==='CARRIED')return {ok:false,reason:'THIS UNIQUE ARTIFACT IS ALREADY IN CUSTODY: '+state.carrierId};
     var unit=getVigilArtifactUnit(unitId||'UUV-01');if(!unit)return {ok:false,reason:'ACQUISITION REQUIRES AN ACTIVE UNCREWED SUBMERSIBLE'};
-    var container=ensureVigilLockedContainer(unit);if(!container||container.locked!==true)return {ok:false,reason:'ARTIFACTS MAY ONLY BE STORED IN A LOCKED SUBMERSIBLE CONTAINER'};
-    if(state.status==='AT_SITE'&&state.location.x!==vigilEvidenceSitePosition(record).x)return {ok:false,reason:'ARTIFACT LOCATION INVALID'};
+    var container=ensureVigilLockedContainer(unit);if(!container||container.locked!==true)return {ok:false,reason:'ARTIFACTS MAY ONLY BE STORED IN A PRECONFIGURED LOCKED SUBMERSIBLE CONTAINER'};
+    var ux=Number(unit.x),uy=Number(unit.y);if(!Number.isFinite(ux)||!Number.isFinite(uy)||Math.hypot(ux-state.location.x,uy-state.location.y)>.035)return {ok:false,reason:'SUBMERSIBLE MUST REACH THE ARTIFACT’S CURRENT COORDINATES BEFORE RECOVERY'};
     if(container.artifactIds.indexOf(record.id)>=0)return {ok:false,reason:'CONTAINER ALREADY REFERENCES THIS ARTIFACT'};
     container.artifactIds.push(record.id);state.status='CARRIED';state.carrierId=String(unit.id);state.acquiredAt=new Date().toISOString();state.lostAt='';publishVigilArtifactUpdate(record.id,state);
     return {ok:true,status:state.status,carrierId:state.carrierId,record:window.vigilGetHistoricalEvidenceInventory().find(function(item){return item.id===record.id;})};
