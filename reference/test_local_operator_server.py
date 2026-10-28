@@ -421,6 +421,15 @@ def test_historical_artifact_inventory_is_persistent_and_session_protected(tmp_p
     response, body = _request(
         app, "/api/vigil/historical-artifacts", method="POST", cookie=token,
         origin="https://127.0.0.1:8443",
+        body=json.dumps({"world_seed": "PELAGOS-01", "action": "discover",
+                         "artifact_id": "PEL-ARCHIVE-EXPEDITION-HANDBOOK"}).encode(),
+    )
+    assert response["status"] == "403 Forbidden"
+    assert json.loads(body)["error"] == "discovery_not_authorized"
+
+    response, body = _request(
+        app, "/api/vigil/historical-artifacts", method="POST", cookie=token,
+        origin="https://127.0.0.1:8443",
         body=json.dumps({"world_seed": "PELAGOS-01", "action": "collect",
                          "artifact_id": "PEL-ARCHIVE-EXPEDITION-HANDBOOK",
                          "unit_id": "UUV-01"}).encode(),
