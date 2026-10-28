@@ -523,16 +523,15 @@ def test_historical_artifact_discovery_uses_verified_survey_and_authoritative_un
     def resolve_unit(unit_id):
         if unit_id != "UUV-01":
             return None
-        return {"id": "UUV-01", "crewId": active_crew[0], "unitType": "submersible",
+        return {"id": "UUV-01", "crewId": "local-operator-crew", "unitType": "submersible",
                 "afloat": True, "x": artifact["x"], "y": artifact["y"]}
 
     def resolve_survey(crew_id, seed, artifact_id):
+        if crew_id != "local-operator-crew":
+            return None
         if (seed, artifact_id) != ("PELAGOS-01", artifact["id"]):
             return None
-        active_crew[0] = crew_id
         return verified
-
-    active_crew = [""]
     app = create_lan_app(
         password="a-strong-test-password-123",
         page_path=page,
