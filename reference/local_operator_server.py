@@ -270,10 +270,11 @@ def create_lan_app(
                              {"error": "method_not_allowed"}, [("Allow", "GET, POST")])
             if context is None:
                 return _json(start_response, "401 Unauthorized", {"error": "unauthorized"})
-            origin = environ.get("HTTP_ORIGIN")
-            expected_origin = "https://" + environ.get("HTTP_HOST", "")
-            if not origin or origin != expected_origin:
-                return _json(start_response, "403 Forbidden", {"error": "origin_not_allowed"})
+            if method == "POST":
+                origin = environ.get("HTTP_ORIGIN")
+                expected_origin = "https://" + environ.get("HTTP_HOST", "")
+                if not origin or origin != expected_origin:
+                    return _json(start_response, "403 Forbidden", {"error": "origin_not_allowed"})
             if method == "GET":
                 query = parse_qs(environ.get("QUERY_STRING", ""), strict_parsing=False)
                 world_seed = query.get("world_seed", [""])[0]
