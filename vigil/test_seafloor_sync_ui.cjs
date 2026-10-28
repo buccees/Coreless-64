@@ -84,9 +84,9 @@ for (const required of [
   'id="v3-map-regional"',
   'function drawWorldMap()',
   'window.vigilGetKnownWorldMapContacts=function()',
-  'observed-only contacts to local and regional map',
+  'The world map plots only reported observations, never hidden enemy truth.',
   'var increment=Math.max(.001,max*.1)',
-  'TARGET SPEED '+speed.toFixed(3)',
+  "TARGET SPEED '+speed.toFixed(3)",
 ]) {
   assert.ok(html.includes(required), `missing first-person bathymetry contract: ${required}`);
 }
