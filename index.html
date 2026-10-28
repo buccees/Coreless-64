@@ -3152,6 +3152,47 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       station_keeping_enabled:unit.stationKeepingEnabled===true};
   };
 
+  // PELAGOS-01 is a stitched spherical surface. Longitude wraps at the chart seam;
+  // crossing either pole reflects latitude and advances longitude by half a world.
+  function normalizeVigilPlanetPoint(x,y){
+    x=Number(x);y=Number(y);
+    if(!Number.isFinite(x))x=.5;if(!Number.isFinite(y))y=.5;
+    for(var guard=0;guard<1000&&(y<0||y>1);guard++){
+      if(y<0)y=-y;else y=2-y;
+      x+=.5;
+    }
+    return {x:((x%1)+1)%1,y:Math.max(0,Math.min(1,y))};
+  }
+  function vigilPlanetVector(x,y){
+    var p=normalizeVigilPlanetPoint(x,y),lon=(p.x-.5)*Math.PI*2,lat=(.5-p.y)*Math.PI,cl=Math.cos(lat);
+    return {x:cl*Math.sin(lon),y:Math.sin(lat),z:cl*Math.cos(lon),lon:lon,lat:lat,point:p};
+  }
+  function vigilPlanetRangeBearing(x1,y1,x2,y2){
+    var a=normalizeVigilPlanetPoint(x1,y1),b=normalizeVigilPlanetPoint(x2,y2);
+    var lat1=(.5-a.y)*Math.PI,lat2=(.5-b.y)*Math.PI;
+    var lon1=(a.x-.5)*Math.PI*2,lon2=(b.x-.5)*Math.PI*2;
+    var dlon=Math.atan2(Math.sin(lon2-lon1),Math.cos(lon2-lon1));
+    var sdlat=Math.sin((lat2-lat1)/2),sdlon=Math.sin(dlon/2);
+    var hav=Math.max(0,Math.min(1,sdlat*sdlat+Math.cos(lat1)*Math.cos(lat2)*sdlon*sdlon));
+    var angle=2*Math.asin(Math.sqrt(hav));
+    var bearing=Math.atan2(Math.sin(dlon)*Math.cos(lat2),Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(dlon));
+    var bearingDeg=((bearing*180/Math.PI)%360+360)%360,normalizedDistance=angle/Math.PI,bearingRad=bearingDeg*Math.PI/180;
+    return {distance:normalizedDistance,angle_rad:angle,bearing_deg:bearingDeg,east:Math.sin(bearingRad)*normalizedDistance,north:Math.cos(bearingRad)*normalizedDistance};
+  }
+  function vigilAdvancePlanetPoint(x,y,headingDeg,distance){
+    var v=vigilPlanetVector(x,y),h=(Number(headingDeg)||0)*Math.PI/180,d=Math.PI*Math.max(0,Number(distance)||0);
+    var north={x:-Math.sin(v.lat)*Math.sin(v.lon),y:Math.cos(v.lat),z:-Math.sin(v.lat)*Math.cos(v.lon)};
+    var east={x:Math.cos(v.lon),y:0,z:-Math.sin(v.lon)};
+    var tx=north.x*Math.cos(h)+east.x*Math.sin(h),ty=north.y*Math.cos(h)+east.y*Math.sin(h),tz=north.z*Math.cos(h)+east.z*Math.sin(h);
+    var nx=v.x*Math.cos(d)+tx*Math.sin(d),ny=v.y*Math.cos(d)+ty*Math.sin(d),nz=v.z*Math.cos(d)+tz*Math.sin(d);
+    var length=Math.hypot(nx,ny,nz)||1;nx/=length;ny/=length;nz/=length;
+    var lat=Math.asin(Math.max(-1,Math.min(1,ny))),lon=Math.atan2(nx,nz);
+    return normalizeVigilPlanetPoint(lon/(Math.PI*2)+.5,.5-lat/Math.PI);
+  }
+  window.vigilNormalizePlanetPoint=normalizeVigilPlanetPoint;
+  window.vigilGetPlanetRangeBearing=vigilPlanetRangeBearing;
+  window.vigilAdvancePlanetPoint=vigilAdvancePlanetPoint;
+
   window.vigilGetFireControlState=function(shipId,targetId,weaponSystem){
     weaponSystem=weaponSystem||'main_battery';
     var shooter=regionalTrainingFleet.find(function(s){return s.id===shipId&&s.side==='friendly'&&s.afloat!==false;});
@@ -3159,7 +3200,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     // Defense in depth: reject any target whose identity is present on the friendly roster.
     if(target&&regionalTrainingFleet.some(function(s){return s.id===target.id&&s.side==='friendly'&&s.afloat!==false;}))target=null;
     if(!shooter||!target)return{ok:false,reason:'Select a controlled vessel and an authorized visible contact.'};
-    var dx=target.x-shooter.x,dy=target.y-shooter.y,distance=Math.hypot(dx,dy);
+    var geometry=window.vigilGetPlanetRangeBearing(shooter.x,shooter.y,target.x,target.y),distance=geometry.distance;
     var profiles={main_battery:{range:shooter.weaponRange||.23,damage:shooter.weaponDamage||2,reload:shooter.weaponReloadSeconds||8,label:'MAIN BATTERY'},torpedo:{range:Math.max(shooter.weaponRange||.23,.42),damage:4,reload:14,label:'TORPEDO'},missile:{range:Math.max(shooter.weaponRange||.23,.65),damage:3,reload:18,label:'MISSILE'}};
     var allowedSystems=Array.isArray(shooter.weaponSystems)?shooter.weaponSystems:(shooter.shipClass==='submarine'?['torpedo','missile']:['main_battery','torpedo','missile']);
     if(allowedSystems.indexOf(weaponSystem)<0)return{ok:false,reason:'Selected vessel is not fitted for '+weaponSystem+'. Select a compatible weapon station.'};
@@ -3167,7 +3208,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     var rangeFraction=Math.min(1,distance/Math.max(.001,profile.range));
     var baseAccuracy=weaponSystem==='missile'?.9:weaponSystem==='torpedo'?.76:.84;
     var solutionQuality=Math.max(.2,Math.min(.97,baseAccuracy-rangeFraction*.22-Math.min(.18,Number(target.speed||0)*2)));
-    var bearing=(Math.atan2(dx,-dy)*180/Math.PI+360)%360;
+    var bearing=geometry.bearing_deg;
     var relative=((bearing-shooter.heading+540)%360)-180;
     return{ok:true,ship_id:shipId,target_id:targetId,bearing_deg:bearing,relative_bearing_deg:relative,
       range_normalized:distance,max_range:profile.range,within_range:distance<=profile.range,weapon_system:weaponSystem,weapon_label:profile.label,weapon_damage:profile.damage,weapon_reload_seconds:profile.reload,solution_quality:solutionQuality,
@@ -3548,9 +3589,10 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       if(ship.side==='friendly'&&ship.stationKeepingEnabled===true&&parent&&parent.side==='friendly'&&parent.afloat){
         var parentHeading=(parent.heading%360+360)%360,parentRad=parentHeading*Math.PI/180;
         var forward=Number(ship.stationOffsetForward)||0,starboard=Number(ship.stationOffsetStarboard)||0;
-        var stationX=parent.x+Math.sin(parentRad)*forward+Math.cos(parentRad)*starboard;
-        var stationY=parent.y-Math.cos(parentRad)*forward+Math.sin(parentRad)*starboard;
-        var errorX=stationX-Number(ship.x),errorY=stationY-Number(ship.y),stationDistance=Math.hypot(errorX,errorY);
+        var stationOffset=Math.hypot(forward,starboard),stationBearing=parentHeading+Math.atan2(starboard,forward)*180/Math.PI;
+        var stationPoint=window.vigilAdvancePlanetPoint(parent.x,parent.y,stationBearing,stationOffset);
+        var stationError=window.vigilGetPlanetRangeBearing(ship.x,ship.y,stationPoint.x,stationPoint.y);
+        var errorX=stationError.east,errorY=-stationError.north,stationDistance=stationError.distance;
         var parentVx=Math.sin(parentRad)*parent.speed,parentVy=-Math.cos(parentRad)*parent.speed;
         var gain=Math.max(.1,Math.min(2.5,Number(ship.stationKeepingGain)||.8));
         // Feed forward the parent's motion and correct toward the assigned relative station.
@@ -3574,7 +3616,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       if(own&&plannedSpeed>.0005){
         frameShips.forEach(function(other,j){
           if(j===index||!other.afloat)return;
-          var dx=other.x-own.x,dy=other.y-own.y,dist=Math.hypot(dx,dy);
+          var separation=window.vigilGetPlanetRangeBearing(own.x,own.y,other.x,other.y);
+          var dx=separation.east,dy=-separation.north,dist=separation.distance;
           if(!Number.isFinite(dist)||dist<.00001||dist>.085)return;
           var otherRad=other.heading*Math.PI/180;
           var otherVx=Math.sin(otherRad)*other.speed,otherVy=-Math.cos(otherRad)*other.speed;
@@ -3587,8 +3630,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
           var converging=(plannedX-otherVx)*dx+(plannedY-otherVy)*dy>0;
           if(!immediate&&!predicted&&!(dist<.055&&converging))return;
           var urgency=immediate?Math.min(1,.68+(.032-dist)/.032):predicted?Math.max(.24,(.036-closest)/.036):Math.max(.12,(.055-dist)/.055);
-          avoidX+=(own.x-other.x)/dist*urgency;
-          avoidY+=(own.y-other.y)/dist*urgency;
+          avoidX-=dx/dist*urgency;
+          avoidY-=dy/dist*urgency;
           avoidStrength+=urgency;
         });
       }
@@ -3604,10 +3647,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       var target=Math.max(0,Math.min(Number(ship.maxSpeed)||0,navigationTargetSpeed));
       var accel=(Number(ship.accelerationPerSec)||0)*dt,difference=target-ship.speed;
       if(Math.abs(difference)<=accel)ship.speed=target;else ship.speed=Math.max(0,ship.speed+Math.sign(difference)*accel);
-      var angle=ship.heading*Math.PI/180;
-      ship.x+=Math.sin(angle)*ship.speed*dt;ship.y-=Math.cos(angle)*ship.speed*dt;
-      if(ship.x<.04||ship.x>.96){ship.x=Math.max(.04,Math.min(.96,ship.x));ship.desiredHeading=(360-ship.heading)%360;}
-      if(ship.y<.05||ship.y>.95){ship.y=Math.max(.05,Math.min(.95,ship.y));ship.desiredHeading=(180-ship.heading+360)%360;}
+      var nextPlanetPoint=window.vigilAdvancePlanetPoint(ship.x,ship.y,ship.heading,ship.speed*dt);
+      ship.x=nextPlanetPoint.x;ship.y=nextPlanetPoint.y;
     });
     renderBathymetry(lastObservationData);
     publishVigilSharedSimulationState(now,false);
@@ -3627,18 +3668,24 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   var VIGIL_WORLD_SEED='PELAGOS-01';
   function vigilWorldHash(ix,iy,salt){var n=Math.sin(ix*127.1+iy*311.7+salt*74.7+VIGIL_WORLD_SEED.length*19.19)*43758.5453123;return n-Math.floor(n);}
   function vigilWorldNoise(x,y,scale,salt){var ix=Math.floor(x*scale),iy=Math.floor(y*scale),fx=x*scale-ix,fy=y*scale-iy;fx=fx*fx*(3-2*fx);fy=fy*fy*(3-2*fy);var a=vigilWorldHash(ix,iy,salt),b=vigilWorldHash(ix+1,iy,salt),c=vigilWorldHash(ix,iy+1,salt),d=vigilWorldHash(ix+1,iy+1,salt);return (a+(b-a)*fx)+((c+(d-c)*fx)-(a+(b-a)*fx))*fy;}
+  function vigilPlanetNoise(x,y,scale,salt){
+    var p=vigilPlanetVector(x,y);
+    return (vigilWorldNoise(p.x,p.y,scale,salt)+vigilWorldNoise(p.y,p.z,scale,salt+101)+vigilWorldNoise(p.z,p.x,scale,salt+211))/3;
+  }
   function vigilWorldAt(x,y){
-    var broad=vigilWorldNoise(x,y,2.8,1),mid=vigilWorldNoise(x,y,7.5,2),fine=vigilWorldNoise(x,y,19,3);
-    var trench=Math.exp(-Math.pow((x-(.24+.12*Math.sin(y*5.1)))/.075,2))*.75;
-    var ridge=Math.exp(-Math.pow((x-(.66+.07*Math.sin(y*7.4)))/.095,2))*.62;
-    var shelf=Math.exp(-Math.pow((x-.08)/.14,2))*Math.exp(-Math.pow((y-.2)/.22,2))*.5;
-    // Several seeded archipelago chains and scattered volcanic islands make this an ocean world, not an Earth map.
-    var landField=vigilWorldNoise(x+13.7,y-8.2,4.2,17)*.58+vigilWorldNoise(x-3.1,y+21.4,9.4,18)*.42;
+    var point=normalizeVigilPlanetPoint(x,y),v=vigilPlanetVector(point.x,point.y);
+    // Noise is sampled from 3D unit-sphere coordinates, so both the longitude seam and poles stitch cleanly.
+    var broad=vigilPlanetNoise(point.x,point.y,2.8,1),mid=vigilPlanetNoise(point.x,point.y,7.5,2),fine=vigilPlanetNoise(point.x,point.y,19,3);
+    var trench=Math.exp(-Math.pow((v.x-.24)/.16,2))*.75;
+    var ridge=Math.exp(-Math.pow((v.z+.66)/.12,2))*.62;
+    var shelf=Math.exp(-Math.pow((v.x+.72)/.22,2))*Math.exp(-Math.pow((v.y-.2)/.22,2))*.5;
+    // Multiple seeded island chains are distributed over the stitched spherical surface.
+    var landField=vigilPlanetNoise(point.x,point.y,4.2,17)*.58+vigilPlanetNoise(point.x,point.y,9.4,18)*.42;
     var land=landField>.69 && broad>.28 && broad<.82;
     var depthNorm=Math.max(0,Math.min(1,.48+broad*.28+mid*.19+fine*.08+trench*.18-ridge*.14-shelf*.12));
-    return {seed:VIGIL_WORLD_SEED,x:x,y:y,isLand:land,depthMeters:land?0:Math.max(35,Math.min(6200,120+depthNorm*4700)),depthNorm:depthNorm,biome:land?'ISLAND / CONTINENTAL LAND':trench>.25?'ABYSSAL TRENCH':ridge>.24?'MID-OCEAN RIDGE':shelf>.2?'CONTINENTAL SHELF':'DEEP OCEAN'};
+    return {seed:VIGIL_WORLD_SEED,x:point.x,y:point.y,isLand:land,depthMeters:land?0:Math.max(35,Math.min(6200,120+depthNorm*4700)),depthNorm:depthNorm,biome:land?'ISLAND / CONTINENTAL LAND':trench>.25?'ABYSSAL TRENCH':ridge>.24?'MID-OCEAN RIDGE':shelf>.2?'CONTINENTAL SHELF':'DEEP OCEAN'};
   }
-  window.vigilGetCampaignWorld=function(){return {id:'PELAGOS-01',name:'PELAGOS',seed:VIGIL_WORLD_SEED,version:1,description:'Fictional ocean world with seeded islands, shelves, ridges and trenches; not Earth geography.'};};
+  window.vigilGetCampaignWorld=function(){return {id:'PELAGOS-01',name:'PELAGOS',seed:VIGIL_WORLD_SEED,version:1,topology:'SPHERICAL STITCHED ATLAS // WRAPPED LONGITUDE AND CONNECTED POLES',description:'Fictional ocean world on a continuous spherical surface, with seeded islands, shelves, ridges and trenches; not Earth geography.'};};
   window.vigilGetWorldTerrainAt=function(x,y){return vigilWorldAt(Number(x),Number(y));};
   // In-world archival evidence inspired by the original Daggerfall User's Guide, The Daggerfall Chronicles, and the game's books. These are original Pelagos-01 adaptations, not reproduced manual text or literal Tamriel history.
   var vigilHistoricalEvidence=[
