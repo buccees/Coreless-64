@@ -101,3 +101,41 @@ def test_report_size_limits_and_missing_authenticated_crew_are_rejected():
             store.merge_report(huge, crew_id="crew-alpha")
     finally:
         store.close()
+
+
+
+def test_reusing_report_id_with_changed_survey_data_is_rejected():
+    store = SeafloorCampaignStore()
+    try:
+        original = report("stable-report")
+        first = store.merge_report(original, crew_id="crew-alpha")
+        assert first["ok"] is True
+
+        changed = report("stable-report")
+        changed["coverage"].append("9,9")
+        with pytest.raises(ValueError, match="report_id was already used"):
+            store.merge_report(changed, crew_id="crew-alpha")
+
+        # The rejected retry must not partially add its new coverage.
+        assert store.export_survey("PELAGOS-01")["coverage"] == ["4,7", "4,8"]
+    finally:
+        store.close()
+
+
+def test_retry_with_equivalent_normalized_data_remains_idempotent():
+    store = SeafloorCampaignStore()
+    try:
+        original = report("stable-retry")
+        store.merge_report(original, crew_id="crew-alpha")
+
+        equivalent = report("stable-retry")
+        equivalent["coverage"] = ["4,8", "4,7", "4,7"]
+        equivalent["sweep_count"] = 99  # client telemetry is not part of the merged survey
+        retry = store.merge_report(equivalent, crew_id="crew-alpha")
+
+        assert retry["ok"] is True
+        assert retry["duplicate_report"] is True
+        assert retry["coverage_added"] == 0
+        assert retry["discoveries_added"] == 0
+    finally:
+        store.close()
