@@ -74,6 +74,9 @@ class LocalSessions:
         context = AuthorizationContext(
             session_id=secrets.token_urlsafe(18),
             scopes=frozenset({"operator:read"}),
+            # This single-operator LAN host needs a stable campaign identity across logins.
+            # Deployments with multiple crews must inject authenticated per-user identities.
+            crew_id=os.environ.get("CORELESS_OPERATOR_CREW_ID", "local-operator-crew").strip() or "local-operator-crew",
         )
         with self._lock:
             self._sessions[token] = (time.monotonic() + self._ttl, context)
@@ -330,7 +333,7 @@ def create_lan_app(
                 if not isinstance(payload, dict):
                     raise ValueError("request body must be a JSON object")
                 result = seafloor_campaign_store.merge_report(
-                    payload, crew_id=context.session_id
+                    payload, crew_id=context.crew_id or context.session_id
                 )
             except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
                 return _json(start_response, "400 Bad Request",
