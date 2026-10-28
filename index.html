@@ -3720,7 +3720,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   };
   window.vigilGetSubmersibleArtifactContainer=function(unitId){var unit=getVigilArtifactUnit(unitId);var container=unit&&ensureVigilLockedContainer(unit);return container?{unitId:String(unit.id),locked:container.locked===true,artifactIds:container.artifactIds.slice()}:null;};
   window.vigilIsHistoricalEvidenceUnique=function(id){return !!getVigilEvidenceRecord(String(id));};
-  window.vigilIsHistoricalEvidenceIndestructible=function(){return false;};
+  window.vigilIsHistoricalEvidenceIndestructible=function(){return true;};
   // A sinking drop must use coordinates captured by the event producer at the transition.
   // Backend-origin events fail closed without server-returned sinking coordinates.
   window.addEventListener('vigil:regional-encounter',function(event){
