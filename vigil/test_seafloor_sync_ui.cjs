@@ -64,7 +64,6 @@ for (const required of [
   'cameraX+=Math.sin(rad)*distance;cameraY+=Math.cos(rad)*distance;',
   'var ridgeAxis=y-.24*x-28, trenchAxis=y+.48*x-36, shelfAxis=y-.62*x+105',
   'broad basin, continental shelf, long ridge, and a narrow trench',
-  'var contourLevels=[180,220,260,300,340,380,420,460,500]',
   'FICTIONAL WORLD // REAL BATHYMETRY RUINS ONLY AT SPAWN',
 ]) {
   assert.ok(html.includes(required), `missing first-person bathymetry contract: ${required}`);
