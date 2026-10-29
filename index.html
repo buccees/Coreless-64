@@ -5796,18 +5796,14 @@ function drawWorldMap(){
  }
  /* The regional inset is the full stitched spherical atlas; the local inset samples a neighborhood along the sphere. */
  var cellsX=Math.max(mapMode==='regional'?56:36,Math.min(124,Math.ceil(w/6))),cellsY=Math.max(mapMode==='regional'?28:22,Math.min(84,Math.ceil(h/6))),tileW=w/cellsX,tileH=h/cellsY;
-  var landGrid=[];
+  var landGrid=[],terrainGrid=[],measuredDepthGrid=[];
   for(var gy=0;gy<cellsY;gy++){
-   landGrid[gy]=[];
+   landGrid[gy]=[];terrainGrid[gy]=[];measuredDepthGrid[gy]=[];
    for(var gx=0;gx<cellsX;gx++){
    var sample;if(mapMode==='regional')sample=window.vigilNormalizePlanetPoint((gx+.5)/cellsX,(gy+.5)/cellsY);else{var east=(((gx+.5)/cellsX)-.5)*radius*2,south=(((gy+.5)/cellsY)-.5)*radius*2,distance=Math.hypot(east,south),bearing=Math.atan2(east,-south)*180/Math.PI;sample=window.vigilAdvancePlanetPoint(center.x,center.y,bearing,distance);}
    var terrain=window.vigilGetWorldTerrainAt(sample.x,sample.y),depthMeters=terrain&&!terrain.isLand?Math.max(0,Number(terrain.depthMeters)||0):0,baseColor=!terrain?'#06131d':terrain.isLand?'#cbb989':depthMeters>8000?'#030b1d':depthMeters>5000?'#09233d':depthMeters>3000?'#0c4062':depthMeters>1500?'#0d6480':depthMeters>500?'#188b9b':'#65c7ae';
-   if(mapLayer==='FUSED'){if(terrain&&terrain.isLand)baseColor='#d9c796';else if(terrain&&terrain.riftCore>.18)baseColor=terrain.riftCore>.7?'#030819':'#09233d';else if(terrain&&terrain.riftWall>.2)baseColor='#68e0a7';}
-   else if(mapLayer==='MULTIBEAM'){var relief=Math.max(0,Math.min(1,(terrain?terrain.depthNorm:.5)));baseColor='rgb('+Math.round(5+relief*15)+','+Math.round(35+relief*145)+','+Math.round(35+relief*100)+')';if(terrain&&terrain.riftCore>.14)baseColor='#020d19';if(terrain&&terrain.riftWall>.18)baseColor='#8be3a2';}
-   else if(mapLayer==='SIDE-SCAN'){var returnSignal=Math.abs(Math.sin(sample.x*286+sample.y*172)*Math.cos(sample.y*220-sample.x*91));baseColor=returnSignal>.57?'#83c68a':returnSignal>.29?'#28684b':'#09251d';if(terrain&&terrain.riftCore>.12)baseColor='#020c18';if(terrain&&terrain.riftWall>.16)baseColor='#b2eba0';}
-   else if(mapLayer==='SUB-BOTTOM'){var strata=Math.abs(Math.sin(sample.x*41+sample.y*22)+Math.cos(sample.x*67-sample.y*31));baseColor=strata>1.25?'#5eaa83':strata>.55?'#1c654b':'#071f1a';if(terrain&&terrain.riftCore>.08)baseColor='#020b17';if(terrain&&terrain.riftWall>.12)baseColor='#6ecca0';}
-   else if(mapLayer==='MAGNETIC'){var mag=Math.abs(Math.sin(sample.x*12.5+sample.y*18.1)+Math.cos(sample.x*19.2-sample.y*27))*.5;baseColor=mag>.72?'#b9ff83':mag>.43?'#4d9560':'#0d2c20';if(terrain&&terrain.riftCore>.1)baseColor='#112044';if(terrain&&terrain.riftWall>.12)baseColor='#9af2b5';}
-   landGrid[gy][gx]=!!(terrain&&terrain.isLand);
+   if(terrain&&terrain.isLand)baseColor='#d9c796';else if(terrain&&terrain.riftCore>.18)baseColor=terrain.riftCore>.7?'#030819':'#09233d';else if(terrain&&terrain.riftWall>.2)baseColor='#68e0a7';
+   landGrid[gy][gx]=!!(terrain&&terrain.isLand);terrainGrid[gy][gx]=terrain;
    mapCtx.fillStyle=baseColor;mapCtx.fillRect(gx*tileW,gy*tileH,tileW+1,tileH+1);
   }
   }
