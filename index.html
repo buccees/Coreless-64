@@ -4142,9 +4142,21 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     function setStep(next){
       step=next;document.querySelectorAll('.vigil-order-step').forEach(function(el){var n=Number(el.dataset.step);el.removeAttribute('aria-current');el.dataset.state=n<step?'complete':n===step?'active':'pending';if(n===step)el.setAttribute('aria-current','step');});
     }
+    function updateFpsCompass(){
+      var track=document.getElementById('v3-fps-compass-track');
+      var bearing=document.getElementById('v3-fps-bearing');
+      var cardinal=document.getElementById('v3-fps-cardinal');
+      var unit=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(ship.value);
+      var rawHeading=unit&&Number.isFinite(Number(unit.heading_deg))?Number(unit.heading_deg):0;
+      var h=((Math.round(rawHeading)%360)+360)%360;
+      var dirs=['N','NE','E','SE','S','SW','W','NW'];
+      if(track)track.style.transform='translateX('+(-h*8)+'px)';
+      if(bearing)bearing.textContent=String(h).padStart(3,'0')+'°';
+      if(cardinal)cardinal.textContent=dirs[Math.round(h/45)%8];
+    }
     function drawSight(state){
       if(!ctx)return;var w=sight.width,h=sight.height,cx=w/2,cy=h/2;
-      // This weapon sight is a separate canvas; the FPS compass helper belongs to another scope.
+      updateFpsCompass();
       ctx.clearRect(0,0,w,h);ctx.fillStyle='#020906';ctx.fillRect(0,0,w,h);
       ctx.strokeStyle='#164b37';ctx.lineWidth=1;
       for(var x=0;x<=w;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
