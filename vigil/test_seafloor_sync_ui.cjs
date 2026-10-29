@@ -57,7 +57,7 @@ for (const required of [
 for (const required of [
   'cameraX=0,cameraY=0,lookPitch=0',
   'function worldToView(x,y,w,h,cameraZ)',
-  'var rows=42,cols=56,points=[],cameraZ=-Math.sqrt(Math.max(0,depth))*2.3',
+  'var rows=64,cols=84,points=[],cameraZ=-Math.sqrt(Math.max(0,depth))*2.3',
   'var water=ctx.createLinearGradient(0,0,0,h)',
   'UUV PILOT VIEW // PELAGOS-01',
   'cameraX=(worldPoint.x-.5)*1500;cameraY=(.5-worldPoint.y)*1500',
@@ -109,7 +109,7 @@ for (const required of [
   "function drawSeparatedSensorGlyph",
   "drawSeparatedSensorGlyph(sp.x,sp.y,-7,-6,'#80e9ff','dash',.82)",
   "sensorCounts.ctd++",
-  "var panelX=16,panelY=18,panelW=Math.min(228,w-32),panelH=compactHud?116:194",
+  "var panelX=16,panelY=18,panelW=Math.min(228,w-32),panelH=compactHud?116:218",
   "source:'SIMULATION SENSOR MODELS + REGISTERED SENSOR FEEDS'",
   "registered_sensor_feeds:{registered:",
   "mapFeedObservations.forEach(function(o,index)",
