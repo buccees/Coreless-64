@@ -136,6 +136,8 @@ for (const required of [
   "IR // WATER ATTENUATED · POSITIONED FEED REQUIRED",
   "water_attenuation:'LONG-RANGE IR ATTENUATED BY WATER'",
   "var unlocatedMeasurementLabels=0",
+  "o.reference_unit_id===own.id",
+  "var hasRangeBearing=o.range_m!==null&&o.range_m!==undefined",
   "height:clamp(64px,8.5vh,94px)!important",
   "#vigil-3d-seafloor-view .v3-world-map{position:relative!important;top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;inset:auto!important;display:block!important;flex:0 0 auto!important;width:100%!important",
   "#vigil-3d-seafloor-view .v3-world-map.expanded{position:relative!important;top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;inset:auto!important;width:100%!important",
