@@ -3592,6 +3592,14 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
        var desired=((Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading)%360)+360)%360;
       var navigationHeading=desired;
       var navigationTargetSpeed=Math.max(0,Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed)||0);
+      // A zero-speed helm command is an explicit hold-position command. Do not let
+      // formation keeping, collision avoidance, or residual deceleration restart motion.
+      if(ship.side==='friendly'&&ship.targetSpeed!==undefined&&Number(ship.targetSpeed)<=0){
+        ship.speed=0;ship.navigationHeading=desired;ship.navigationTargetSpeed=0;
+        ship.stationKeepingEnabled=false;ship.formationActive=false;ship.formationTarget=null;
+        ship.formationDistance=null;ship.formationTargetSpeed=null;ship.avoidanceActive=false;
+        ship.avoidanceHeading=ship.heading;return;
+      }
       ship.formationActive=false;ship.formationTarget=null;ship.formationDistance=null;ship.formationTargetSpeed=null;
       var parent=ship.parentId?frameById[ship.parentId]:null;
       if(ship.side==='friendly'&&ship.stationKeepingEnabled===true&&parent&&parent.side==='friendly'&&parent.afloat){
