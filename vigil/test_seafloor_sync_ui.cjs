@@ -87,7 +87,7 @@ for (const required of [
   'Always-on sensor suite: measurements are computed from simulation world data, then rendered here.',
   'window.vigilSensorSuite=(function()',
   'function measureCell(input)',
-  'function updateNavigation(point,now,depthSample)',
+  'function updateNavigation(point,now,depthSample,unit)',
   'temperatureC:temp,magneticNt:magnetic,sedimentIndex:sediment',
   'temperatureC:temperatureC,magneticFieldNt:magneticFieldNt,sedimentIndex:sedimentIndex',
   'readings.sideScan.feature_score',
