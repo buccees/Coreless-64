@@ -5596,7 +5596,7 @@ function draw(){
  haze.addColorStop(0,'rgba(21,83,91,.04)');haze.addColorStop(.55,'rgba(10,49,55,.12)');haze.addColorStop(1,'rgba(1,14,19,.08)');
  ctx.fillStyle=haze;ctx.fillRect(0,horizon,w,h-horizon);
  for(var ray=0;ray<12;ray++){var rx=w*(.12+ray*.069);ctx.strokeStyle='rgba(89,180,174,'+(0.018+(ray%3)*.008)+')';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(w*.5,horizon);ctx.lineTo(rx,h*.88);ctx.stroke();}
- var rows=42,cols=56,points=[],cameraZ=-Math.sqrt(Math.max(0,depth))*2.3;
+ var rows=64,cols=84,points=[],cameraZ=-Math.sqrt(Math.max(0,depth))*2.3;
  for(var r=0;r<=rows;r++){
   points[r]=[];
   var d=9+Math.pow(r/rows,2.05)*760;
@@ -5624,8 +5624,7 @@ function draw(){
    if(riftCoreMean>.055){red=3;green=Math.round(12+riftCoreMean*15);blue=Math.round(42+riftCoreMean*52);}else if(riftWallMean>.16){red=72;green=Math.round(166+riftWallMean*65);blue=Math.round(111+riftWallMean*100);}
    ctx.fillStyle='rgb('+red+','+green+','+blue+')';
    var mixedLand=landCoverage>0&&landCoverage<4;
-   ctx.strokeStyle=mixedLand?'rgba(255,235,174,.98)':'rgba(200,242,224,'+(0.12+near*.20+slopeTone*.16)+')';ctx.lineWidth=mixedLand?1.4:.7;
-   ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.lineTo(p3.x,p3.y);ctx.lineTo(p4.x,p4.y);ctx.closePath();ctx.fill();ctx.stroke();
+   ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.lineTo(p3.x,p3.y);ctx.lineTo(p4.x,p4.y);ctx.closePath();ctx.fill();if(mixedLand){ctx.strokeStyle='rgba(255,235,174,.88)';ctx.lineWidth=1.05;ctx.stroke();}
   }
  }
  /* Distant terrain fades into water instead of ending at a visible mesh edge. */
@@ -5758,7 +5757,7 @@ function draw(){
  var vx=w*.5,vy=h*.5,vecScale=95,vectorLen=Math.min(70,Math.hypot(sensorDvl.groundVelocity.east_mps,sensorDvl.groundVelocity.north_mps)*vecScale);
  ctx.strokeStyle='#7effd0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(vx,vy,5,0,Math.PI*2);ctx.stroke();
  if(vectorLen>1){var vectorAngle=Math.atan2(sensorDvl.groundVelocity.east_mps,sensorDvl.groundVelocity.north_mps);ctx.beginPath();ctx.moveTo(vx,vy);ctx.lineTo(vx+Math.sin(vectorAngle)*vectorLen,vy-Math.cos(vectorAngle)*vectorLen);ctx.stroke();ctx.beginPath();ctx.arc(vx+Math.sin(vectorAngle)*vectorLen,vy-Math.cos(vectorAngle)*vectorLen,3,0,Math.PI*2);ctx.stroke();}
- var panelX=16,panelY=18,panelW=Math.min(228,w-32),panelH=compactHud?116:194;
+ var panelX=16,panelY=18,panelW=Math.min(228,w-32),panelH=compactHud?116:218;
  ctx.fillStyle='rgba(1,17,18,.86)';ctx.fillRect(panelX,panelY,panelW,panelH);ctx.strokeStyle='rgba(117,220,176,.58)';ctx.strokeRect(panelX,panelY,panelW,panelH);
  ctx.font=compactHud?'9px Courier New':'10px Courier New';ctx.textAlign='left';ctx.fillStyle='#bdf8d6';ctx.fillText('FUSED SENSOR OVERLAY // LIVE',panelX+8,panelY+14);
  if(compactHud){
@@ -5776,10 +5775,10 @@ function draw(){
   ctx.fillStyle='#ff7348';ctx.fillText('THERMAL  ANOMALIES '+sensorCounts.temperature,panelX+9,panelY+96);
   ctx.fillStyle='#ffb66e';ctx.fillText('INFRARED  POSITIONED RETURNS '+(window.vigilSensorFusionFrame&&window.vigilSensorFusionFrame.sensors&&window.vigilSensorFusionFrame.sensors.infrared?window.vigilSensorFusionFrame.sensors.infrared.positioned_returns:0),panelX+9,panelY+112);
   ctx.fillStyle='#80e9ff';ctx.fillText('CTD '+sensorCounts.ctd+' // TEMP / SALINITY / PRESSURE',panelX+9,panelY+128);
-  ctx.fillStyle='#7effd0';ctx.fillText('DVL  '+(sensorDvl.bottomLock?'BOTTOM LOCK':'NO BOTTOM LOCK'),panelX+9,panelY+128);
-  ctx.fillStyle='#7effd0';ctx.fillText('DVL UNCERTAINTY '+sensorDvl.uncertainty.toFixed(1),panelX+9,panelY+142);
-  ctx.fillStyle='#bdf8d6';ctx.fillText('FEEDS '+currentFeeds.length+' / POS '+positionedFeedCount+' / MEAS '+measurementOnlyFeedCount,panelX+9,panelY+154,panelW-18);
-  ctx.fillStyle='#bdf8d6';ctx.fillText('SOURCES '+feedSourceSummary,panelX+9,panelY+170,panelW-18);
+  ctx.fillStyle='#7effd0';ctx.fillText('DVL  '+(sensorDvl.bottomLock?'BOTTOM LOCK':'NO BOTTOM LOCK'),panelX+9,panelY+144);
+  ctx.fillStyle='#7effd0';ctx.fillText('DVL UNCERTAINTY '+sensorDvl.uncertainty.toFixed(1),panelX+9,panelY+160);
+  ctx.fillStyle='#bdf8d6';ctx.fillText('FEEDS '+currentFeeds.length+' / POS '+positionedFeedCount+' / MEAS '+measurementOnlyFeedCount,panelX+9,panelY+178,panelW-18);
+  ctx.fillStyle='#bdf8d6';ctx.fillText('SOURCES '+feedSourceSummary,panelX+9,panelY+196,panelW-18);
  }
  ctx.restore();
  /* Rotating sonar PPI inset: sweep angle advances continuously, while the FPS terrain remains the main view. */
