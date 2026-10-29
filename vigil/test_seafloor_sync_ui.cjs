@@ -100,6 +100,8 @@ for (const required of [
   'MAGNETIC  ANOMALIES',
   'THERMAL  ANOMALIES',
   'DVL UNCERTAINTY',
+  'window.vigilGetSensorFusionFrame=function()',
+  'SIMULATION SENSOR MODELS',
   'Rotating sonar PPI inset',
   'anim=(anim+1.8)%360',
   'class="v3-helm"',
