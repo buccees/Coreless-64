@@ -5701,34 +5701,57 @@ function draw(){
   }
  }
  if(sensorPoint){var centerWorld=window.vigilGetWorldTerrainAt(sensorPoint.x,sensorPoint.y);sensorDvl=sensorSuite.updateNavigation(sensorPoint,sensorNow,centerWorld,u);}
+ var feedSnapshot=getCachedVigilSensorInputSnapshot(),currentFeeds=(feedSnapshot.feeds||[]).filter(function(f){return !f.stale;}),feedObservations=(feedSnapshot.observations||[]).filter(function(o){return !o.feed_stale;}),positionedFeedCount=0,measurementOnlyFeedCount=0,drawnFeedMarkerCount=0,feedModalityCounts=Object.create(null);
+ feedObservations.forEach(function(o){if(Array.isArray(o.normalized_position)&&o.normalized_position.length>=2)positionedFeedCount++;else if(['range_m','bearing_deg','depth_m','temperature_c','signal_strength_db','velocity_mps','measurement_value'].some(function(k){return o[k]!==null&&o[k]!==undefined;}))measurementOnlyFeedCount++;});
+ /* External and simulation feed observations now participate in this same 3D view. Positionless measurements stay in telemetry; no coordinates are invented. */
+ feedObservations.forEach(function(o,index){
+  var pos=o.normalized_position;if(!Array.isArray(pos)||pos.length<2||!Number.isFinite(Number(pos[0]))||!Number.isFinite(Number(pos[1])))return;
+  var modality=String(o.modality||((o.modalities||[])[0])||'simulated'),color=vigilSensorColor(modality),relative=window.vigilGetPlanetRangeBearing(sensorPoint.x,sensorPoint.y,Number(pos[0]),Number(pos[1])),fx=cameraX+relative.east*1500,fy=cameraY+relative.north*1500,projected=worldToView(fx,fy,w,h,cameraZ);
+  if(!projected||projected.z>760||projected.x<-18||projected.x>w+18||projected.y<horizon-16||projected.y>h+16)return;
+  if(Number.isFinite(Number(o.depth_m))){var targetZ=-Math.sqrt(Math.max(0,Number(o.depth_m)))*2.3;projected.y=h*.31+lookPitch+(cameraZ-targetZ)*h*.92*zoom/projected.z;}
+  var angle=((index*137.508+(String(o.sensor_id||'').length*37))%360)*Math.PI/180,offset=4+(index%3)*1.5,ox=Math.cos(angle)*offset,oy=Math.sin(angle)*offset;
+  ctx.save();ctx.globalAlpha=o.source==='external'?.96:.78;ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(projected.x,projected.y);ctx.lineTo(projected.x+ox,projected.y+oy);ctx.stroke();
+  if(o.source==='external'){ctx.beginPath();ctx.arc(projected.x+ox,projected.y+oy,3.8,0,Math.PI*2);ctx.stroke();}else{ctx.beginPath();ctx.moveTo(projected.x+ox,projected.y+oy-3);ctx.lineTo(projected.x+ox+3,projected.y+oy);ctx.lineTo(projected.x+ox,projected.y+oy+3);ctx.lineTo(projected.x+ox-3,projected.y+oy);ctx.closePath();ctx.fill();}
+  ctx.restore();drawnFeedMarkerCount++;feedModalityCounts[modality]=(feedModalityCounts[modality]||0)+1;
+ });
  /* Publish the measured frame for other stations, logging, and future sensor consumers. */
  window.vigilGetSensorFusionFrame=function(){return window.vigilSensorFusionFrame||null;};
- window.vigilSensorFusionFrame={timestamp_ms:sensorNow,vehicle_id:u&&u.id||'UUV-01',source:'SIMULATION SENSOR MODELS',sensors:{
+ window.vigilSensorFusionFrame={timestamp_ms:sensorNow,vehicle_id:u&&u.id||'UUV-01',source:'SIMULATION SENSOR MODELS + REGISTERED SENSOR FEEDS',sensors:{
   multibeam:{active:true,returns:sensorCounts.multibeam},
   side_scan:{active:true,returns:sensorCounts.sideScan},
   sub_bottom:{active:true,returns:sensorCounts.subBottom},
   magnetometer:{active:true,anomalies:sensorCounts.magnetometer},
   temperature:{active:true,anomalies:sensorCounts.temperature},
+  ctd:{active:true,measurement:(function(){var p=sensorPoint&&window.vigilGetWorldTerrainAt(sensorPoint.x,sensorPoint.y);return p?sensorSuite.measureCell({x:sensorPoint.x,y:sensorPoint.y,rangeM:1,terrain:p}).ctd:null;})()},
   dvl:{active:true,bottom_lock:sensorDvl.bottomLock,uncertainty:sensorDvl.uncertainty,ground_velocity:sensorDvl.groundVelocity}
- },samples:sensorOverlaySamples.slice()};
+ },inputSources:{world_model:{active:true,id:'PELAGOS-01 // SIMULATION TERRAIN'},regional_units:{active:!!u,unit_id:u&&u.id||null},registered_sensor_feeds:{registered:(feedSnapshot.feeds||[]).length,current:currentFeeds.length,stale:(feedSnapshot.feeds||[]).filter(function(f){return f.stale;}).length,positioned_observations:positionedFeedCount,measurement_only_observations:measurementOnlyFeedCount,drawn_in_current_view:drawnFeedMarkerCount,feeds:(feedSnapshot.feeds||[]).map(function(f){return {sensor_id:f.sensor_id,modality:f.modality,source:f.source,stale:!!f.stale,object_count:(f.objects||[]).length,image_available:!!f.image_available,waterfall_available:Array.isArray(f.waterfall_bins)&&f.waterfall_bins.length===180};})}},samples:sensorOverlaySamples.slice()};
  /* DVL ground-velocity vector and compact telemetry panel use sensor-engine output, not command values. */
  var vx=w*.5,vy=h*.5,vecScale=95,vectorLen=Math.min(70,Math.hypot(sensorDvl.groundVelocity.east_mps,sensorDvl.groundVelocity.north_mps)*vecScale);
  ctx.strokeStyle='#7effd0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(vx,vy,5,0,Math.PI*2);ctx.stroke();
  if(vectorLen>1){var vectorAngle=Math.atan2(sensorDvl.groundVelocity.east_mps,sensorDvl.groundVelocity.north_mps);ctx.beginPath();ctx.moveTo(vx,vy);ctx.lineTo(vx+Math.sin(vectorAngle)*vectorLen,vy-Math.cos(vectorAngle)*vectorLen);ctx.stroke();ctx.beginPath();ctx.arc(vx+Math.sin(vectorAngle)*vectorLen,vy-Math.cos(vectorAngle)*vectorLen,3,0,Math.PI*2);ctx.stroke();}
- var panelX=Math.max(150,w-246),panelY=18;
- ctx.fillStyle='rgba(1,17,18,.82)';ctx.fillRect(panelX,panelY,228,132);ctx.strokeStyle='rgba(117,220,176,.58)';ctx.strokeRect(panelX,panelY,228,132);
- ctx.font='10px Courier New';ctx.textAlign='left';ctx.fillStyle='#bdf8d6';ctx.fillText('FUSED SENSOR OVERLAY // LIVE',panelX+9,panelY+15);
- ctx.fillStyle='#80e9ff';ctx.fillText('MULTIBEAM  RETURNS '+sensorCounts.multibeam,panelX+9,panelY+32);
- ctx.fillStyle='#ffdd84';ctx.fillText('SIDE-SCAN  RETURNS '+sensorCounts.sideScan,panelX+9,panelY+48);
- ctx.fillStyle='#cc9eff';ctx.fillText('SUB-BOTTOM  RETURNS '+sensorCounts.subBottom,panelX+9,panelY+64);
- ctx.fillStyle='#ff77be';ctx.fillText('MAGNETIC  ANOMALIES '+sensorCounts.magnetometer,panelX+9,panelY+80);
- ctx.fillStyle='#ff7348';ctx.fillText('THERMAL  ANOMALIES '+sensorCounts.temperature,panelX+9,panelY+96);
- ctx.fillStyle='#7effd0';ctx.fillText('DVL  '+(sensorDvl.bottomLock?'BOTTOM LOCK':'NO BOTTOM LOCK'),panelX+9,panelY+112);
- ctx.fillStyle='#7effd0';ctx.fillText('DVL UNCERTAINTY '+sensorDvl.uncertainty.toFixed(1),panelX+9,panelY+126);
+ var panelX=compactHud?16:Math.max(150,w-246),panelY=18,panelW=Math.min(228,w-32),panelH=compactHud?86:154;
+ ctx.fillStyle='rgba(1,17,18,.86)';ctx.fillRect(panelX,panelY,panelW,panelH);ctx.strokeStyle='rgba(117,220,176,.58)';ctx.strokeRect(panelX,panelY,panelW,panelH);
+ ctx.font=compactHud?'9px Courier New':'10px Courier New';ctx.textAlign='left';ctx.fillStyle='#bdf8d6';ctx.fillText('FUSED SENSOR OVERLAY // LIVE',panelX+8,panelY+14);
+ if(compactHud){
+  ctx.fillStyle='#80e9ff';ctx.fillText('MB '+sensorCounts.multibeam+'  SS '+sensorCounts.sideScan,panelX+8,panelY+30);
+  ctx.fillStyle='#cc9eff';ctx.fillText('SUB '+sensorCounts.subBottom+'  MAG '+sensorCounts.magnetometer,panelX+8,panelY+44);
+  ctx.fillStyle='#ff7348';ctx.fillText('THERMAL '+sensorCounts.temperature+'  CTD LIVE',panelX+8,panelY+58);
+  ctx.fillStyle='#7effd0';ctx.fillText('DVL '+(sensorDvl.bottomLock?'BOTTOM LOCK':'NO LOCK')+'  FEEDS '+currentFeeds.length,panelX+8,panelY+72);
+ }else{
+  ctx.fillStyle='#80e9ff';ctx.fillText('MULTIBEAM  RETURNS '+sensorCounts.multibeam,panelX+9,panelY+32);
+  ctx.fillStyle='#ffdd84';ctx.fillText('SIDE-SCAN  RETURNS '+sensorCounts.sideScan,panelX+9,panelY+48);
+  ctx.fillStyle='#cc9eff';ctx.fillText('SUB-BOTTOM  RETURNS '+sensorCounts.subBottom,panelX+9,panelY+64);
+  ctx.fillStyle='#ff77be';ctx.fillText('MAGNETIC  ANOMALIES '+sensorCounts.magnetometer,panelX+9,panelY+80);
+  ctx.fillStyle='#ff7348';ctx.fillText('THERMAL  ANOMALIES '+sensorCounts.temperature,panelX+9,panelY+96);
+  ctx.fillStyle='#80e9ff';ctx.fillText('CTD TEMP / SALINITY / PRESSURE // ACTIVE',panelX+9,panelY+112);
+  ctx.fillStyle='#7effd0';ctx.fillText('DVL  '+(sensorDvl.bottomLock?'BOTTOM LOCK':'NO BOTTOM LOCK'),panelX+9,panelY+128);
+  ctx.fillStyle='#7effd0';ctx.fillText('DVL UNCERTAINTY '+sensorDvl.uncertainty.toFixed(1),panelX+9,panelY+142);
+  ctx.fillStyle='#bdf8d6';ctx.fillText('FEEDS '+currentFeeds.length+' // POSITIONED '+positionedFeedCount+' // MEAS-ONLY '+measurementOnlyFeedCount,panelX+9,panelY+154);
+ }
  ctx.restore();
  /* Rotating sonar PPI inset: sweep angle advances continuously, while the FPS terrain remains the main view. */
  anim=(anim+1.8)%360;
- var radarR=Math.max(35,Math.min(54,w*.105)),radarX=w-radarR-20,radarY=Math.max(radarR+24,h-radarR-30);
+ var radarR=Math.max(35,Math.min(54,w*.105)),radarX=w-radarR-20,radarY=Math.max(radarR+24,h-radarR-20),compactHud=h<radarR*2+200;
  ctx.save();ctx.globalAlpha=.92;ctx.fillStyle='rgba(1,15,14,.78)';ctx.strokeStyle='rgba(117,220,176,.68)';ctx.lineWidth=1;
  ctx.beginPath();ctx.arc(radarX,radarY,radarR,0,Math.PI*2);ctx.fill();ctx.stroke();
  for(var ring=1;ring<=3;ring++){ctx.beginPath();ctx.arc(radarX,radarY,radarR*ring/3,0,Math.PI*2);ctx.strokeStyle='rgba(117,220,176,.24)';ctx.stroke();}
@@ -5739,7 +5762,7 @@ function draw(){
  /* Restrained pilot overlay: center reticle, heading tape, depth and bottom-clearance readouts. */
  ctx.strokeStyle='rgba(183,246,213,.72)';ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(w*.5-12,h*.5);ctx.lineTo(w*.5-4,h*.5);ctx.moveTo(w*.5+4,h*.5);ctx.lineTo(w*.5+12,h*.5);ctx.moveTo(w*.5,h*.5-12);ctx.lineTo(w*.5,h*.5-4);ctx.moveTo(w*.5,h*.5+4);ctx.lineTo(w*.5,h*.5+12);ctx.stroke();
  ctx.strokeStyle='rgba(151,220,199,.25)';ctx.beginPath();ctx.moveTo(12,40);ctx.lineTo(12,72);ctx.lineTo(42,72);ctx.moveTo(w-12,40);ctx.lineTo(w-12,72);ctx.lineTo(w-42,72);ctx.stroke();
- ctx.fillStyle='#c5f7df';ctx.font='11px Courier New';ctx.fillText('SPEED '+(u?Number(u.speed||0).toFixed(3):'---')+' / CMD '+(u?Number(u.target_speed==null?(u.speed||0):u.target_speed).toFixed(3):'---')+' / MAX '+(u?Number(u.max_speed||0).toFixed(3):'---')+' SIM',20,140);ctx.fillText('UUV PILOT VIEW // PELAGOS-01',20,160);ctx.fillStyle='#8cc9b0';ctx.fillText('HDG '+Math.round(heading)+'°',20,179);ctx.fillText('DEPTH '+Math.round(depth)+' m',20,194);ctx.fillText('ALTITUDE '+Math.round(cameraZ-heightAt(cameraX+Math.sin(heading*Math.PI/180)*30,cameraY+Math.cos(heading*Math.PI/180)*30))+' m',20,209);
+ ctx.fillStyle='#c5f7df';ctx.font='11px Courier New';var speedHudY=compactHud?Math.min(h-24,140):140,pilotHudY=compactHud?Math.min(h-8,160):160,availableHudWidth=Math.max(100,radarX-radarR-34);ctx.fillText('SPEED '+(u?Number(u.speed||0).toFixed(3):'---')+' / CMD '+(u?Number(u.target_speed==null?(u.speed||0):u.target_speed).toFixed(3):'---')+' / MAX '+(u?Number(u.max_speed||0).toFixed(3):'---')+' SIM',20,speedHudY,availableHudWidth);ctx.fillText('UUV PILOT VIEW // PELAGOS-01',20,pilotHudY,availableHudWidth);ctx.fillStyle='#8cc9b0';ctx.fillText('HDG '+Math.round(heading)+'°',20,179);ctx.fillText('DEPTH '+Math.round(depth)+' m',20,194);ctx.fillText('ALTITUDE '+Math.round(cameraZ-heightAt(cameraX+Math.sin(heading*Math.PI/180)*30,cameraY+Math.cos(heading*Math.PI/180)*30))+' m',20,209);
  ctx.textAlign='right';ctx.fillText('TERRAIN: '+(spawnBathymetry?spawnBathymetry.region:'FICTIONAL / SPAWN DATA OFFLINE'),w-20,h-18);ctx.textAlign='left';var riftAhead=ruptureLocalAt(cameraX+Math.sin(heading*Math.PI/180)*180,cameraY+Math.cos(heading*Math.PI/180)*180);if(riftAhead.active){ctx.fillStyle='#caff92';ctx.font='bold 11px Courier New';ctx.fillText('CRUSTAL BREACH // PELAGOS ABYSSAL RIFT',20,230);ctx.fillStyle='#8fd9b3';ctx.font='10px Courier New';ctx.fillText('MULTIBEAM + SIDE-SCAN + SUB-BOTTOM ANOMALY',20,245);}
  if(u){var actualSpeed=Number(u.speed)||0,targetSpeed=Number(u.target_speed==null?actualSpeed:u.target_speed)||0;document.getElementById('v3-heading').textContent='HEADING '+String(Math.round(heading)%360).padStart(3,'0')+'°';document.getElementById('v3-speed').textContent='SPEED '+actualSpeed.toFixed(3)+' / CMD '+targetSpeed.toFixed(3);document.getElementById('v3-depth').textContent='DEPTH '+Math.round(Number(u.depth_meters==null?(u.depthMeters==null?depth:u.depthMeters):u.depth_meters))+' m';}
  renderCourseReadout();
