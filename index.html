@@ -5696,6 +5696,16 @@ function draw(){
   }
  }
  if(sensorPoint){var centerWorld=window.vigilGetWorldTerrainAt(sensorPoint.x,sensorPoint.y);sensorDvl=sensorSuite.updateNavigation(sensorPoint,sensorNow,centerWorld,u);}
+ /* Publish the measured frame for other stations, logging, and future sensor consumers. */
+ window.vigilGetSensorFusionFrame=function(){return window.vigilSensorFusionFrame||null;};
+ window.vigilSensorFusionFrame={timestamp_ms:sensorNow,vehicle_id:u&&u.id||'UUV-01',source:'SIMULATION SENSOR MODELS',sensors:{
+  multibeam:{active:true,returns:sensorCounts.multibeam},
+  side_scan:{active:true,returns:sensorCounts.sideScan},
+  sub_bottom:{active:true,returns:sensorCounts.subBottom},
+  magnetometer:{active:true,anomalies:sensorCounts.magnetometer},
+  temperature:{active:true,anomalies:sensorCounts.temperature},
+  dvl:{active:true,bottom_lock:sensorDvl.bottomLock,uncertainty:sensorDvl.uncertainty,ground_velocity:sensorDvl.groundVelocity}
+ },samples:sensorOverlaySamples.slice()};
  /* DVL ground-velocity vector and compact telemetry panel use sensor-engine output, not command values. */
  var vx=w*.5,vy=h*.5,vecScale=95,vectorLen=Math.min(70,Math.hypot(sensorDvl.groundVelocity.east_mps,sensorDvl.groundVelocity.north_mps)*vecScale);
  ctx.strokeStyle='#7effd0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(vx,vy,5,0,Math.PI*2);ctx.stroke();
