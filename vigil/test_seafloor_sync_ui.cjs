@@ -89,6 +89,7 @@ for (const required of [
   'function measureCell(input)',
   'function updateNavigation(point,now,depthSample)',
   'temperatureC:temp,magneticNt:magnetic,sedimentIndex:sediment',
+  'temperatureC:temperatureC,magneticFieldNt:magneticFieldNt,sedimentIndex:sedimentIndex',
   'readings.sideScan.feature_score',
   'readings.magnetometer.detected',
   'readings.temperature.anomaly',
