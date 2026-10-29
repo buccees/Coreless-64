@@ -5640,7 +5640,7 @@ function draw(){
     var rangeM=Math.max(1,Number(input.rangeM)||1),depth=Number(terrain.depthMeters)||0;
     var relief=Math.abs((Number(left.depthMeters)||0)-(Number(right.depthMeters)||0))+Math.abs((Number(near.depthMeters)||0)-(Number(far.depthMeters)||0));
     var acoustic=clamp(1-rangeM/900,0,1),noise=hash(input.x,input.y,31);
-    var multi={range_m:rangeM+noise*(.15+rangeM*.0015),bottom_depth_m:depth,confidence:clamp(acoustic*(terrain.isLand?0:1),0,1),bottom_lock:!terrain.isLand&&rangeM<850};
+    var multi={range_m:rangeM+noise*(.15+rangeM*.0015),bottom_depth_m:Math.max(0,depth+hash(input.x,input.y,32)*(.35+depth*.0009)),confidence:clamp(acoustic*(terrain.isLand?0:1),0,1),bottom_lock:!terrain.isLand&&rangeM<850};
     var shadow=clamp(relief/2400,0,1),backscatter=clamp(.15+relief/180+Number(terrain.depthNorm||0)*.2+hash(input.x,input.y,37)*.035,0,1);
     var side={backscatter:backscatter,shadow_probability:shadow,feature_score:clamp(relief/900,0,1),confidence:acoustic};
     var env=environment(input.x,input.y,terrain);
@@ -5826,32 +5826,35 @@ function drawWorldMap(){
   mapCtx.strokeStyle='rgba(180,231,194,.18)';mapCtx.lineWidth=1;
  for(var gx=0;gx<=4;gx++){mapCtx.beginPath();mapCtx.moveTo(w*gx/4,0);mapCtx.lineTo(w*gx/4,h);mapCtx.stroke();}
  for(var gy=0;gy<=4;gy++){mapCtx.beginPath();mapCtx.moveTo(0,h*gy/4);mapCtx.lineTo(w,h*gy/4);mapCtx.stroke();}
-  function mapSensorNoise(x,y,salt){var n=Math.sin(x*127.1+y*311.7+salt*74.7)*43758.5453;return (n-Math.floor(n))*2-1;}
-  for(var my=0;my<cellsY;my++)for(var mx=0;mx<cellsX;mx++){var mt=terrainGrid[my][mx];if(!mt||mt.isLand){measuredDepthGrid[my][mx]=null;continue;}var d=Math.max(0,Number(mt.depthMeters)||0),n=mapSensorNoise(Number(mt.x)||0,Number(mt.y)||0,101);measuredDepthGrid[my][mx]=Math.max(0,d+n*(1.2+d*.0008));}
-  /* MULTIBEAM: range-noisy bathymetry contours remain visible under every sensor emphasis. */
+    /* Every mapped sensor reads the same source-specific measurement engine as the first-person 3D view. */
+  var mapSensorSuite=window.vigilSensorSuite,readingsGrid=[];
+  for(var my=0;my<cellsY;my++){readingsGrid[my]=[];for(var mx=0;mx<cellsX;mx++){
+   var mt=terrainGrid[my][mx];if(!mt||mt.isLand){readingsGrid[my][mx]=null;measuredDepthGrid[my][mx]=null;continue;}
+   var lt=terrainGrid[my][Math.max(0,mx-1)]||mt,rt=terrainGrid[my][Math.min(cellsX-1,mx+1)]||mt,ut=terrainGrid[Math.max(0,my-1)][mx]||mt,dt=terrainGrid[Math.min(cellsY-1,my+1)][mx]||mt,range=window.vigilGetPlanetRangeBearing(center.x,center.y,mt.x,mt.y),rangeM=Math.max(1,range.distance*1500);
+   var readings=mapSensorSuite&&typeof mapSensorSuite.measureCell==='function'?mapSensorSuite.measureCell({x:Number(mt.x)||0,y:Number(mt.y)||0,rangeM:rangeM,terrain:mt,left:lt,right:rt,near:ut,far:dt}):null;
+   readingsGrid[my][mx]=readings;measuredDepthGrid[my][mx]=readings&&readings.multibeam?readings.multibeam.bottom_depth_m:Math.max(0,Number(mt.depthMeters)||0);
+  }}
+  /* MULTIBEAM: the surface uses noisy measured depth returns rather than a layer-exclusive replacement raster. */
   mapCtx.save();mapCtx.strokeStyle=vigilSensorColor('multibeam');mapCtx.lineWidth=1;
   for(var my=0;my<cellsY;my++)for(var mx=0;mx<cellsX;mx++){var measured=measuredDepthGrid[my][mx];if(measured===null||measured===undefined)continue;
-   if(mx+1<cellsX&&measuredDepthGrid[my][mx+1]!==null&&Math.floor(measured/900)!==Math.floor(measuredDepthGrid[my][mx+1]/900)){mapCtx.globalAlpha=mapLayer==='MULTIBEAM'?.88:.42;mapCtx.beginPath();mapCtx.moveTo((mx+1)*tileW,my*tileH+tileH*.35);mapCtx.lineTo((mx+1)*tileW,my*tileH+tileH*.65);mapCtx.stroke();}
-   if(my+1<cellsY&&measuredDepthGrid[my+1][mx]!==null&&Math.floor(measured/900)!==Math.floor(measuredDepthGrid[my+1][mx]/900)){mapCtx.globalAlpha=mapLayer==='MULTIBEAM'?.88:.42;mapCtx.beginPath();mapCtx.moveTo(mx*tileW+tileW*.35,(my+1)*tileH);mapCtx.lineTo(mx*tileW+tileW*.65,(my+1)*tileH);mapCtx.stroke();}
+   if(mx+1<cellsX&&measuredDepthGrid[my][mx+1]!==null&&Math.floor(measured/900)!==Math.floor(measuredDepthGrid[my][mx+1]/900)){mapCtx.globalAlpha=mapLayer==='MULTIBEAM'?.9:.45;mapCtx.beginPath();mapCtx.moveTo((mx+1)*tileW,my*tileH+tileH*.25);mapCtx.lineTo((mx+1)*tileW,my*tileH+tileH*.75);mapCtx.stroke();}
+   if(my+1<cellsY&&measuredDepthGrid[my+1][mx]!==null&&Math.floor(measured/900)!==Math.floor(measuredDepthGrid[my+1][mx]/900)){mapCtx.globalAlpha=mapLayer==='MULTIBEAM'?.9:.45;mapCtx.beginPath();mapCtx.moveTo(mx*tileW+tileW*.25,(my+1)*tileH);mapCtx.lineTo(mx*tileW+tileW*.75,(my+1)*tileH);mapCtx.stroke();}
   }mapCtx.restore();
-  /* SIDE-SCAN: local relief and sediment drive backscatter marks. */
+  /* SIDE-SCAN: backscatter, relief and acoustic shadow use model readings. */
   mapCtx.save();mapCtx.strokeStyle=vigilSensorColor('side_scan');mapCtx.lineWidth=1.25;
-  for(var my=1;my<cellsY-1;my++)for(var mx=1;mx<cellsX-1;mx++){var mt=terrainGrid[my][mx];if(!mt||mt.isLand)continue;var lt=terrainGrid[my][mx-1]||mt,rt=terrainGrid[my][mx+1]||mt,ut=terrainGrid[my-1][mx]||mt,dt=terrainGrid[my+1][mx]||mt;var relief=Math.abs((Number(lt.depthNorm)||0)-(Number(rt.depthNorm)||0))+Math.abs((Number(ut.depthNorm)||0)-(Number(dt.depthNorm)||0));var backscatter=Math.max(0,Math.min(1,.15+relief*1.9+(Number(mt.sedimentIndex)||0)*.18+(Number(mt.riftWall)||0)*.28+mapSensorNoise(Number(mt.x)||0,Number(mt.y)||0,103)*.035));
-   if(backscatter>.34&&((mx+my)%2===0)){mapCtx.globalAlpha=mapLayer==='SIDE-SCAN'?.9:.56;mapCtx.beginPath();mapCtx.moveTo(mx*tileW+tileW*.22,my*tileH+tileH*.5);mapCtx.lineTo(mx*tileW+tileW*.5,my*tileH+tileH*.5);mapCtx.stroke();}
-  }mapCtx.restore();
-  /* SUB-BOTTOM: sediment boundaries and rift structure are a distinct geological return. */
-  mapCtx.save();mapCtx.strokeStyle=vigilSensorColor('sub_bottom');mapCtx.lineWidth=1.25;
-  for(var my=1;my<cellsY-1;my++)for(var mx=1;mx<cellsX-1;mx++){var mt=terrainGrid[my][mx];if(!mt||mt.isLand)continue;var ns=((Number((terrainGrid[my][mx-1]||mt).sedimentIndex)||0)+(Number((terrainGrid[my][mx+1]||mt).sedimentIndex)||0)+(Number((terrainGrid[my-1][mx]||mt).sedimentIndex)||0)+(Number((terrainGrid[my+1][mx]||mt).sedimentIndex)||0))*.25;var discontinuity=Number(mt.riftCore||0)>.075||Number(mt.riftWall||0)>.12||Math.abs((Number(mt.sedimentIndex)||0)-ns)>.055;
-   if(discontinuity&&((mx+my)%3===0)){mapCtx.globalAlpha=mapLayer==='SUB-BOTTOM'?.92:.64;mapCtx.beginPath();mapCtx.moveTo(mx*tileW+tileW*.42,my*tileH+tileH*.35);mapCtx.lineTo(mx*tileW+tileW*.62,my*tileH+tileH*.62);mapCtx.stroke();}
-  }mapCtx.restore();
-  /* MAGNETOMETER and CTD are simultaneous environmental overlays, not replacement raster modes. */
+  for(var my=1;my<cellsY-1;my++)for(var mx=1;mx<cellsX-1;mx++){var r=readingsGrid[my][mx];if(!r||r.sideScan.confidence<=.15)continue;if(r.sideScan.feature_score>.16&&((mx+my)%2===0)){mapCtx.globalAlpha=mapLayer==='SIDE-SCAN'?.92:.48;mapCtx.beginPath();mapCtx.moveTo((mx+.23)*tileW,(my+.5)*tileH);mapCtx.lineTo((mx+.52)*tileW,(my+.5)*tileH);mapCtx.stroke();}}mapCtx.restore();
+  /* SUB-BOTTOM: modeled sediment reflectors and geological discontinuities. */
+  mapCtx.save();mapCtx.strokeStyle=vigilSensorColor('sub_bottom');mapCtx.lineWidth=1.2;
+  for(var my=1;my<cellsY-1;my++)for(var mx=1;mx<cellsX-1;mx++){var r=readingsGrid[my][mx];if(!r||r.subBottom.confidence<=.15)continue;if(r.subBottom.geological_discontinuity&&((mx+my)%3===0)){mapCtx.globalAlpha=mapLayer==='SUB-BOTTOM'?.94:.62;mapCtx.beginPath();mapCtx.moveTo((mx+.42)*tileW,(my+.34)*tileH);mapCtx.lineTo((mx+.62)*tileW,(my+.66)*tileH);mapCtx.stroke();}}mapCtx.restore();
+  /* MAGNETOMETER, thermal gradient and CTD salinity each retain a separate symbol/color. */
   mapCtx.save();
-  for(var my=0;my<cellsY;my++)for(var mx=0;mx<cellsX;mx++){var mt=terrainGrid[my][mx];if(!mt||mt.isLand)continue;var cx=(mx+.5)*tileW,cy=(my+.5)*tileH,n=mapSensorNoise(Number(mt.x)||0,Number(mt.y)||0,107);
-   if(Math.abs((Number(mt.magneticFieldNt)||0)+n*2.2)>80&&((mx+my)%2===0)){mapCtx.globalAlpha=mapLayer==='MAGNETIC'?.96:.72;mapCtx.strokeStyle=vigilSensorColor('magnetometer');mapCtx.beginPath();mapCtx.moveTo(cx-2,cy-1);mapCtx.lineTo(cx,cy-3);mapCtx.lineTo(cx+2,cy-1);mapCtx.lineTo(cx,cy+1);mapCtx.closePath();mapCtx.stroke();}
-   var temp=Number(mt.temperatureC)||0,neighbors=[terrainGrid[my][Math.max(0,mx-1)],terrainGrid[my][Math.min(cellsX-1,mx+1)],terrainGrid[Math.max(0,my-1)][mx],terrainGrid[Math.min(cellsY-1,my+1)][mx]].filter(Boolean),avg=neighbors.reduce(function(sum,nbr){return sum+(Number(nbr.temperatureC)||0);},0)/Math.max(1,neighbors.length),gradient=Math.abs(temp-avg);
-   if((temp>8||gradient>.75)&&((mx+my)%2===0)){mapCtx.globalAlpha=mapLayer==='CTD'?.95:.72;mapCtx.strokeStyle=vigilSensorColor('ctd');mapCtx.beginPath();mapCtx.arc(cx+2,cy+2,1.9,0,Math.PI*2);mapCtx.stroke();}
+  for(var my=0;my<cellsY;my++)for(var mx=0;mx<cellsX;mx++){var r=readingsGrid[my][mx],mt=terrainGrid[my][mx];if(!r||!mt)continue;var cx=(mx+.5)*tileW,cy=(my+.5)*tileH;
+   if(r.magnetometer.detected&&r.magnetometer.confidence>.18&&((mx+my)%2===0)){mapCtx.globalAlpha=mapLayer==='MAGNETIC'?.98:.70;mapCtx.strokeStyle=vigilSensorColor('magnetometer');mapCtx.beginPath();mapCtx.moveTo(cx-2,cy-1);mapCtx.lineTo(cx,cy-3);mapCtx.lineTo(cx+2,cy-1);mapCtx.lineTo(cx,cy+1);mapCtx.closePath();mapCtx.stroke();}
+   if(r.temperature.confidence>.15&&(r.temperature.anomaly||r.temperature.gradient_c>.025)&&((mx+my)%2===0)){mapCtx.globalAlpha=mapLayer==='CTD'?.88:.54;mapCtx.strokeStyle='#ff7348';mapCtx.beginPath();mapCtx.arc(cx-2,cy+2,1.9,0,Math.PI*2);mapCtx.stroke();}
+   if(r.ctd&&r.ctd.confidence>.15&&Math.abs(r.ctd.salinity_psu-34.6)>.06&&((mx+my)%3===0)){mapCtx.globalAlpha=mapLayer==='CTD'?.98:.68;mapCtx.strokeStyle='#8eeeff';mapCtx.beginPath();mapCtx.arc(cx+3,cy+3,1.8,0,Math.PI*2);mapCtx.stroke();}
   }mapCtx.restore();
- if(mapMode==='local'){mapCtx.strokeStyle='rgba(153,239,180,.55)';mapCtx.beginPath();mapCtx.arc(w*.5,h*.5,Math.min(w,h)*.39,0,Math.PI*2);mapCtx.stroke();}
+ 
+if(mapMode==='local'){mapCtx.strokeStyle='rgba(153,239,180,.55)';mapCtx.beginPath();mapCtx.arc(w*.5,h*.5,Math.min(w,h)*.39,0,Math.PI*2);mapCtx.stroke();}
  units.forEach(function(u){
   var p=project(u.x,u.y);if(p.x<-12||p.x>w+12||p.y<-12||p.y>h+12)return;
   var activeUnit=u.id==='UUV-01';mapCtx.fillStyle=activeUnit?'#a2ffbf':'#58c98b';
