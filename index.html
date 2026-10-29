@@ -3711,7 +3711,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     var baseDepthNorm=Math.max(0,Math.min(1,.48+broad*.28+mid*.19+fine*.08+trench*.18-ridge*.14-shelf*.12));
     var depthNorm=Math.max(baseDepthNorm,Math.max(0,Math.min(1,.76+riftCore*.24-riftWall*.06)));
     var depthMeters=land?0:Math.max(35,Math.min(6200,120+baseDepthNorm*4700));if(!land&&riftCore>.045)depthMeters=Math.max(depthMeters,6500+riftCore*18000);
-    var temperatureC=2.4-depthMeters*.00012+riftCore*18+riftWall*2.8+vigilWorldNoise(point.x,point.y,31,71)*.18;var magneticFieldNt=vigilWorldNoise(point.x,point.y,7.3,81)*22+vigilWorldNoise(point.x,point.y,18,82)*8+riftCore*180+riftWall*55+(land?35:0);var sedimentIndex=Math.max(.02,Math.min(.95,.25+vigilWorldNoise(point.x,point.y,5,83)*.18+depthMeters/9000*.15+riftWall*.3));return {seed:VIGIL_WORLD_SEED,x:point.x,y:point.y,isLand:land,depthMeters:depthMeters,depthNorm:depthNorm,rupture:riftActive,riftCore:riftCore,riftWall:riftWall,temperatureC:temperatureC,magneticFieldNt:magneticFieldNt,sedimentIndex:sedimentIndex,biome:riftCore>.12?'PELAGOS ABYSSAL RIFT // CRUSTAL BREACH':land?'ISLAND / CONTINENTAL LAND':trench>.25?'ABYSSAL TRENCH':ridge>.24?'MID-OCEAN RIDGE':shelf>.2?'CONTINENTAL SHELF':'DEEP OCEAN'};
+    var temperatureC=2.4-depthMeters*.00012+riftCore*18+riftWall*2.8+vigilWorldNoise(point.x,point.y,31,71)*.18;var salinityPSU=34.6+vigilWorldNoise(point.x,point.y,4.4,84)*.24+riftCore*1.1-riftWall*.12;var magneticFieldNt=vigilWorldNoise(point.x,point.y,7.3,81)*22+vigilWorldNoise(point.x,point.y,18,82)*8+riftCore*180+riftWall*55+(land?35:0);var sedimentIndex=Math.max(.02,Math.min(.95,.25+vigilWorldNoise(point.x,point.y,5,83)*.18+depthMeters/9000*.15+riftWall*.3));return {seed:VIGIL_WORLD_SEED,x:point.x,y:point.y,isLand:land,depthMeters:depthMeters,depthNorm:depthNorm,rupture:riftActive,riftCore:riftCore,riftWall:riftWall,temperatureC:temperatureC,salinityPSU:salinityPSU,magneticFieldNt:magneticFieldNt,sedimentIndex:sedimentIndex,biome:riftCore>.12?'PELAGOS ABYSSAL RIFT // CRUSTAL BREACH':land?'ISLAND / CONTINENTAL LAND':trench>.25?'ABYSSAL TRENCH':ridge>.24?'MID-OCEAN RIDGE':shelf>.2?'CONTINENTAL SHELF':'DEEP OCEAN'};
   }
   window.vigilGetCampaignWorld=function(){return {id:'PELAGOS-01',name:'PELAGOS',seed:VIGIL_WORLD_SEED,version:1,topology:'SPHERICAL STITCHED ATLAS // WRAPPED LONGITUDE AND CONNECTED POLES',description:'Fictional ocean world on a continuous spherical surface, with seeded islands, shelves, ridges and trenches; not Earth geography.'};};
   window.vigilGetWorldTerrainAt=function(x,y){return vigilWorldAt(Number(x),Number(y));};
@@ -5619,6 +5619,7 @@ function draw(){
   if(!ap||ap.x<-30||ap.x>w+30||ap.y<-30||ap.y>h+30||ap.z>760)return;
   ctx.save();ctx.strokeStyle=item.status==='LOST'?'#ffb36b':'#b8f7e0';ctx.fillStyle=item.status==='LOST'?'rgba(255,179,107,.18)':'rgba(184,247,224,.16)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(ap.x,ap.y,7,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle=item.status==='LOST'?'#ffd0a0':'#d8fff0';ctx.font='10px Courier New';ctx.fillText(item.status==='LOST'?'LOST // '+item.title:'ARTIFACT // '+item.title,ap.x+10,ap.y-8);ctx.restore();
  });
+ ctx.save();
  /* Always-on sensor suite: measurements are computed from simulation world data, then rendered here. */
  if(!window.vigilSensorSuite){
   window.vigilSensorSuite=(function(){
@@ -5631,7 +5632,8 @@ function draw(){
     var temp=Number.isFinite(Number(terrain&&terrain.temperatureC))?Number(terrain.temperatureC):2.4-depth*.00012+rift*18+wall*2.8;
     var magnetic=Number.isFinite(Number(terrain&&terrain.magneticFieldNt))?Number(terrain.magneticFieldNt):hash(x*7.3,y*7.3,11)*22+hash(x*18,y*18,17)*8+rift*180+wall*55+(terrain&&terrain.isLand?35:0);
     var sediment=Number.isFinite(Number(terrain&&terrain.sedimentIndex))?Number(terrain.sedimentIndex):clamp(.25+hash(x*5,y*5,23)*.18+depth/9000*.15+wall*.3,.02,.95);
-    return {temperatureC:temp,magneticNt:magnetic,sedimentIndex:sediment};
+    var salinity=Number.isFinite(Number(terrain&&terrain.salinityPSU))?Number(terrain.salinityPSU):34.6+hash(x*4.4,y*4.4,84)*.24+rift*1.1-wall*.12;
+    return {temperatureC:temp,salinityPSU:salinity,magneticNt:magnetic,sedimentIndex:sediment};
    }
    function measureCell(input){
     var terrain=input.terrain||{},left=input.left||terrain,right=input.right||terrain,near=input.near||terrain,far=input.far||terrain;
@@ -5643,13 +5645,15 @@ function draw(){
     var side={backscatter:backscatter,shadow_probability:shadow,feature_score:clamp(relief/900,0,1),confidence:acoustic};
     var env=environment(input.x,input.y,terrain);
     var magnet={field_nt:env.magneticNt+hash(input.x,input.y,41)*2.2,anomaly_nt:env.magneticNt,confidence:clamp(1-rangeM/700,0,1),detected:Math.abs(env.magneticNt)>80&&rangeM<700};
-    var thermal={temperature_c:env.temperatureC+hash(input.x,input.y,43)*.12,gradient_c:Math.abs(env.temperatureC-(environment(input.x+.0002,input.y,terrain).temperatureC)),confidence:clamp(1-rangeM/600,0,1),anomaly:env.temperatureC>8&&rangeM<600};
+    var tempLeft=environment(input.x-.0002,input.y,left).temperatureC,tempRight=environment(input.x+.0002,input.y,right).temperatureC,tempNear=environment(input.x,input.y-.0002,near).temperatureC,tempFar=environment(input.x,input.y+.0002,far).temperatureC;
+    var thermal={temperature_c:env.temperatureC+hash(input.x,input.y,43)*.12,gradient_c:(Math.abs(tempLeft-tempRight)+Math.abs(tempNear-tempFar))*.5,confidence:clamp(1-rangeM/600,0,1),anomaly:env.temperatureC>8&&rangeM<600};
+    var ctd={temperature_c:env.temperatureC+hash(input.x,input.y,61)*.035,salinity_psu:env.salinityPSU+hash(input.x,input.y,67)*.025,pressure_dbar:Math.max(0,depth/10)+hash(input.x,input.y,71)*.12,confidence:clamp(1-rangeM/800,0,1)};
     var subbottom={sediment_index:env.sedimentIndex,reflector_strength:clamp(env.sedimentIndex+Number(terrain.riftWall||0)*.4+hash(input.x,input.y,47)*.025,0,1),geological_discontinuity:Number(terrain.riftCore||0)>.04||Number(terrain.riftWall||0)>.25,confidence:clamp(1-rangeM/620,0,1)};
-    return {multibeam:multi,sideScan:side,magnetometer:magnet,temperature:thermal,subBottom:subbottom,environment:env};
+    return {multibeam:multi,sideScan:side,magnetometer:magnet,temperature:thermal,ctd:ctd,subBottom:subbottom,environment:env};
    }
    function updateNavigation(point,now,depthSample,unit){
     var heading=(Number(unit&&unit.heading_deg)||0)*Math.PI/180,speed=Math.max(0,Number(unit&&unit.speed)||0);
-    var altitude=Number(unit&&unit.depth_meters)!=null?Math.max(0,(Number(depthSample&&depthSample.depthMeters)||0)-(Number(unit.depth_meters)||0)):Number(depthSample&&depthSample.depthMeters)||0;
+    var altitude=Number.isFinite(Number(unit&&unit.depth_meters))?Math.max(0,(Number(depthSample&&depthSample.depthMeters)||0)-(Number(unit.depth_meters)||0)):Number(depthSample&&depthSample.depthMeters)||0;
     state.bottomLock=!!(depthSample&&!depthSample.isLand&&altitude<1200);
     /* Simulated four-beam Doppler returns are generated from vehicle motion plus bounded measurement noise.
        The sensor never reads the true position delta to manufacture its velocity measurement. */
@@ -5667,6 +5671,7 @@ function draw(){
  var sensorSuite=window.vigilSensorSuite,sensorNow=performance.now(),sensorPoint=pilotWorldPoint;
  var sensorCounts={multibeam:0,sideScan:0,magnetometer:0,temperature:0,subBottom:0},sensorDvl={bottomLock:false,uncertainty:1,groundVelocity:{east_mps:0,north_mps:0}};
  var sensorOverlaySamples=[];
+ function drawSeparatedSensorGlyph(x,y,dx,dy,color,shape,alpha){ctx.save();ctx.globalAlpha=alpha==null?.9:alpha;ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+dx,y+dy);ctx.stroke();if(shape==='diamond'){ctx.beginPath();ctx.moveTo(x+dx,y+dy-2.5);ctx.lineTo(x+dx+2.5,y+dy);ctx.lineTo(x+dx,y+dy+2.5);ctx.lineTo(x+dx-2.5,y+dy);ctx.closePath();ctx.stroke();}else if(shape==='circle'){ctx.beginPath();ctx.arc(x+dx,y+dy,2.2,0,Math.PI*2);ctx.stroke();}else if(shape==='cross'){ctx.beginPath();ctx.moveTo(x+dx-2.5,y+dy-2.5);ctx.lineTo(x+dx+2.5,y+dy+2.5);ctx.moveTo(x+dx+2.5,y+dy-2.5);ctx.lineTo(x+dx-2.5,y+dy+2.5);ctx.stroke();}else{ctx.beginPath();ctx.moveTo(x+dx-2.5,y+dy);ctx.lineTo(x+dx+2.5,y+dy);ctx.stroke();}ctx.restore();}
  /* Each sensor samples simulation terrain/environment independently; display consumes the returned measurements. */
  for(var sr=2;sr<rows;sr+=2){
   for(var sc=1;sc<cols;sc+=2){
@@ -5681,16 +5686,16 @@ function draw(){
    sensorCounts.multibeam++;
    /* Side-scan paints only sufficiently strong measured backscatter/shadow returns. */
    if(readings.sideScan.feature_score>.22&&readings.sideScan.confidence>.2&&((sr+sc)%3===0)){
-    ctx.fillStyle='rgba(255,221,132,'+(.16+readings.sideScan.backscatter*.42)+')';ctx.fillRect(sp.x-1,sp.y-1,3,2);sensorCounts.sideScan++;
+    drawSeparatedSensorGlyph(sp.x,sp.y,-4,0,'#ffdd84','dash',.82);sensorCounts.sideScan++;
    }
    if(readings.magnetometer.detected&&readings.magnetometer.confidence>.2&&((sr*3+sc)%5===0)){
-    ctx.strokeStyle='rgba(255,119,190,.8)';ctx.beginPath();ctx.arc(sp.x,sp.y,2.5,0,Math.PI*2);ctx.stroke();sensorCounts.magnetometer++;
+    drawSeparatedSensorGlyph(sp.x,sp.y,4,-1,'#ff77be','diamond',.9);sensorCounts.magnetometer++;
    }
    if(readings.temperature.anomaly&&readings.temperature.confidence>.2&&((sr+sc)%3===0)){
-    ctx.fillStyle='rgba(255,115,72,'+Math.min(.8,.22+readings.temperature.gradient_c*.08)+')';ctx.beginPath();ctx.arc(sp.x,sp.y,2.8,0,Math.PI*2);ctx.fill();sensorCounts.temperature++;
+    drawSeparatedSensorGlyph(sp.x,sp.y,0,-4,'#ff7348','circle',.9);sensorCounts.temperature++;
    }
    if(readings.subBottom.geological_discontinuity&&readings.subBottom.confidence>.2&&((sr+sc)%4===0)){
-    ctx.strokeStyle='rgba(204,158,255,.86)';ctx.beginPath();ctx.moveTo(sp.x-3,sp.y+2);ctx.lineTo(sp.x+3,sp.y-2);ctx.stroke();sensorCounts.subBottom++;
+    drawSeparatedSensorGlyph(sp.x,sp.y,0,4,'#cc9eff','cross',.9);sensorCounts.subBottom++;
    }
    if(sensorOverlaySamples.length<24&&((sr+sc)%7===0))sensorOverlaySamples.push({x:sp.x,y:sp.y,range_m:readings.multibeam.range_m,confidence:readings.multibeam.confidence,backscatter:readings.sideScan.backscatter,temperature_c:readings.temperature.temperature_c,magnetic_nt:readings.magnetometer.field_nt,sediment_index:readings.subBottom.sediment_index});
   }
