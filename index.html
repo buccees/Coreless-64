@@ -4144,8 +4144,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     }
     function drawSight(state){
       if(!ctx)return;var w=sight.width,h=sight.height,cx=w/2,cy=h/2;
-      updateFpsCompass();
- ctx.clearRect(0,0,w,h);ctx.fillStyle='#020906';ctx.fillRect(0,0,w,h);
+      // This weapon sight is a separate canvas; the FPS compass helper belongs to another scope.
+      ctx.clearRect(0,0,w,h);ctx.fillStyle='#020906';ctx.fillRect(0,0,w,h);
       ctx.strokeStyle='#164b37';ctx.lineWidth=1;
       for(var x=0;x<=w;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
       for(var y=0;y<=h;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
