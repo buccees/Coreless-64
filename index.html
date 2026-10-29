@@ -5468,10 +5468,10 @@ function boot(){
  launch.type='button';launch.textContent='LAUNCH 3D SEAFLOOR';
  launch.setAttribute('aria-haspopup','dialog');
  launch.title='Open the full-screen, mobile-friendly 3D submersible piloting display';
- // Put it before the sensor panel in the same visible console region, never inside the hidden mission-controls row.
- var consoleRoot=document.getElementById('vigil-ops-console');
- var anchor=consoleRoot||display.parentNode;
- if(anchor&&launch.parentNode!==anchor)anchor.insertBefore(launch,consoleRoot?display:display.nextSibling);
+ // Insert directly before the panel. The panel may not be a direct child of the console root,
+ // so insertBefore(launch, display) on a guessed ancestor can throw and abort viewer startup.
+ if(display.parentNode&&launch.parentNode!==display.parentNode)display.parentNode.insertBefore(launch,display);
+ else if(display.previousElementSibling!==launch)display.insertAdjacentElement('beforebegin',launch);
  launch.hidden=false;launch.removeAttribute('hidden');launch.style.setProperty('display','inline-block','important');launch.style.setProperty('visibility','visible','important');launch.style.setProperty('opacity','1','important');launch.style.setProperty('pointer-events','auto','important');
  if(!launch.dataset.vigilLaunchBound){launch.addEventListener('click',open);launch.dataset.vigilLaunchBound='1';}
  var style=document.createElement('style');
