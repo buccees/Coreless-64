@@ -109,7 +109,7 @@ for (const required of [
   "function drawSeparatedSensorGlyph",
   "drawSeparatedSensorGlyph(sp.x,sp.y,-7,-6,'#80e9ff','dash',.82)",
   "sensorCounts.ctd++",
-  "var panelX=16,panelY=18,panelW=Math.min(228,w-32),panelH=compactHud?102:180",
+  "var panelX=16,panelY=18,panelW=Math.min(228,w-32),panelH=compactHud?116:194",
   "source:'SIMULATION SENSOR MODELS + REGISTERED SENSOR FEEDS'",
   "registered_sensor_feeds:{registered:",
   "mapFeedObservations.forEach(function(o,index)",
