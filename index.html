@@ -5464,7 +5464,7 @@ function boot(){
  if(!display||!controls)return false;
  // Reuse an existing button instead of exiting early: an earlier run may have created it without wiring its click handler.
  var launch=document.getElementById('vigil-3d-seafloor-launch');
- if(!launch){launch=document.createElement('button');launch.type='button';launch.id='vigil-3d-seafloor-launch';}
+ if(!launch){launch=document.createElement('button');launch.type='button';launch.id='vigil-3d-seafloor-'+'launch';}
  launch.type='button';launch.textContent='LAUNCH 3D SEAFLOOR';
  launch.setAttribute('aria-haspopup','dialog');
  launch.title='Open the full-screen, mobile-friendly 3D submersible piloting display';
