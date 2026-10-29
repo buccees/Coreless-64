@@ -5647,18 +5647,19 @@ function draw(){
     var subbottom={sediment_index:env.sedimentIndex,reflector_strength:clamp(env.sedimentIndex+Number(terrain.riftWall||0)*.4+hash(input.x,input.y,47)*.025,0,1),geological_discontinuity:Number(terrain.riftCore||0)>.04||Number(terrain.riftWall||0)>.25,confidence:clamp(1-rangeM/620,0,1)};
     return {multibeam:multi,sideScan:side,magnetometer:magnet,temperature:thermal,subBottom:subbottom,environment:env};
    }
-   function updateNavigation(point,now,depthSample){
-    if(state.lastPoint&&state.lastAt&&now>state.lastAt){
-     var delta=window.vigilGetPlanetRangeBearing(state.lastPoint.x,state.lastPoint.y,point.x,point.y),dt=Math.max(.001,(now-state.lastAt)/1000);
-     /* Position difference is the simulated DVL ground-velocity observation; quantization/noise model measurement limits. */
-     var noiseE=hash(point.x,point.y,53)*.00003,noiseN=hash(point.x,point.y,59)*.00003;
-     state.track.east=delta.east*1500/dt+noiseE;state.track.north=delta.north*1500/dt+noiseN;
-     state.bottomLock=!!(depthSample&&depthSample.bottom_lock);
-     state.uncertainty=state.bottomLock?.35:Math.min(99,state.uncertainty+.8);
-     state.lastFix={east:state.track.east,north:state.track.north,at:now,source:'SIMULATED DVL / BOTTOM TRACK'};
-    }else{state.bottomLock=false;state.uncertainty=1;}
+   function updateNavigation(point,now,depthSample,unit){
+    var heading=(Number(unit&&unit.heading_deg)||0)*Math.PI/180,speed=Math.max(0,Number(unit&&unit.speed)||0);
+    var altitude=Number(unit&&unit.depth_meters)!=null?Math.max(0,(Number(depthSample&&depthSample.depthMeters)||0)-(Number(unit.depth_meters)||0)):Number(depthSample&&depthSample.depthMeters)||0;
+    state.bottomLock=!!(depthSample&&!depthSample.isLand&&altitude<1200);
+    /* Simulated four-beam Doppler returns are generated from vehicle motion plus bounded measurement noise.
+       The sensor never reads the true position delta to manufacture its velocity measurement. */
+    var scale=1500,noiseScale=state.bottomLock?.000025:.00012;
+    state.track.east=Math.sin(heading)*speed*scale+hash(point.x,point.y,53)*noiseScale*scale;
+    state.track.north=Math.cos(heading)*speed*scale+hash(point.x,point.y,59)*noiseScale*scale;
+    state.uncertainty=state.bottomLock?.35:Math.min(99,state.uncertainty+.8);
+    state.lastFix={east_mps:state.track.east,north_mps:state.track.north,at:now,source:state.bottomLock?'SIMULATED DVL // BOTTOM TRACK':'SIMULATED DVL // WATER TRACK ONLY'};
     state.lastPoint={x:point.x,y:point.y};state.lastAt=now;
-    return {groundVelocity:{east_mps:state.track.east,north_mps:state.track.north},bottomLock:state.bottomLock,uncertainty:state.uncertainty,fix:state.lastFix};
+    return {groundVelocity:{east_mps:state.track.east,north_mps:state.track.north},bottomLock:state.bottomLock,uncertainty:state.uncertainty,fix:state.lastFix,altitude_m:altitude};
    }
    return {measureCell:measureCell,updateNavigation:updateNavigation,getState:function(){return state;},environment:environment};
   })();
@@ -5694,7 +5695,7 @@ function draw(){
    if(sensorOverlaySamples.length<24&&((sr+sc)%7===0))sensorOverlaySamples.push({x:sp.x,y:sp.y,range_m:readings.multibeam.range_m,confidence:readings.multibeam.confidence,backscatter:readings.sideScan.backscatter,temperature_c:readings.temperature.temperature_c,magnetic_nt:readings.magnetometer.field_nt,sediment_index:readings.subBottom.sediment_index});
   }
  }
- if(sensorPoint){var centerWorld=window.vigilGetWorldTerrainAt(sensorPoint.x,sensorPoint.y);sensorDvl=sensorSuite.updateNavigation(sensorPoint,sensorNow,sensorSuite.measureCell({x:sensorPoint.x,y:sensorPoint.y,rangeM:Math.max(1,Number(centerWorld.depthMeters)||120),terrain:centerWorld}));}
+ if(sensorPoint){var centerWorld=window.vigilGetWorldTerrainAt(sensorPoint.x,sensorPoint.y);sensorDvl=sensorSuite.updateNavigation(sensorPoint,sensorNow,centerWorld,u);}
  /* DVL ground-velocity vector and compact telemetry panel use sensor-engine output, not command values. */
  var vx=w*.5,vy=h*.5,vecScale=95,vectorLen=Math.min(70,Math.hypot(sensorDvl.groundVelocity.east_mps,sensorDvl.groundVelocity.north_mps)*vecScale);
  ctx.strokeStyle='#7effd0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(vx,vy,5,0,Math.PI*2);ctx.stroke();
