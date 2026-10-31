@@ -3207,7 +3207,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         turn_rate_deg_s:Number(s.maxTurnRateDegPerSec)||0,acceleration_per_s:Number(s.accelerationPerSec)||0,
         position:{x:Number(s.x),y:Number(s.y)},
         side:s.side==='friendly'?'friendly':'contact',
-        source:String(s.source||'regional simulation'),hull:s.hull==null?null:Number(s.hull)};
+        source:String(s.source||'regional simulation'),ship_class:String(s.shipClass||s.unitType||'unknown'),hull:s.hull==null?null:Number(s.hull)};
     }).filter(function(s){return Number.isFinite(s.x)&&Number.isFinite(s.y);});
   };
   window.vigilGetRegionalSimulationUnit=function(unitId){
@@ -5401,7 +5401,10 @@ function changeUnitState(change){
 window.vigilSelectSensorStation=function(modality,sensorId){
  modality=String(modality||'').toLowerCase();sensorId=String(sensorId||'').toLowerCase();
  var unitSelect=document.getElementById('vigil-active-unit'),desiredUnit=null;
- if(modality==='seafloor_mapping'||modality==='bathymetry'||modality==='underwater_camera'||modality==='depth'||sensorId.indexOf('uuv')>=0||sensorId.indexOf('submersible')>=0)desiredUnit='submersible';
+ if(sensorId.indexOf('daedalus')>=0)desiredUnit='daedalus';
+ else if(sensorId.indexOf('ssn-774')>=0)desiredUnit='submarine';
+ else if(sensorId.indexOf('mech-01')>=0)desiredUnit='mech';
+ else if(modality==='seafloor_mapping'||modality==='bathymetry'||modality==='underwater_camera'||modality==='depth'||sensorId.indexOf('uuv')>=0||sensorId.indexOf('submersible')>=0)desiredUnit='submersible';
  else if(modality==='fixed_camera'||modality==='perimeter_radar'||modality==='access_alarm'||sensorId.indexOf('facility')>=0)desiredUnit='facility';
  else if(sensorId.indexOf('drone')>=0)desiredUnit='drone';
  else if(modality==='radar'||modality==='sonar'||modality==='acoustic'||sensorId.indexOf('ddg')>=0)desiredUnit='ship';
