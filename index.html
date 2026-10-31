@@ -4894,7 +4894,7 @@ function draw(){
      targets.push({id:String(c.id),x:Number(c.x),y:Number(c.y),side:c.side||'contact',uncertainty:0,confidence:.5,source:'regional',heading_deg:Number(c.heading_deg)||0});
    });
  }
- updateTrackCandidates(regionalContacts,sensorSnapshot);
+ updateTrackCandidates(regionalContacts,{schema_version:1,feeds:matchingFeeds,observations:feedObservations});
  var ownTrackForCamera=selectedOwnTrack(regionalContacts),selectedCameraTarget=selectedTrack();
  // A hold requires both a valid target and the active unit's own position; release it if either disappears.
  if(cameraState.hold&&(!selectedCameraTarget||!ownTrackForCamera||!cameraModeActive())){
