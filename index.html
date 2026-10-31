@@ -3184,9 +3184,10 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   // The Daedalus is the carrier for every mobile VIGIL vehicle. Craft begin secured in its internal bays.
   var daedalusCarrier=regionalTrainingFleet.find(function(s){return s.id==='DAEDALUS-01';});
   var daedalusBayIds=['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'];
+  var daedalusBaySlots={'DDG-51':'BAY-A // MAIN FLIGHT DECK','SSN-774':'BAY-B // SUBMERSIBLE WELL','DRONE-01':'BAY-C // AERIAL HANGAR','UUV-01':'BAY-D // SUBSEA LOCK','MECH-01':'BAY-E // EVA VEHICLE DECK'};
   regionalTrainingFleet.forEach(function(ship){
     if(daedalusBayIds.indexOf(ship.id)>=0&&daedalusCarrier){
-      ship.parentId='DAEDALUS-01';ship.deploymentStatus='docked';ship.bayStatus='secured';ship.bayLaunchHeading=Number(ship.heading)||0;
+      ship.parentId='DAEDALUS-01';ship.deploymentStatus='docked';ship.bayStatus='secured';ship.baySlot=daedalusBaySlots[ship.id];ship.bayLaunchHeading=Number(ship.heading)||0;
       ship.x=daedalusCarrier.x;ship.y=daedalusCarrier.y;ship.heading=daedalusCarrier.heading;
       ship.speed=0;ship.targetSpeed=0;ship.stationKeepingEnabled=false;
     }
@@ -3210,14 +3211,14 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         steering_heading_deg:Number(s.avoidanceHeading==null?(s.navigationHeading==null?(s.desiredHeading==null?s.heading:s.desiredHeading):s.navigationHeading):s.avoidanceHeading)||0,avoidance_active:s.avoidanceActive===true,
         navigation_heading_deg:Number(s.navigationHeading==null?s.heading:s.navigationHeading)||0,
         speed:Number(s.speed)||0,target_speed:Number(s.targetSpeed==null?s.speed:s.targetSpeed)||0,
-        navigation_target_speed:Number(s.navigationTargetSpeed==null?(s.targetSpeed==null?s.speed:s.targetSpeed):s.navigationTargetSpeed)||0,max_speed:Number(s.maxSpeed)||0,deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),depth_meters:s.depthMeters==null?null:Number(s.depthMeters),target_depth_meters:s.targetDepthMeters==null?(s.depthMeters==null?null:Number(s.depthMeters)):Number(s.targetDepthMeters),
+        navigation_target_speed:Number(s.navigationTargetSpeed==null?(s.targetSpeed==null?s.speed:s.targetSpeed):s.navigationTargetSpeed)||0,max_speed:Number(s.maxSpeed)||0,deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),bay_slot:String(s.baySlot||''),depth_meters:s.depthMeters==null?null:Number(s.depthMeters),target_depth_meters:s.targetDepthMeters==null?(s.depthMeters==null?null:Number(s.depthMeters)):Number(s.targetDepthMeters),
          parent_id:s.parentId?String(s.parentId):null,station_keeping_enabled:s.stationKeepingEnabled===true,formation_active:s.formationActive===true,
         formation_target:s.formationTarget&&Number.isFinite(Number(s.formationTarget.x))&&Number.isFinite(Number(s.formationTarget.y))?{x:Number(s.formationTarget.x),y:Number(s.formationTarget.y)}:null,
         formation_distance:s.formationDistance==null?null:Number(s.formationDistance),
         turn_rate_deg_s:Number(s.maxTurnRateDegPerSec)||0,acceleration_per_s:Number(s.accelerationPerSec)||0,
         position:{x:Number(s.x),y:Number(s.y)},
         side:s.side==='friendly'?'friendly':'contact',
-        source:String(s.source||'regional simulation'),ship_class:String(s.shipClass||s.unitType||'unknown'),deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),hull:s.hull==null?null:Number(s.hull)};
+        source:String(s.source||'regional simulation'),ship_class:String(s.shipClass||s.unitType||'unknown'),deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),bay_slot:String(s.baySlot||''),hull:s.hull==null?null:Number(s.hull)};
     }).filter(function(s){return Number.isFinite(s.x)&&Number.isFinite(s.y);});
   };
   window.vigilGetRegionalSimulationUnit=function(unitId){
@@ -3291,7 +3292,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     getManifest:function(){
       var names={ 'DDG-51':'ARLEIGH BURKE-CLASS DESTROYER','SSN-774':'VIRGINIA-CLASS SUBMARINE','DRONE-01':'RECONNAISSANCE DRONE','UUV-01':'UNCREWED UNDERSEA VEHICLE','MECH-01':'GROUND / EVA MECH' };
       return regionalTrainingFleet.filter(function(s){return Object.prototype.hasOwnProperty.call(names,s.id);}).map(function(s){
-        return {id:s.id,name:names[s.id],deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),parent_id:s.parentId||null,
+        return {id:s.id,name:names[s.id],deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),bay_slot:String(s.baySlot||''),parent_id:s.parentId||null,
           heading:Number(s.deploymentStatus==='docked'?s.bayLaunchHeading:s.heading)||0,speed:Number(s.speed)||0,max_speed:Number(s.maxSpeed)||0,position:{x:Number(s.x),y:Number(s.y)}};
       });
     },
@@ -3419,7 +3420,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         weaponRange:Number(s.weapon_range)||.15,weaponDamage:Number(s.weapon_damage)||1,
         weaponReloadSeconds:Number(s.weapon_reload_seconds)||5,
         weaponCooldownRemaining:Number(s.weapon_cooldown_remaining)||0,parentId:typeof s.parent_id==='string'?s.parent_id:null,
-        deploymentStatus:String(s.deployment_status||'deployed'),bayStatus:String(s.bay_status||''),bayLaunchHeading:Number.isFinite(Number(s.bay_launch_heading))?Number(s.bay_launch_heading):undefined,
+        deploymentStatus:String(s.deployment_status||'deployed'),bayStatus:String(s.bay_status||''),baySlot:String(s.bay_slot||''),bayLaunchHeading:Number.isFinite(Number(s.bay_launch_heading))?Number(s.bay_launch_heading):undefined,
         hull:Number.isFinite(Number(s.hull))?Number(s.hull):null,
         maxHull:Number.isFinite(Number(s.max_hull))?Number(s.max_hull):null,
         afloat:s.afloat!==false});
@@ -3713,7 +3714,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       source:regionalWorldSnapshotActive?'authoritative-server-snapshot':'local-training-simulation',
       timestamp:new Date().toISOString(),
       ships:regionalTrainingFleet.map(function(ship){return {
-        id:ship.id,name:ship.name,side:ship.side,ship_class:ship.shipClass,parent_id:ship.parentId||null,deployment_status:String(ship.deploymentStatus||'deployed'),bay_status:String(ship.bayStatus||''),bay_launch_heading:Number(ship.bayLaunchHeading),
+        id:ship.id,name:ship.name,side:ship.side,ship_class:ship.shipClass,parent_id:ship.parentId||null,deployment_status:String(ship.deploymentStatus||'deployed'),bay_status:String(ship.bayStatus||''),bay_slot:String(ship.baySlot||''),bay_launch_heading:Number(ship.bayLaunchHeading),
         position:{x:Number(ship.x),y:Number(ship.y)},heading_deg:Number(ship.heading),
         desired_heading_deg:Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading),
         steering_heading_deg:Number(ship.avoidanceHeading==null?(ship.navigationHeading==null?(ship.desiredHeading==null?ship.heading:ship.desiredHeading):ship.navigationHeading):ship.avoidanceHeading),
