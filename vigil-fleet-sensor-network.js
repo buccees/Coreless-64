@@ -316,6 +316,8 @@ function boot(){
   ['DDG-51','DAEDALUS-01','DRONE-01','UUV-01','SSN-774','MECH-01','FAC-01'].forEach(function(id){publishUnitReport(id);});
   render();
  }
+ // Re-publish after deferred R&D code has initialized the shared bus.
+ window.setTimeout(function(){['DDG-51','DAEDALUS-01','DRONE-01','UUV-01','SSN-774','MECH-01','FAC-01'].forEach(function(id){publishUnitReport(id);});render();},1800);
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
