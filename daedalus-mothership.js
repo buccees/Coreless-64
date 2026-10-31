@@ -44,7 +44,7 @@ function boot(){
  function drawShip(mode){var box=document.getElementById('daedalus-wireframe');if(box)box.innerHTML=views[mode]||views.top;ship.querySelectorAll('[data-view]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.view===mode));});}
  ship.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener('click',function(){drawShip(b.dataset.view);});});drawShip('top');
  var vehicleTabs=document.querySelector('.vigil-simulation-unit-tab-list');
- if(vehicleTabs&&!vehicleTabs.querySelector('[data-daedalus-entry]')){var b=document.createElement('button');b.type='button';b.dataset.daedalusEntry='1';b.innerHTML='DAEDALUS <small>DE-01</small>';b.addEventListener('click',function(){var nav=document.querySelector('.nav-button[data-view="rd"]');if(nav)nav.click();});vehicleTabs.appendChild(b);}
+ if(vehicleTabs&&!vehicleTabs.querySelector('[data-daedalus-entry]')){var b=document.createElement('button');b.type='button';b.dataset.daedalusEntry='1';b.innerHTML='DAEDALUS <small>DE-01</small>';b.setAttribute('role','tab');b.setAttribute('aria-selected','false');b.addEventListener('click',function(){var existingShip=vehicleTabs.querySelector('[data-unit="ship"]');if(existingShip)existingShip.click();var nav=document.querySelector('.nav-button[data-view="rd"]');if(nav)nav.click();});vehicleTabs.appendChild(b);}
  var nav=document.querySelector('.nav-button[data-view="rd"]');if(nav){nav.textContent='15 // DAEDALUS // MOTHERSHIP';nav.title='Board the Daedalus mothership and open its integrated R&D deck.';}
  var title=panel.querySelector('h2');if(title)title.textContent='DAEDALUS // DE-01 MOTHERSHIP // R&D DECK';
  var engineering=document.createElement('section');engineering.id='daedalus-engineering';
