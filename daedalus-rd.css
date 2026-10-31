@@ -70,3 +70,49 @@
 
 .rd-pairs button{font-size:24px!important;display:grid;place-items:center;min-height:66px}
 .rd-pairs button.selected{outline:2px solid #e2d86a;filter:brightness(1.25)}
+
+/* Physics reconstruction boards */
+.rd-physics-engine{display:grid;gap:10px;min-width:0}
+.rd-physics-actions{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0}
+.rd-physics-actions button,.rd-physics-engine button,.rd-physics-engine select{background:#03150e;color:var(--g);border:1px solid var(--line);padding:8px 10px;font:inherit;cursor:pointer}
+.rd-physics-engine button:hover,.rd-physics-engine button:focus-visible{background:#0b3828;outline:1px solid var(--g)}
+.rd-physics-note{font-size:9px;line-height:1.6;color:#bda875;border-left:2px solid #75633b;padding:7px 9px;margin:5px 0}
+.rd-physics-circuit{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;max-width:420px;margin:auto}
+.rd-circuit-void{min-height:48px}
+.rd-circuit-node{min-height:48px;font-size:18px!important;font-weight:bold}
+.rd-circuit-node.powered{background:#17442e;border-color:#9dffcc;color:#eafff4}
+.rd-circuit-node.core{box-shadow:inset 0 0 0 2px #e7c77d}
+.rd-hex-physics{display:block;width:100%;max-width:420px;margin:auto;background:#010604;border:1px solid #174832}
+.rd-physics-rotors{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px}
+.rd-rotor{min-height:42px}
+.rd-physics-dials,.rd-physics-gates{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.rd-sundial{min-height:62px}
+.rd-sundial.lit{background:#3a3215!important;color:#ffe99c!important;border-color:#d6bb61!important}
+.rd-sundial.dark{background:#08100d!important;color:#719a88!important}
+.rd-gate{min-height:62px}
+.rd-gate.open{background:#401919!important;border-color:#ff7777!important;color:#ffd0d0!important}
+.rd-gate.closed{background:#123526!important;border-color:#70d6a2!important}
+.rd-orbit-physics-wrap{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(180px,.7fr);gap:10px;align-items:center}
+.rd-orbit-canvas{display:block;width:100%;height:auto;background:#010604;border:1px solid #174832}
+.rd-orbit-physics-controls{display:grid;gap:8px}
+.rd-orbit-control{display:grid;gap:4px;color:var(--dim);font-size:10px}
+.rd-orbit-control input{width:100%;padding:0}
+.rd-shape-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.rd-shape-card{display:grid;justify-items:center;gap:4px;min-height:90px}
+.rd-shape-card svg{width:58px;height:58px}
+.rd-shape-card small{font-size:8px;color:var(--dim)}
+.rd-ray-grid{display:grid;grid-template-columns:repeat(15,minmax(0,1fr));gap:2px;overflow-x:auto;padding:4px}
+.rd-ray-cell{min-width:0;min-height:26px;padding:3px!important;font-size:10px!important;aspect-ratio:1}
+.rd-ray-cell.mirror-set{background:#17442e;border-color:#9dffcc}
+.rd-ray-readout{font-size:9px;line-height:1.6;color:var(--dim);overflow-wrap:anywhere}
+.rd-loop-board{display:block;width:100%;max-width:360px;margin:8px auto;background:#010604;border:1px solid #174832}
+.rd-edge-controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.rd-edge-controls button{min-height:36px}
+.rd-edge-controls button:disabled{opacity:.4;cursor:not-allowed}
+.rd-timed-box{border:1px solid #75633b;background:#121108;color:#e6d9b2;padding:12px}
+.rd-timer{font-weight:bold;color:#f1d99b;font-size:15px}
+.rd-timed-instruction{font-size:12px;color:#fff0c4}
+.rd-action-lane{display:flex;flex-wrap:wrap;gap:7px;margin:9px 0}
+.rd-target{min-width:90px;min-height:54px}
+.rd-thrust-meter{height:24px;border:1px solid #9dffcc;background:#17392b;color:#eafff4;padding:4px;font-size:9px;margin:8px 0}
+@media(max-width:700px){.rd-physics-rotors{grid-template-columns:repeat(3,minmax(0,1fr))}.rd-orbit-physics-wrap{grid-template-columns:1fr}.rd-shape-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.rd-ray-grid{min-width:510px}.rd-edge-controls{grid-template-columns:repeat(3,minmax(0,1fr))}}
