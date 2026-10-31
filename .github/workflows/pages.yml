@@ -6,6 +6,8 @@ on:
       - vigil-spatial-awareness
     paths:
       - "index.html"
+      - "daedalus-rd.css"
+      - "daedalus-rd.js"
       - "assets/wallpapers/**"
       - "operator-display.html"
       - ".github/workflows/pages.yml"
@@ -33,9 +35,13 @@ jobs:
           set -eux
           mkdir -p site
           cp index.html site/index.html
+          cp daedalus-rd.css site/daedalus-rd.css
+          cp daedalus-rd.js site/daedalus-rd.js
           cp operator-display.html site/operator-display.html
           if [ -d assets ]; then cp -R assets site/assets; fi
           test -s site/index.html
+          test -s site/daedalus-rd.css
+          test -s site/daedalus-rd.js
           test -s site/assets/wallpapers/vigil-deepwater-command.svg
           test -s site/operator-display.html
 
