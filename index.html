@@ -2942,13 +2942,19 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       measurements[row.label]=row.value;
       if(numericValue===null&&row.value!==null&&row.value!==undefined&&Number.isFinite(Number(row.value))){numericValue=Number(row.value);units=String(row.units||'');}
     });
-    var first=Array.isArray(frame.detected_contacts)&&frame.detected_contacts.length?frame.detected_contacts[0]:null;
-    var object={object_id:'READOUT-'+frame.sensor_id,classification:String(frame.sensor_name||frame.sensor_id),
+    var objects=[{object_id:'READOUT-'+frame.sensor_id,classification:String(frame.sensor_name||frame.sensor_id),
       confidence:1,modalities:[frame.modality],sensor_ids:[frame.sensor_id],measurements:measurements,
-      measurement_value:numericValue,measurement_units:units,measurement_status:'UNIT-OWNED SYNTHETIC SENSOR READOUT',
-      range_m:first&&Number.isFinite(Number(first.range_map_units))?Number(first.range_map_units):null,
-      bearing_deg:first&&Number.isFinite(Number(first.bearing_deg))?Number(first.bearing_deg):null};
-    var key=recordSensorFeed(frame.sensor_id,frame.modality,[object],null,'simulation',null,Date.now(),frame.unit_id);
+      measurement_value:numericValue,measurement_units:units,measurement_status:'UNIT-OWNED SYNTHETIC SENSOR READOUT'}];
+    var own=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(frame.unit_id);
+    (Array.isArray(frame.detected_contacts)?frame.detected_contacts:[]).forEach(function(hit){
+      if(!own||!window.vigilAdvancePlanetPoint||!hit||!Number.isFinite(Number(hit.bearing_deg))||!Number.isFinite(Number(hit.range_map_units)))return;
+      var point=window.vigilAdvancePlanetPoint(own.x,own.y,Number(hit.bearing_deg),Number(hit.range_map_units));
+      if(!point||!Number.isFinite(Number(point.x))||!Number.isFinite(Number(point.y)))return;
+      objects.push({object_id:'TRACK-'+String(hit.contact_id),classification:String(hit.classification||hit.contact_id),
+        normalized_position:[Number(point.x),Number(point.y)],confidence:Number(hit.confidence)||.5,side:'contact',
+        modalities:[frame.modality],sensor_ids:[frame.sensor_id],measurement_status:'UNIT-OWNED SENSOR DETECTION'});
+    });
+    var key=recordSensorFeed(frame.sensor_id,frame.modality,objects,null,'simulation',null,Date.now(),frame.unit_id);
     if(window.vigilRefreshSensorFeedRoster)window.vigilRefreshSensorFeedRoster();
     window.dispatchEvent(new CustomEvent('vigil:sensor-observation',{detail:{unit_id:String(frame.unit_id),sensor_id:frame.sensor_id,modality:frame.modality,feed_key:key}}));
     return {ok:true,feed_key:key,unit_id:String(frame.unit_id)};
@@ -4704,6 +4710,17 @@ function sensorModalitiesForMode(lower){
  if(lower.indexOf('proximity')>=0)return ['proximity','acoustic','sonar'];
  if(lower.indexOf('access')>=0)return ['access_alarm','motion','telemetry'];
  if(lower.indexOf('fire control')>=0)return ['fire_control','radar','sonar','optical','thermal','lidar','tracking'];
+ if(lower.indexOf('star tracker')>=0)return ['star_tracker'];
+ if(lower.indexOf('laser communication')>=0||lower.indexOf('lasercom')>=0)return ['lasercom','telemetry'];
+ if(lower.indexOf('radiation')>=0)return ['radiation'];
+ if(lower.indexOf('life support')>=0)return ['life_support'];
+ if(lower.indexOf('power')>=0||lower.indexOf('reactor')>=0)return ['power'];
+ if(lower.indexOf('ctd')>=0)return ['ctd'];
+ if(lower.indexOf('magnetometer')>=0)return ['magnetometer'];
+ if(lower.indexOf('encoder')>=0)return ['encoders'];
+ if(lower.indexOf('force')>=0||lower.indexOf('torque')>=0)return ['force_torque'];
+ if(lower.indexOf('air-data')>=0||lower.indexOf('pressure probe')>=0)return ['air_data'];
+ if(lower.indexOf('access')>=0||lower.indexOf('alarm')>=0)return ['access_alarm'];
  if(lower.indexOf('fused')>=0||lower.indexOf('track')>=0||lower.indexOf('telemetry')>=0||lower.indexOf('motion')>=0)return null;
  return null;
 }
