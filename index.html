@@ -3418,7 +3418,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         shipClass:String(s.ship_class||'unknown'),side:'friendly',
         weaponRange:Number(s.weapon_range)||.15,weaponDamage:Number(s.weapon_damage)||1,
         weaponReloadSeconds:Number(s.weapon_reload_seconds)||5,
-        weaponCooldownRemaining:Number(s.weapon_cooldown_remaining)||0,
+        weaponCooldownRemaining:Number(s.weapon_cooldown_remaining)||0,parentId:typeof s.parent_id==='string'?s.parent_id:null,
+        deploymentStatus:String(s.deployment_status||'deployed'),bayStatus:String(s.bay_status||''),bayLaunchHeading:Number.isFinite(Number(s.bay_launch_heading))?Number(s.bay_launch_heading):undefined,
         hull:Number.isFinite(Number(s.hull))?Number(s.hull):null,
         maxHull:Number.isFinite(Number(s.max_hull))?Number(s.max_hull):null,
         afloat:s.afloat!==false});
@@ -3573,11 +3574,12 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   function localRegionalDemoSnapshot(){
     return {
       schema_version:1,player_id:'local-training',simulation_tick:regionalDemoTicks,
-      controlled_ship_ids:['DDG-51','SSN-774'],
+      controlled_ship_ids:['DAEDALUS-01','DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01','FAC-01'],
       ships:regionalTrainingFleet.map(function(s){return {
         ship_id:s.id,name:s.name,x:s.x,y:s.y,speed:s.speed,max_speed:s.maxSpeed,
         side:s.side==='friendly'?'friendly':'contact',
-        heading_deg:s.heading,afloat:s.afloat!==false,ship_class:s.shipClass,
+        heading_deg:s.heading,afloat:s.afloat!==false,ship_class:s.shipClass,parent_id:s.parentId||null,
+        deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),bay_launch_heading:Number(s.bayLaunchHeading),
         length_m:s.lengthM,beam_m:s.beamM,blueprint_source:s.source,
         weapon_range:s.weaponRange,weapon_damage:s.weaponDamage,
         weapon_reload_seconds:s.weaponReloadSeconds,
