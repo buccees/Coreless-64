@@ -42,7 +42,7 @@ function boot(){
  function optical(){
   var wave=val('rd-opt-wave'),power=val('rd-opt-power'),inc=val('rd-opt-inc'),normal=val('rd-opt-mirror'),dist=val('rd-opt-dist'),resp=val('rd-opt-resp'),med=el('rd-opt-medium').selectedOptions[0],n=Number(med.dataset.n),alpha=Number(med.dataset.a);
   label('rd-opt-power-v',fmt(power,2)+' mW');label('rd-opt-inc-v',inc+'°');label('rd-opt-mirror-v',normal+'°');label('rd-opt-dist-v',fmt(dist,2)+' m');
-  var reflected=(2*normal-inc+3600)%360,theta=inc*Math.PI/180,trans=Math.asin(Math.min(1,Math.sin(theta)/n))*180/Math.PI,critical=Math.asin(1/n)*180/Math.PI;
+  var reflected=(2*normal-inc+3600)%360,theta=inc*Math.PI/180,trans=Math.asin(Math.min(1,n*Math.sin(theta)))*180/Math.PI,critical=Math.asin(1/n)*180/Math.PI;
   var fresnel=((1-n)/(1+n))**2,mirrorOut=power*.96,transmit=mirrorOut*Math.exp(-alpha*dist),current=transmit/1000*resp,photon=6.62607015e-34*299792458/(wave*1e-9),flux=transmit/1000/photon;
   var tir=inc>critical&&n>1.0001;
   var x1=40,y1=185,xm=250,ym=105,a=reflected*Math.PI/180,x2=xm+185*Math.cos(a),y2=ym-185*Math.sin(a);
