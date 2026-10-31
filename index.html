@@ -3300,6 +3300,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       var id=String(unitId||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===id;});
       if(!unit||['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'].indexOf(id)<0)return {ok:false,reason:'UNIT IS NOT ASSIGNED TO THE DAEDALUS CARRIER BAY.'};
       if(unit.deploymentStatus!=='docked')return {ok:false,reason:'UNIT IS ALREADY DEPLOYED.'};
+      var carrier=regionalTrainingFleet.find(function(s){return s.id==='DAEDALUS-01'&&s.afloat!==false;});
       var launchHeading=heading===undefined?(Number.isFinite(Number(unit.bayLaunchHeading))?Number(unit.bayLaunchHeading):(Number(carrier&&carrier.heading)||0)):heading;
       var result=window.vigilSetSimulationUnitState(id,{deployment_status:'launch',heading:launchHeading,speed:speed});
       if(result&&result.ok){startRegionalFleet();window.dispatchEvent(new CustomEvent('vigil:mothership-command',{detail:{action:'LAUNCH',unit_id:id,issued_by:'DAEDALUS-01',timestamp:new Date().toISOString()}}));}
