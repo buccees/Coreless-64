@@ -1362,6 +1362,11 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     if (sensorReference && (category === 'simulation' || category === 'sensors')) sensorReference.open = true;
     updateWorkspaceColumns();
   }
+  window.addEventListener('vigil:active-unit-changed', function(event) {
+    if (event && event.detail && event.detail.unit && event.detail.unit.id === 'daedalus') selectCategory('simulation');
+    else if (event && event.detail && event.detail.unit && event.detail.unit.id !== 'daedalus') selectCategory('simulation');
+  });
+
   function updateWorkspaceColumns() {
     var layouts = Array.prototype.slice.call(document.querySelectorAll('.workspace .layout'));
     layouts.forEach(function(layout) {
