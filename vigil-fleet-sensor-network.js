@@ -53,7 +53,7 @@ var sensorPackages={
  ]}
 };
 var sharedSources={
- 'DAEDALUS-01':{name:'DAEDALUS DE-01 // ORBITAL MOTHERSHIP',kind:'ORBITAL MOTHERSHIP',coverage:.30,
+ 'DAEDALUS-01':{name:'DAEDALUS DE-01 // ORBITAL MOTHERSHIP',kind:'ORBITAL MOTHERSHIP',coverage:.42,
   services:['Fleet data relay','Precision time reference','Orbital / inertial navigation corrections','Shared track archive','R&D experiment archive','Laser communications gateway']},
  'FAC-01':{name:'FAC-01 // FIXED SENSOR INSTALLATION',kind:'FIXED INSTALLATION',coverage:.14,
   services:['Local sensor fusion and track relay','Ground navigation / timing reference','Regional map and terrain cache','Environmental / weather reference','R&D archive and maintenance records','Secure RF communications gateway']}
