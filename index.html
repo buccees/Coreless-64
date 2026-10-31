@@ -3186,7 +3186,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   var daedalusBayIds=['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'];
   regionalTrainingFleet.forEach(function(ship){
     if(daedalusBayIds.indexOf(ship.id)>=0&&daedalusCarrier){
-      ship.parentId='DAEDALUS-01';ship.deploymentStatus='docked';ship.bayStatus='secured';
+      ship.parentId='DAEDALUS-01';ship.deploymentStatus='docked';ship.bayStatus='secured';ship.bayLaunchHeading=Number(ship.heading)||0;
       ship.x=daedalusCarrier.x;ship.y=daedalusCarrier.y;ship.heading=daedalusCarrier.heading;
       ship.speed=0;ship.targetSpeed=0;ship.stationKeepingEnabled=false;
     }
@@ -3258,7 +3258,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       var carrier=regionalTrainingFleet.find(function(s){return s.id==='DAEDALUS-01'&&s.afloat!==false;});
       if(!carrier||unit.id==='DAEDALUS-01'||unit.id==='FAC-01')return {ok:false,reason:'ONLY ASSIGNED MOBILE CRAFT CAN BE LAUNCHED FROM THE DAEDALUS BAY.'};
       unit.parentId='DAEDALUS-01';unit.x=carrier.x;unit.y=carrier.y;unit.speed=0;unit.heading=nextHeading===undefined?Number(carrier.heading)||0:nextHeading;
-      unit.desiredHeading=unit.heading;unit.deploymentStatus='deployed';unit.bayStatus='launch-clear';unit.stationKeepingEnabled=false;
+      unit.desiredHeading=unit.heading;unit.deploymentStatus='deployed';unit.bayStatus='launch-clear';unit.stationKeepingEnabled=false;unit.launchTimestamp=new Date().toISOString();
       nextSpeed=nextSpeed===undefined?Math.max(.001,(Number(unit.maxSpeed)||0)*.25):nextSpeed;
     }else if(changes.deployment_status==='recover'){
       var recoveryCarrier=regionalTrainingFleet.find(function(s){return s.id==='DAEDALUS-01'&&s.afloat!==false;});
@@ -3296,7 +3296,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       var id=String(unitId||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===id;});
       if(!unit||['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'].indexOf(id)<0)return {ok:false,reason:'UNIT IS NOT ASSIGNED TO THE DAEDALUS CARRIER BAY.'};
       if(unit.deploymentStatus!=='docked')return {ok:false,reason:'UNIT IS ALREADY DEPLOYED.'};
-      var result=window.vigilSetSimulationUnitState(id,{deployment_status:'launch',heading:heading===undefined?0:heading,speed:speed});
+      var launchHeading=heading===undefined?(Number(unit.bayLaunchHeading)==null?(Number(carrier&&carrier.heading)||0):Number(unit.bayLaunchHeading)):heading;
+      var result=window.vigilSetSimulationUnitState(id,{deployment_status:'launch',heading:launchHeading,speed:speed});
       if(result&&result.ok){startRegionalFleet();window.dispatchEvent(new CustomEvent('vigil:mothership-command',{detail:{action:'LAUNCH',unit_id:id,issued_by:'DAEDALUS-01',timestamp:new Date().toISOString()}}));}
       return result;
     },
@@ -3314,7 +3315,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     },
     launchAll:function(){
       var ids=['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'],results=[];
-      ids.forEach(function(id){var unit=regionalTrainingFleet.find(function(s){return s.id===id;});if(unit&&unit.deploymentStatus==='docked')results.push({unit_id:id,result:window.vigilMothershipCommand.launch(id)});});
+      ids.forEach(function(id){var unit=regionalTrainingFleet.find(function(s){return s.id===id;});if(unit&&unit.deploymentStatus==='docked')results.push({unit_id:id,result:window.vigilMothershipCommand.launch(id,Number(unit.bayLaunchHeading)||0)});});
       return {ok:results.every(function(x){return x.result&&x.result.ok;}),results:results};
     }
   };
@@ -4676,10 +4677,12 @@ var navHeading=context.querySelector('#vigil-nav-heading'),navSpeed=context.quer
 
 function refreshNavigationControls(){
  var profile=select.value,unit=typeof window.vigilGetRegionalSimulationUnit==='function'?window.vigilGetRegionalSimulationUnit(profile):null;
- var movable=profile!=='facility'&&!!unit;
+ var docked=!!(unit&&unit.deployment_status==='docked');
+ var movable=profile!=='facility'&&!!unit&&!docked;
  navHeading.disabled=!movable;navSpeed.disabled=!movable;navApply.disabled=!movable;navStop.disabled=!movable;
  navApply.style.opacity=navStop.style.opacity=movable?'1':'.45';
- if(unit){navHeading.value=Math.round(Number(unit.desired_heading_deg==null?unit.heading_deg:unit.desired_heading_deg)||0);navSpeed.max=String(Math.max(0,Number(unit.max_speed)||0));navSpeed.value=String(Math.max(0,Math.min(Number(navSpeed.max),Number(unit.target_speed==null?unit.speed:unit.target_speed)||0)).toFixed(2));navStatus.textContent='HELM READY // '+unit.id+' // HDG '+navHeading.value+'° // SPEED '+Number(unit.speed||0).toFixed(2)+' / '+navSpeed.max+' // SIMULATED MOTION';}
+ if(docked){navHeading.value=String(Math.round(Number(unit.heading_deg)||0));navSpeed.value='0';navStatus.textContent='STOWED IN DAEDALUS // LAUNCH COMMANDS ONLY FROM THE MOTHERSHIP COMMAND TERMINAL';}
+ else if(unit){navHeading.value=Math.round(Number(unit.desired_heading_deg==null?unit.heading_deg:unit.desired_heading_deg)||0);navSpeed.max=String(Math.max(0,Number(unit.max_speed)||0));navSpeed.value=String(Math.max(0,Math.min(Number(navSpeed.max),Number(unit.target_speed==null?unit.speed:unit.target_speed)||0)).toFixed(2));navStatus.textContent='HELM READY // '+unit.id+' // HDG '+navHeading.value+'° // SPEED '+Number(unit.speed||0).toFixed(2)+' / '+navSpeed.max+' // SIMULATED MOTION';}
  else navStatus.textContent=profile==='facility'?'FIXED INSTALLATION // NAVIGATION LOCKED':'HELM WAITING // SIMULATION UNIT NOT AVAILABLE';
 }
 function sendNavigation(changes){
