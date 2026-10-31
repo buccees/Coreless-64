@@ -3,9 +3,24 @@
 function boot(){
  var host=document.getElementById('rd-active-labs');
  if(!host||host.dataset.ready)return;host.dataset.ready='1';
+
+ /* Shared R&D data bus: lab outputs become timestamped, reusable research records. */
+ var rdBus=window.CorelessRDLabBus;
+ if(!rdBus){
+  var records=[];try{records=JSON.parse(localStorage.getItem('coreless-rd-records')||'[]');if(!Array.isArray(records))records=[];}catch(e){records=[];}
+  var listeners=[];
+  rdBus=window.CorelessRDLabBus={version:'1.0',records:records,
+   publish:function(source,payload){var item={id:'RD-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),source:String(source),timestamp:new Date().toISOString(),data:JSON.parse(JSON.stringify(payload||{}))};records.push(item);if(records.length>100)records.splice(0,records.length-100);try{localStorage.setItem('coreless-rd-records',JSON.stringify(records));}catch(e){}listeners.slice().forEach(function(fn){try{fn(item);}catch(e){}});window.dispatchEvent(new CustomEvent('coreless:rd-data',{detail:item}));return item;},
+   latest:function(source){for(var i=records.length-1;i>=0;i--)if(!source||records[i].source===source)return records[i]||null;return null;},
+   snapshot:function(){return records.slice();},
+   subscribe:function(fn){if(typeof fn!=='function')return function(){};listeners.push(fn);return function(){listeners=listeners.filter(function(x){return x!==fn;});};},
+   clear:function(){records=[];try{localStorage.removeItem('coreless-rd-records');}catch(e){}listeners.slice().forEach(function(fn){try{fn(null);}catch(e){}});}
+  };
+ }
  var esc=function(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
  host.innerHTML=
  '<div class="rd-lab-heading"><div><span class="rd-lab-kicker">CORELESS-64 // VIGIL RESEARCH DIVISION</span><h3>ACTIVE ENGINEERING LABORATORIES</h3><p>Interactive instruments with live calculations. Change an input and the readout recalculates immediately. Simulated specimen and sensor observations are labeled; engineering models use stated physical equations.</p></div><div class="rd-lab-live"><i></i> LOCAL SIMULATION / LIVE CALCULATION</div></div>'+
+ '<div class="rd-bus-console"><div><b>SHARED RESEARCH DATA BUS</b><span id="rd-bus-count">0 RECORDS</span></div><p id="rd-bus-status">Awaiting instrument telemetry. Each completed scan or test publishes a reusable data record.</p><div id="rd-bus-stream" aria-live="polite"></div><button type="button" id="rd-bus-clear">CLEAR LOCAL RESEARCH LOG</button></div>'+
  '<div class="rd-lab-tabs" role="tablist" aria-label="Research laboratory workspaces">'+
  '<button type="button" class="active" data-lab="optics" role="tab" aria-selected="true">01 OPTICS</button>'+
  '<button type="button" data-lab="specimen" role="tab" aria-selected="false">02 SPECIMEN</button>'+
@@ -50,6 +65,7 @@ function boot(){
   var color=wave<430?'#c79cff':wave<490?'#69aaff':wave<570?'#54e89b':wave<700?'#ff7777':'#f4b56b';
   ['rd-opt-ray-in','rd-opt-ray-out'].forEach(function(id){el(id).setAttribute('stroke',color);});
   label('rd-opt-angle-label',tir?'TOTAL INTERNAL REFLECTION':'θt '+fmt(trans,1)+'°');
+  var opticalRecord={wavelength_nm:wave,input_power_mw:power,reflected_angle_deg:reflected,refractive_index:n,transmitted_angle_deg:tir?null:trans,medium:med.value,detector_power_mw:transmit,photocurrent_microamp:current*1e6,photon_flux_per_second:flux,total_internal_reflection:tir};rdBus.publish('optics',opticalRecord);
   readout('rd-opt-readout',[['SOURCE',wave+' nm / '+fmt(power,2)+' mW'],['REFLECTED ANGLE',fmt(reflected,1)+'°'],['MEDIUM REFRACTIVE INDEX',fmt(n,3)],['SNELL REFRACTION',tir?'TIR / NO TRANSMITTED RAY':fmt(trans,2)+'°'],['BEAM POWER AT DETECTOR',fmt(transmit,4)+' mW'],['PHOTODETECTOR CURRENT',fmt(current*1e6,2)+' µA'],['PHOTON FLUX',fmt(flux,3)+' photons/s'],['FRESNEL NORMAL-INCIDENCE REFLECTANCE',fmt(fresnel,4)]]);
  }
  function opticalSafe(){try{optical();}catch(e){label('rd-opt-readout','OPTICAL MODEL ERROR // '+e.message);}}
@@ -71,7 +87,7 @@ function boot(){
   var tissue=layer==='all'?'ALL SEGMENTED REGIONS':layerNames[layer],area=s.length*s.width/100,volume=area*(s.width*.35)/1000;
   readout('rd-spec-readout',[['SPECIMEN',s.name],['SCAN MODE',mode.toUpperCase()],['SELECTED REGION',tissue],['MAGNIFICATION',mag+'×'],['LENGTH / WIDTH',s.length+' / '+s.width+' mm'],['MASS / BULK DENSITY',fmt(s.mass,2)+' kg / '+fmt(s.density,3)+' g/cm³'],['REGION FRACTION',layer==='all'?'100%':fmt(s[layer],1)+'%'],['SEGMENTED OBSERVATION',layer==='all'?'4 regions detected':s.notes[layer]||'Region selected']]);
  }
- function specimenScan(){specimenDraw();var r=el('rd-spec-readout');r.insertAdjacentHTML('beforeend','<div><span>ACQUISITION</span><b>SCAN COMPLETE // SYNTHETIC DATASET</b></div>');}
+ function specimenScan(){specimenDraw();var s=specimen[el('rd-specimen').value],layer=el('rd-spec-layer').value;rdBus.publish('specimen',{specimen_id:el('rd-specimen').value,name:s.name,section:layer,magnification_x:val('rd-mag'),scan_mode:el('rd-spec-mode').value,dimensions_mm:{length:s.length,width:s.width},mass_kg:s.mass,bulk_density_g_cm3:s.density,synthetic:true,observation:layer==='all'?'4 segmented regions':s.notes[layer]});var r=el('rd-spec-readout');r.insertAdjacentHTML('beforeend','<div><span>ACQUISITION</span><b>SCAN COMPLETE // PUBLISHED TO SHARED R&D BUS</b></div>');}
  var materials={
   steel:{name:'STAINLESS STEEL',E:193e9,rho:7.9e-7,res:7.2e-7,yield:215e6},
   aluminum:{name:'ALUMINUM 6061-T6',E:68.9e9,rho:2.7e-7,res:3.99e-8,yield:276e6},
@@ -84,13 +100,15 @@ function boot(){
   var m=materials[el('rd-mat').value],F=val('rd-force'),A=val('rd-area')*1e-6,L=val('rd-length')/1000,wire=val('rd-wire'),stress=F/A,strain=stress/m.E,extension=strain*L,R=m.rho*wire/A;
   label('rd-force-v',F.toLocaleString('en-US')+' N');label('rd-area-v',val('rd-area')+' mm²');label('rd-length-v',val('rd-length')+' mm');label('rd-wire-v',fmt(wire,2)+' m');
   el('rd-material-specimen').style.transform='scaleY('+Math.max(.25,1-Math.min(.7,Math.abs(strain)*20))+')';
+  rdBus.publish('materials',{material:el('rd-mat').value,name:m.name,force_n:F,area_mm2:val('rd-area'),stress_mpa:stress/1e6,strain_microstrain:strain*1e6,extension_mm:extension*1000,reference_yield_mpa:m.yield/1e6,yield_utilization_percent:stress/m.yield*100,wire_resistance_ohm:R,model:'linear-elastic'});
   readout('rd-mat-readout',[['MATERIAL',m.name],['YOUNG MODULUS',fmt(m.E/1e9,2)+' GPa'],['APPLIED LOAD',F.toLocaleString('en-US')+' N'],['ENGINEERING STRESS',fmt(stress/1e6,3)+' MPa'],['ELASTIC STRAIN',fmt(strain*1e6,2)+' µε'],['ELASTIC EXTENSION',fmt(extension*1000,5)+' mm'],['REFERENCE YIELD STRENGTH',fmt(m.yield/1e6,1)+' MPa'],['YIELD UTILIZATION',fmt(stress/m.yield*100,2)+' %'],['WIRE RESISTANCE',fmt(R,6)+' Ω']]);
  }
  function fusion(){
   var items=[['SONAR',val('rd-sonar'),val('rd-sonar-s')],['OPTICAL',val('rd-optical'),val('rd-optical-s')],['ACOUSTIC',val('rd-acoustic'),val('rd-acoustic-s')]],sumW=0,sum=0;
   items.forEach(function(x){sumW+=1/(x[2]*x[2]);sum+=x[1]/(x[2]*x[2]);label('rd-'+x[0].toLowerCase()+'-v',fmt(x[1],2)+' m');label('rd-'+x[0].toLowerCase()+'-s-v',fmt(x[2],2)+' m');});
-  var mean=sum/sumW,sigma=Math.sqrt(1/sumW),min=Math.min.apply(null,items.map(function(x){return x[1];})),max=Math.max.apply(null,items.map(function(x){return x[1];}));
+  var latestOptics=rdBus.latest('optics'),mean=sum/sumW,sigma=Math.sqrt(1/sumW),min=Math.min.apply(null,items.map(function(x){return x[1];})),max=Math.max.apply(null,items.map(function(x){return x[1];}));
   el('rd-fusion-bars').innerHTML=items.map(function(x){return '<div class="rd-fusion-row"><span>'+x[0]+'</span><div><i style="width:'+Math.max(2,Math.min(100,x[1]))+'%"></i></div><b>'+fmt(x[1],2)+' m</b><small>σ '+fmt(x[2],2)+' m</small></div>';}).join('');
+  rdBus.publish('sensor-fusion',{estimate_m:mean,uncertainty_1sigma_m:sigma,interval_95_m:[mean-1.96*sigma,mean+1.96*sigma],observations:items.map(function(x){return {sensor:x[0],range_m:x[1],uncertainty_m:x[2]};}),optical_bench_available:!!latestOptics,optical_bench_power_mw:latestOptics&&latestOptics.data.detector_power_mw});
   readout('rd-fusion-readout',[['FUSED RANGE',fmt(mean,3)+' m'],['FUSED 1σ UNCERTAINTY',fmt(sigma,3)+' m'],['95% INTERVAL',fmt(mean-1.96*sigma,3)+' – '+fmt(mean+1.96*sigma,3)+' m'],['INPUT SPREAD',fmt(max-min,3)+' m'],['ESTIMATOR', 'INVERSE-VARIANCE WEIGHTED'],['OBSERVATIONS', '3 / 3 AVAILABLE']]);
  }
  function bind(ids,fn){ids.forEach(function(id){var n=el(id);if(n)n.addEventListener('input',fn),n.addEventListener('change',fn);});}
