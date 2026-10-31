@@ -4699,6 +4699,9 @@ var profiles={
 var currentTrackCandidates=[],trackOptionsSignature='',sensorPositionConflictHistory=Object.create(null);
 function sensorModalitiesForMode(lower){
  if(lower.indexOf('sonar')>=0||lower.indexOf('acoustic')>=0)return lower.indexOf('proximity')>=0?['proximity','acoustic','sonar']:['sonar','acoustic','motion'];
+ if(lower.indexOf('multibeam')>=0||lower.indexOf('seafloor')>=0||lower.indexOf('bathymetry')>=0)return ['multibeam','side_scan'];
+ if(lower.indexOf('side-scan')>=0||lower.indexOf('sidescan')>=0)return ['side_scan'];
+ if(lower.indexOf('dvl')>=0)return ['dvl'];
  if(lower.indexOf('radar')>=0)return ['radar','perimeter_radar'];
  if(lower.indexOf('underwater')>=0&&lower.indexOf('camera')>=0)return ['underwater_camera','camera','optical','lidar','depth','sonar','acoustic','imu','inertial','navigation'];
  if(lower.indexOf('camera')>=0||lower.indexOf('optical')>=0)return ['optical','camera','fixed_camera','underwater_camera','lidar'];
@@ -4721,7 +4724,8 @@ function sensorModalitiesForMode(lower){
  if(lower.indexOf('force')>=0||lower.indexOf('torque')>=0)return ['force_torque'];
  if(lower.indexOf('air-data')>=0||lower.indexOf('pressure probe')>=0)return ['air_data'];
  if(lower.indexOf('access')>=0||lower.indexOf('alarm')>=0)return ['access_alarm'];
- if(lower.indexOf('fused')>=0||lower.indexOf('track')>=0||lower.indexOf('telemetry')>=0||lower.indexOf('motion')>=0)return null;
+ if(lower.indexOf('telemetry')>=0)return ['telemetry'];
+ if(lower.indexOf('fused')>=0||lower.indexOf('track')>=0||lower.indexOf('motion')>=0)return null;
  return null;
 }
 function updateTrackCandidates(regionalContacts,snapshot){
