@@ -4624,7 +4624,7 @@ var context=document.createElement('section');
 context.className='vigil-unit-context';
 context.id='vigil-unit-sensor-profile';
 context.setAttribute('aria-label','Active simulation unit and sensor capabilities');
-context.innerHTML='<div class="unit-context-controls"><label for="vigil-active-unit">ACTIVE SIMULATION UNIT<select id="vigil-active-unit"><option value="ship">SHIP // SHIPBOARD SENSORS</option><option value="drone">LAUNCH / CONTROL SIMULATED DRONE</option><option value="submersible" selected>UNCREWED SUBMERSIBLE // UUV</option><option value="submarine">SUBMARINE // UNDERSEA PLATFORM</option><option value="mech">MECH UNIT</option><option value="facility">FIXED INSTALLATION</option><option value="daedalus">DAEDALUS // DE-01 ORBITAL MOTHERSHIP</option></select></label><div><strong id="vigil-active-unit-status" class="green">UNIT PROFILE // SHIP</strong><p class="unit-context-note">EQUIPMENT PROFILE // SENSOR ASSIGNMENTS</p></div></div><div id="vigil-unit-sensor-list" class="unit-sensor-list" aria-live="polite"></div><p id="vigil-unit-sensor-note" class="unit-context-note"></p><div id="vigil-daedalus-deck-entry" hidden style="border:1px solid #8b7040;background:#151308;padding:10px;margin:10px 0"><strong style="color:#f1d99b">DAEDALUS // ONBOARD RESEARCH DECK</strong><p class="unit-context-note">This vessel carries its own R&amp;D workspace: optics, specimen research, materials testing, sensor fusion and the Daedalus Encounter engineering suite.</p><button type="button" id="vigil-daedalus-rd-open" style="margin-top:7px;padding:9px 12px;background:#073324;color:var(--g);border:1px solid var(--g);font:inherit;cursor:pointer">SCROLL TO ONBOARD R&amp;D DECK</button></div><div id="vigil-navigation-controls" style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><h4 style="margin:0 0 8px;color:var(--g);font-size:11px;letter-spacing:1px">VEHICLE NAVIGATION / HELM</h4><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end"><label style="font-size:10px;color:var(--dim)">COURSE / HEADING °<input id="vigil-nav-heading" type="number" min="0" max="359" step="1" value="0" style="display:block;width:105px;padding:8px;background:#010604;color:var(--g);border:1px solid var(--line);font:inherit"></label><label style="font-size:10px;color:var(--dim)">TARGET SPEED <input id="vigil-nav-speed" type="number" min="0" max="1" step="0.01" value="0" style="display:block;width:105px;padding:8px;background:#010604;color:var(--g);border:1px solid var(--line);font:inherit"></label><button type="button" id="vigil-nav-apply" style="padding:9px 12px;background:#073324;color:var(--g);border:1px solid var(--g);font:inherit;cursor:pointer">SET COURSE / SPEED</button><button type="button" id="vigil-nav-stop" style="padding:9px 12px;background:#160a08;color:#ffb39c;border:1px solid #804633;font:inherit;cursor:pointer">STOP / ZERO SPEED</button></div><p id="vigil-nav-status" class="unit-context-note" role="status" aria-live="polite">SIMULATION HELM // SELECT A MOBILE UNIT</p></div>';
+context.innerHTML='<div class="unit-context-controls"><label for="vigil-active-unit">ACTIVE SIMULATION UNIT<select id="vigil-active-unit"><option value="ship">SHIP // SHIPBOARD SENSORS</option><option value="drone">LAUNCH / CONTROL SIMULATED DRONE</option><option value="submersible" selected>UNCREWED SUBMERSIBLE // UUV</option><option value="submarine">SUBMARINE // UNDERSEA PLATFORM</option><option value="mech">MECH UNIT</option><option value="facility">FIXED INSTALLATION</option><option value="daedalus">DAEDALUS // DE-01 ORBITAL MOTHERSHIP</option></select></label><div><strong id="vigil-active-unit-status" class="green">UNIT PROFILE // SHIP</strong><p class="unit-context-note">EQUIPMENT PROFILE // SENSOR ASSIGNMENTS</p></div></div><div id="vigil-unit-sensor-list" class="unit-sensor-list" aria-live="polite"></div><p id="vigil-unit-sensor-note" class="unit-context-note"></p><div id="vigil-daedalus-deck-entry" hidden style="border:1px solid #8b7040;background:#151308;padding:10px;margin:10px 0"><strong style="color:#f1d99b">DAEDALUS // ONBOARD RESEARCH DECK</strong><p class="unit-context-note">This vessel carries its own R&amp;D workspace: optics, specimen research, materials testing, sensor fusion and the Daedalus Encounter engineering suite.</p><button type="button" id="vigil-daedalus-rd-open" style="margin-top:7px;padding:9px 12px;background:#073324;color:var(--g);border:1px solid var(--g);font:inherit;cursor:pointer">SCROLL TO ONBOARD R&amp;D DECK</button></div><div id="vigil-daedalus-command-terminal" hidden style="border:1px solid #8b7040;background:#090d12;padding:12px;margin:10px 0"><h4 style="margin:0 0 8px;color:#f1d99b;letter-spacing:1px">DAEDALUS // MOTHERSHIP COMMAND TERMINAL</h4><p class="unit-context-note">HANGAR CONTROL // Select a carried vehicle to launch or recover it. All deployment orders originate here.</p><div id="vigil-daedalus-bay-manifest" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px"></div><p id="vigil-daedalus-command-status" class="unit-context-note" role="status" aria-live="polite">HANGAR MANIFEST // INITIALIZING</p></div><div id="vigil-navigation-controls" style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px"><h4 style="margin:0 0 8px;color:var(--g);font-size:11px;letter-spacing:1px">VEHICLE NAVIGATION / HELM</h4><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end"><label style="font-size:10px;color:var(--dim)">COURSE / HEADING °<input id="vigil-nav-heading" type="number" min="0" max="359" step="1" value="0" style="display:block;width:105px;padding:8px;background:#010604;color:var(--g);border:1px solid var(--line);font:inherit"></label><label style="font-size:10px;color:var(--dim)">TARGET SPEED <input id="vigil-nav-speed" type="number" min="0" max="1" step="0.01" value="0" style="display:block;width:105px;padding:8px;background:#010604;color:var(--g);border:1px solid var(--line);font:inherit"></label><button type="button" id="vigil-nav-apply" style="padding:9px 12px;background:#073324;color:var(--g);border:1px solid var(--g);font:inherit;cursor:pointer">SET COURSE / SPEED</button><button type="button" id="vigil-nav-stop" style="padding:9px 12px;background:#160a08;color:#ffb39c;border:1px solid #804633;font:inherit;cursor:pointer">STOP / ZERO SPEED</button></div><p id="vigil-nav-status" class="unit-context-note" role="status" aria-live="polite">SIMULATION HELM // SELECT A MOBILE UNIT</p></div>';
 var unitTabBar=document.createElement('nav');
 unitTabBar.className='vigil-simulation-unit-tabs';
 unitTabBar.setAttribute('aria-label','Simulation bay unit selection');
@@ -4664,11 +4664,20 @@ var profiles={
  submarine:{title:'SUBMARINE // UNDERSEA PLATFORM',sensors:['SONAR','PASSIVE ACOUSTIC LISTENING','FORWARD-LOOKING SONAR','SEAFLOOR MAPPING','DEPTH SENSOR','INERTIAL NAVIGATION','UNDERWATER CAMERA / ROV FEED','OBJECT TRACKING','FUSED VIEW','TELEMETRY'],note:'Submarine platform roster. Use the uncrewed submersible (UUV) profile for dedicated unmanned seabed-survey missions; this platform can host undersea sensors and launch support.'},
  mech:{title:'MECH UNIT',sensors:['EO CAMERA','THERMAL / IR','LASER RANGEFINDER','PROXIMITY SENSOR','INERTIAL NAVIGATION','OBJECT TRACKING','FUSED VIEW','TELEMETRY'],note:'Complete mech station roster; optical, thermal, ranging, proximity, inertial and tracking stations use the shared console.'},
  facility:{title:'FIXED INSTALLATION',sensors:['FIXED CAMERA','THERMAL / IR','PERIMETER RADAR','ACOUSTIC / MOTION','ESM / RF','OBJECT TRACKING','FUSED VIEW','ACCESS / ALARM','TELEMETRY'],note:'Complete fixed-installation station roster; surveillance, environmental awareness and alarm status remain represented in the shared console.'},
- daedalus:['ORBITAL RADAR','STAR TRACKER','OPTICAL TELESCOPE','IR / THERMAL ARRAY','LASER COMMUNICATIONS','DEEP-SPACE TELEMETRY','ASTRODYNAMICS / IMU','RADIATION MONITOR','LIDAR / DOCKING','POWER / REACTOR MONITOR','LIFE SUPPORT']
 };
 function render(){
  var p=profiles[select.value]||profiles.ship;
  var daedalusDeck=context.querySelector('#vigil-daedalus-deck-entry');if(daedalusDeck)daedalusDeck.hidden=select.value!=='daedalus';
+ var daedalusActive=select.value==='daedalus';
+ var commandTerminal=context.querySelector('#vigil-daedalus-command-terminal');
+ if(commandTerminal)commandTerminal.hidden=!daedalusActive;
+ var submarineConsole=consoleRoot.querySelector('.vigil-ops-grid');
+ if(submarineConsole)submarineConsole.hidden=daedalusActive;
+ var engagementFlow=consoleRoot.querySelector('.vigil-order-flow');
+ if(engagementFlow)engagementFlow.hidden=daedalusActive;
+ var sharedSensorBay=consoleRoot.querySelector('#vigil-sensor-input-bay');
+ if(sharedSensorBay)sharedSensorBay.hidden=daedalusActive;
+ if(daedalusActive)renderDaedalusBayManifest();
  status.textContent='UNIT PROFILE // '+p.title;
  list.textContent='';
  p.sensors.forEach(function(sensor){var chip=document.createElement('span');chip.className='unit-sensor-chip active';chip.textContent=sensor;list.appendChild(chip);});
@@ -4678,6 +4687,37 @@ function render(){
  window.vigilActiveSimulationUnit={id:select.value,label:p.title,sensors:p.sensors.slice(),updatedAt:new Date().toISOString()};
  window.dispatchEvent(new CustomEvent('vigil:active-unit-changed',{detail:{unit:window.vigilActiveSimulationUnit}}));
 }
+function renderDaedalusBayManifest(){
+ var manifest=context.querySelector('#vigil-daedalus-bay-manifest');
+ var commandStatus=context.querySelector('#vigil-daedalus-command-status');
+ if(!manifest)return;
+ var bayIds=['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'];
+ var bayNames={'DDG-51':'DDG-51 // SURFACE COMBATANT','SSN-774':'SSN-774 // ATTACK SUBMARINE','DRONE-01':'DRONE-01 // RECONNAISSANCE DRONE','UUV-01':'UUV-01 // UNCREWED SUBMERSIBLE','MECH-01':'MECH-01 // EVA MECH'};
+ manifest.replaceChildren();
+ bayIds.forEach(function(id){
+  var unit=typeof window.vigilGetRegionalSimulationUnit==='function'?window.vigilGetRegionalSimulationUnit(id):null;
+  if(!unit)return;
+  var docked=unit.deployment_status==='docked';
+  var card=document.createElement('article');
+  card.style.cssText='border:1px solid #354b5b;background:#05090d;padding:9px';
+  var heading=document.createElement('strong');heading.textContent=bayNames[id];heading.style.cssText='display:block;color:#c5d7e4;font-size:10px';
+  var detail=document.createElement('p');detail.style.cssText='margin:6px 0;color:#91a6b5;font:10px/1.5 monospace';
+  detail.textContent=(unit.bay_slot||'ASSIGNED BAY')+' // '+(docked?'SECURED / DOCKED':'DEPLOYED')+' // '+(unit.id);
+  var action=document.createElement('button');action.type='button';action.textContent=docked?'AUTHORIZE LAUNCH':'ORDER RECOVERY';
+  action.style.cssText='padding:7px 9px;background:#102535;color:#d7e8f2;border:1px solid #54758a;font:10px monospace;cursor:pointer';
+  action.addEventListener('click',function(){
+   if(typeof window.vigilSetSimulationUnitState!=='function'){if(commandStatus)commandStatus.textContent='COMMAND REJECTED // MOTHERSHIP CONTROL BRIDGE UNAVAILABLE';return;}
+   var result=window.vigilSetSimulationUnitState(id,{deployment_status:docked?'launch':'recover'});
+   if(!result||!result.ok){if(commandStatus)commandStatus.textContent='COMMAND REJECTED // '+(result&&result.reason?result.reason:'UNIT CONTROL UNAVAILABLE');return;}
+   if(commandStatus)commandStatus.textContent=(docked?'LAUNCH ORDER ACCEPTED':'RECOVERY ORDER ACCEPTED')+' // '+id+' // '+(result.deployment_status|| (docked?'DEPLOYED':'DOCKED'));
+   renderDaedalusBayManifest();
+   refreshNavigationControls();
+  });
+  card.appendChild(heading);card.appendChild(detail);card.appendChild(action);manifest.appendChild(card);
+ });
+ if(commandStatus)commandStatus.textContent='MOTHERSHIP COMMAND READY // '+manifest.children.length+' ASSIGNED VEHICLES // LAUNCH / RECOVERY ROUTED THROUGH DAEDALUS';
+}
+window.addEventListener('vigil:simulation-unit-state-changed',function(){if(select.value==='daedalus')renderDaedalusBayManifest();});
 select.addEventListener('change',render);
 var daedalusDeckButton=context.querySelector('#vigil-daedalus-rd-open');if(daedalusDeckButton)daedalusDeckButton.addEventListener('click',function(){var rdPanel=document.getElementById('rd-panel');if(rdPanel)rdPanel.scrollIntoView({behavior:'smooth',block:'start'});});
 var navHeading=context.querySelector('#vigil-nav-heading'),navSpeed=context.querySelector('#vigil-nav-speed'),navApply=context.querySelector('#vigil-nav-apply'),navStop=context.querySelector('#vigil-nav-stop'),navStatus=context.querySelector('#vigil-nav-status');
