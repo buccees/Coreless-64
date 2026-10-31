@@ -3289,14 +3289,14 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       var names={ 'DDG-51':'ARLEIGH BURKE-CLASS DESTROYER','SSN-774':'VIRGINIA-CLASS SUBMARINE','DRONE-01':'RECONNAISSANCE DRONE','UUV-01':'UNCREWED UNDERSEA VEHICLE','MECH-01':'GROUND / EVA MECH' };
       return regionalTrainingFleet.filter(function(s){return Object.prototype.hasOwnProperty.call(names,s.id);}).map(function(s){
         return {id:s.id,name:names[s.id],deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),parent_id:s.parentId||null,
-          heading:Number(s.heading)||0,speed:Number(s.speed)||0,max_speed:Number(s.maxSpeed)||0,position:{x:Number(s.x),y:Number(s.y)}};
+          heading:Number(s.deploymentStatus==='docked'?s.bayLaunchHeading:s.heading)||0,speed:Number(s.speed)||0,max_speed:Number(s.maxSpeed)||0,position:{x:Number(s.x),y:Number(s.y)}};
       });
     },
     launch:function(unitId,heading,speed){
       var id=String(unitId||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===id;});
       if(!unit||['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'].indexOf(id)<0)return {ok:false,reason:'UNIT IS NOT ASSIGNED TO THE DAEDALUS CARRIER BAY.'};
       if(unit.deploymentStatus!=='docked')return {ok:false,reason:'UNIT IS ALREADY DEPLOYED.'};
-      var launchHeading=heading===undefined?(Number(unit.bayLaunchHeading)==null?(Number(carrier&&carrier.heading)||0):Number(unit.bayLaunchHeading)):heading;
+      var launchHeading=heading===undefined?(Number.isFinite(Number(unit.bayLaunchHeading))?Number(unit.bayLaunchHeading):(Number(carrier&&carrier.heading)||0)):heading;
       var result=window.vigilSetSimulationUnitState(id,{deployment_status:'launch',heading:launchHeading,speed:speed});
       if(result&&result.ok){startRegionalFleet();window.dispatchEvent(new CustomEvent('vigil:mothership-command',{detail:{action:'LAUNCH',unit_id:id,issued_by:'DAEDALUS-01',timestamp:new Date().toISOString()}}));}
       return result;
