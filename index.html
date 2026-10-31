@@ -3713,7 +3713,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       source:regionalWorldSnapshotActive?'authoritative-server-snapshot':'local-training-simulation',
       timestamp:new Date().toISOString(),
       ships:regionalTrainingFleet.map(function(ship){return {
-        id:ship.id,name:ship.name,side:ship.side,ship_class:ship.shipClass,parent_id:ship.parentId||null,deployment_status:String(ship.deploymentStatus||'deployed'),bay_status:String(ship.bayStatus||''),
+        id:ship.id,name:ship.name,side:ship.side,ship_class:ship.shipClass,parent_id:ship.parentId||null,deployment_status:String(ship.deploymentStatus||'deployed'),bay_status:String(ship.bayStatus||''),bay_launch_heading:Number(ship.bayLaunchHeading),
         position:{x:Number(ship.x),y:Number(ship.y)},heading_deg:Number(ship.heading),
         desired_heading_deg:Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading),
         steering_heading_deg:Number(ship.avoidanceHeading==null?(ship.navigationHeading==null?(ship.desiredHeading==null?ship.heading:ship.desiredHeading):ship.navigationHeading):ship.avoidanceHeading),
