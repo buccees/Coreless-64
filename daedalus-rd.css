@@ -253,3 +253,21 @@
   #rd-puzzle-lab .rd-shape-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
   #rd-puzzle-lab .rd-shape-card{min-width:0}
 }
+
+/* Engineering model readouts: compact instrument typography, existing layout retained */
+#rd-puzzle-lab .rd-engineering-readout{
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  margin:12px 0;
+  padding:10px 12px;
+  border:1px solid #477b68;
+  border-left:3px solid #9dffcc;
+  border-radius:0;
+  background:#020907;
+  color:#c7f6dc;
+  font:11px/1.65 "Courier New",monospace;
+  letter-spacing:.025em;
+  overflow-wrap:anywhere;
+  white-space:normal;
+}
