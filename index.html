@@ -3181,6 +3181,16 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     {id:'FAC-01',name:'VIGIL FORWARD SENSOR FACILITY',x:.22,y:.78,lengthM:0,beamM:0,heading:0,speed:0,maxSpeed:0,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:5,maxHull:5,shipClass:'facility',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'facility'},
     {id:'CVN',name:'NIMITZ-CLASS',x:.66,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.025,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
   ];
+  // The Daedalus is the carrier for every mobile VIGIL vehicle. Craft begin secured in its internal bays.
+  var daedalusCarrier=regionalTrainingFleet.find(function(s){return s.id==='DAEDALUS-01';});
+  var daedalusBayIds=['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'];
+  regionalTrainingFleet.forEach(function(ship){
+    if(daedalusBayIds.indexOf(ship.id)>=0&&daedalusCarrier){
+      ship.parentId='DAEDALUS-01';ship.deploymentStatus='docked';ship.bayStatus='secured';
+      ship.x=daedalusCarrier.x;ship.y=daedalusCarrier.y;ship.heading=daedalusCarrier.heading;
+      ship.speed=0;ship.targetSpeed=0;ship.stationKeepingEnabled=false;
+    }
+  });
   // Handling rates are game-tuning values, not claims about real-world classified performance.
   regionalTrainingFleet.forEach(function(ship){
     var handling={destroyer:{turn:7,accel:.006},submarine:{turn:3.5,accel:.0025},carrier:{turn:2.2,accel:.0018},drone:{turn:24,accel:.012},submersible:{turn:5,accel:.003},mech:{turn:18,accel:.008},facility:{turn:0,accel:0},mothership:{turn:.35,accel:.0002}}[ship.unitType||ship.shipClass]||{turn:5,accel:.003};
@@ -3200,14 +3210,14 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         steering_heading_deg:Number(s.avoidanceHeading==null?(s.navigationHeading==null?(s.desiredHeading==null?s.heading:s.desiredHeading):s.navigationHeading):s.avoidanceHeading)||0,avoidance_active:s.avoidanceActive===true,
         navigation_heading_deg:Number(s.navigationHeading==null?s.heading:s.navigationHeading)||0,
         speed:Number(s.speed)||0,target_speed:Number(s.targetSpeed==null?s.speed:s.targetSpeed)||0,
-        navigation_target_speed:Number(s.navigationTargetSpeed==null?(s.targetSpeed==null?s.speed:s.targetSpeed):s.navigationTargetSpeed)||0,max_speed:Number(s.maxSpeed)||0,depth_meters:s.depthMeters==null?null:Number(s.depthMeters),target_depth_meters:s.targetDepthMeters==null?(s.depthMeters==null?null:Number(s.depthMeters)):Number(s.targetDepthMeters),
+        navigation_target_speed:Number(s.navigationTargetSpeed==null?(s.targetSpeed==null?s.speed:s.targetSpeed):s.navigationTargetSpeed)||0,max_speed:Number(s.maxSpeed)||0,deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),depth_meters:s.depthMeters==null?null:Number(s.depthMeters),target_depth_meters:s.targetDepthMeters==null?(s.depthMeters==null?null:Number(s.depthMeters)):Number(s.targetDepthMeters),
          parent_id:s.parentId?String(s.parentId):null,station_keeping_enabled:s.stationKeepingEnabled===true,formation_active:s.formationActive===true,
         formation_target:s.formationTarget&&Number.isFinite(Number(s.formationTarget.x))&&Number.isFinite(Number(s.formationTarget.y))?{x:Number(s.formationTarget.x),y:Number(s.formationTarget.y)}:null,
         formation_distance:s.formationDistance==null?null:Number(s.formationDistance),
         turn_rate_deg_s:Number(s.maxTurnRateDegPerSec)||0,acceleration_per_s:Number(s.accelerationPerSec)||0,
         position:{x:Number(s.x),y:Number(s.y)},
         side:s.side==='friendly'?'friendly':'contact',
-        source:String(s.source||'regional simulation'),ship_class:String(s.shipClass||s.unitType||'unknown'),hull:s.hull==null?null:Number(s.hull)};
+        source:String(s.source||'regional simulation'),ship_class:String(s.shipClass||s.unitType||'unknown'),deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),hull:s.hull==null?null:Number(s.hull)};
     }).filter(function(s){return Number.isFinite(s.x)&&Number.isFinite(s.y);});
   };
   window.vigilGetRegionalSimulationUnit=function(unitId){
@@ -3223,6 +3233,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     var resolved=aliases[unitProfile]||unitProfile;
     var unit=regionalTrainingFleet.find(function(s){return s&&s.id===resolved&&s.side==='friendly'&&s.afloat!==false;});
     if(!unit||!changes||typeof changes!=='object')return {ok:false,reason:'No assigned friendly simulation entity.'};
+    if(unit.deploymentStatus==='docked'&&unit.id!=='DAEDALUS-01'&&unit.id!=='FAC-01'&&changes.deployment_status!=='launch'&&changes.deployment_status!=='recover')return {ok:false,reason:'CRAFT IS SECURED IN DAEDALUS // LAUNCH IT FROM THE MOTHERSHIP COMMAND TERMINAL.'};
     var nextHeading,nextSpeed,nextDepth;
     if(changes.heading!==undefined){
       nextHeading=Number(changes.heading);if(!Number.isFinite(nextHeading))return {ok:false,reason:'Heading must be numeric.'};
@@ -3243,18 +3254,69 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         if(!parent)return {ok:false,reason:'Station-keeping requires an assigned friendly parent.'};
       }
     }
-    if(nextHeading!==undefined)unit.desiredHeading=nextHeading;
+    if(changes.deployment_status==='launch'){
+      var carrier=regionalTrainingFleet.find(function(s){return s.id==='DAEDALUS-01'&&s.afloat!==false;});
+      if(!carrier||unit.id==='DAEDALUS-01'||unit.id==='FAC-01')return {ok:false,reason:'ONLY ASSIGNED MOBILE CRAFT CAN BE LAUNCHED FROM THE DAEDALUS BAY.'};
+      unit.parentId='DAEDALUS-01';unit.x=carrier.x;unit.y=carrier.y;unit.speed=0;unit.heading=nextHeading===undefined?Number(carrier.heading)||0:nextHeading;
+      unit.desiredHeading=unit.heading;unit.deploymentStatus='deployed';unit.bayStatus='launch-clear';unit.stationKeepingEnabled=false;
+      nextSpeed=nextSpeed===undefined?Math.max(.001,(Number(unit.maxSpeed)||0)*.25):nextSpeed;
+    }else if(changes.deployment_status==='recover'){
+      var recoveryCarrier=regionalTrainingFleet.find(function(s){return s.id==='DAEDALUS-01'&&s.afloat!==false;});
+      if(!recoveryCarrier||unit.id==='DAEDALUS-01'||unit.id==='FAC-01')return {ok:false,reason:'THIS PLATFORM IS NOT A DAEDALUS CARRIED VEHICLE.'};
+      var recoveryRange=window.vigilGetPlanetRangeBearing(unit.x,unit.y,recoveryCarrier.x,recoveryCarrier.y).distance;
+      if(recoveryRange>.055)return {ok:false,reason:'RECOVERY HOLD // CRAFT MUST RETURN WITHIN 0.055 REGIONAL UNITS OF DAEDALUS.'};
+      unit.x=recoveryCarrier.x;unit.y=recoveryCarrier.y;unit.speed=0;nextSpeed=0;unit.heading=recoveryCarrier.heading;
+      unit.desiredHeading=unit.heading;unit.deploymentStatus='docked';unit.bayStatus='secured';unit.stationKeepingEnabled=false;
+    }
+    if(nextHeading!==undefined&&changes.deployment_status!=='recover')unit.desiredHeading=nextHeading;
     if(nextSpeed!==undefined)unit.targetSpeed=nextSpeed;
     if(nextDepth!==undefined){unit.targetDepthMeters=nextDepth;unit.depthMeters=nextDepth;}
     if(changes.station_keeping!==undefined)unit.stationKeepingEnabled=changes.station_keeping;
     else if(changes.heading!==undefined||changes.speed!==undefined)unit.stationKeepingEnabled=false;
     window.dispatchEvent(new CustomEvent('vigil:simulation-unit-state-changed',{detail:{
       unit_id:unit.id,heading:unit.heading,desired_heading:unit.desiredHeading,speed:unit.speed,target_speed:unit.targetSpeed,depth_meters:unit.depthMeters==null?null:Number(unit.depthMeters),target_depth_meters:unit.targetDepthMeters==null?(unit.depthMeters==null?null:Number(unit.depthMeters)):Number(unit.targetDepthMeters),
-      parent_id:unit.parentId||null,station_keeping_enabled:unit.stationKeepingEnabled===true
+      parent_id:unit.parentId||null,deployment_status:String(unit.deploymentStatus||'deployed'),bay_status:String(unit.bayStatus||''),station_keeping_enabled:unit.stationKeepingEnabled===true
     }}));
     return {ok:true,unit_id:unit.id,heading:unit.heading,desired_heading:unit.desiredHeading,speed:unit.speed,
       target_speed:unit.targetSpeed,max_speed:Number(unit.maxSpeed)||0,depth_meters:unit.depthMeters==null?null:Number(unit.depthMeters),target_depth_meters:unit.targetDepthMeters==null?(unit.depthMeters==null?null:Number(unit.depthMeters)):Number(unit.targetDepthMeters),parent_id:unit.parentId||null,
-      station_keeping_enabled:unit.stationKeepingEnabled===true};
+      station_keeping_enabled:unit.stationKeepingEnabled===true,deployment_status:String(unit.deploymentStatus||'deployed'),bay_status:String(unit.bayStatus||'')};
+  };
+
+  // Daedalus carrier command terminal API: all deployable VIGIL platforms are stored and launched from this command authority.
+  window.vigilMothershipCommand={
+    carrier_id:'DAEDALUS-01',
+    getManifest:function(){
+      var names={ 'DDG-51':'ARLEIGH BURKE-CLASS DESTROYER','SSN-774':'VIRGINIA-CLASS SUBMARINE','DRONE-01':'RECONNAISSANCE DRONE','UUV-01':'UNCREWED UNDERSEA VEHICLE','MECH-01':'GROUND / EVA MECH' };
+      return regionalTrainingFleet.filter(function(s){return Object.prototype.hasOwnProperty.call(names,s.id);}).map(function(s){
+        return {id:s.id,name:names[s.id],deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),parent_id:s.parentId||null,
+          heading:Number(s.heading)||0,speed:Number(s.speed)||0,max_speed:Number(s.maxSpeed)||0,position:{x:Number(s.x),y:Number(s.y)}};
+      });
+    },
+    launch:function(unitId,heading,speed){
+      var id=String(unitId||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===id;});
+      if(!unit||['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'].indexOf(id)<0)return {ok:false,reason:'UNIT IS NOT ASSIGNED TO THE DAEDALUS CARRIER BAY.'};
+      if(unit.deploymentStatus!=='docked')return {ok:false,reason:'UNIT IS ALREADY DEPLOYED.'};
+      var result=window.vigilSetSimulationUnitState(id,{deployment_status:'launch',heading:heading===undefined?0:heading,speed:speed});
+      if(result&&result.ok){startRegionalFleet();window.dispatchEvent(new CustomEvent('vigil:mothership-command',{detail:{action:'LAUNCH',unit_id:id,issued_by:'DAEDALUS-01',timestamp:new Date().toISOString()}}));}
+      return result;
+    },
+    recover:function(unitId){
+      var id=String(unitId||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===id;});
+      if(!unit)return {ok:false,reason:'UNKNOWN VEHICLE.'};
+      var result=window.vigilSetSimulationUnitState(id,{deployment_status:'recover'});
+      if(result&&result.ok)window.dispatchEvent(new CustomEvent('vigil:mothership-command',{detail:{action:'RECOVER',unit_id:id,issued_by:'DAEDALUS-01',timestamp:new Date().toISOString()}}));
+      return result;
+    },
+    hold:function(unitId){
+      var id=String(unitId||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===id;});
+      if(!unit||unit.deploymentStatus==='docked')return {ok:false,reason:'CRAFT IS NOT CURRENTLY DEPLOYED.'};
+      return window.vigilSetSimulationUnitState(id,{speed:0});
+    },
+    launchAll:function(){
+      var ids=['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'],results=[];
+      ids.forEach(function(id){var unit=regionalTrainingFleet.find(function(s){return s.id===id;});if(unit&&unit.deploymentStatus==='docked')results.push({unit_id:id,result:window.vigilMothershipCommand.launch(id)});});
+      return {ok:results.every(function(x){return x.result&&x.result.ok;}),results:results};
+    }
   };
 
   // PELAGOS-01 is a stitched spherical surface. Longitude wraps at the chart seam;
@@ -3645,7 +3707,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       source:regionalWorldSnapshotActive?'authoritative-server-snapshot':'local-training-simulation',
       timestamp:new Date().toISOString(),
       ships:regionalTrainingFleet.map(function(ship){return {
-        id:ship.id,name:ship.name,side:ship.side,ship_class:ship.shipClass,parent_id:ship.parentId||null,
+        id:ship.id,name:ship.name,side:ship.side,ship_class:ship.shipClass,parent_id:ship.parentId||null,deployment_status:String(ship.deploymentStatus||'deployed'),bay_status:String(ship.bayStatus||''),
         position:{x:Number(ship.x),y:Number(ship.y)},heading_deg:Number(ship.heading),
         desired_heading_deg:Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading),
         steering_heading_deg:Number(ship.avoidanceHeading==null?(ship.navigationHeading==null?(ship.desiredHeading==null?ship.heading:ship.desiredHeading):ship.navigationHeading):ship.avoidanceHeading),
@@ -3687,6 +3749,13 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         ship.speed=0;ship.targetSpeed=0;ship.maxSpeed=0;ship.navigationHeading=ship.heading;ship.navigationTargetSpeed=0;
         ship.formationActive=false;ship.formationTarget=null;ship.formationDistance=null;ship.formationTargetSpeed=null;
         ship.avoidanceActive=false;ship.avoidanceHeading=ship.heading;return;
+      }
+      if(ship.side==='friendly'&&ship.deploymentStatus==='docked'){
+        var carrier=frameById['DAEDALUS-01'];
+        if(carrier){ship.x=carrier.x;ship.y=carrier.y;ship.heading=carrier.heading;}
+        ship.speed=0;ship.targetSpeed=0;ship.navigationHeading=ship.heading;ship.navigationTargetSpeed=0;
+        ship.stationKeepingEnabled=false;ship.formationActive=false;ship.formationTarget=null;ship.formationDistance=null;
+        ship.formationTargetSpeed=null;ship.avoidanceActive=false;ship.avoidanceHeading=ship.heading;return;
       }
       if(ship.shipClass==='submersible'){var currentDepth=Math.max(0,Number(ship.depthMeters==null?120:ship.depthMeters)||0),targetDepth=Math.max(0,Math.min(30000,Number(ship.targetDepthMeters==null?currentDepth:ship.targetDepthMeters)||0)),verticalStep=Math.max(0,Number(ship.maxVerticalSpeedMps)||8)*dt,depthDelta=targetDepth-currentDepth;ship.depthMeters=Math.abs(depthDelta)<=verticalStep?targetDepth:currentDepth+Math.sign(depthDelta)*verticalStep;}
        var desired=((Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading)%360)+360)%360;
