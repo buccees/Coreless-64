@@ -59,7 +59,6 @@ function refreshRoster(){
  }).join('');
  root.querySelectorAll('[data-action]').forEach(function(btn){btn.addEventListener('click',function(){var action=btn.dataset.action,id=btn.dataset.unit;execute(action,id);});});
  var chosen=currentVehicle(getSelected());
- if(chosen){root.querySelector('#vmct-heading').value=String(Math.round(Number(chosen.heading)||0));}
  root.querySelector('#vmct-launch-selected').disabled=!chosen||chosen.deployment_status!=='docked';
  root.querySelector('#vmct-hold-selected').disabled=!chosen||chosen.deployment_status!=='deployed';
  root.querySelector('#vmct-recover-selected').disabled=!chosen||chosen.deployment_status!=='deployed';
@@ -69,7 +68,7 @@ function execute(action,id){
  var api=command();if(!api){status('COMMAND REJECTED // DAEDALUS COMMAND AUTHORITY OFFLINE');return;}
  var result;
  if(action==='launch'){
-  var unit=currentVehicle(id),heading=root?Number(root.querySelector('#vmct-heading').value):undefined,factor=root?Number(root.querySelector('#vmct-throttle').value):.25;
+  var unit=currentVehicle(id),heading=root?(getSelected()===id?Number(root.querySelector('#vmct-heading').value):Number(unit&&unit.heading)):undefined,factor=root?Number(root.querySelector('#vmct-throttle').value):.25;
   var speed=unit?Math.max(.001,(Number(unit.max_speed)||0)*Math.max(.02,Math.min(1,factor))):undefined;
   result=api.launch(id,heading,speed);
  }else if(action==='hold')result=api.hold(id);
@@ -96,7 +95,7 @@ function create(){
  '<p class="vmct-note">The destroyer, submarine, drone, UUV and mech are assigned to Daedalus and start secured in its internal vehicle bays. Launch orders originate here. Recovery is accepted only inside the mothership capture envelope. FAC-01 is a fixed installation and is not stored aboard. All movement and telemetry are simulated.</p>';
  var deck=context.querySelector('#vigil-daedalus-deck-entry'),nav=context.querySelector('#vigil-navigation-controls');
  context.insertBefore(root,deck||nav||null);
- root.querySelector('#vmct-craft-select').addEventListener('change',refreshRoster);
+ root.querySelector('#vmct-craft-select').addEventListener('change',function(){var chosen=currentVehicle(getSelected());if(chosen)root.querySelector('#vmct-heading').value=String(Math.round(Number(chosen.heading)||0));refreshRoster();});
  root.querySelector('#vmct-launch-selected').addEventListener('click',function(){execute('launch',getSelected());});
  root.querySelector('#vmct-hold-selected').addEventListener('click',function(){execute('hold',getSelected());});
  root.querySelector('#vmct-recover-selected').addEventListener('click',function(){execute('recover',getSelected());});
