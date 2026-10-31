@@ -227,6 +227,7 @@ function makeUnitReport(id){
 function publishUnitReport(id){
  var report=makeUnitReport(id);if(!report)return {ok:false,reason:'No sensor package or active vehicle state for '+id};
  reports.push(report);if(reports.length>MAX_REPORTS)reports.splice(0,reports.length-MAX_REPORTS);persist();
+ if(typeof window.vigilRecordUnitSensorFeed==='function')report.frames.forEach(function(frame){window.vigilRecordUnitSensorFeed(frame);});
  if(window.CorelessRDLabBus&&typeof window.CorelessRDLabBus.publish==='function'){
   window.CorelessRDLabBus.publish('fleet-unit-sensor-report',report);
   if(report.local_shared_source_id)window.CorelessRDLabBus.publish('fleet-shared-source-relay',{
