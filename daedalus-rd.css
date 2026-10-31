@@ -116,3 +116,44 @@
 .rd-target{min-width:90px;min-height:54px}
 .rd-thrust-meter{height:24px;border:1px solid #9dffcc;background:#17392b;color:#eafff4;padding:4px;font-size:9px;margin:8px 0}
 @media(max-width:700px){.rd-physics-rotors{grid-template-columns:repeat(3,minmax(0,1fr))}.rd-orbit-physics-wrap{grid-template-columns:1fr}.rd-shape-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.rd-ray-grid{min-width:510px}.rd-edge-controls{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* Corrected interactive Daedalus puzzle geometry */
+.rd-hex-board{display:block;width:100%;max-width:420px;margin:10px auto;background:#010604;border:1px solid #174832}
+.rd-rotor-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;max-width:420px;margin:8px auto}
+.rd-rotor{min-height:48px}
+.rd-level-select{background:#03150e;color:var(--g);border:1px solid var(--line);padding:8px}
+.rd-sundial-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.rd-sundial{min-height:64px}
+.rd-sundial.lit{background:#423715!important;color:#ffec9f!important;border-color:#e2c56b!important}
+.rd-sundial.dark{background:#07120d!important;color:#779b8a!important}
+.rd-gate{min-height:60px;font-size:10px!important}
+.rd-gate.open{background:#401919!important;border-color:#ff7777!important;color:#ffd0d0!important}
+.rd-gate.closed{background:#123526!important;border-color:#70d6a2!important}
+.rd-orbit-wrap{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(180px,.7fr);gap:10px;align-items:center}
+.rd-orbit-canvas{display:block;width:100%;height:auto;background:#010604;border:1px solid #174832}
+.rd-orbit-controls{display:grid;gap:8px}
+.rd-orbit-control{display:grid;gap:4px;color:var(--dim);font-size:10px}
+.rd-orbit-control input{width:100%;padding:0}
+.rd-shape-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.rd-shape-card{display:grid;justify-items:center;gap:4px;min-height:92px;overflow:hidden}
+.rd-shape-card svg{width:58px;height:58px}
+.rd-shape-card small{font-size:8px;color:var(--dim)}
+.rd-shape-card.rd-spinning{animation:rd-shape-spin 3.2s linear infinite}
+@keyframes rd-shape-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.rd-triangle-grid{display:grid;grid-template-columns:repeat(15,minmax(0,1fr));gap:2px;max-width:720px;margin:8px auto}
+.rd-triangle-cell{min-width:0;min-height:28px;padding:2px!important;font-size:9px!important;aspect-ratio:1}
+.rd-triangle-cell.up{clip-path:polygon(50% 0,100% 100%,0 100%)}
+.rd-triangle-cell.down{clip-path:polygon(0 0,100% 0,50% 100%)}
+.rd-triangle-cell.mirror-set{background:#1a6847!important;color:#f2fff8!important;outline:1px solid #a4ffcf}
+.rd-beam-readout{font-size:9px;color:var(--dim);line-height:1.5;overflow-wrap:anywhere}
+.rd-loop-board,.rd-nav-board{display:block;width:100%;max-width:360px;height:auto;margin:8px auto;border:1px solid #174832;background:#010604}
+.rd-edge-controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.rd-edge-controls button{min-height:36px}
+.rd-edge-controls button:disabled{opacity:.4;cursor:not-allowed}
+.rd-red-lock{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;max-width:420px;margin:8px auto}
+.rd-red-hub,.rd-red-reverse{min-height:48px}
+.rd-timed-box{border:1px solid #75633b;background:#121108;color:#e6d9b2;padding:12px}
+.rd-timer{font-weight:bold;color:#f1d99b;font-size:15px}
+.rd-timed-instruction{font-size:12px;color:#fff0c4}
+.rd-action-lane{display:flex;flex-wrap:wrap;gap:7px;margin:9px 0}
+@media(max-width:700px){.rd-rotor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.rd-orbit-wrap{grid-template-columns:1fr}.rd-shape-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.rd-triangle-grid{grid-template-columns:repeat(10,minmax(0,1fr))}.rd-edge-controls{grid-template-columns:repeat(3,minmax(0,1fr))}}
