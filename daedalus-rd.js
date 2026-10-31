@@ -42,7 +42,7 @@ ready(function(){
     var spec=route.find(function(x){return x.r===r&&x.c===c;});if(!spec)continue;
     var dirs=spec.dirs.slice(),turns=(r*3+c*2+1)%4;for(var t=0;t<turns;t++)dirs=dirs.map(function(d){return (d+1)%4;});
     var tile={r:r,c:c,base:spec.dirs.slice(),turns:turns,dirs:dirs};tiles.push(tile);
-    var b=btn('╋',function(){tile.turns=(tile.turns+1)%4;tile.dirs=tile.base.map(function(d){return (d+tile.turns)%4;});draw();},'rd-circuit-tile');
+    var b=btn('╋',function(t){return function(){t.turns=(t.turns+1)%4;t.dirs=t.base.map(function(d){return (d+t.turns)%4;});draw();};}(tile),'rd-circuit-tile');
     b.dataset.r=r;b.dataset.c=c;b.setAttribute('aria-label','Rotate relay row '+(r+1)+' column '+(c+1));tile.button=b;board.appendChild(b);
    }
    field.appendChild(board);
@@ -67,12 +67,12 @@ ready(function(){
    actions.appendChild(btn('RESET LOCK',function(){counts=[0,0,0,0,0,0];draw();setStatus('RESET // ROTATE THE SIX OUTER HEXES');}));field.appendChild(actions);draw();
    var note=document.createElement('p');note.className='rd-puzzle-foot';note.textContent='TRAINING RECONSTRUCTION: the original rotates polygon segments and evaluates the central geometry. This build uses documented walkthrough move counts as a verifiable practice lock, not the original proprietary artwork.';field.appendChild(note);
   }else if(id==='sundial'){
-   var state=[0,1,0,1,0,1],pairs=[[0,3],[1,4],[2,5],[3,0],[4,1],[5,2]],moves=[1,3,5,6,2,2,6,6],moveIndex=0;
+   var state=[0,0,0,0,0,0],pairs=[[0,3],[1,4],[2,5],[3,0],[4,1],[5,2]],moves=[1,3,5,6,2,2,6,6],moveIndex=0;
    var wrap=document.createElement('div');wrap.className='rd-dials';
    function draw(){wrap.innerHTML='';state.forEach(function(v,i){var b=btn('HEMISPHERE '+(i+1)+'\\n'+(v?'YELLOW':'DARK'),function(){pairs[i].forEach(function(k){state[k]^=1;});draw();},'rd-dial');wrap.appendChild(b);});}
    var actions=document.createElement('div');actions.className='rd-controls';
    actions.appendChild(btn('CHECK SUN DIAL',function(){if(state.every(Boolean))finish(id,'ALL SIX HEMISPHERES YELLOW');else setStatus('NOT STABLE // EACH PRESS CHANGES A PAIR OF HEMISPHERES');}));
-   actions.appendChild(btn('RESET',function(){state=[0,1,0,1,0,1];draw();setStatus('RESET // CLICK CONTROLS TO CHANGE LINKED PAIRS');}));actions.appendChild(btn('WALKTHROUGH MOVE SEQUENCE',function(){moves.forEach(function(n){pairs[n-1].forEach(function(k){state[k]^=1;});});draw();setStatus('REFERENCE SEQUENCE APPLIED // CHECK THE RESULT');}));field.appendChild(wrap);field.appendChild(actions);draw();
+   actions.appendChild(btn('RESET',function(){state=[0,0,0,0,0,0];draw();setStatus('RESET // CLICK CONTROLS TO CHANGE LINKED PAIRS');}));actions.appendChild(btn('WALKTHROUGH MOVE SEQUENCE',function(){moves.forEach(function(n){pairs[n-1].forEach(function(k){state[k]^=1;});});draw();setStatus('REFERENCE SEQUENCE APPLIED // CHECK THE RESULT');}));field.appendChild(wrap);field.appendChild(actions);draw();
    var note=document.createElement('p');note.className='rd-puzzle-foot';note.textContent='The manual confirms each control flips two hemispheres. The pair wiring is reconstructed for this training board; the published move sequence is included as a reference.';field.appendChild(note);
   }else if(id==='probe'){
    var colors=[['R','B'],['G'],['R','Y'],['B','Y'],['R','B'],['G','Y'],['R'],['B'],['Y']],state=[1,1,0,1,0,1,0,1,0],wrap=document.createElement('div');wrap.className='rd-switches';
@@ -95,7 +95,7 @@ ready(function(){
    var note=document.createElement('p');note.className='rd-puzzle-foot';note.textContent='Profiles are represented by names rather than copied game artwork. Pair identities follow the walkthrough: C, large square, small square, mirrored three-quarter circle, slotted half-circle, and O.';field.appendChild(note);
   }else if(id==='green'){
    var rows=8,cols=9,mirrors=[];var board=document.createElement('div');board.className='rd-mirror-grid';
-   for(var rr=0;rr<rows;rr++)for(var cc=0;cc<cols;cc++){if((rr+cc)%3!==0)continue;var m={r:rr,c:cc,slash:((rr*7+cc*3)%2===0)};var b=btn(m.slash?'/':'\\\\',function(){m.slash=!m.slash;b.textContent=m.slash?'/':'\\\\';drawBeams();},'rd-mirror');m.button=b;mirrors.push(m);board.appendChild(b);}
+   for(var rr=0;rr<rows;rr++)for(var cc=0;cc<cols;cc++){if((rr+cc)%3!==0)continue;var m={r:rr,c:cc,slash:((rr*7+cc*3)%2===0)};var b=btn(m.slash?'/':'\\\\',function(mm,bb){return function(){mm.slash=!mm.slash;bb.textContent=mm.slash?'/':'\\\\';drawBeams();};}(m,b),'rd-mirror');m.button=b;mirrors.push(m);board.appendChild(b);}
    var canvas=document.createElement('canvas');canvas.className='rd-beam-canvas';canvas.width=540;canvas.height=360;field.appendChild(board);field.appendChild(canvas);
    function drawBeams(){var ctx=canvas.getContext('2d');ctx.clearRect(0,0,540,360);var targets=[{x:500,y:40,c:'#ff6868'},{x:500,y:180,c:'#66e6ff'},{x:500,y:320,c:'#f6e76b'}];targets.forEach(function(t){ctx.fillStyle=t.c;ctx.beginPath();ctx.arc(t.x,t.y,7,0,Math.PI*2);ctx.fill();});var starts=[{x:0,y:40,dx:1,dy:0,c:'#ff6868'},{x:0,y:180,dx:1,dy:0,c:'#66e6ff'},{x:0,y:320,dx:1,dy:0,c:'#f6e76b'}];var reached=0;starts.forEach(function(s){var x=s.x,y=s.y,dx=s.dx,dy=s.dy;ctx.strokeStyle=s.c;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y);for(var k=0;k<80;k++){x+=dx*12;y+=dy*12;var hit=mirrors.find(function(m){return Math.abs(x-(m.c*60+30))<8&&Math.abs(y-(m.r*45+22))<8;});if(hit){if(hit.slash){var ndx=-dy,ndy=-dx;dx=ndx;dy=ndy;}else{var ndx=dy,ndy=dx;dx=ndx;dy=ndy;}}ctx.lineTo(x,y);if(x>=500&&targets.some(function(t){return Math.abs(y-t.y)<10&&t.c===s.c;})){reached++;break;}if(x<0||x>540||y<0||y>360)break;}ctx.stroke();});setStatus('BEAM ROUTING // '+reached+' OF 3 RECEIVERS REACHED');}
    field.appendChild(canvas);var actions=document.createElement('div');actions.className='rd-controls';actions.appendChild(btn('CHECK RECEIVERS',function(){var ctx=canvas.getContext('2d');var pixels=ctx.getImageData(490,0,40,360).data;var hits=0;for(var y=0;y<360;y++){var p=(y*40+10)*4;if(pixels[p]>100||pixels[p+1]>100||pixels[p+2]>100)hits++;}if(hits>3)finish(id,'RECEIVER FIELD ENERGIZED');else setStatus('ROUTING INCOMPLETE // REPOSITION MIRRORS TO GUIDE ALL THREE BEAMS');}));actions.appendChild(btn('RESET MIRRORS',function(){mirrors.forEach(function(m,i){m.slash=(i%2===0);m.button.textContent=m.slash?'/':'\\\\';});drawBeams();}));field.appendChild(actions);drawBeams();
