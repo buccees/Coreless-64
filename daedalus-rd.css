@@ -59,3 +59,6 @@
 .rd-action-drill h3{color:#f1d99b;font-size:12px}
 .rd-action-drill p{font-size:11px;line-height:1.6}
 @media(max-width:700px){.rd-circuit-board{gap:3px}.rd-circuit-tile{min-height:44px;padding:4px!important}.rd-mirror-grid{grid-template-columns:repeat(6,minmax(25px,1fr))}}
+
+.rd-circuit-blank{min-height:52px;display:block}
+@media(max-width:700px){.rd-circuit-blank{min-height:44px}}
