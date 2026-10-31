@@ -121,12 +121,12 @@ ready(function(){
 function boot(){
  var sel=document.getElementById('rd-puzzle-select'),field=document.getElementById('rd-playfield'),status=document.getElementById('rd-puzzle-status'),intro=document.getElementById('rd-puzzle-intro');
  if(!sel||!field||!status)return;
- var NS='http://www.w3.org/2000/svg',mounted='';
+ var NS='http://www.w3.org/2000/svg',mounted='',physicsCleared={};
  function node(t,c,s){var n=document.createElement(t);if(c)n.className=c;if(s!==undefined)n.textContent=s;return n;}
  function btn(p,s,fn,c){var b=node('button',c||'',s);b.type='button';b.addEventListener('click',fn);p.appendChild(b);return b;}
  function svg(t,a,p){var n=document.createElementNS(NS,t);Object.keys(a).forEach(function(k){n.setAttribute(k,a[k]);});(p||field).appendChild(n);return n;}
  function say(s){status.textContent=s;}
- function pass(s){say(s+' // PHYSICS CHECK PASSED');}
+ function pass(s){say(s+' // PHYSICS CHECK PASSED');var id=sel.value;if(!physicsCleared[id]){physicsCleared[id]=true;var p=document.getElementById('rd-campaign-progress');if(p){var m=p.textContent.match(/(\d+) OF 10/),n=m?Number(m[1])+1:1;p.textContent='CAMPAIGN TRAINING RECORD // '+n+' OF 10 CHALLENGES CLEARED';}}}
  function mount(){var id=sel.value;if(mounted===id&&field.querySelector('[data-physics-root]'))return;mounted=id;var root=node('div','rd-physics-engine');root.dataset.physicsRoot='1';field.replaceChildren(root);
  var desc={
  artemis:'Relay network // current flows only across mutually aligned ports.',
