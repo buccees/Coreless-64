@@ -53,7 +53,7 @@ function refreshRoster(){
  root.querySelector('#vmct-roster').innerHTML=manifest.map(function(v){
   var deployed=v.deployment_status==='deployed',state=deployed?'DEPLOYED / '+Number(v.speed||0).toFixed(4)+' MAP UNITS/S':'SECURED IN INTERNAL BAY';
   var d=deployed?'deployed':'';
-  return '<article class="vmct-craft"><b>'+esc(LABELS[v.id]||v.name)+'</b><span class="vmct-state '+d+'">'+esc(state)+'</span><div class="vmct-actions">'+
+  return '<article class="vmct-craft"><b>'+esc(LABELS[v.id]||v.name)+'</b><span class="vmct-state '+d+'">'+esc(v.bay_slot||'VEHICLE BAY')+' // '+esc(state)+'</span><div class="vmct-actions">'+
    (deployed?'<button type="button" data-action="hold" data-unit="'+esc(v.id)+'">HOLD</button><button type="button" data-action="recover" data-unit="'+esc(v.id)+'">RECOVER</button>':'<button type="button" class="vmct-launch" data-action="launch" data-unit="'+esc(v.id)+'">LAUNCH FROM DAEDALUS</button>')+
    '<button type="button" data-action="select" data-unit="'+esc(v.id)+'">SELECT</button></div></article>';
  }).join('');
