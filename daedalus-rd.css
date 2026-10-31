@@ -42,3 +42,20 @@
 .rd-verdict{border-left:2px solid #c6a45c;padding:8px 10px;background:#121108;color:#e6d9b2;font-size:10px;line-height:1.6;margin:10px 0}
 .rd-puzzle-foot{font-size:9px;color:#bda875;margin-top:8px}
 @media(max-width:700px){.rd-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.rd-timeline,.rd-upgrade-grid,.rd-orbit-wrap{grid-template-columns:1fr}.rd-puzzle-toolbar{grid-template-columns:1fr}.rd-dials{grid-template-columns:repeat(3,minmax(0,1fr))}.rd-pairs{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* Interactive Daedalus reconstruction boards */
+#rd-campaign-progress{margin:8px 0;color:#e7c77d}
+#rd-next-stage{display:block;margin:8px 0;padding:9px 12px;border:1px solid #8b7040;background:#151308;color:#f1d99b}
+#rd-next-stage:disabled{opacity:.45;cursor:not--allowed}
+.rd-circuit-board{display:grid;grid-template-columns:repeat(5,minmax(34px,1fr));gap:5px;max-width:390px;margin:10px auto}
+.rd-circuit-tile{min-height:52px;font-size:20px!important;font-weight:bold}
+.rd-circuit-tile.connected{background:#17442e;border-color:#9dffcc;color:#eafff4}
+.rd-hex-center{margin:10px 0;padding:10px;border:1px solid #75633b;color:#e7d69a;text-align:center;font-size:10px;line-height:1.8;overflow-wrap:anywhere}
+.rd-mirror-grid{display:grid;grid-template-columns:repeat(9,minmax(25px,1fr));gap:4px;margin:8px 0}
+.rd-mirror{min-height:34px;font-size:17px!important;font-weight:bold}
+.rd-beam-canvas{display:block;width:100%;max-width:540px;height:auto;border:1px solid #174832;background:#010604;margin:8px auto}
+.rd-loop-svg{display:block;width:100%;max-width:360px;height:auto;margin:8px auto;border:1px solid #174832;background:#010604}
+.rd-action-drill{padding:12px;border:1px solid #75633b;background:#121108;color:#e6d9b2}
+.rd-action-drill h3{color:#f1d99b;font-size:12px}
+.rd-action-drill p{font-size:11px;line-height:1.6}
+@media(max-width:700px){.rd-circuit-board{gap:3px}.rd-circuit-tile{min-height:44px;padding:4px!important}.rd-mirror-grid{grid-template-columns:repeat(6,minmax(25px,1fr))}}
