@@ -3257,7 +3257,10 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     if(changes.deployment_status==='launch'){
       var carrier=regionalTrainingFleet.find(function(s){return s.id==='DAEDALUS-01'&&s.afloat!==false;});
       if(!carrier||unit.id==='DAEDALUS-01'||unit.id==='FAC-01')return {ok:false,reason:'ONLY ASSIGNED MOBILE CRAFT CAN BE LAUNCHED FROM THE DAEDALUS BAY.'};
-      unit.parentId='DAEDALUS-01';unit.x=carrier.x;unit.y=carrier.y;unit.speed=0;unit.heading=nextHeading===undefined?Number(carrier.heading)||0:nextHeading;
+      unit.parentId='DAEDALUS-01';unit.speed=0;unit.heading=nextHeading===undefined?Number(carrier.heading)||0:nextHeading;
+      var launchClearance=unit.shipClass==='destroyer'?.004:unit.shipClass==='submarine'?.003:unit.shipClass==='submersible'?.002:.001;
+      var launchPoint=window.vigilAdvancePlanetPoint?window.vigilAdvancePlanetPoint(carrier.x,carrier.y,unit.heading,launchClearance):{x:carrier.x,y:carrier.y};
+      unit.x=launchPoint.x;unit.y=launchPoint.y;
       unit.desiredHeading=unit.heading;unit.deploymentStatus='deployed';unit.bayStatus='launch-clear';unit.stationKeepingEnabled=false;unit.launchTimestamp=new Date().toISOString();
       nextSpeed=nextSpeed===undefined?Math.max(.001,(Number(unit.maxSpeed)||0)*.25):nextSpeed;
     }else if(changes.deployment_status==='recover'){
