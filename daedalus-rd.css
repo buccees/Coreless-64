@@ -321,3 +321,11 @@
 .rd-fusion-row b{text-align:right;color:#d7f5df}
 .rd-fusion-row small{grid-column:2/4;color:#779d86}
 @media(max-width:720px){.rd-lab-grid{grid-template-columns:1fr}.rd-lab-readout{grid-template-columns:1fr}.rd-lab-panel{padding:8px}.rd-lab-tabs button{flex:1 1 42%}.rd-lab-live{white-space:normal}}
+
+/* Shared R&D research bus */
+.rd-bus-console{border:1px solid #75633b;background:#100f08;padding:10px;margin:10px 0;color:#e6d9b2;font-size:10px}
+.rd-bus-console>div:first-child{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#f1d99b;letter-spacing:.7px}
+.rd-bus-console p{margin:6px 0;color:#bda875;line-height:1.5}
+#rd-bus-stream{display:grid;gap:4px;margin:7px 0;max-height:115px;overflow:auto}
+#rd-bus-stream>div{padding:4px 6px;background:#06170f;border-left:2px solid #29f5b2;color:#8be9be;overflow-wrap:anywhere}
+#rd-bus-clear{padding:5px 8px;background:#171307;border:1px solid #75633b;color:#e6d9b2;font:inherit;cursor:pointer}
