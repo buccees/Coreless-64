@@ -63,11 +63,42 @@ function boot(){
    var a=actions();button(a,'RESHUFFLE SHAPES',function(){cards.forEach(function(c){c.angle=Math.random()*360;c.frozen=false;c.matched=false;});cards.sort(function(){return Math.random()-.5;});first=null;draw();});field.appendChild(el('p','rd-puzzle-foot','Freeze matching profiles, not merely matching rotations. The three-quarter-circle pair is mirrored. Shape profiles are original vector reconstructions; the original artwork is not reproduced.'));draw();
   }else if(id==='green'){
    var solutions=[['4-7d','4-9d','2-1f','8-4f','8-5c'],['2-6c','4-12c','5-15c','6-3c','7-7c','8-9c'],['1-1d','1-2a','1-4e','1-9b','3-7d','3-12a','3-13b','4-7b','4-15d','5-3a','5-5a','8-3e','8-4d','8-6d','8-8b']],level=0,rows=8,cols=15,cells=[],lookup={},grid=el('div','rd-triangle-grid');for(var r=0;r<rows;r++)for(var c=0;c<cols;c++){var cell={r:r,c:c,m:-1};cells.push(cell);lookup[r+'-'+(c+1)]=cell;}field.appendChild(grid);var beams=el('div','rd-beam-readout');field.appendChild(beams);
-   function load(){cells.forEach(function(x){x.m=-1;});solutions[level].forEach(function(z){var m=z.match(/(\d+)-(\d+)([a-f])/),x=lookup[Number(m[1])-1+'-'+Number(m[2])];if(x)x.m=m[3].charCodeAt(0)-97;});draw();}
+   /* Reconstructed source specifications: representative visible wavelengths and nominal power.
+      The original game's exact source spectrum, launch coordinates and receiver geometry are not documented. */
+   var opticalModel={mirrorReflectance:0.96,sources:[{name:'RED',wavelengthNm:650,powerMw:1,startRow:1},{name:'GREEN',wavelengthNm:532,powerMw:1,startRow:3},{name:'BLUE',wavelengthNm:450,powerMw:1,startRow:5}]};
+   function load(){cells.forEach(function(x){x.m=-1;});solutions[level].forEach(function(z){var m=z.match(/(\d+)-(\d+)([a-f])/),x=lookup[(Number(m[1])-1)+'-'+Number(m[2])];if(x)x.m=m[3].charCodeAt(0)-97;});draw();}
    var dirs=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
-   function trace(startRow){var q=0,r=startRow,d=0,path=[],seen={},reflections=0,intensity=1,exit='EDGE',last=null;for(var n=0;n<500;n++){var col=q+Math.floor(r/2)+1,x=lookup[(r+1)+'-'+col];if(!x){exit='OUTSIDE FIELD';break;}var k=q+','+r+','+d;if(seen[k]){exit='RAY LOOP';break;}seen[k]=1;path.push(x);last=x;if(x.m>=0){/* Exact specular reflection on the six-direction lattice. Mirror tangent is m·60°; reflected direction is 2·tangent − incident. */d=((2*x.m+6-d)%6+6)%6;reflections++;intensity*=.96;}var v=dirs[d],nq=q+v[0],nr=r+v[1],nextCol=nq+Math.floor(nr/2)+1;if(nr<0||nr>=rows||nextCol<1||nextCol>cols){q=nq;r=nr;exit='BOUNDARY EXIT';break;}q=nq;r=nr;}path.reflections=reflections;path.intensity=intensity;path.exitDirection=d;path.exit=exit;path.last=last;path.endpoint={q:q,r:r,column:q+Math.floor(r/2)+1};return path;}
-   function draw(){grid.replaceChildren();var ps=[1,3,5].map(trace);cells.forEach(function(x){var b=button(grid,x.m<0?'·':'abcdef'[x.m],function(){x.m=(x.m+1)%6;draw();},'rd-triangle-cell '+((x.r+x.c)%2?'down':'up'));if(x.m>=0)b.classList.add('mirror-set');ps.forEach(function(p,i){if(p.indexOf(x)>=0)b.classList.add('beam-path-'+(i+1));});b.title='TRIANGLE '+(x.r+1)+'-'+(x.c+1)+' // MIRROR '+(x.m<0?'EMPTY':'abcdef'[x.m]);});beams.textContent=ps.map(function(p,i){var x=p.last;return 'BEAM '+(i+1)+': '+p.length+' CELLS // '+p.reflections+' REFLECTIONS // '+(p.intensity*100).toFixed(1)+'% POWER // '+p.exit+' AT '+(x?(x.r+1)+'-'+(x.c+1):'SOURCE EDGE')+' // OUT '+p.endpoint.column+','+(p.endpoint.r+1)+' // DIR '+p.exitDirection;}).join(' | ');}
-   var a=actions(),lev=el('select','rd-level-select');solutions.forEach(function(_,i){var o=el('option','','MIRROR CONFIGURATION '+(i+1));o.value=i;lev.appendChild(o);});lev.addEventListener('change',function(){level=Number(lev.value);load();});a.appendChild(lev);button(a,'LOAD WALKTHROUGH MIRRORS',load);button(a,'CLEAR MIRRORS',function(){cells.forEach(function(x){x.m=-1;});draw();});button(a,'TRACE LIGHT',function(){var p=[1,3,5].map(trace);say('OPTICAL TRACE // '+p.map(function(x){return x.length+' CELLS';}).join(' / '));});field.appendChild(el('p','rd-puzzle-foot','The original field is triangular. Rays use vector-based specular reflection (v_out = v_in − 2(v_in·n)n), with a 4% loss at each reconstructed mirror. Walkthrough mirror coordinates are supplied as reference configurations; the original source and receiver geometry still needs archival calibration.'));load();
+   function normalizeDegrees(a){return ((a%360)+360)%360;}
+   function trace(source){
+    var q=0,r=source.startRow,d=0,path=[],seen={},reflections=0,power=source.powerMw,absorbed=0,pathLength=0,last=null,lastIncidence=null,lastReflection=null,exit='EDGE';
+    for(var step=0;step<500;step++){
+     var col=q+Math.floor(r/2)+1,x=lookup[r+'-'+col];
+     if(!x){exit='OUTSIDE FIELD';break;}
+     var state=q+','+r+','+d;if(seen[state]){exit='RAY LOOP';break;}seen[state]=1;
+     path.push(x);last=x;pathLength+=1;
+     if(x.m>=0){
+      var incomingAngle=normalizeDegrees(d*60),tangentAngle=x.m*60,normalAngle=normalizeDegrees(tangentAngle+90);
+      var delta=((incomingAngle-normalAngle+540)%360)-180;
+      lastIncidence=Math.acos(Math.min(1,Math.abs(Math.cos(delta*Math.PI/180))))*180/Math.PI;
+      d=((2*x.m+6-d)%6+6)%6;
+      lastReflection=normalizeDegrees(d*60);
+      var lost=power*(1-opticalModel.mirrorReflectance);absorbed+=lost;power-=lost;reflections++;
+     }
+     var v=dirs[d],nq=q+v[0],nr=r+v[1],nextCol=nq+Math.floor(nr/2)+1;
+     if(nr<0||nr>=rows||nextCol<1||nextCol>cols){q=nq;r=nr;exit='BOUNDARY EXIT';break;}
+     q=nq;r=nr;
+    }
+    path.source=source;path.reflections=reflections;path.inputPower=source.powerMw;path.outputPower=power;path.absorbedPower=absorbed;path.pathLength=pathLength;path.lastIncidence=lastIncidence;path.lastReflection=lastReflection;path.exitDirection=d;path.exit=exit;path.last=last;path.endpoint={q:q,r:r,column:q+Math.floor(r/2)+1};return path;
+   }
+   function draw(){
+    grid.replaceChildren();var ps=opticalModel.sources.map(trace),visits={};
+    ps.forEach(function(p,i){p.forEach(function(x){var k=x.r+'-'+x.c;(visits[k]||(visits[k]=[])).push(i);});});
+    cells.forEach(function(x){var b=button(grid,x.m<0?'·':'abcdef'[x.m],function(){x.m=(x.m+1)%6;draw();},'rd-triangle-cell '+((x.r+x.c)%2?'down':'up'));if(x.m>=0)b.classList.add('mirror-set');ps.forEach(function(p,i){if(p.indexOf(x)>=0)b.classList.add('beam-path-'+(i+1));});if((visits[x.r+'-'+x.c]||[]).length>1)b.classList.add('beam-intersection');b.title='TRIANGLE '+(x.r+1)+'-'+(x.c+1)+' // MIRROR '+(x.m<0?'EMPTY':'abcdef'[x.m]);});
+    beams.textContent=ps.map(function(p,i){var x=p.last,angle=p.lastIncidence===null?'N/A':p.lastIncidence.toFixed(1)+'° → '+p.lastReflection.toFixed(1)+'°';return p.source.name+' // '+p.source.wavelengthNm+' nm // IN '+p.inputPower.toFixed(2)+' mW // OUT '+p.outputPower.toFixed(3)+' mW // ABS '+p.absorbedPower.toFixed(3)+' mW // '+p.reflections+' REFLECTIONS // LAST ANGLE '+angle+' // PATH '+p.pathLength+' GRID UNITS // '+p.exit+' AT '+(x?(x.r+1)+'-'+(x.c+1):'SOURCE EDGE')+' // OUT '+p.endpoint.column+','+(p.endpoint.r+1)+' // DIR '+p.exitDirection;}).join(' | ');
+   }
+   var a=actions(),lev=el('select','rd-level-select');solutions.forEach(function(_,i){var o=el('option','','MIRROR CONFIGURATION '+(i+1));o.value=i;lev.appendChild(o);});lev.addEventListener('change',function(){level=Number(lev.value);load();});a.appendChild(lev);button(a,'LOAD WALKTHROUGH MIRRORS',load);button(a,'CLEAR MIRRORS',function(){cells.forEach(function(x){x.m=-1;});draw();});button(a,'TRACE LIGHT',function(){var p=opticalModel.sources.map(trace);say('OPTICAL SOLVE // '+p.map(function(x){return x.source.name+' '+x.outputPower.toFixed(3)+' mW / '+x.reflections+' REFLECTIONS';}).join(' // '));});
+   field.appendChild(el('p','rd-puzzle-foot','OPTICAL SOLVER // Six-direction ray propagation with specular reflection, incidence-angle calculation and per-surface power accounting. Reconstructed assumptions: 650/532/450 nm representative sources, 1.00 mW launch power and 96% mirror reflectance. Source positions and receiver geometry remain uncalibrated; no target hit is claimed until the original screen geometry is established.'));
+   load();
   }else if(id==='purple'){
    var pts=[[150,20],[245,75],[245,175],[150,230],[55,175],[55,75],[150,125]],edges=[[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[0,6],[1,6],[2,6],[3,6],[4,6],[5,6]],owner={},turn='ai',board=svg(field,'svg',{viewBox:'0 0 300 250',class:'rd-loop-board'}),controls=el('div','rd-edge-controls');field.appendChild(controls);
    function hasLoop(who){var adj={};edges.forEach(function(e,i){if(owner[i]===who){(adj[e[0]]||(adj[e[0]]=[])).push(e[1]);(adj[e[1]]||(adj[e[1]]=[])).push(e[0]);}});var found=false;function walk(v,parent,path){(adj[v]||[]).forEach(function(n){if(found||n===parent)return;var at=path.indexOf(n);if(at>=0){if(path.length-at>=4)found=true;}else walk(n,v,path.concat([n]));});}Object.keys(adj).forEach(function(v){if(!found)walk(Number(v),-1,[Number(v)]);});return found;}
