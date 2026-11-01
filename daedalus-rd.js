@@ -371,7 +371,7 @@ function boot(){
     ]
    };
    var defs=techDefs[id]||[],original=Array.from(field.childNodes),tabbar=el('div','rd-lab-tabs'),panels=el('div','rd-lab-apps'),gamePanel=el('section','rd-lab-panel');
-   gamePanel.className+=' rd-original-game-panel';gamePanel.setAttribute('role','tabpanel');gamePanel.appendChild(el('h4','','ORIGINAL PUZZLE / GAME'));original.forEach(function(n){gamePanel.appendChild(n);});
+   gamePanel.className+=' rd-hex-lock-panel rd-original-game-panel';gamePanel.setAttribute('role','tabpanel');gamePanel.appendChild(el('h4','','ORIGINAL PUZZLE / GAME'));original.forEach(function(n){gamePanel.appendChild(n);});
    field.replaceChildren();field.appendChild(tabbar);field.appendChild(panels);
    var gameButton=button(tabbar,'ORIGINAL GAME',function(){choose('game');},'rd-lab-tab'),allPanels={game:gamePanel},allButtons={game:gameButton};
    panels.appendChild(gamePanel);
