@@ -31,13 +31,84 @@ function boot(){
    function draw(){var net=network();board.replaceChildren();for(var r=0;r<5;r++)for(var c=0;c<5;c++){var x=map[r+','+c];if(!x){board.appendChild(el('span','rd-circuit-blank'));continue;}var i=specs.indexOf(x),b=button(board,x.ports.map(function(d){return ['↑','→','↓','←'][d];}).join(' '),function(t){return function(){t.turn=(t.turn+1)%4;t.ports=t.p.map(function(d){return (d+t.turn)%4;});draw();};}(x),'rd-circuit-tile');b.classList.toggle('connected',net.seen.indexOf(i)>=0);if(x.core)b.classList.add('core');b.setAttribute('aria-label','Rotate bidirectional relay');}
     readout.textContent='DC NETWORK // SOURCE 12.00 V // RETURN 0.00 V // '+net.connected+'/9 NODES LIVE // LOAD CURRENT '+net.current.toFixed(3)+' A // LOAD POWER '+net.power.toFixed(2)+' W // NODE VOLTAGES '+net.volts.map(function(v,i){return String(i+1)+':'+v.toFixed(2)+'V';}).join('  ');}
    var a=actions();button(a,'SCRAMBLE RELAYS',function(){specs.forEach(function(x){x.turn=Math.floor(Math.random()*4);x.ports=x.p.map(function(d){return (d+x.turn)%4;});});draw();say('RELAYS SCRAMBLED // RESTORE CONTINUOUS POWER');});button(a,'TEST POWER FLOW',function(){var net=network();if(net.complete)complete(id,'DC BUS CONTINUITY VERIFIED // '+net.current.toFixed(3)+' A AT '+net.power.toFixed(2)+' W');else say('POWER FAULT // '+net.connected+' OF 9 NODES CONNECTED // RETURN PATH OR BRANCH CONTINUITY LOST');});field.appendChild(el('p','rd-puzzle-foot','Relay alignment is evaluated as a conductive network. The readout solves a resistive DC nodal model: 12 V source, 0 V return, 1.5 Ω link resistance, and 30 Ω station loads. These are explicit simulation parameters, not recovered original game specifications.'));draw();
-  }else if(id==='yellow'||id==='blue'){
-   var ys=[[0,2,3,4,5,0],[0,2,4,1,3,5],[1,2,3,4,5,0],[2,1,3,4,5,0],[1,2,2,0,0,0],[4,0,0,1,0,2]],bs=[[0,2,0,4,1,0],[1,3,0,0,0,0],[3,2,3,0,0,2]],sets=id==='yellow'?ys:bs,level=0,rot=[],v=svg(field,'svg',{viewBox:'0 0 420 340',class:'rd-hex-board'}),controls=el('div','rd-rotor-grid');field.appendChild(controls);
+  }else if(id==='blue'){
+   /* BLUE DOOR // HEX OVERLAP LOCK
+      Polygon clipping computes actual positive-area intersections between projected
+      triangular components. Level rules add target constraints, coupled controls,
+      nested layers, keep-out sectors and move-window challenges. */
+   var levels=[
+    {name:'SECTOR FUNDAMENTALS',target:[0,1,2,3,4,5],scramble:[1,2,3,4,5,1],rule:'Eliminate projected triangle intersections and occupy six distinct sectors.'},
+    {name:'REPEATED SECTOR COLLISION',target:[0,2,4,1,3,5],scramble:[2,1,3,2,4,1],rule:'Resolve a deliberately repeated sector arrangement.'},
+    {name:'CROSS-PATTERN CLEARANCE',target:[1,3,5,0,2,4],scramble:[3,2,1,4,2,5],rule:'Clear every polygon intersection across an alternating pattern.'},
+    {name:'LOCKED ORIENTATION',target:[2,5,1,4,0,3],scramble:[1,3,2,5,4,2],rule:'Meet the six specified orientation constraints after clearing overlap.'},
+    {name:'RESTRICTED CONFIGURATION',target:[5,2,4,1,3,0],scramble:[2,4,1,3,5,2],rule:'Reach the exact asymmetric target configuration.'},
+    {name:'PAIRED ROTOR COUPLING',target:[0,2,4,3,5,1],scramble:[1,2,4,1,2,4],coupled:[[0,3],[1,4],[2,5]],rule:'Each paired actuator moves together; solve the coupled geometry.'},
+    {name:'CROSS-LINKED ACTUATORS',target:[1,4,0,3,2,5],scramble:[2,1,3,2,1,3],coupled:[[0,1],[2,3],[4,5]],rule:'Three cross-linked actuator pairs must reach their target states.'},
+    {name:'DUAL HEX LAYERS',target:[0,2,4,1,3,5],scramble:[1,3,2,4,1,2],layers:[0,1,0,1,0,1],rule:'Align inner and outer projected components without cross-layer collision.'},
+    {name:'THREE-LAYER HEX ARRAY',target:[1,3,5,0,2,4],scramble:[2,1,4,3,2,5],layers:[0,1,2,0,1,2],rule:'Resolve intersections across three nested geometric layers.'},
+    {name:'OBSTRUCTED SECTORS',target:[2,4,0,3,5,1],scramble:[1,2,3,4,2,1],forbidden:[[0],[1],[2],[3],[4],[5]],rule:'Avoid each component’s blocked sector while clearing the central field.'},
+    {name:'ASYMMETRIC CLEARANCE',target:[4,1,3,0,5,2],scramble:[2,3,1,4,1,3],widths:[18,24,20,26,17,23],forbidden:[[0],[2],[4],[1],[3],[5]],rule:'Solve non-identical triangular profiles around forbidden orientations.'},
+    {name:'TIMED ALIGNMENT WINDOW',target:[0,2,4,1,3,5],scramble:[1,1,1,1,1,1],moveLimit:10,layers:[0,1,0,1,0,1],rule:'Complete the alignment within ten actuator moves.'},
+    {name:'PRECISION WINDOW',target:[3,0,4,1,5,2],scramble:[1,1,1,1,1,1],moveLimit:8,widths:[17,25,19,24,18,26],rule:'Meet the precision target within eight moves; asymmetric profiles are active.'},
+    {name:'COUPLED MULTI-LAYER LOCK',target:[0,2,4,3,5,1],scramble:[1,2,4,1,2,4],coupled:[[0,3],[1,4],[2,5]],layers:[0,1,2,0,1,2],forbidden:[[5],[0],[1],[2],[3],[4]],rule:'Combine paired actuators, three geometric layers and forbidden sectors.'},
+    {name:'X-OVERLAP MASTER ARRAY',target:[1,4,0,3,2,5],scramble:[2,1,3,2,1,3],coupled:[[0,1],[2,3],[4,5]],layers:[0,1,2,0,1,2],widths:[17,25,19,24,18,26],forbidden:[[5],[0],[1],[2],[3],[4]],moveLimit:12,rule:'Integrated geometry, collision clearance, coupled motion, keep-out zones and a twelve-move limit.'}
+   ];
+   var level=0,rot=[],moves=0,config=levels[0],board=svg(field,'svg',{viewBox:'0 0 460 370',class:'rd-hex-board'}),readout=el('div','rd-engineering-readout'),controls=el('div','rd-rotor-grid'),a=actions(),lev=el('select','rd-level-select');
+   field.appendChild(board);field.appendChild(readout);field.appendChild(controls);
+   levels.forEach(function(x,i){var o=el('option','','LOCK LEVEL '+(i+1)+' // '+x.name);o.value=i;lev.appendChild(o);});
+   a.appendChild(lev);
+   function point(cx,cy,r,angle){var t=angle*Math.PI/180;return [cx+Math.cos(t)*r,cy+Math.sin(t)*r];}
+   function area(poly){var s=0;for(var i=0;i<poly.length;i++){var p=poly[i],q=poly[(i+1)%poly.length];s+=p[0]*q[1]-q[0]*p[1];}return Math.abs(s)/2;}
+   function clip(subject,clipper){
+    var out=subject.slice();
+    for(var e=0;e<clipper.length;e++){
+     var a0=clipper[e],b0=clipper[(e+1)%clipper.length],input=out;out=[];
+     if(!input.length)break;
+     function side(p){return (b0[0]-a0[0])*(p[1]-a0[1])-(b0[1]-a0[1])*(p[0]-a0[0]);}
+     function cross(s,t){var dx=t[0]-s[0],dy=t[1]-s[1],ex=b0[0]-a0[0],ey=b0[1]-a0[1],den=dx*ey-dy*ex;if(Math.abs(den)<1e-10)return t.slice();var u=((a0[0]-s[0])*ey-(a0[1]-s[1])*ex)/den;return [s[0]+u*dx,s[1]+u*dy];}
+     var prev=input[input.length-1],pin=side(prev)>=-1e-8;
+     input.forEach(function(cur){var cin=side(cur)>=-1e-8;if(cin){if(!pin)out.push(cross(prev,cur));out.push(cur);}else if(pin)out.push(cross(prev,cur));prev=cur;pin=cin;});
+    }
+    return out;
+   }
+   function triangle(i){
+    var layer=config.layers?config.layers[i]:0,r=74-layer*10,w=(config.widths?config.widths[i]:16),dir=rot[i]*60;
+    return [[210,170],point(210,170,r,dir-w),point(210,170,r,dir+w)];
+   }
+   function geometry(){
+    var shapes=rot.map(function(_,i){return triangle(i);}),collisions=[],total=0;
+    for(var i=0;i<shapes.length;i++)for(var j=i+1;j<shapes.length;j++){var ar=area(clip(shapes[i],shapes[j]));if(ar>0.02){collisions.push([i,j,ar]);total+=ar;}}
+    return {shapes:shapes,collisions:collisions,area:total};
+   }
+   function violations(){
+    var g=geometry(),bad=[];
+    if(g.collisions.length)bad.push(g.collisions.length+' polygon intersection(s)');
+    if(new Set(rot).size!==6)bad.push('sector coverage incomplete');
+    if(config.target&&rot.some(function(v,i){return v!==config.target[i];}))bad.push('target orientations not reached');
+    if(config.forbidden&&rot.some(function(v,i){return config.forbidden[i].indexOf(v)>=0;}))bad.push('keep-out sector occupied');
+    if(config.coupled&&config.coupled.some(function(pair){return ((rot[pair[0]]-config.target[pair[0]])%6+6)%6!==((rot[pair[1]]-config.target[pair[1]])%6+6)%6;}))bad.push('coupled actuator phase mismatch');
+    if(config.moveLimit&&moves>config.moveLimit)bad.push('move window exceeded');
+    return {geometry:g,bad:bad};
+   }
+   function draw(){
+    board.replaceChildren();var result=violations(),cx=210,cy=170;
+    for(var ring=0;ring<3;ring++){var radius=26+ring*24,pts=[];for(var n=0;n<6;n++)pts.push(point(cx,cy,radius,n*60));svg(board,'polygon',{points:pts.map(function(p){return p.join(',');}).join(' '),fill:'none',stroke:ring===0?'#e7c77d':'#174832','stroke-width':ring===0?2:1,'stroke-dasharray':ring?'4 4':'none'});}
+    result.geometry.shapes.forEach(function(poly,i){var layer=config.layers?config.layers[i]:0;svg(board,'polygon',{points:poly.map(function(p){return p.join(',');}).join(' '),fill:result.geometry.collisions.some(function(c){return c[0]===i||c[1]===i;})?'rgba(255,75,75,.38)':'rgba(100,201,155,.18)',stroke:result.geometry.collisions.some(function(c){return c[0]===i||c[1]===i;})?'#ff7777':'#9dffcc','stroke-width':2});var outer=point(cx,cy,145, i*60+30);svg(board,'circle',{cx:outer[0],cy:outer[1],r:16,fill:'#09251a',stroke:'#9dffcc','stroke-width':2});svg(board,'text',{x:outer[0],y:outer[1]+4,'text-anchor':'middle',fill:'#eafff4','font-size':12}).textContent='ABCDEF'[i];if(config.layers)svg(board,'text',{x:poly[1][0],y:poly[1][1]-4,'text-anchor':'middle',fill:'#e7c77d','font-size':9}).textContent='L'+(layer+1);});
+    controls.replaceChildren();rot.forEach(function(t,i){var pair=config.coupled&&config.coupled.find(function(p){return p.indexOf(i)>=0;}),label='HEX '+'ABCDEF'[i]+' // '+t+'/6'+(config.layers?' // L'+(config.layers[i]+1):'');button(controls,label,function(){if(moves>= (config.moveLimit||Infinity)){say('MOVE WINDOW CLOSED // RESET THIS LEVEL');return;}var delta=(rot[i]+1)%6;rot[i]=delta;if(pair)pair.forEach(function(j){if(j!==i)rot[j]=(rot[j]+1)%6;});moves+=1;draw();},'rd-rotor');});
+    readout.textContent='HEX OVERLAP LOCK // LEVEL '+(level+1)+'/15 // '+config.name+' // POLYGON INTERSECTIONS '+result.geometry.collisions.length+' // OVERLAP AREA '+result.geometry.area.toFixed(2)+' sq. display-units // ACTUATOR MOVES '+moves+(config.moveLimit?' / '+config.moveLimit:'')+' // '+(result.bad.length?'FAULTS: '+result.bad.join(' | '):'GEOMETRY AND CONSTRAINTS VALID');
+   }
+   function loadLevel(){config=levels[level];moves=0;rot=config.target.map(function(v,i){return (v-config.scramble[i]+6)%6;});draw();say('BLUE DOOR // '+config.name+' // '+config.rule);}
+   lev.addEventListener('change',function(){level=Number(lev.value);loadLevel();});
+   button(a,'VALIDATE X-OVERLAP GEOMETRY',function(){var r=violations();if(!r.bad.length)complete(id,'BLUE DOOR // X-OVERLAP SOLVER VERIFIED // '+config.name);else say('X-OVERLAP REJECTED // '+r.bad.join(' // '));});
+   button(a,'RESET LEVEL',loadLevel);
+   field.appendChild(el('p','rd-puzzle-foot','The X-Overlap block uses convex-polygon clipping (Sutherland–Hodgman) to calculate positive-area intersections between projected triangular components. Additional levels introduce exact orientation targets, coupled actuators, nested geometry layers, forbidden sectors, asymmetric profiles and move-limited alignment. Display geometry is in abstract units; physical applications must supply calibrated dimensions, coordinate frames and measurement uncertainty.'));
+  }else if(id==='yellow'){
+   var ys=[[0,2,3,4,5,0],[0,2,4,1,3,5],[1,2,3,4,5,0],[2,1,3,4,5,0],[1,2,2,0,0,0],[4,0,0,1,0,2]],sets=ys,level=0,rot=[],v=svg(field,'svg',{viewBox:'0 0 420 340',class:'rd-hex-board'}),controls=el('div','rd-rotor-grid');field.appendChild(controls);
    function loadLevel(){rot=Array.from({length:6},function(_,i){return (i-sets[level][i]+6)%6;});draw();}
    function pt(cx,cy,r,a){var t=(a-90)*Math.PI/180;return [cx+Math.cos(t)*r,cy+Math.sin(t)*r];}
-   function draw(){v.replaceChildren();var dirs=[];for(var i=0;i<6;i++){var a=i*60+30,p=pt(210,170,122,a);svg(v,'line',{x1:210,y1:170,x2:p[0],y2:p[1],stroke:'#174832','stroke-width':17,'stroke-linecap':'round'});var dir=rot[i];dirs.push(dir);var q=pt(210,170,90,dir*60);if(id==='yellow'){svg(v,'line',{x1:210,y1:170,x2:q[0],y2:q[1],stroke:'#9dffcc','stroke-width':5,'stroke-linecap':'round'});}else{var p1=pt(210,170,74,dir*60-16),p2=pt(210,170,74,dir*60+16);svg(v,'polygon',{points:'210,170 '+p1.join(',')+' '+p2.join(','),fill:'#64c99b',stroke:'#c7ffe6','stroke-width':1});}var outer=pt(210,170,147,a);svg(v,'circle',{cx:outer[0],cy:outer[1],r:17,fill:'#09251a',stroke:'#9dffcc','stroke-width':2});svg(v,'text',{x:outer[0],y:outer[1]+4,'text-anchor':'middle',fill:'#eafff4','font-size':13}).textContent='ABCDEF'[i];}
+   function draw(){v.replaceChildren();var dirs=[];for(var i=0;i<6;i++){var a=i*60+30,p=pt(210,170,122,a);svg(v,'line',{x1:210,y1:170,x2:p[0],y2:p[1],stroke:'#174832','stroke-width':17,'stroke-linecap':'round'});var dir=rot[i];dirs.push(dir);var q=pt(210,170,90,dir*60);svg(v,'line',{x1:210,y1:170,x2:q[0],y2:q[1],stroke:'#9dffcc','stroke-width':5,'stroke-linecap':'round'});var outer=pt(210,170,147,a);svg(v,'circle',{cx:outer[0],cy:outer[1],r:17,fill:'#09251a',stroke:'#9dffcc','stroke-width':2});svg(v,'text',{x:outer[0],y:outer[1]+4,'text-anchor':'middle',fill:'#eafff4','font-size':13}).textContent='ABCDEF'[i];}
     svg(v,'polygon',{points:Array.from({length:6},function(_,i){return pt(210,170,24,i*60).join(',');}).join(' '),fill:'#e7c77d',stroke:'#fff0c4','stroke-width':2});controls.replaceChildren();rot.forEach(function(t,i){button(controls,'HEX '+ 'ABCDEF'[i]+' // '+t+' / 6',function(){rot[i]=(rot[i]+1)%6;draw();},'rd-rotor');});}
-   var a=actions(),lev=el('select','rd-level-select');sets.forEach(function(_,i){var o=el('option','', 'LOCK LEVEL '+(i+1));o.value=i;lev.appendChild(o);});lev.addEventListener('change',function(){level=Number(lev.value);loadLevel();});a.appendChild(lev);button(a,'CHECK CENTRAL GEOMETRY',function(){var unique=new Set(rot.map(function(t,i){return (i+t)%6;}));if(unique.size===6)complete(id,id==='yellow'?'SIX CENTRAL LINES COVERED':'NO PROJECTED TRIANGLES OVERLAP');else say(id==='yellow'?'INCOMPLETE CENTRAL HEX // '+(6-unique.size)+' LINE DIRECTIONS MISSING':'GRAY OVERLAP // '+(6-unique.size)+' TRIANGLE SECTOR COLLISIONS');});button(a,'RESET LEVEL',loadLevel);field.appendChild(el('p','rd-puzzle-foot',id==='yellow'?'Each outer component rotates one sixth-turn. Its line is projected into the central hex; all six directions must be covered. The six level move counts are taken from published walkthroughs.':'Each outer component rotates its projected triangular sector. Two shapes in the same central sector create a gray overlap. Starting positions are reconstructed so the published move sequences produce a collision-free field.'));loadLevel();
+   var a=actions(),lev=el('select','rd-level-select');sets.forEach(function(_,i){var o=el('option','', 'LOCK LEVEL '+(i+1));o.value=i;lev.appendChild(o);});lev.addEventListener('change',function(){level=Number(lev.value);loadLevel();});a.appendChild(lev);button(a,'CHECK CENTRAL GEOMETRY',function(){var unique=new Set(rot.map(function(t,i){return (i+t)%6;}));if(unique.size===6)complete(id,'SIX CENTRAL LINES COVERED');else say('INCOMPLETE CENTRAL HEX // '+(6-unique.size)+' LINE DIRECTIONS MISSING');});button(a,'RESET LEVEL',loadLevel);field.appendChild(el('p','rd-puzzle-foot', 'Each outer component rotates one sixth-turn. Its line is projected into the central hex; all six directions must be covered. The six level move counts are taken from published walkthroughs.'));loadLevel();
   }else if(id==='sundial'){
    var pairs=[[0,3],[1,4],[2,5],[3,0],[4,1],[5,2]],seq=[1,3,5,6,2,2,6,6],state=[0,0,1,0,0,1],grid=el('div','rd-sundial-grid');field.appendChild(grid);
    function draw(){grid.replaceChildren();state.forEach(function(x,i){button(grid,'HEMISPHERE '+(i+1)+' // '+(x?'YELLOW':'DARK'),function(){pairs[i].forEach(function(j){state[j]^=1;});draw();},'rd-sundial '+(x?'lit':'dark'));});}
