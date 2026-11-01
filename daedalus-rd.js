@@ -40,18 +40,18 @@ function boot(){
     {name:'SECTOR FUNDAMENTALS',target:[0,1,2,3,4,5],scramble:[1,2,3,4,5,1],rule:'Eliminate projected triangle intersections and occupy six distinct sectors.'},
     {name:'REPEATED SECTOR COLLISION',target:[0,2,4,1,3,5],scramble:[2,1,3,2,4,1],rule:'Resolve a deliberately repeated sector arrangement.'},
     {name:'CROSS-PATTERN CLEARANCE',target:[1,3,5,0,2,4],scramble:[3,2,1,4,2,5],rule:'Clear every polygon intersection across an alternating pattern.'},
-    {name:'LOCKED ORIENTATION',target:[2,5,1,4,0,3],scramble:[1,3,2,5,4,2],rule:'Meet the six specified orientation constraints after clearing overlap.'},
-    {name:'RESTRICTED CONFIGURATION',target:[5,2,4,1,3,0],scramble:[2,4,1,3,5,2],rule:'Reach the exact asymmetric target configuration.'},
-    {name:'PAIRED ROTOR COUPLING',target:[0,2,4,3,5,1],scramble:[1,2,4,1,2,4],coupled:[[0,3],[1,4],[2,5]],rule:'Each paired actuator moves together; solve the coupled geometry.'},
-    {name:'CROSS-LINKED ACTUATORS',target:[1,4,0,3,2,5],scramble:[2,1,3,2,1,3],coupled:[[0,1],[2,3],[4,5]],rule:'Three cross-linked actuator pairs must reach their target states.'},
-    {name:'DUAL HEX LAYERS',target:[0,2,4,1,3,5],scramble:[1,3,2,4,1,2],layers:[0,1,0,1,0,1],rule:'Align inner and outer projected components without cross-layer collision.'},
-    {name:'THREE-LAYER HEX ARRAY',target:[1,3,5,0,2,4],scramble:[2,1,4,3,2,5],layers:[0,1,2,0,1,2],rule:'Resolve intersections across three nested geometric layers.'},
-    {name:'OBSTRUCTED SECTORS',target:[2,4,0,3,5,1],scramble:[1,2,3,4,2,1],forbidden:[[0],[1],[2],[3],[4],[5]],rule:'Avoid each component’s blocked sector while clearing the central field.'},
-    {name:'ASYMMETRIC CLEARANCE',target:[4,1,3,0,5,2],scramble:[2,3,1,4,1,3],widths:[18,24,20,26,17,23],forbidden:[[0],[2],[4],[1],[3],[5]],rule:'Solve non-identical triangular profiles around forbidden orientations.'},
-    {name:'TIMED ALIGNMENT WINDOW',target:[0,2,4,1,3,5],scramble:[1,1,1,1,1,1],moveLimit:10,layers:[0,1,0,1,0,1],rule:'Complete the alignment within ten actuator moves.'},
-    {name:'PRECISION WINDOW',target:[3,0,4,1,5,2],scramble:[1,1,1,1,1,1],moveLimit:8,widths:[17,25,19,24,18,26],rule:'Meet the precision target within eight moves; asymmetric profiles are active.'},
-    {name:'COUPLED MULTI-LAYER LOCK',target:[0,2,4,3,5,1],scramble:[1,2,4,1,2,4],coupled:[[0,3],[1,4],[2,5]],layers:[0,1,2,0,1,2],forbidden:[[5],[0],[1],[2],[3],[4]],rule:'Combine paired actuators, three geometric layers and forbidden sectors.'},
-    {name:'X-OVERLAP MASTER ARRAY',target:[1,4,0,3,2,5],scramble:[2,1,3,2,1,3],coupled:[[0,1],[2,3],[4,5]],layers:[0,1,2,0,1,2],widths:[17,25,19,24,18,26],forbidden:[[5],[0],[1],[2],[3],[4]],moveLimit:12,rule:'Integrated geometry, collision clearance, coupled motion, keep-out zones and a twelve-move limit.'}
+    {name:'LOCKED ORIENTATION',exactTarget:true,target:[2,5,1,4,0,3],scramble:[1,3,2,5,4,2],rule:'Meet the six specified orientation constraints after clearing overlap.'},
+    {name:'RESTRICTED CONFIGURATION',exactTarget:true,target:[5,2,4,1,3,0],scramble:[2,4,1,3,5,2],rule:'Reach the exact asymmetric target configuration.'},
+    {name:'PAIRED ROTOR COUPLING',exactTarget:true,target:[0,2,4,3,5,1],scramble:[1,2,4,1,2,4],coupled:[[0,3],[1,4],[2,5]],rule:'Each paired actuator moves together; solve the coupled geometry.'},
+    {name:'CROSS-LINKED ACTUATORS',exactTarget:true,target:[1,4,0,3,2,5],scramble:[2,2,3,3,1,1],coupled:[[0,1],[2,3],[4,5]],rule:'Three cross-linked actuator pairs must reach their target states.'},
+    {name:'DUAL HEX LAYERS',exactTarget:true,target:[0,2,4,1,3,5],scramble:[1,3,2,4,1,2],layers:[0,1,0,1,0,1],rule:'Align inner and outer projected components without cross-layer collision.'},
+    {name:'THREE-LAYER HEX ARRAY',exactTarget:true,target:[1,3,5,0,2,4],scramble:[2,1,4,3,2,5],layers:[0,1,2,0,1,2],rule:'Resolve intersections across three nested geometric layers.'},
+    {name:'OBSTRUCTED SECTORS',exactTarget:true,target:[2,4,0,3,5,1],scramble:[1,2,3,4,2,1],forbidden:[[0],[1],[2],[3],[4],[5]],rule:'Avoid each component’s blocked sector while clearing the central field.'},
+    {name:'ASYMMETRIC CLEARANCE',exactTarget:true,target:[4,1,3,0,5,2],scramble:[2,3,1,4,1,3],widths:[18,24,20,26,17,23],forbidden:[[0],[2],[4],[1],[3],[5]],rule:'Solve non-identical triangular profiles around forbidden orientations.'},
+    {name:'TIMED ALIGNMENT WINDOW',exactTarget:true,target:[0,2,4,1,3,5],scramble:[1,1,1,1,1,1],moveLimit:10,layers:[0,1,0,1,0,1],rule:'Complete the alignment within ten actuator moves.'},
+    {name:'PRECISION WINDOW',exactTarget:true,target:[3,0,4,1,5,2],scramble:[1,1,1,1,1,1],moveLimit:8,widths:[17,25,19,24,18,26],rule:'Meet the precision target within eight moves; asymmetric profiles are active.'},
+    {name:'COUPLED MULTI-LAYER LOCK',exactTarget:true,target:[0,2,4,3,5,1],scramble:[1,2,4,1,2,4],coupled:[[0,3],[1,4],[2,5]],layers:[0,1,2,0,1,2],forbidden:[[5],[0],[1],[2],[3],[4]],rule:'Combine paired actuators, three geometric layers and forbidden sectors.'},
+    {name:'X-OVERLAP MASTER ARRAY',exactTarget:true,target:[1,4,0,3,2,5],scramble:[2,2,3,3,1,1],coupled:[[0,1],[2,3],[4,5]],layers:[0,1,2,0,1,2],widths:[17,25,19,24,18,26],forbidden:[[5],[0],[1],[2],[3],[4]],moveLimit:12,rule:'Integrated geometry, collision clearance, coupled motion, keep-out zones and a twelve-move limit.'}
    ];
    var level=0,rot=[],moves=0,config=levels[0],board=svg(field,'svg',{viewBox:'0 0 460 370',class:'rd-hex-board'}),readout=el('div','rd-engineering-readout'),controls=el('div','rd-rotor-grid'),a=actions(),lev=el('select','rd-level-select');
    field.appendChild(board);field.appendChild(readout);field.appendChild(controls);
@@ -84,7 +84,7 @@ function boot(){
     var g=geometry(),bad=[];
     if(g.collisions.length)bad.push(g.collisions.length+' polygon intersection(s)');
     if(new Set(rot).size!==6)bad.push('sector coverage incomplete');
-    if(config.target&&rot.some(function(v,i){return v!==config.target[i];}))bad.push('target orientations not reached');
+    if(config.exactTarget&&rot.some(function(v,i){return v!==config.target[i];}))bad.push('target orientations not reached');
     if(config.forbidden&&rot.some(function(v,i){return config.forbidden[i].indexOf(v)>=0;}))bad.push('keep-out sector occupied');
     if(config.coupled&&config.coupled.some(function(pair){return ((rot[pair[0]]-config.target[pair[0]])%6+6)%6!==((rot[pair[1]]-config.target[pair[1]])%6+6)%6;}))bad.push('coupled actuator phase mismatch');
     if(config.moveLimit&&moves>config.moveLimit)bad.push('move window exceeded');
