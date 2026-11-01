@@ -32,6 +32,120 @@ function boot(){
     readout.textContent='DC NETWORK // SOURCE 12.00 V // RETURN 0.00 V // '+net.connected+'/9 NODES LIVE // LOAD CURRENT '+net.current.toFixed(3)+' A // LOAD POWER '+net.power.toFixed(2)+' W // NODE VOLTAGES '+net.volts.map(function(v,i){return String(i+1)+':'+v.toFixed(2)+'V';}).join('  ');}
    var a=actions();button(a,'SCRAMBLE RELAYS',function(){specs.forEach(function(x){x.turn=Math.floor(Math.random()*4);x.ports=x.p.map(function(d){return (d+x.turn)%4;});});draw();say('RELAYS SCRAMBLED // RESTORE CONTINUOUS POWER');});button(a,'TEST POWER FLOW',function(){var net=network();if(net.complete)complete(id,'DC BUS CONTINUITY VERIFIED // '+net.current.toFixed(3)+' A AT '+net.power.toFixed(2)+' W');else say('POWER FAULT // '+net.connected+' OF 9 NODES CONNECTED // RETURN PATH OR BRANCH CONTINUITY LOST');});field.appendChild(el('p','rd-puzzle-foot','Relay alignment is evaluated as a conductive network. The readout solves a resistive DC nodal model: 12 V source, 0 V return, 1.5 Ω link resistance, and 30 Ω station loads. These are explicit simulation parameters, not recovered original game specifications.'));draw();
   }else if(id==='blue'){
+   /* HEX OVERLAP APPLICATION WORKSPACES
+      Each application has its own model, controls and training readouts.
+      The original lock remains isolated in its own tab. */
+   var blueHost=field,blueTabs=el('div','rd-lab-tabs'),blueApps=el('div','rd-lab-apps'),puzzlePanel=el('section','rd-lab-panel');
+   puzzlePanel.className+=' rd-hex-lock-panel';
+   var blueAppPanels={},blueAppButtons={};
+   blueHost.appendChild(blueTabs);blueHost.appendChild(blueApps);blueHost.appendChild(puzzlePanel);
+   var blueAppDefs=[
+    ['lock','HEX LOCK // GAME'],['assembly','SPACECRAFT ASSEMBLY'],['docking','ORBITAL DOCKING'],['refuel','REFUELING SYSTEMS'],['robotics','ROBOTICS'],['welding','WELDING'],['cadcam','CAD / CAM'],['metrology','PRECISION METROLOGY'],['spatial','SPATIAL ANALYSIS']
+   ];
+   function selectBlueApp(key){
+    puzzlePanel.hidden=key!=='lock';
+    Object.keys(blueAppPanels).forEach(function(k){blueAppPanels[k].hidden=k!==key;});
+    Object.keys(blueAppButtons).forEach(function(k){blueAppButtons[k].classList.toggle('active',k===key);blueAppButtons[k].setAttribute('aria-selected',k===key?'true':'false');});
+    say(key==='lock'?'HEX OVERLAP LOCK // ORIGINAL SPACECRAFT INTERFACE':blueAppDefs.filter(function(x){return x[0]===key;})[0][1]+' // TRAINING WORKSPACE READY');
+   }
+   blueAppDefs.forEach(function(def){
+    var b=button(blueTabs,def[1],function(){selectBlueApp(def[0]);},'rd-lab-tab');
+    b.setAttribute('role','tab');b.setAttribute('aria-selected',def[0]==='lock'?'true':'false');blueAppButtons[def[0]]=b;
+   });
+   function appPanel(key,title,description){
+    var p=el('section','rd-lab-panel');p.hidden=true;p.setAttribute('role','tabpanel');
+    var h=el('div','rd-lab-panel-head'),copy=el('div','');
+    copy.appendChild(el('h4','',title));copy.appendChild(el('p','',description));h.appendChild(copy);p.appendChild(h);blueApps.appendChild(p);blueAppPanels[key]=p;return p;
+   }
+   function appInput(parent,label,value,step,min){
+    var wrap=el('label','',label),input=el('input','');input.type='number';input.value=value;input.step=step||'any';input.min=min===undefined?'0':String(min);wrap.appendChild(input);parent.appendChild(wrap);return input;
+   }
+   function appReadout(parent){
+    var r=el('div','rd-lab-readout');parent.appendChild(r);
+    return function(items){r.replaceChildren();items.forEach(function(item){var row=el('div','');row.appendChild(el('span','',item[0]));row.appendChild(el('b','',item[1]));r.appendChild(row);});};
+   }
+   function appNote(parent,text){parent.appendChild(el('p','rd-lab-note',text));}
+   function appCalc(key,title,description,fields,calculate,note){
+    var p=appPanel(key,title,description),grid=el('div','rd-lab-grid'),controlsBox=el('div','rd-lab-controls'),visual=el('div','rd-lab-visual');
+    grid.appendChild(controlsBox);grid.appendChild(visual);p.appendChild(grid);
+    var inputs={};fields.forEach(function(f){inputs[f[0]]=appInput(controlsBox,f[1],f[2],f[3],f[4]);});
+    var show=appReadout(visual),statusNode=el('div','rd-lab-status');visual.insertBefore(statusNode,visual.firstChild);
+    button(controlsBox,'RUN ENGINEERING ANALYSIS',execute,'');
+    function execute(){var values={};Object.keys(inputs).forEach(function(k){values[k]=Number(inputs[k].value);});var result=calculate(values);show(result.rows);statusNode.textContent=result.status;statusNode.setAttribute('data-state',result.ok?'pass':'review');}
+    appNote(p,note);execute();return {panel:p,inputs:inputs};
+   }
+   var lockHeading=el('div','rd-lab-panel-head'),lockCopy=el('div','');
+   lockCopy.appendChild(el('h4','','HEX OVERLAP LOCK // SPACECRAFT INTERFACE PUZZLE'));
+   lockCopy.appendChild(el('p','','Original interactive lock and its 15-level progression. This remains a separate application from the technical workspaces.'));
+   lockHeading.appendChild(lockCopy);puzzlePanel.appendChild(lockHeading);
+   field=puzzlePanel;
+   function appRect(w,h,cx,cy,angle){
+    var a=angle*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
+    return [[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]].map(function(p){return [cx+p[0]*c-p[1]*s,cy+p[0]*s+p[1]*c];});
+   }
+   function appPolyArea(poly){var sum=0;for(var i=0;i<poly.length;i++){var p=poly[i],q=poly[(i+1)%poly.length];sum+=p[0]*q[1]-q[0]*p[1];}return Math.abs(sum)/2;}
+   function appPolyClip(subject,clipper){
+    var out=subject.slice();
+    for(var e=0;e<clipper.length;e++){
+     var a0=clipper[e],b0=clipper[(e+1)%clipper.length],input=out;out=[];if(!input.length)break;
+     function side(p){return (b0[0]-a0[0])*(p[1]-a0[1])-(b0[1]-a0[1])*(p[0]-a0[0]);}
+     function cross(s,t){var dx=t[0]-s[0],dy=t[1]-s[1],ex=b0[0]-a0[0],ey=b0[1]-a0[1],den=dx*ey-dy*ex;if(Math.abs(den)<1e-10)return t.slice();var u=((a0[0]-s[0])*ey-(a0[1]-s[1])*ex)/den;return [s[0]+u*dx,s[1]+u*dy];}
+     var prev=input[input.length-1],pin=side(prev)>=-1e-8;
+     input.forEach(function(cur){var cin=side(cur)>=-1e-8;if(cin){if(!pin)out.push(cross(prev,cur));out.push(cur);}else if(pin)out.push(cross(prev,cur));prev=cur;pin=cin;});
+    }
+    return out;
+   }
+   appCalc('assembly','SPACECRAFT ASSEMBLY // INTERFACE FIT ANALYZER','Evaluate radial and angular mismatch between two segmented spacecraft sections before mechanical mating.',[
+    ['radius','Interface radius (mm)',500,'1'],['offset','Measured radial offset (mm)',0.8,'0.1'],['angle','Angular mismatch (degrees)',0.08,'0.01'],['clearance','Available radial clearance (mm)',2,'0.1'],['gap','Axial face gap (mm)',0.4,'0.1'],['maxGap','Maximum permitted face gap (mm)',1,'0.1']
+   ],function(v){
+    var angular=2*v.radius*Math.sin(Math.abs(v.angle)*Math.PI/360),stack=v.offset+angular,margin=v.clearance-stack,ok=margin>=0&&v.gap<=v.maxGap;
+    return {ok:ok,status:ok?'INTERFACE WITHIN ENTERED FIT LIMITS':'FIT EXCEEDS ONE OR MORE ENTERED LIMITS',rows:[['Angular edge mismatch',angular.toFixed(3)+' mm'],['Combined radial error',stack.toFixed(3)+' mm'],['Radial clearance margin',margin.toFixed(3)+' mm'],['Axial face gap',v.gap.toFixed(3)+' mm'],['Fit assessment',ok?'PASS':'REVIEW / NO-GO']]};
+   },'Training model: rigid circular interface with small-angle edge mismatch. Real assembly qualification also needs bolt-pattern registration, structural loads, thermal distortion, fastener preload, seal design and certified tolerances.');
+   appCalc('docking','ORBITAL DOCKING // RELATIVE MOTION CAPTURE','Estimate whether a closing vehicle remains inside a simplified lateral capture corridor at contact.',[
+    ['range','Initial range (m)',120,'1'],['closing','Closing speed (m/s)',0.2,'0.01'],['lateral','Lateral relative speed (m/s)',0.005,'0.001'],['capture','Capture corridor radius (m)',0.5,'0.01'],['maxClosing','Maximum contact speed (m/s)',0.1,'0.01']
+   ],function(v){
+    var valid=v.closing>0,time=valid?v.range/v.closing:Infinity,miss=valid?Math.abs(v.lateral)*time:Infinity,ok=valid&&miss<=v.capture&&v.closing<=v.maxClosing;
+    return {ok:ok,status:!valid?'NO CLOSURE: CLOSING SPEED MUST BE POSITIVE':ok?'SIMPLIFIED CAPTURE WINDOW MET':'CAPTURE LIMIT EXCEEDED',rows:[['Time to contact',valid?time.toFixed(1)+' s':'—'],['Predicted lateral drift',valid?miss.toFixed(3)+' m':'—'],['Capture corridor',v.capture.toFixed(3)+' m'],['Contact closing speed',v.closing.toFixed(3)+' m/s'],['Assessment',ok?'WITHIN INPUT LIMITS':'REVIEW / NO-GO']]};
+   },'Training model: constant relative velocity in a local plane. Real docking requires six-degree-of-freedom state estimation, attitude control, plume constraints, sensor latency, keep-out zones and abort logic.');
+   appCalc('refuel','REFUELING SYSTEMS // COUPLING & FLOW','Check connector alignment and estimate idealized incompressible transfer flow through a circular restriction.',[
+    ['offset','Connector radial offset (mm)',0.25,'0.01'],['tolerance','Connector alignment tolerance (mm)',0.5,'0.01'],['diameter','Equivalent orifice diameter (mm)',8,'0.1'],['pressure','Pressure differential (kPa)',80,'1'],['density','Fluid density (kg/m³)',1000,'1'],['cd','Discharge coefficient',0.62,'0.01'],['volume','Transfer volume (L)',250,'1']
+   ],function(v){
+    var area=Math.PI*Math.pow(v.diameter/2000,2),flow=v.density>0&&v.pressure>0&&v.cd>0?v.cd*area*Math.sqrt(2*v.pressure*1000/v.density):0,lpm=flow*60000,mins=lpm>0?v.volume/lpm:Infinity,aligned=v.offset<=v.tolerance,ok=aligned&&lpm>0;
+    return {ok:ok,status:!aligned?'COUPLING MISALIGNMENT EXCEEDS TOLERANCE':ok?'COUPLING ALIGNMENT AND FLOW ESTIMATE AVAILABLE':'CHECK PRESSURE / FLUID INPUTS',rows:[['Alignment margin',(v.tolerance-v.offset).toFixed(3)+' mm'],['Idealized flow rate',lpm.toFixed(2)+' L/min'],['Estimated transfer time',isFinite(mins)?mins.toFixed(1)+' min':'—'],['Orifice area',(area*1e6).toFixed(2)+' mm²'],['Coupling status',aligned?'WITHIN INPUT TOLERANCE':'MISALIGNED']]};
+   },'Training model: steady, single-phase, incompressible orifice flow. It is not a cryogenic propellant design tool; real systems require fluid-property tables, pressure regulation, two-phase analysis, thermal conditioning, leak detection, relief devices and certified connector standards.');
+   appCalc('robotics','ROBOTICS // TWO-LINK INVERSE KINEMATICS','Solve the reachable joint angles for a planar two-link manipulator target point.',[
+    ['l1','Link 1 length (mm)',400,'1'],['l2','Link 2 length (mm)',300,'1'],['x','Target X (mm)',450,'1'],['y','Target Y (mm)',150,'1']
+   ],function(v){
+    var d2=v.x*v.x+v.y*v.y,cos2=(d2-v.l1*v.l1-v.l2*v.l2)/(2*v.l1*v.l2),reachable=cos2>=-1&&cos2<=1&&v.l1>0&&v.l2>0;
+    if(!reachable)return {ok:false,status:'TARGET OUTSIDE TWO-LINK REACHABLE WORKSPACE',rows:[['Target radius',Math.sqrt(d2).toFixed(2)+' mm'],['Reach interval',Math.abs(v.l1-v.l2).toFixed(1)+' to '+(v.l1+v.l2).toFixed(1)+' mm'],['Inverse kinematics','NO REAL SOLUTION']]};
+    var a2=Math.acos(cos2),a1=Math.atan2(v.y,v.x)-Math.atan2(v.l2*Math.sin(a2),v.l1+v.l2*Math.cos(a2)),deg=function(a){return a*180/Math.PI;};
+    return {ok:true,status:'TARGET REACHABLE // TWO ELBOW CONFIGURATIONS',rows:[['Elbow-down joint 1',deg(a1).toFixed(2)+'°'],['Elbow-down joint 2',deg(a2).toFixed(2)+'°'],['Elbow-up joint 1',deg(Math.atan2(v.y,v.x)+Math.atan2(v.l2*Math.sin(a2),v.l1+v.l2*Math.cos(a2))).toFixed(2)+'°'],['Elbow-up joint 2',(-deg(a2)).toFixed(2)+'°'],['Target radius',Math.sqrt(d2).toFixed(2)+' mm']]};
+   },'Training model: ideal planar two-revolute-joint arm. Real robot deployment needs joint limits, link collision checks, singularity handling, calibrated frames, payload dynamics and a safety-rated motion controller.');
+   appCalc('welding','WELDING // SEAM & HEAT-INPUT PLANNER','Estimate travel time and nominal line energy from entered arc parameters and travel speed.',[
+    ['voltage','Arc voltage (V)',24,'0.1'],['current','Current (A)',180,'1'],['efficiency','Process efficiency (0–1)',0.8,'0.01'],['speed','Travel speed (mm/min)',300,'1'],['length','Seam length (mm)',500,'1']
+   ],function(v){
+    var valid=v.speed>0&&v.efficiency>=0&&v.efficiency<=1,heat=valid?v.efficiency*v.voltage*v.current/(v.speed/60)/1000:0,time=valid?v.length/v.speed:Infinity;
+    return {ok:valid,status:valid?'PROCESS ESTIMATE CALCULATED':'INVALID SPEED OR EFFICIENCY INPUT',rows:[['Nominal line energy',heat.toFixed(3)+' kJ/mm'],['Arc power',(v.voltage*v.current/1000).toFixed(3)+' kW'],['Travel time',isFinite(time)?time.toFixed(2)+' min':'—'],['Entered efficiency',(v.efficiency*100).toFixed(1)+'%'],['Process note','NOT A WELD-QUALITY CERTIFICATION']]};
+   },'Training model: nominal arc energy per unit length. Material, joint geometry, shielding gas, transfer mode, preheat, interpass temperature and applicable welding procedure specifications govern real weld qualification.');
+   appCalc('cadcam','CAD / CAM // TOLERANCE STACK & TOOL OFFSET','Calculate worst-case mating clearance and cutter-radius compensation for a simple machined interface.',[
+    ['part','Part nominal width (mm)',50,'0.01'],['mate','Mating opening width (mm)',50.5,'0.01'],['tolPart','Part size tolerance (± mm)',0.1,'0.01'],['tolMate','Opening tolerance (± mm)',0.1,'0.01'],['tool','Cutter diameter (mm)',6,'0.1']
+   ],function(v){
+    var clearance=v.mate-v.part,low=clearance-v.tolPart-v.tolMate,high=clearance+v.tolPart+v.tolMate,ok=low>=0;
+    return {ok:ok,status:ok?'WORST-CASE CLEARANCE IS NON-NEGATIVE':'WORST-CASE INTERFERENCE POSSIBLE',rows:[['Nominal clearance',clearance.toFixed(3)+' mm'],['Worst-case clearance',low.toFixed(3)+' mm'],['Best-case clearance',high.toFixed(3)+' mm'],['Cutter radius compensation',(v.tool/2).toFixed(3)+' mm'],['Fit assessment',ok?'CLEARANCE FIT':'INTERFERENCE RISK']]};
+   },'Training model: one-dimensional worst-case tolerance stack and nominal cutter radius. Real CAM needs tool geometry, machine kinematics, stock allowance, workholding, deflection, feeds/speeds and post-processor validation.');
+   appCalc('metrology','PRECISION METROLOGY // MEASUREMENT UNCERTAINTY','Apply a first-order thermal expansion correction and combine independent standard uncertainty terms.',[
+    ['measured','Measured length (mm)',1000.12,'0.001'],['nominal','Nominal length (mm)',1000,'0.001'],['instrument','Instrument standard uncertainty (mm)',0.01,'0.001'],['repeat','Repeatability standard uncertainty (mm)',0.008,'0.001'],['alpha','Thermal expansion coefficient (ppm/°C)',11.5,'0.1'],['deltaT','Temperature above reference (°C)',2,'0.1'],['tolerance','Acceptance tolerance (mm)',0.1,'0.001']
+   ],function(v){
+    var corrected=v.measured/(1+v.alpha*1e-6*v.deltaT),u=Math.sqrt(v.instrument*v.instrument+v.repeat*v.repeat),expanded=2*u,deviation=corrected-v.nominal,ok=Math.abs(deviation)+expanded<=v.tolerance;
+    return {ok:ok,status:ok?'UNCERTAINTY BAND WITHIN ENTERED TOLERANCE':'RESULT REQUIRES REVIEW AGAINST TOLERANCE',rows:[['Thermally corrected length',corrected.toFixed(4)+' mm'],['Corrected deviation',deviation.toFixed(4)+' mm'],['Combined standard uncertainty',u.toFixed(4)+' mm'],['Expanded uncertainty (k=2)',expanded.toFixed(4)+' mm'],['Tolerance check',ok?'WITHIN':'NOT DEMONSTRATED WITHIN']]};
+   },'Training model: independent uncertainty terms and first-order linear thermal correction. A traceable measurement plan must include calibration certificates, environmental gradients, alignment, cosine/Abbe errors, sampling and a documented uncertainty budget.');
+   appCalc('spatial','SPATIAL ANALYSIS // ROTATED FOOTPRINT OVERLAP','Transform a rectangular footprint into a shared coordinate frame and compute its exact polygon intersection area.',[
+    ['aw','Footprint A width (m)',4,'0.1'],['ah','Footprint A height (m)',3,'0.1'],['bw','Footprint B width (m)',3,'0.1'],['bh','Footprint B height (m)',2,'0.1'],['dx','B centre X offset (m)',2,'0.1'],['dy','B centre Y offset (m)',0.5,'0.1'],['angle','B rotation (degrees)',25,'0.1']
+   ],function(v){
+    var a=appRect(v.aw,v.ah,0,0,0),b=appRect(v.bw,v.bh,v.dx,v.dy,v.angle),overlap=appPolyArea(appPolyClip(b,a)),small=Math.min(v.aw*v.ah,v.bw*v.bh),pct=small>0?overlap/small*100:0;
+    return {ok:overlap<1e-8,status:overlap>1e-8?'FOOTPRINT INTERSECTION DETECTED':'NO POSITIVE-AREA OVERLAP',rows:[['Intersection area',overlap.toFixed(4)+' m²'],['Smaller footprint overlap',pct.toFixed(2)+'%'],['Footprint A area',(v.aw*v.ah).toFixed(3)+' m²'],['Footprint B area',(v.bw*v.bh).toFixed(3)+' m²'],['Relative pose','ΔX '+v.dx+' m // ΔY '+v.dy+' m // '+v.angle+'°']]};
+   },'Training model: exact convex-polygon clipping for two rigid rectangular footprints in a common 2D plane. Add calibrated coordinate frames, uncertainty propagation and 3D geometry before using results for physical robot, vehicle or facility clearance decisions.');
+   selectBlueApp('lock');
    /* BLUE DOOR // HEX OVERLAP LOCK
       Polygon clipping computes actual positive-area intersections between projected
       triangular components. Level rules add target constraints, coupled controls,
@@ -104,6 +218,7 @@ function boot(){
    button(a,'VALIDATE X-OVERLAP GEOMETRY',function(){var r=violations();if(!r.bad.length){if(levelTimer){clearInterval(levelTimer);levelTimer=0;}complete(id,'BLUE DOOR // X-OVERLAP SOLVER VERIFIED // '+config.name);}else say('X-OVERLAP REJECTED // '+r.bad.join(' // '));});
    button(a,'RESET LEVEL',loadLevel);
    field.appendChild(el('p','rd-puzzle-foot','The X-Overlap block uses convex-polygon clipping (Sutherland–Hodgman) to calculate positive-area intersections between projected triangular components. Additional levels introduce exact orientation targets, coupled actuators, nested geometry layers, forbidden sectors, asymmetric profiles and move-limited alignment. Display geometry is in abstract units; physical applications must supply calibrated dimensions, coordinate frames and measurement uncertainty.'));
+   field=blueHost;
   }else if(id==='yellow'){
    var ys=[[0,2,3,4,5,0],[0,2,4,1,3,5],[1,2,3,4,5,0],[2,1,3,4,5,0],[1,2,2,0,0,0],[4,0,0,1,0,2]],sets=ys,level=0,rot=[],v=svg(field,'svg',{viewBox:'0 0 420 340',class:'rd-hex-board'}),controls=el('div','rd-rotor-grid');field.appendChild(controls);
    function loadLevel(){rot=Array.from({length:6},function(_,i){return (i-sets[level][i]+6)%6;});draw();}
