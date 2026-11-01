@@ -329,3 +329,69 @@
 #rd-bus-stream{display:grid;gap:4px;margin:7px 0;max-height:115px;overflow:auto}
 #rd-bus-stream>div{padding:4px 6px;background:#06170f;border-left:2px solid #29f5b2;color:#8be9be;overflow-wrap:anywhere}
 #rd-bus-clear{padding:5px 8px;background:#171307;border:1px solid #75633b;color:#e6d9b2;font:inherit;cursor:pointer}
+
+
+/* Original Daedalus puzzle screens use the HEX OVERLAP LOCK visual language.
+   Scoped to original-game panels only; technical application workspaces remain independent. */
+#rd-puzzle-lab .rd-original-game-panel{
+  position:relative;
+  overflow:hidden;
+  border:1px solid #477b68;
+  background-color:#030b0a;
+  background-image:
+    linear-gradient(rgba(68,133,108,.075) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(68,133,108,.075) 1px,transparent 1px);
+  background-size:20px 20px;
+  color:#c7f6dc;
+  font-family:"Courier New",monospace;
+}
+#rd-puzzle-lab .rd-original-game-panel>h4{
+  margin:0 0 12px;
+  padding:0 0 9px;
+  border-bottom:1px solid #477b68;
+  color:#b7edca;
+  font:bold 13px "Courier New",monospace;
+  letter-spacing:1px;
+}
+#rd-puzzle-lab .rd-original-game-panel .rd-controls{
+  padding:8px;
+  border:1px solid #285b42;
+  background:rgba(2,11,7,.88);
+}
+#rd-puzzle-lab .rd-original-game-panel .rd-engineering-readout,
+#rd-puzzle-lab .rd-original-game-panel .rd-puzzle-foot,
+#rd-puzzle-lab .rd-original-game-panel .rd-status{
+  font-family:"Courier New",monospace;
+  letter-spacing:.025em;
+}
+#rd-puzzle-lab .rd-original-game-panel .rd-engineering-readout{
+  border:1px solid #477b68;
+  border-left:3px solid #9dffcc;
+  background:#020907;
+  color:#c7f6dc;
+  padding:10px 12px;
+}
+#rd-puzzle-lab .rd-original-game-panel button,
+#rd-puzzle-lab .rd-original-game-panel select,
+#rd-puzzle-lab .rd-original-game-panel input{
+  border-radius:0;
+  box-shadow:none;
+  font-family:"Courier New",monospace;
+}
+#rd-puzzle-lab .rd-original-game-panel button{
+  border:1px solid #477b68;
+  background:#071510;
+  color:#c9f5df;
+}
+#rd-puzzle-lab .rd-original-game-panel button:hover,
+#rd-puzzle-lab .rd-original-game-panel button:focus-visible{
+  background:#10291e;
+  border-color:#b8f4d4;
+  outline:1px solid #b8f4d4;
+  outline-offset:1px;
+}
+#rd-puzzle-lab .rd-original-game-panel svg,
+#rd-puzzle-lab .rd-original-game-panel canvas{
+  border-radius:0;
+  box-shadow:none;
+}
