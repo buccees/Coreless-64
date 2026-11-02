@@ -345,6 +345,7 @@ function boot(){
  window.addEventListener('vigil:active-unit-changed',function(){render();});
  window.addEventListener('vigil:simulation-unit-state-changed',function(){render();});
  window.addEventListener('vigil:fleet-sensor-update',function(){render();});
+ window.addEventListener('vigil:daedalus-rd-update',function(){render();});
  window.setInterval(function(){
   var ids=['DDG-51','DAEDALUS-01','DRONE-01','UUV-01','SSN-774','MECH-01','FAC-01'];
   ids.forEach(function(id){publishUnitReport(id);});
