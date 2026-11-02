@@ -86,7 +86,7 @@ function makeSample(x,y,row,col,rd){
 }
 function buildSurface(){
  var rd=getRDState(),next=[],nextCells=[],c=worldInfo();
- COLS=36;ROWS=18;
+ COLS=96;ROWS=48;
  for(var row=0;row<ROWS;row++){
   for(var col=0;col<COLS;col++){
    var x=(col+.5)/COLS,y=(row+.5)/ROWS;
