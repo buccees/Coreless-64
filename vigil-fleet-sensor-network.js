@@ -193,6 +193,23 @@ function measurementRows(id,sensor,unit,source,hits){
  }else if(modality==='specimen_analysis'){
   add('REMOTE PROBE PAYLOAD',daedalusRD&&daedalusRD.specimen?'ANALYSIS QUALIFIED':'STANDBY','');
   if(daedalusRD&&daedalusRD.specimen){add('SPECIMEN',daedalusRD.specimen.data.name||'—','');add('SCAN MODE',String(daedalusRD.specimen.data.scan_mode||'').toUpperCase(),'');add('MAGNIFICATION',Number(daedalusRD.specimen.data.magnification_x||0),'×');add('MASS',Number(daedalusRD.specimen.data.mass_kg||0).toFixed(2),'kg');}
+ }else if(modality==='materials'){
+  add('STRUCTURAL TEST STATE',daedalusRD&&daedalusRD.materials?'QUALIFIED / DAEDALUS ENGINEERING':'NO QUALIFIED TEST','');
+  if(daedalusRD&&daedalusRD.materials){
+   add('TEST MATERIAL',daedalusRD.materials.data.name||'—','');
+   add('STRESS',Number(daedalusRD.materials.data.stress_mpa||0).toFixed(3),'MPa');
+   add('ELASTIC STRAIN',Number(daedalusRD.materials.data.strain_microstrain||0).toFixed(2),'µε');
+   add('YIELD UTILIZATION',Number(daedalusRD.materials.data.yield_utilization_percent||0).toFixed(2),'%');
+  }
+ }else if(modality==='specimen_analysis'){
+  add('REMOTE PROBE PAYLOAD',daedalusRD&&daedalusRD.specimen?'ANALYSIS QUALIFIED':'STANDBY','');
+  if(daedalusRD&&daedalusRD.specimen){
+   add('SPECIMEN',daedalusRD.specimen.data.name||'—','');
+   add('SCAN MODE',String(daedalusRD.specimen.data.scan_mode||'').toUpperCase(),'');
+   add('SELECTED SECTION',String(daedalusRD.specimen.data.section||'').toUpperCase(),'');
+   add('MAGNIFICATION',Number(daedalusRD.specimen.data.magnification_x||0),'×');
+   add('MASS',Number(daedalusRD.specimen.data.mass_kg||0).toFixed(2),'kg');
+  }
  }else if(modality==='life_support'){
   add('CABIN PRESSURE',101.3,'kPa');add('O₂ PARTIAL PRESSURE',21.2,'kPa');add('CO₂',.08,'%');add('CABIN TEMPERATURE',(21+noise*1.4).toFixed(1),'°C');
  }else if(modality==='radiation'){
