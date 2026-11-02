@@ -118,7 +118,7 @@ function resolveSensor(id,station){
   [/access|alarm/,['access_alarm']]
  ];
  for(var i=0;i<aliasMap.length;i++)if(aliasMap[i][0].test(raw)){var found=pkg.sensors.find(function(s){return aliasMap[i][1].indexOf(s[1])>=0;});if(found)return found;}
- return pkg.sensors[0];
+ return null;
 }
 function detections(id,sensor){
  var own=getUnit(id);if(!own)return [];
@@ -152,7 +152,7 @@ function measurementRows(id,sensor,unit,source,hits){
  }
  if(modality==='radar'){
   add('FREQUENCY BAND',profileKey(id)==='daedalus'?'X-BAND / SPACE':'S-BAND / X-BAND','');
-  add('SCAN RATE',(6+noise*2).toFixed(1),'rpm');add('RANGE RESOLUTION',profileKey(id)==='daedalus'?'.10':'150','m');add('TRACK RETURNS',hits.length,'contacts');
+  add('SCAN RATE',(6+noise*2).toFixed(1),'rpm');add('RANGE RESOLUTION',profileKey(id)==='daedalus'?'1.5':'150','m');if(profileKey(id)==='daedalus'){add('ORBITAL SWATH','GLOBAL / MULTI-PASS','');add('OBSERVATION FRAME','PELAGOS PLANET-CENTERED','');}add('TRACK RETURNS',hits.length,'contacts');
   add('PRIMARY RETURN',nearest?nearest.contact_id:'NO RETURN','');if(nearest)add('RANGE / BEARING',nearest.range_map_units.toFixed(3)+' / '+nearest.bearing_deg.toFixed(1),'map units / deg');
  }else if(['sonar','passive_sonar','flank_sonar','towed_array','multibeam','side_scan','acoustic','proximity'].indexOf(modality)>=0){
   add('SOUND SPEED ESTIMATE',(1480+noise*18-depth*.0003).toFixed(1),'m/s');add('SELF-NOISE INDEX',(54+speed*380+noise*3).toFixed(1),'dB model');add('DETECTED RETURNS',hits.length,'contacts');
@@ -162,8 +162,18 @@ function measurementRows(id,sensor,unit,source,hits){
   add('FIELD OF VIEW',modality==='underwater_camera'?'72 × 48':'42 × 28','deg');add('IMAGE FORMAT',modality==='optical'?'4096 × 2160':'1920 × 1080','pixels');
   add('OBJECT RETURNS',hits.length,'tracks');add('BORESIGHT',h.toFixed(1),'deg');add('IMAGE QUALITY',Math.max(.25,.96-noise*.12).toFixed(2),'normalized');
  }else if(modality==='thermal'){
-  add('SCENE TEMPERATURE',(18+noise*9-depth/5000).toFixed(1),'°C');add('THERMAL CONTRAST',(4+noise*11).toFixed(1),'K');
-  add('NETD',.04,'K');add('HEAT RETURNS',hits.length,'tracks');
+  if(profileKey(id)==='daedalus'){
+   var orbitalTemp=Number((210+noise*72).toFixed(1));
+   add('INSTRUMENT','ORBITAL MULTISPECTRAL IR RADIOMETER','');
+   add('BRIGHTNESS TEMPERATURE',orbitalTemp,'K');
+   add('SPECTRAL CHANNELS','MWIR / LWIR','');
+   add('GROUND SAMPLE DISTANCE','SIMULATED ORBITAL PIXEL','');
+   add('RADIOMETRIC CONTRAST',(2+noise*8).toFixed(2),'K');
+   add('NETD',.04,'K');add('SURFACE RETURNS',hits.length,'pixels / tracks');
+  }else{
+   add('SCENE TEMPERATURE',(18+noise*9-depth/5000).toFixed(1),'°C');add('THERMAL CONTRAST',(4+noise*11).toFixed(1),'K');
+   add('NETD',.04,'K');add('HEAT RETURNS',hits.length,'tracks');
+  }
  }else if(modality==='esm'){
   add('FREQUENCY COVERAGE','0.5–18','GHz');add('EMITTERS DETECTED',hits.length,'signals');add('BEARING CONFIDENCE',(72+noise*22).toFixed(1),'%');add('RECEIVER STATE','PASSIVE / WIDEBAND','');
  }else if(modality==='star_tracker'){
@@ -225,7 +235,7 @@ function measurementRows(id,sensor,unit,source,hits){
 }
 function makeFrame(id,sensor,source){
  id=unitId(id);var unit=getUnit(id),pkg=sensorPackages[profileKey(id)];if(!unit||!pkg)return null;
- var def=typeof sensor==='string'?resolveSensor(id,sensor):sensor;
+ var def=typeof sensor==='string'?resolveSensor(id,sensor):sensor;if(!def||pkg.sensors.indexOf(def)<0)return null;
  var hits=detections(id,def),rows=measurementRows(id,def,unit,source,hits);
  return {schema:'vigil.fleet.sensor-frame',version:1,unit_id:id,unit_name:pkg.name,unit_profile:profileKey(id),
   sensor_id:id+'-'+def[1].toUpperCase().replace(/[^A-Z0-9]+/g,'-')+'-'+String(pkg.sensors.indexOf(def)+1).padStart(2,'0'),
@@ -302,7 +312,7 @@ function render(){
  var selected=activeStation(),currentDef=resolveSensor(id,selected),frames=pkg.sensors.map(function(s){return makeFrame(id,s,source);}).filter(Boolean);
  root.querySelector('#vfsn-platform').textContent=pkg.name+' // '+id+' // '+frames.length+' INSTALLED CHANNELS';
  root.querySelector('#vfsn-roster').innerHTML=frames.map(function(frame){
-  var isActive=frame.sensor_name===currentDef[0],rows=frame.measurements.slice(0,isActive?6:3);
+  var isActive=!!currentDef&&frame.sensor_name===currentDef[0],rows=frame.measurements.slice(0,isActive?6:3);
   return '<article class="vfsn-sensor'+(isActive?' active':'')+'"><strong>'+esc(frame.sensor_name)+'</strong>'+rows.map(function(m){return '<div class="vfsn-measure"><span>'+esc(m.label)+'</span><b>'+esc(m.value)+(m.units?' '+esc(m.units):'')+'</b></div>';}).join('')+'<small>'+esc(frame.modality.toUpperCase())+' // '+frame.detected_contacts.length+' RETURN(S) // '+esc(frame.provenance)+'</small></article>';
  }).join('');
  if(source){
