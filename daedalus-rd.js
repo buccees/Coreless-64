@@ -75,7 +75,7 @@ function boot(){
      var values={};Object.keys(inputs).forEach(function(k){values[k]=Number(inputs[k].value);});
      var result=calculate(values);show(result.rows);statusNode.textContent=result.status;statusNode.setAttribute('data-state',result.ok?'pass':'review');
      /* Every engineering workspace publishes its calculated result into the Daedalus research archive and VIGIL integration bus. */
-     var record={schema:'vigil.daedalus-engineering-analysis',version:1,workspace:key,title:title,description:description,inputs:values,result:result,timestamp:new Date().toISOString()};
+     var record={schema:'vigil.daedalus-engineering-analysis',version:1,id:'DEA-'+Date.now().toString(36)+'-'+key,workspace:key,title:title,description:description,inputs:values,result:result,timestamp:new Date().toISOString()};
      var archive=window.vigilDaedalusEngineeringAnalyses;
      if(!Array.isArray(archive)){try{archive=JSON.parse(localStorage.getItem('vigil-daedalus-engineering-analyses-v1')||'[]');}catch(e){archive=[];}}
      if(!Array.isArray(archive))archive=[];archive.push(record);if(archive.length>60)archive.splice(0,archive.length-60);
