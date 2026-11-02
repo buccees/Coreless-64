@@ -335,19 +335,8 @@ function render(){
  if(id!==lastUnit){lastUnit=id;publishUnitReport(id);}
 }
 function installOnboardDeck(){
- // R&D is a permanent Simulation Bay sub-tab, not a top-level navigation item
- // and not part of the ship-only naval/battleship console.
- var rd=document.getElementById('rd-panel');
- var sim=document.getElementById('simulation-panel');
- var content=sim&&sim.querySelector(':scope > .content');
- if(rd&&content&&rd.parentElement!==content){
-  rd.setAttribute('data-category','simulation');
-  content.appendChild(rd);
- }
- if(rd){
-  rd.dataset.rdOpen=rd.dataset.rdOpen||'false';
-  rd.hidden=rd.dataset.rdOpen!=='true';
- }
+ // R&D is main navigation item 15. Keep its panel in the main page layout.
+ // Do not move it into Simulation Bay or hide it based on active vehicle.
 }
 function boot(){
  installOnboardDeck();createUI();render();
