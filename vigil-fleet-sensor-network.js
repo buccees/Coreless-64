@@ -335,14 +335,20 @@ function render(){
  if(id!==lastUnit){lastUnit=id;publishUnitReport(id);}
 }
 function installOnboardDeck(){
- var nav=document.querySelector('.nav-button[data-view="rd"]');if(nav)nav.remove();
- var rd=document.getElementById('rd-panel'),sim=document.getElementById('simulation-panel'),content=sim&&sim.querySelector(':scope > .content');
- if(rd&&content&&rd.parentElement!==content){rd.setAttribute('data-category','simulation');rd.hidden=true;content.appendChild(rd);}
+ // Keep R&D as its own main-navigation destination. It remains a Daedalus-only
+ // department, but must not be removed or nested inside the Simulation Bay.
+ var nav=document.querySelector('.nav-button[data-view="rd"]');
+ var rd=document.getElementById('rd-panel');
  function sync(){
-  var u=window.vigilGetActiveSimulationUnit&&window.vigilGetActiveSimulationUnit(),simNav=document.querySelector('.nav-button[data-view="simulation"][aria-pressed="true"]');
-  if(rd)rd.hidden=!(u&&u.id==='daedalus'&&simNav);
+  var u=window.vigilGetActiveSimulationUnit&&window.vigilGetActiveSimulationUnit();
+  var isDaedalus=!!(u&&u.id==='daedalus');
+  if(nav)nav.hidden=!isDaedalus;
+  if(rd)rd.hidden=!(isDaedalus&&nav&&nav.getAttribute('aria-pressed')==='true');
  }
- window.addEventListener('vigil:active-unit-changed',sync);sync();
+ window.addEventListener('vigil:active-unit-changed',sync);
+ window.addEventListener('vigil:navigation-view-changed',sync);
+ if(nav)nav.addEventListener('click',function(){window.setTimeout(sync,0);});
+ sync();
 }
 function boot(){
  installOnboardDeck();createUI();render();
