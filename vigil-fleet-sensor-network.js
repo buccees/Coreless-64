@@ -335,20 +335,19 @@ function render(){
  if(id!==lastUnit){lastUnit=id;publishUnitReport(id);}
 }
 function installOnboardDeck(){
- // Keep R&D as its own main-navigation destination. It remains a Daedalus-only
- // department, but must not be removed or nested inside the Simulation Bay.
- var nav=document.querySelector('.nav-button[data-view="rd"]');
+ // R&D is a permanent Simulation Bay sub-tab, not a top-level navigation item
+ // and not part of the ship-only naval/battleship console.
  var rd=document.getElementById('rd-panel');
- function sync(){
-  var u=window.vigilGetActiveSimulationUnit&&window.vigilGetActiveSimulationUnit();
-  var isDaedalus=!!(u&&u.id==='daedalus');
-  if(nav)nav.hidden=!isDaedalus;
-  if(rd)rd.hidden=!(isDaedalus&&nav&&nav.getAttribute('aria-pressed')==='true');
+ var sim=document.getElementById('simulation-panel');
+ var content=sim&&sim.querySelector(':scope > .content');
+ if(rd&&content&&rd.parentElement!==content){
+  rd.setAttribute('data-category','simulation');
+  content.appendChild(rd);
  }
- window.addEventListener('vigil:active-unit-changed',sync);
- window.addEventListener('vigil:navigation-view-changed',sync);
- if(nav)nav.addEventListener('click',function(){window.setTimeout(sync,0);});
- sync();
+ if(rd){
+  rd.dataset.rdOpen=rd.dataset.rdOpen||'false';
+  rd.hidden=rd.dataset.rdOpen!=='true';
+ }
 }
 function boot(){
  installOnboardDeck();createUI();render();
