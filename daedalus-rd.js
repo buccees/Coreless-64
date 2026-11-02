@@ -71,7 +71,19 @@ function boot(){
     var inputs={};fields.forEach(function(f){inputs[f[0]]=appInput(controlsBox,f[1],f[2],f[3],f[4]);});
     var show=appReadout(visual),statusNode=el('div','rd-lab-status');visual.insertBefore(statusNode,visual.firstChild);
     button(controlsBox,'RUN ENGINEERING ANALYSIS',execute,'');
-    function execute(){var values={};Object.keys(inputs).forEach(function(k){values[k]=Number(inputs[k].value);});var result=calculate(values);show(result.rows);statusNode.textContent=result.status;statusNode.setAttribute('data-state',result.ok?'pass':'review');}
+    function execute(){
+     var values={};Object.keys(inputs).forEach(function(k){values[k]=Number(inputs[k].value);});
+     var result=calculate(values);show(result.rows);statusNode.textContent=result.status;statusNode.setAttribute('data-state',result.ok?'pass':'review');
+     /* Every engineering workspace publishes its calculated result into the Daedalus research archive and VIGIL integration bus. */
+     var record={schema:'vigil.daedalus-engineering-analysis',version:1,workspace:key,title:title,description:description,inputs:values,result:result,timestamp:new Date().toISOString()};
+     var archive=window.vigilDaedalusEngineeringAnalyses;
+     if(!Array.isArray(archive)){try{archive=JSON.parse(localStorage.getItem('vigil-daedalus-engineering-analyses-v1')||'[]');}catch(e){archive=[];}}
+     if(!Array.isArray(archive))archive=[];archive.push(record);if(archive.length>60)archive.splice(0,archive.length-60);
+     window.vigilDaedalusEngineeringAnalyses=archive;
+     try{localStorage.setItem('vigil-daedalus-engineering-analyses-v1',JSON.stringify(archive));}catch(e){}
+     if(window.CorelessRDLabBus&&typeof window.CorelessRDLabBus.publish==='function')window.CorelessRDLabBus.publish('engineering-'+key,record);
+     window.dispatchEvent(new CustomEvent('vigil:daedalus-engineering-analysis',{detail:record}));
+    }
     appNote(p,note);execute();return {panel:p,inputs:inputs};
    }
    var lockHeading=el('div','rd-lab-panel-head'),lockCopy=el('div','');
