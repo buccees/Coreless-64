@@ -4658,7 +4658,7 @@ var list=context.querySelector('#vigil-unit-sensor-list');
 var note=context.querySelector('#vigil-unit-sensor-note');
 var profiles={
  ship:{title:'SHIP',sensors:['SONAR','RADAR','EO CAMERA','THERMAL / IR','ESM / RF','NAVIGATION / IMU','RANGEFINDER','OBJECT TRACKING','FUSED VIEW','FIRE CONTROL','TELEMETRY'],note:'Complete shipboard station roster; sensor, tracking, navigation and fire-control stations are listed here and available in the shared console.'},
- daedalus:{title:'DAEDALUS // DE-01 ORBITAL MOTHERSHIP',sensors:['ORBITAL RADAR','STAR TRACKER','OPTICAL TELESCOPE','IR / THERMAL ARRAY','LASER COMMUNICATIONS','DEEP-SPACE TELEMETRY','ASTRODYNAMICS / IMU','RADIATION MONITOR','LIDAR / DOCKING','POWER / REACTOR MONITOR','STRUCTURAL / MATERIALS HEALTH MONITOR','REMOTE-PROBE SPECIMEN ANALYZER','LIFE SUPPORT'],note:'VIGIL orbital research mothership // 420 km reference orbit // 7.66 km/s reference orbital velocity // 92.6 minute period. Values are fictional reference-model inputs; current simulated maneuver speed is independently controlled.'},
+ daedalus:{title:'DAEDALUS // DE-01 ORBITAL MOTHERSHIP',sensors:['ORBITAL SEARCH RADAR','STAR TRACKER','PELAGOS GLOBAL OPTICAL TELESCOPE','ORBITAL MULTISPECTRAL IR RADIOMETER','LASER COMMUNICATIONS','DEEP-SPACE TELEMETRY','ASTRODYNAMICS / IMU','SPACE RADIATION MONITOR','DOCKING / PROXIMITY LIDAR','POWER / REACTOR MONITOR','STRUCTURAL / MATERIALS HEALTH MONITOR','REMOTE-PROBE SPECIMEN ANALYZER','LIFE SUPPORT'],note:'SPACECRAFT-ONLY SENSOR SUITE // orbital radar and optical / multispectral IR observe Pelagos from orbit; star tracking, astrodynamics, radiation, docking lidar, spacecraft health, probe science and communications support the mothership. No ground-surveillance, atmospheric-aircraft, or underwater sonar equipment is assigned to Daedalus. Reference orbit: 420 km // 7.66 km/s // 92.6-minute period.'},
  drone:{title:'SIMULATED DRONE',sensors:['EO CAMERA','THERMAL / IR','RANGEFINDER','SPATIAL RANGING','OBJECT TRACKING','FUSED VIEW','NAVIGATION / IMU','PROXIMITY SENSOR','TELEMETRY'],note:'Complete drone-mounted station roster; stations are rendered through the same shared console.'},
  submersible:{title:'UNCREWED SUBMERSIBLE // UUV',sensors:['IMAGING SONAR','FORWARD-LOOKING SONAR','SEAFLOOR MAPPING','UNDERWATER CAMERA','DEPTH SENSOR','INERTIAL NAVIGATION','PROXIMITY SONAR','OBJECT TRACKING','FUSED VIEW','TELEMETRY'],note:'Unmanned undersea mission vehicle for autonomous or remotely operated seabed surveys; mapping and navigation use the shared simulation.'},
  submarine:{title:'SUBMARINE // UNDERSEA PLATFORM',sensors:['SONAR','PASSIVE ACOUSTIC LISTENING','FORWARD-LOOKING SONAR','SEAFLOOR MAPPING','DEPTH SENSOR','INERTIAL NAVIGATION','UNDERWATER CAMERA / ROV FEED','OBJECT TRACKING','FUSED VIEW','TELEMETRY'],note:'Submarine platform roster. Use the uncrewed submersible (UUV) profile for dedicated unmanned seabed-survey missions; this platform can host undersea sensors and launch support.'},
@@ -6244,7 +6244,7 @@ if(!boot()){var attempts=0;var retry=setInterval(function(){attempts++;if(boot()
 </script>
 
 <script src="daedalus-mothership.js"></script>
-<script src="vigil-fleet-sensor-network.js?v=daedalus-rd-5"></script>
+<script src="vigil-fleet-sensor-network.js?v=daedalus-orbital-6"></script>
 <script src="vigil-mothership-command.js"></script>
 <script src="daedalus-rd-integration.js?v=daedalus-rd-4"></script>
 <script src="vigil-daedalus-orbital-sensor-suite.js?v=3"></script>
