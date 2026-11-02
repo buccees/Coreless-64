@@ -104,8 +104,8 @@ function boot(){
   readout('rd-mat-readout',[['MATERIAL',m.name],['YOUNG MODULUS',fmt(m.E/1e9,2)+' GPa'],['APPLIED LOAD',F.toLocaleString('en-US')+' N'],['ENGINEERING STRESS',fmt(stress/1e6,3)+' MPa'],['ELASTIC STRAIN',fmt(strain*1e6,2)+' µε'],['ELASTIC EXTENSION',fmt(extension*1000,5)+' mm'],['REFERENCE YIELD STRENGTH',fmt(m.yield/1e6,1)+' MPa'],['YIELD UTILIZATION',fmt(stress/m.yield*100,2)+' %'],['WIRE RESISTANCE',fmt(R,6)+' Ω']]);
  }
  function fusion(){
-  var items=[['ORBITAL RADAR',val('rd-sonar'),val('rd-sonar-s')],['OPTICAL',val('rd-optical'),val('rd-optical-s')],['ACOUSTIC',val('rd-acoustic'),val('rd-acoustic-s')]],sumW=0,sum=0;
-  items.forEach(function(x){sumW+=1/(x[2]*x[2]);sum+=x[1]/(x[2]*x[2]);label('rd-'+x[0].toLowerCase()+'-v',fmt(x[1],2)+' m');label('rd-'+x[0].toLowerCase()+'-s-v',fmt(x[2],2)+' m');});
+  var items=[['ORBITAL RADAR',val('rd-sonar'),val('rd-sonar-s'),'sonar'],['TELESCOPE',val('rd-optical'),val('rd-optical-s'),'optical'],['LASER RANGE',val('rd-acoustic'),val('rd-acoustic-s'),'acoustic']],sumW=0,sum=0;
+  items.forEach(function(x){sumW+=1/(x[2]*x[2]);sum+=x[1]/(x[2]*x[2]);label('rd-'+x[3]+'-v',fmt(x[1],2)+' m');label('rd-'+x[3]+'-s-v',fmt(x[2],2)+' m');});
   var latestOptics=rdBus.latest('optics'),mean=sum/sumW,sigma=Math.sqrt(1/sumW),min=Math.min.apply(null,items.map(function(x){return x[1];})),max=Math.max.apply(null,items.map(function(x){return x[1];}));
   el('rd-fusion-bars').innerHTML=items.map(function(x){return '<div class="rd-fusion-row"><span>'+x[0]+'</span><div><i style="width:'+Math.max(2,Math.min(100,x[1]))+'%"></i></div><b>'+fmt(x[1],2)+' m</b><small>σ '+fmt(x[2],2)+' m</small></div>';}).join('');
   rdBus.publish('sensor-fusion',{estimate_m:mean,uncertainty_1sigma_m:sigma,interval_95_m:[mean-1.96*sigma,mean+1.96*sigma],observations:items.map(function(x){return {sensor:x[0],range_m:x[1],uncertainty_m:x[2]};}),optical_bench_available:!!latestOptics,optical_bench_power_mw:latestOptics&&latestOptics.data.detector_power_mw});
