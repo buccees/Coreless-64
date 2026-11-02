@@ -4667,6 +4667,8 @@ var profiles={
 };
 function render(){
  var p=profiles[select.value]||profiles.ship;
+ var sonarInstrument=document.querySelector('#vigil-ops-console section[aria-labelledby="vigil-sonar-title"]');
+ if(sonarInstrument){var hideOrbitalSonar=select.value==='daedalus';sonarInstrument.hidden=hideOrbitalSonar;sonarInstrument.style.display=hideOrbitalSonar?'none':'';}
  var daedalusDeck=context.querySelector('#vigil-daedalus-deck-entry');if(daedalusDeck)daedalusDeck.hidden=select.value!=='daedalus';
  status.textContent='UNIT PROFILE // '+p.title;
  list.textContent='';
