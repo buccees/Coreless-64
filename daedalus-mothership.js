@@ -46,7 +46,7 @@ function boot(){
  var vehicleTabs=document.querySelector('.vigil-simulation-unit-tab-list');
  var daedalusTab=vehicleTabs&&vehicleTabs.querySelector('[data-unit="daedalus"]');
  if(daedalusTab)daedalusTab.title='Select and pilot the DAEDALUS DE-01 orbital mothership in Simulation Bay section 04.';
- var nav=document.querySelector('.nav-button[data-view="rd"]');if(nav)nav.remove();
+ // R&D remains a standalone main-navigation tab; do not remove it here.
  var title=panel.querySelector('h2');if(title)title.textContent='DAEDALUS // DE-01 MOTHERSHIP // R&D DECK';
  var engineering=document.createElement('section');engineering.id='daedalus-engineering';
  engineering.innerHTML='<div class="de-head"><b>SHIPBOARD ENGINEERING COUNTERPART // LIVE MODEL</b><span id="de-system-name">ARTEMIS POWER DISTRIBUTION</span></div><p class="de-explainer" id="de-explainer">The original puzzle control remains playable above. This panel runs a separate engineering counterpart using explicit, adjustable simulation inputs and publishes calculated telemetry to the shared R&amp;D bus.</p><div class="de-grid"><label>DRIVE / INPUT <output id="de-a-value">12.0</output><input id="de-a" type="range" min="1" max="48" step=".5" value="12"></label><label>GEOMETRY / DISTANCE <output id="de-b-value">30.0</output><input id="de-b" type="range" min="1" max="100" step="1" value="30"></label><label>LOAD / TOLERANCE <output id="de-c-value">1.5</output><input id="de-c" type="range" min=".1" max="10" step=".1" value="1.5"></label></div><div class="de-results" id="de-results" aria-live="polite">MODEL STANDBY</div><div class="ds-controls"><button type="button" id="de-run">RUN ENGINEERING MODEL</button><button type="button" id="de-publish">PUBLISH TO SHIP DATA BUS</button></div>';
