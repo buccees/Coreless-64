@@ -4,7 +4,7 @@ var UNIT='DAEDALUS-01',VIEW_ID='vigil-daedalus-orbital-view',BUTTON_ID='vigil-da
 var COLS=36,ROWS=18,ORBIT_PERIOD_MS=92.6*60*1000,INCLINATION=51.6*Math.PI/180;
 var samples=[],cells=[],orbitAnchor=null,orbitEpoch=0,opened=false,raf=0,lastFeedAt=0,lastDrawAt=0;
 var canvas=null,ctx=null,view=null,button=null,layerState={radar:true,optical:true,thermal:true,laser:true,fusion:true,magnetic:false};
-var yaw=0,pitch=0,zoom=1,drag=null,previousBodyOverflow='',modelStats={radar:0,optical:0,thermal:0,laser:0,fused:0};
+var yaw=0,pitch=0,zoom=1,drag=null,previousBodyOverflow='',lastReadoutAt=0,modelStats={radar:0,optical:0,thermal:0,laser:0,fused:0};
 var LAYERS=[
  {id:'radar',label:'ORBITAL RADAR',color:'#72ffbb'},
  {id:'optical',label:'OPTICAL / MULTISPECTRAL',color:'#c7f7d9'},
@@ -207,10 +207,13 @@ function bridgeRDRecord(record){
 }
 function receiveEngineeringRecord(record){
  if(!record)return;
- if(window.vigilDaedalusEngineeringAnalyses&&Array.isArray(window.vigilDaedalusEngineeringAnalyses)){
-  var queue=window.vigilDaedalusEngineeringAnalyses;queue.push(record);if(queue.length>60)queue.splice(0,queue.length-60);
-  try{localStorage.setItem('vigil-daedalus-engineering-analyses-v1',JSON.stringify(queue));}catch(e){}
- }
+ var queue=window.vigilDaedalusEngineeringAnalyses;
+ if(!Array.isArray(queue)){try{queue=JSON.parse(localStorage.getItem('vigil-daedalus-engineering-analyses-v1')||'[]');}catch(e){queue=[];}}
+ if(!Array.isArray(queue))queue=[];
+ var key=String(record.id||[record.timestamp,record.workspace,record.title].join('|'));
+ if(!queue.some(function(item){return String(item&& (item.id||[item.timestamp,item.workspace,item.title].join('|')) )===key;})){queue.push(record);if(queue.length>60)queue.splice(0,queue.length-60);}
+ window.vigilDaedalusEngineeringAnalyses=queue;
+ try{localStorage.setItem('vigil-daedalus-engineering-analyses-v1',JSON.stringify(queue));}catch(e){}
  if(window.dispatchEvent)window.dispatchEvent(new CustomEvent('vigil:daedalus-engineering-analysis-archived',{detail:record}));
  renderRAndD();
 }
@@ -225,7 +228,7 @@ function publishGlobalFeeds(force){
    var g=window.vigilGetPlanetRangeBearing(Number(own.x),Number(own.y),s.x,s.y);
    if(!g||!Number.isFinite(g.bearing_deg)||!Number.isFinite(g.distance))continue;
    out.push({contact_id:prefix+'-'+String(s.row).padStart(2,'0')+'-'+String(s.col).padStart(2,'0'),classification:s.terrain.biome||'GLOBAL SURFACE RETURN',bearing_deg:g.bearing_deg,range_map_units:g.distance,confidence:clamp(.55+(s.radarReturn*.4),.2,.99)});
-   if(out.length>=limit)break;
+   if(out.length>=limit)continue;
   }
   return out;
  }
@@ -399,7 +402,7 @@ function renderReadouts(){
  view.querySelector('#vdo-data-state').textContent='SIMULATION INPUTS // R&D '+(fusion.record?'CONNECTED':'BASELINE');
  renderRAndD();
 }
-function draw(){if(!opened)return;renderGlobe();renderReadouts();}
+function draw(){if(!opened)return;renderGlobe();if(Date.now()-lastReadoutAt>1000){renderReadouts();lastReadoutAt=Date.now();}}
 function open(){
  if(!unitIsDaedalus()){status('SELECT DAEDALUS DE-01 IN SIMULATION BAY TO OPEN THE ORBITAL ARRAY');return;}
  buildView();buildSurface();publishGlobalFeeds(true);opened=true;previousBodyOverflow=document.body.style.overflow;document.body.style.overflow='hidden';view.classList.add('open');resize();renderReadouts();status('ORBITAL SENSOR SUITE ONLINE // GLOBAL SYNTHETIC PASS ACTIVE');
@@ -418,7 +421,7 @@ function updateButton(){
  if(!launch){launch=document.createElement('button');launch.type='button';launch.id=BUTTON_ID;launch.textContent='OPEN ORBITAL GLOBAL 3D SENSOR VIEW';launch.title='Open Daedalus global 3D orbital sensor visualization';launch.addEventListener('click',open);
   var anchor=display.querySelector('#vigil-3d-seafloor-launch');if(anchor&&anchor.parentNode)anchor.parentNode.insertBefore(launch,anchor.nextSibling);else display.insertBefore(launch,display.firstChild);
  }
- launch.hidden=!unitIsDaedalus();
+ button=launch;launch.hidden=!unitIsDaedalus();
  return true;
 }
 function boot(){
@@ -427,7 +430,7 @@ function boot(){
  window.addEventListener('vigil:simulation-unit-state-changed',function(){if(opened){publishGlobalFeeds(true);draw();}});
  window.addEventListener('coreless:rd-data',function(e){acceptRecord(e&&e.detail);});
  window.addEventListener('vigil:daedalus-engineering-analysis',function(e){receiveEngineeringRecord(e&&e.detail);if(opened)draw();});
- if(window.vigilDaedalusEngineeringAnalyses&&Array.isArray(window.vigilDaedalusEngineeringAnalyses))window.vigilDaedalusEngineeringAnalyses.slice(-12).forEach(receiveEngineeringRecord);
+ if(window.vigilDaedalusEngineeringAnalyses&&Array.isArray(window.vigilDaedalusEngineeringAnalyses))window.vigilDaedalusEngineeringAnalyses.slice(-12).forEach(function(record){receiveEngineeringRecord(record);bridgeRDRecord({source:'engineering-'+String(record.workspace||'analysis'),timestamp:record.timestamp,data:record});});
  var b=bus();if(b&&typeof b.snapshot==='function')b.snapshot().forEach(bridgeRDRecord);
  window.setInterval(function(){if(!button||!document.body.contains(button))updateButton();else button.hidden=!unitIsDaedalus();},1000);
 }
