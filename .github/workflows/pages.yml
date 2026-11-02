@@ -60,6 +60,19 @@ jobs:
           test -s site/assets/wallpapers/vigil-deepwater-command.svg
           test -s site/operator-display.html
 
+      - name: Validate browser JavaScript
+        run: |
+          set -eux
+          for script in \
+            site/daedalus-rd.js \
+            site/vigil-rd-labs.js \
+            site/daedalus-mothership.js \
+            site/vigil-fleet-sensor-network.js \
+            site/vigil-mothership-command.js \
+            site/daedalus-rd-integration.js; do
+            node --check "$script"
+          done
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
