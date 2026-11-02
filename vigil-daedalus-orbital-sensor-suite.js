@@ -251,7 +251,7 @@ function publishGlobalFeeds(force){
 function acceptRecord(record){
  bridgeRDRecord(record);
  if(record&&record.source&&record.source.indexOf('engineering-')===0)receiveEngineeringRecord(record.data||record);
- if(samples.length){buildSurface();publishGlobalFeeds(true);}
+ if(samples.length){buildSurface();publishGlobalFeeds(false);}
  if(opened){renderRAndD();draw();}
 }
 function buildView(){
@@ -427,7 +427,7 @@ function updateButton(){
 function boot(){
  updateButton();
  window.addEventListener('vigil:active-unit-changed',function(){updateButton();});
- window.addEventListener('vigil:simulation-unit-state-changed',function(){if(opened){publishGlobalFeeds(true);draw();}});
+ window.addEventListener('vigil:simulation-unit-state-changed',function(){if(opened){publishGlobalFeeds(false);draw();}});
  window.addEventListener('coreless:rd-data',function(e){acceptRecord(e&&e.detail);});
  window.addEventListener('vigil:daedalus-engineering-analysis',function(e){receiveEngineeringRecord(e&&e.detail);if(opened)draw();});
  if(window.vigilDaedalusEngineeringAnalyses&&Array.isArray(window.vigilDaedalusEngineeringAnalyses))window.vigilDaedalusEngineeringAnalyses.slice(-12).forEach(function(record){receiveEngineeringRecord(record);bridgeRDRecord({source:'engineering-'+String(record.workspace||'analysis'),timestamp:record.timestamp,data:record});});
