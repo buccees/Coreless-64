@@ -251,8 +251,7 @@ function publishGlobalFeeds(force){
 function acceptRecord(record){
  bridgeRDRecord(record);
  if(record&&record.source&&record.source.indexOf('engineering-')===0)receiveEngineeringRecord(record.data||record);
- if(samples.length){buildSurface();publishGlobalFeeds(false);}
- if(opened){renderRAndD();draw();}
+ if(opened){buildSurface();publishGlobalFeeds(false);renderRAndD();draw();}
 }
 function buildView(){
  if(view)return;
