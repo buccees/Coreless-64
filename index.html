@@ -1292,9 +1292,9 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
 <p id="rd-puzzle-intro" class="rd-puzzle-intro" aria-live="polite"></p><div id="rd-playfield" class="rd-playfield"></div><div id="rd-puzzle-status" class="rd-status" role="status" aria-live="polite">PUZZLE SYSTEM STANDBY</div>
 <p class="rd-puzzle-foot">TRAINING DATA ONLY // no original game assets or source code are included.</p>
 </div>
-<h3 class="green">03 / ACTIVE VIGIL RESEARCH LABS</h3>
+<h3 class="green">03 / DAEDALUS ONBOARD ENGINEERING LABS</h3>
 <p class="muted">The original Daedalus Encounter puzzle reconstructions remain above. The workspaces below are the Daedalus mothership’s own engineering laboratories: photonics, remote-probe specimen analysis, spacecraft materials qualification, and orbital sensor estimation. Their qualified results feed compatible Daedalus equipment only.</p>
-<div id="rd-active-labs" class="rd-active-labs" aria-label="Active VIGIL research laboratories"></div>
+<div id="rd-active-labs" class="rd-active-labs" aria-label="Daedalus onboard engineering workspaces"></div>
 <h3 class="green">04 / PUZZLE REGISTER &amp; ORIGINAL MECHANICS</h3>
 <ul>
 <li><strong>Artemis power system:</strong> rotate bidirectional relay pieces to connect the central power core with matching colored outputs. This is the first major repair gate after the crash.</li>
@@ -4781,6 +4781,8 @@ function sensorModalitiesForMode(lower){
  if(lower.indexOf('side-scan')>=0||lower.indexOf('sidescan')>=0)return ['side_scan'];
  if(lower.indexOf('dvl')>=0)return ['dvl'];
  if(lower.indexOf('radar')>=0)return ['radar','perimeter_radar'];
+ if(lower.indexOf('structural')>=0||lower.indexOf('materials')>=0)return ['materials'];
+ if(lower.indexOf('specimen')>=0||lower.indexOf('remote-probe')>=0)return ['specimen_analysis'];
  if(lower.indexOf('underwater')>=0&&lower.indexOf('camera')>=0)return ['underwater_camera','camera','optical','lidar','depth','sonar','acoustic','imu','inertial','navigation'];
  if(lower.indexOf('camera')>=0||lower.indexOf('optical')>=0)return ['optical','camera','fixed_camera','underwater_camera','lidar'];
  if(lower.indexOf('thermal')>=0||lower.indexOf('infrared')>=0)return ['thermal','infrared'];
