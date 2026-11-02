@@ -5640,6 +5640,13 @@ function updateUnit(unit){
  unit=unit||window.vigilGetActiveSimulationUnit&&window.vigilGetActiveSimulationUnit();
  if(!unit)return;
  unitId=unit.id||'ship';
+ // The naval console is a destroyer-only instrument bay. Apply this from the
+ // sensor display's own active-unit event as well as the profile selector;
+ // persisted startup selection can otherwise bypass the selector's render().
+ var navalConsoleForUnit=document.getElementById('vigil-ops-console');
+ if(navalConsoleForUnit){var showNavalConsole=unitId==='ship';navalConsoleForUnit.hidden=!showNavalConsole;navalConsoleForUnit.style.display=showNavalConsole?'':'none';}
+ var sonarPlotForUnit=document.querySelector('#vigil-ops-console section[aria-labelledby="vigil-sonar-title"]');
+ if(sonarPlotForUnit){var showShipSonar=unitId==='ship';sonarPlotForUnit.hidden=!showShipSonar;sonarPlotForUnit.style.display=showShipSonar?'':'none';}
  cameraState.pan=0;cameraState.tilt=0;cameraState.zoom=1;cameraState.hold=false;cameraState.selectedTrackId='';
  trackOptionsSignature='';trackSelect.value='';
  if(gainInput){gainInput.value='1';gainValue.textContent='1.0×';}cameraState.sensitivity=1;
