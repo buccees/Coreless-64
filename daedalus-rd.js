@@ -36,7 +36,7 @@ function boot(){
       Each application has its own model, controls and training readouts.
       The original lock remains isolated in its own tab. */
    var blueHost=field,blueTabs=el('div','rd-lab-tabs'),blueApps=el('div','rd-lab-apps'),puzzlePanel=el('section','rd-lab-panel');
-   puzzlePanel.className+=' rd-hex-lock-panel';
+   puzzlePanel.className+=' rd-hex-lock-panel rd-original-game-panel';
    var blueAppPanels={},blueAppButtons={};
    blueHost.appendChild(blueTabs);blueHost.appendChild(blueApps);blueHost.appendChild(puzzlePanel);
    var blueAppDefs=[
