@@ -11,7 +11,7 @@ var sensorPackages={
  ]},
  daedalus:{name:'DAEDALUS DE-01 // ORBITAL MOTHERSHIP',sensors:[
   ['ORBITAL SEARCH RADAR','radar','orbital',.12],['STAR TRACKER / ATTITUDE REFERENCE','star_tracker','navigation',1],
-  ['EARTH OBSERVATION TELESCOPE','optical','orbital',.12],['MULTISPECTRAL IR ARRAY','thermal','orbital',.12],
+  ['PELAGOS GLOBAL OBSERVATION TELESCOPE','optical','orbital',.12],['MULTISPECTRAL IR ARRAY','thermal','orbital',.12],
   ['LASER COMMUNICATIONS TERMINAL','lasercom','link',1],['ASTRODYNAMICS / INERTIAL NAVIGATION','imu','navigation',1],
   ['SPACE RADIATION MONITOR','radiation','environment',1],['DOCKING / PROXIMITY LIDAR','lidar','docking',.03],
   ['REACTOR / POWER DISTRIBUTION MONITOR','power','engineering',1],['STRUCTURAL / MATERIALS HEALTH MONITOR','materials','engineering',1],['REMOTE-PROBE SPECIMEN ANALYZER','specimen_analysis','science',.2],['HABITAT / LIFE-SUPPORT MONITOR','life_support','environment',1],
@@ -187,12 +187,6 @@ function measurementRows(id,sensor,unit,source,hits){
   add('END-EFFECTOR LOAD',(12+noise*38).toFixed(1),'N');add('TORQUE',(1+noise*8).toFixed(2),'N·m');add('OVERLOAD MARGIN',(100-noise*18).toFixed(1),'%');
  }else if(modality==='power'){
   add('DC BUS VOLTAGE',(1100+noise*18).toFixed(1),'V');add('BUS CURRENT',(80+speed*500).toFixed(1),'A');add('LOAD POWER',(88+noise*14).toFixed(1),'kW');add('THERMAL MARGIN',(100-noise*10).toFixed(1),'%');
- }else if(modality==='materials'){
-  add('STRUCTURAL TEST STATE',daedalusRD&&daedalusRD.materials?'QUALIFIED / DAEDALUS ENGINEERING':'NO QUALIFIED TEST','');
-  if(daedalusRD&&daedalusRD.materials){add('TEST MATERIAL',daedalusRD.materials.data.name||'—','');add('STRESS',Number(daedalusRD.materials.data.stress_mpa||0).toFixed(3),'MPa');add('YIELD UTILIZATION',Number(daedalusRD.materials.data.yield_utilization_percent||0).toFixed(2),'%');}
- }else if(modality==='specimen_analysis'){
-  add('REMOTE PROBE PAYLOAD',daedalusRD&&daedalusRD.specimen?'ANALYSIS QUALIFIED':'STANDBY','');
-  if(daedalusRD&&daedalusRD.specimen){add('SPECIMEN',daedalusRD.specimen.data.name||'—','');add('SCAN MODE',String(daedalusRD.specimen.data.scan_mode||'').toUpperCase(),'');add('MAGNIFICATION',Number(daedalusRD.specimen.data.magnification_x||0),'×');add('MASS',Number(daedalusRD.specimen.data.mass_kg||0).toFixed(2),'kg');}
  }else if(modality==='materials'){
   add('STRUCTURAL TEST STATE',daedalusRD&&daedalusRD.materials?'QUALIFIED / DAEDALUS ENGINEERING':'NO QUALIFIED TEST','');
   if(daedalusRD&&daedalusRD.materials){
