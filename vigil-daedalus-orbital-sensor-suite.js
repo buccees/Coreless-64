@@ -111,6 +111,7 @@ function createStyle(){
  st.textContent=`
  #${BUTTON_ID}{display:inline-flex!important;align-items:center;justify-content:center;margin:6px 0 6px 7px;padding:9px 12px;background:#102b25;color:#c5f7df;border:1px solid #67cfa2;font: bold 10px "Courier New",monospace;letter-spacing:.7px;cursor:pointer}
  #${BUTTON_ID}[hidden]{display:none!important}
+ #vigil-3d-seafloor-launch[hidden]{display:none!important}
  #${VIEW_ID}{position:fixed;inset:0;z-index:2147483200;display:none;flex-direction:column;overflow:hidden;background:#020907;color:#c9f5de;font:11px/1.45 "Courier New",monospace}
  #${VIEW_ID}.open{display:flex}
  #${VIEW_ID} *{box-sizing:border-box}
@@ -420,7 +421,9 @@ function updateButton(){
  if(!launch){launch=document.createElement('button');launch.type='button';launch.id=BUTTON_ID;launch.textContent='OPEN ORBITAL GLOBAL 3D SENSOR VIEW';launch.title='Open Daedalus global 3D orbital sensor visualization';launch.addEventListener('click',open);
   var anchor=display.querySelector('#vigil-3d-seafloor-launch');if(anchor&&anchor.parentNode)anchor.parentNode.insertBefore(launch,anchor.nextSibling);else display.insertBefore(launch,display.firstChild);
  }
- button=launch;launch.hidden=!unitIsDaedalus();
+ var isDaedalus=unitIsDaedalus(),underwaterLaunch=display.querySelector('#vigil-3d-seafloor-launch');
+ if(underwaterLaunch)underwaterLaunch.hidden=isDaedalus;
+ button=launch;launch.hidden=!isDaedalus;
  return true;
 }
 function boot(){
