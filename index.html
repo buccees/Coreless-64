@@ -1349,7 +1349,14 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     if (!found) return;
     if (introBlocks) introBlocks.hidden = contentCategory !== 'overview';
     panels.forEach(function(panel) {
-      panel.hidden = panel.getAttribute('data-category') !== contentCategory;
+      var panelVisible = panel.getAttribute('data-category') === contentCategory;
+      panel.hidden = !panelVisible;
+      if (panel.id === 'rd-panel') {
+        panel.style.display = panelVisible ? 'block' : 'none';
+        panel.setAttribute('aria-hidden', String(!panelVisible));
+        var rdContent = panel.querySelector('.content');
+        if (rdContent) rdContent.style.display = panelVisible ? 'block' : '';
+      }
     });
     var integratedSensorBay = document.getElementById('vigil-sensor-input-bay');
     if (integratedSensorBay && (category === 'simulation' || category === 'sensors')) integratedSensorBay.open = true;
