@@ -143,6 +143,14 @@ function measurementRows(id,sensor,unit,source,hits){
  var nearest=hits.slice().sort(function(a,b){return a.range_map_units-b.range_map_units;})[0],rows=[];
  function add(label,value,units){rows.push({label:label,value:value,units:units||''});}
  add('CHANNEL',sensor[0],'');
+ // Qualified R&D results are applied only to Daedalus DE-01.
+ var daedalusRD=profileKey(id)==='daedalus'&&window.vigilDaedalusRDIntegration?window.vigilDaedalusRDIntegration.getQualifiedModules():null;
+ if(daedalusRD){
+  if(modality==='optical'&&daedalusRD.optics){add('R&D QUALIFICATION','OPTICAL BENCH / QUALIFIED','');add('CALIBRATED WAVELENGTH',daedalusRD.optics.data.wavelength_nm||'—','nm');add('DETECTOR POWER',Number(daedalusRD.optics.data.detector_power_mw||0).toFixed(4),'mW');}
+  if((modality==='radar'||modality==='star_tracker'||modality==='imu')&&daedalusRD['sensor-fusion']){add('R&D FUSION','ORBITAL ESTIMATOR QUALIFIED','');add('FUSED RANGE',Number(daedalusRD['sensor-fusion'].data.estimate_m||0).toFixed(3),'m');add('FUSED 1σ',Number(daedalusRD['sensor-fusion'].data.uncertainty_1sigma_m||0).toFixed(3),'m');}
+  if(modality==='power'&&daedalusRD.materials){add('STRUCTURES TEST','MATERIAL MODEL QUALIFIED','');add('TEST MATERIAL',daedalusRD.materials.data.name||'—','');add('YIELD UTILIZATION',Number(daedalusRD.materials.data.yield_utilization_percent||0).toFixed(2),'%');}
+  if(modality==='radiation'&&daedalusRD.specimen){add('REMOTE SCIENCE','SPECIMEN ANALYSIS QUALIFIED','');add('LAST SPECIMEN',daedalusRD.specimen.data.name||'—','');add('SCAN MODE',String(daedalusRD.specimen.data.scan_mode||'').toUpperCase(),'');}
+ }
  if(modality==='radar'){
   add('FREQUENCY BAND',profileKey(id)==='daedalus'?'X-BAND / SPACE':'S-BAND / X-BAND','');
   add('SCAN RATE',(6+noise*2).toFixed(1),'rpm');add('RANGE RESOLUTION',profileKey(id)==='daedalus'?'.10':'150','m');add('TRACK RETURNS',hits.length,'contacts');
