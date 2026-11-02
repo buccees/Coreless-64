@@ -213,8 +213,12 @@ function loadRecords(){try{var arr=JSON.parse(localStorage.getItem(STORE)||'[]')
 var reports=loadRecords();
 function persist(){try{localStorage.setItem(STORE,JSON.stringify(reports.slice(-MAX_REPORTS)));}catch(e){}}
 function sharedReportsFor(id){
- var source=localSource(id);if(!source)return [];
- return reports.filter(function(r){return r&&r.local_shared_source_id===source.id&&r.unit_id!==unitId(id);}).slice(-8).reverse();
+ id=unitId(id);
+ // Only the mothership receives fleet status summaries. Vehicle sensor frames
+ // remain owned by, and displayed on, the originating vehicle.
+ if(id!=='DAEDALUS-01')return [];
+ var source=localSource(id);if(!source||source.id!=='DAEDALUS-01')return [];
+ return reports.filter(function(r){return r&&r.local_shared_source_id==='DAEDALUS-01'&&r.unit_id!=='DAEDALUS-01';}).slice(-8).reverse();
 }
 function makeUnitReport(id){
  id=unitId(id);var pkg=sensorPackages[profileKey(id)],source=localSource(id);if(!pkg)return null;
@@ -260,7 +264,7 @@ var root=null,lastUnit='';
 function createUI(){
  var context=document.getElementById('vigil-unit-sensor-profile');if(!context||document.getElementById('vigil-fleet-sensor-network-ui'))return;
  styles();root=document.createElement('section');root.id='vigil-fleet-sensor-network-ui';root.className='vfsn-panel';
- root.innerHTML='<div class="vfsn-head"><div><b>PLATFORM SENSOR NETWORK // OWN DATA + LOCAL RELAY</b><br><small id="vfsn-platform">PLATFORM INITIALIZING</small></div><span>SIMULATED MEASUREMENTS // UNIT-SCOPED</span></div><div class="vfsn-columns"><div class="vfsn-box"><div class="vfsn-subhead">THIS PLATFORM // INSTALLED SENSOR ARRAY</div><div id="vfsn-roster" class="vfsn-roster"></div><div class="vfsn-actions"><button type="button" id="vfsn-publish">PUBLISH COMPLETE UNIT SENSOR REPORT</button><span id="vfsn-last-publish" class="vfsn-foot">REPORT BUS STANDBY</span></div></div><div class="vfsn-box"><div class="vfsn-subhead">LOCAL SHARED SOURCE // NEAREST AVAILABLE</div><div id="vfsn-source" class="vfsn-source"></div><div class="vfsn-subhead" style="margin-top:12px">RELAYED REPORTS // SAME LOCAL SOURCE ONLY</div><div id="vfsn-reports" class="vfsn-reports"></div></div></div><p class="vfsn-foot">Each vehicle owns a distinct sensor package and generates its own measurements from its own simulated state. Daedalus and FAC-01 are shared-service relays, not replacement sensor arrays. The nearest provider is selected only while the vehicle is inside its local coverage area. Data are simulation outputs, not physical sensor readings. Browser-local reports are not yet synchronized between separate multiplayer clients.</p>';
+ root.innerHTML='<div class="vfsn-head"><div><b>PLATFORM SENSOR NETWORK // OWN DATA + LOCAL RELAY</b><br><small id="vfsn-platform">PLATFORM INITIALIZING</small></div><span>SIMULATED MEASUREMENTS // UNIT-SCOPED</span></div><div class="vfsn-columns"><div class="vfsn-box"><div class="vfsn-subhead">THIS PLATFORM // INSTALLED SENSOR ARRAY</div><div id="vfsn-roster" class="vfsn-roster"></div><div class="vfsn-actions"><button type="button" id="vfsn-publish">PUBLISH COMPLETE UNIT SENSOR REPORT</button><span id="vfsn-last-publish" class="vfsn-foot">REPORT BUS STANDBY</span></div></div><div class="vfsn-box"><div class="vfsn-subhead">LOCAL SHARED SOURCE // NEAREST AVAILABLE</div><div id="vfsn-source" class="vfsn-source"></div><div class="vfsn-subhead" id="vfsn-relay-heading" style="margin-top:12px">FLEET STATUS // TELEMETRY ONLY</div><div id="vfsn-reports" class="vfsn-reports"></div></div></div><p class="vfsn-foot">Each vehicle owns a distinct sensor package and generates its own measurements from its own simulated state. Vehicle sensor frames stay on their originating platform. Daedalus receives fleet status and telemetry summaries through its local relay; shared sources provide communications, timing and reference services, not another vehicle's live sensor display. Data are simulation outputs, not physical sensor readings. Browser-local reports are not yet synchronized between separate multiplayer clients.</p>';
  context.appendChild(root);
  root.querySelector('#vfsn-publish').addEventListener('click',function(){
   var id=activeId(),result=publishUnitReport(id),status=root.querySelector('#vfsn-last-publish');
@@ -283,11 +287,17 @@ function render(){
  }else{
   root.querySelector('#vfsn-source').innerHTML='<strong>NO LOCAL SHARED SOURCE</strong><div>Vehicle is outside the coverage area of Daedalus and FAC-01. Own sensors remain fully operational; shared services are unavailable until a relay is in range.</div>';
  }
- var shared=sharedReportsFor(id);
- root.querySelector('#vfsn-reports').innerHTML=shared.length?shared.map(function(r){
-  var channels=(r.frames||[]).map(function(f){return f.sensor_name;}).slice(0,4).join(' · ');
-  return '<div class="vfsn-report"><b>'+esc(r.unit_name)+'</b><br>'+esc(r.sensor_count)+' SENSOR CHANNELS // '+esc(channels)+(r.sensor_count>4?' …':'')+'<br>'+esc(r.timestamp)+'</div>';
- }).join(''):'<div class="vfsn-empty">NO OTHER PLATFORM REPORTS YET // REPORTS FROM UNITS CONNECTED TO THIS SAME LOCAL SOURCE WILL APPEAR HERE.</div>';
+ var shared=sharedReportsFor(id),relayHeading=root.querySelector('#vfsn-relay-heading'),relayList=root.querySelector('#vfsn-reports');
+ if(id==='DAEDALUS-01'){
+  relayHeading.textContent='FLEET STATUS // TELEMETRY ONLY';
+  relayList.innerHTML=shared.length?shared.map(function(r){
+   var contacts=(r.frames||[]).reduce(function(n,f){return n+(Array.isArray(f.detected_contacts)?f.detected_contacts.length:0);},0);
+   return '<div class="vfsn-report"><b>'+esc(r.unit_name)+'</b><br>'+esc(r.sensor_count)+' CHANNELS ONLINE // '+contacts+' TRACK RETURNS REPORTED<br>'+esc(r.timestamp)+'</div>';
+  }).join(''):'<div class="vfsn-empty">NO VEHICLE STATUS REPORTS RECEIVED THROUGH DAEDALUS LOCAL RELAY YET. INDIVIDUAL SENSOR FRAMES REMAIN ON THEIR ORIGINATING VEHICLES.</div>';
+ }else{
+  relayHeading.textContent='SHARED SERVICES // NO PEER SENSOR STREAMS';
+  relayList.innerHTML='<div class="vfsn-empty">THIS CONSOLE DISPLAYS THIS PLATFORM\'S OWN SIMULATION-FED SENSOR CHANNELS ONLY. THE LOCAL SOURCE PROVIDES COMMUNICATIONS, TIMING AND REFERENCE SERVICES; OTHER VEHICLES\' SENSOR FRAMES ARE NOT STREAMED INTO THIS DISPLAY.</div>';
+ }
  if(id!==lastUnit){lastUnit=id;publishUnitReport(id);}
 }
 function installOnboardDeck(){
