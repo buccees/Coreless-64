@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 var UNIT='DAEDALUS-01',VIEW_ID='vigil-daedalus-orbital-view',BUTTON_ID='vigil-daedalus-orbital-launch';
-var COLS=36,ROWS=18,ORBIT_PERIOD_MS=92.6*60*1000,INCLINATION=51.6*Math.PI/180;
+var COLS=96,ROWS=48,ORBIT_PERIOD_MS=92.6*60*1000,INCLINATION=51.6*Math.PI/180;
 var samples=[],cells=[],orbitAnchor=null,orbitEpoch=0,opened=false,raf=0,lastFeedAt=0,lastDrawAt=0;
 var canvas=null,ctx=null,view=null,button=null,layerState={radar:true,optical:true,thermal:true,laser:true,fusion:true,magnetic:false};
 var yaw=0,pitch=0,zoom=1,drag=null,previousBodyOverflow='',lastReadoutAt=0,modelStats={radar:0,optical:0,thermal:0,laser:0,fused:0};
@@ -307,9 +307,9 @@ function viewPoint(x,y,relief,orbit,cx,cy,r){
  return {x:cx+x1,y:cy-y2,z:z2};
 }
 function colorForDepth(elev,terrain){
- if(terrain&&terrain.isLand)return elev>1000?'#c7b989':'#8aab79';
+ if(terrain&&terrain.isLand)return terrain.biome&&terrain.biome.indexOf('TAMRIEL')>=0?(elev>1000?'#9cbd78':'#739d63'):(elev>1000?'#b0c58a':'#8aab79');
  var d=Math.max(0,-elev);
- if(d>12000)return '#081a2a';if(d>8000)return '#0a2940';if(d>5000)return '#0c3b53';if(d>2500)return '#0d5260';if(d>500)return '#137565';return '#246f57';
+ if(d>12000)return '#102b20';if(d>8000)return '#163a29';if(d>5000)return '#1c4b32';if(d>2500)return '#235c3c';if(d>500)return '#2c7047';return '#3b8654';
 }
 function tint(base,overlay,alpha){return base;}
 function renderGlobe(){
@@ -382,7 +382,7 @@ function renderGlobe(){
  });
  // Atmospheric rim and globe outline.
  ctx.save();ctx.beginPath();ctx.arc(cx,cy,R,0,Math.PI*2);ctx.strokeStyle='rgba(113,255,187,.45)';ctx.lineWidth=2;ctx.stroke();ctx.restore();
- ctx.fillStyle='#a9e9c1';ctx.font='10px Courier New';ctx.fillText('PELAGOS-01 // GLOBAL SURFACE MODEL',12,18);
+ ctx.fillStyle='#a9e9c1';ctx.font='10px Courier New';ctx.fillText('PELAGOS-01 // PLANETARY SURFACE / TAMRIEL CONTINENT',12,18);
  ctx.fillStyle='#75b994';ctx.font='9px Courier New';ctx.fillText('SYNTHETIC ORBITAL RETURNS // '+samples.length+' GRID CELLS',12,32);
 }
 function renderReadouts(){
