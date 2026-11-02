@@ -14,7 +14,7 @@ var sensorPackages={
   ['EARTH OBSERVATION TELESCOPE','optical','orbital',.12],['MULTISPECTRAL IR ARRAY','thermal','orbital',.12],
   ['LASER COMMUNICATIONS TERMINAL','lasercom','link',1],['ASTRODYNAMICS / INERTIAL NAVIGATION','imu','navigation',1],
   ['SPACE RADIATION MONITOR','radiation','environment',1],['DOCKING / PROXIMITY LIDAR','lidar','docking',.03],
-  ['REACTOR / POWER DISTRIBUTION MONITOR','power','engineering',1],['HABITAT / LIFE-SUPPORT MONITOR','life_support','environment',1],
+  ['REACTOR / POWER DISTRIBUTION MONITOR','power','engineering',1],['STRUCTURAL / MATERIALS HEALTH MONITOR','materials','engineering',1],['REMOTE-PROBE SPECIMEN ANALYZER','specimen_analysis','science',.2],['HABITAT / LIFE-SUPPORT MONITOR','life_support','environment',1],
   ['DEEP-SPACE TELEMETRY / NETWORK','telemetry','link',1]
  ]},
  drone:{name:'DRONE-01 // UNCREWED AERIAL VEHICLE',sensors:[
@@ -149,7 +149,6 @@ function measurementRows(id,sensor,unit,source,hits){
   if(modality==='optical'&&daedalusRD.optics){add('R&D QUALIFICATION','OPTICAL BENCH / QUALIFIED','');add('CALIBRATED WAVELENGTH',daedalusRD.optics.data.wavelength_nm||'—','nm');add('DETECTOR POWER',Number(daedalusRD.optics.data.detector_power_mw||0).toFixed(4),'mW');}
   if((modality==='radar'||modality==='star_tracker'||modality==='imu')&&daedalusRD['sensor-fusion']){add('R&D FUSION','ORBITAL ESTIMATOR QUALIFIED','');add('FUSED RANGE',Number(daedalusRD['sensor-fusion'].data.estimate_m||0).toFixed(3),'m');add('FUSED 1σ',Number(daedalusRD['sensor-fusion'].data.uncertainty_1sigma_m||0).toFixed(3),'m');}
   if(modality==='power'&&daedalusRD.materials){add('STRUCTURES TEST','MATERIAL MODEL QUALIFIED','');add('TEST MATERIAL',daedalusRD.materials.data.name||'—','');add('YIELD UTILIZATION',Number(daedalusRD.materials.data.yield_utilization_percent||0).toFixed(2),'%');}
-  if(modality==='radiation'&&daedalusRD.specimen){add('REMOTE SCIENCE','SPECIMEN ANALYSIS QUALIFIED','');add('LAST SPECIMEN',daedalusRD.specimen.data.name||'—','');add('SCAN MODE',String(daedalusRD.specimen.data.scan_mode||'').toUpperCase(),'');}
  }
  if(modality==='radar'){
   add('FREQUENCY BAND',profileKey(id)==='daedalus'?'X-BAND / SPACE':'S-BAND / X-BAND','');
@@ -188,6 +187,12 @@ function measurementRows(id,sensor,unit,source,hits){
   add('END-EFFECTOR LOAD',(12+noise*38).toFixed(1),'N');add('TORQUE',(1+noise*8).toFixed(2),'N·m');add('OVERLOAD MARGIN',(100-noise*18).toFixed(1),'%');
  }else if(modality==='power'){
   add('DC BUS VOLTAGE',(1100+noise*18).toFixed(1),'V');add('BUS CURRENT',(80+speed*500).toFixed(1),'A');add('LOAD POWER',(88+noise*14).toFixed(1),'kW');add('THERMAL MARGIN',(100-noise*10).toFixed(1),'%');
+ }else if(modality==='materials'){
+  add('STRUCTURAL TEST STATE',daedalusRD&&daedalusRD.materials?'QUALIFIED / DAEDALUS ENGINEERING':'NO QUALIFIED TEST','');
+  if(daedalusRD&&daedalusRD.materials){add('TEST MATERIAL',daedalusRD.materials.data.name||'—','');add('STRESS',Number(daedalusRD.materials.data.stress_mpa||0).toFixed(3),'MPa');add('YIELD UTILIZATION',Number(daedalusRD.materials.data.yield_utilization_percent||0).toFixed(2),'%');}
+ }else if(modality==='specimen_analysis'){
+  add('REMOTE PROBE PAYLOAD',daedalusRD&&daedalusRD.specimen?'ANALYSIS QUALIFIED':'STANDBY','');
+  if(daedalusRD&&daedalusRD.specimen){add('SPECIMEN',daedalusRD.specimen.data.name||'—','');add('SCAN MODE',String(daedalusRD.specimen.data.scan_mode||'').toUpperCase(),'');add('MAGNIFICATION',Number(daedalusRD.specimen.data.magnification_x||0),'×');add('MASS',Number(daedalusRD.specimen.data.mass_kg||0).toFixed(2),'kg');}
  }else if(modality==='life_support'){
   add('CABIN PRESSURE',101.3,'kPa');add('O₂ PARTIAL PRESSURE',21.2,'kPa');add('CO₂',.08,'%');add('CABIN TEMPERATURE',(21+noise*1.4).toFixed(1),'°C');
  }else if(modality==='radiation'){
