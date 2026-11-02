@@ -232,11 +232,11 @@ function publishGlobalFeeds(force){
   }
   return out;
  }
- var cfg=currentOrbitConfig(),point=orbitPoint(now),radarHits=hits(function(s){return s.radarReturn>.45;},2,90,'PEL-SAR'),
-  opticalHits=hits(function(s){return s.opticalValid&&s.reflectance>.5;},3,65,'PEL-EO'),
-  thermalHits=hits(function(s){return s.thermalC>6;},2,80,'PEL-IR'),
-  laserHits=hits(function(s){return s.laserValid;},4,70,'PEL-LASER'),
-  fusedHits=hits(function(s){return s.fusedSigmaM<1.5;},3,70,'PEL-FUSED');
+ var cfg=currentOrbitConfig(),point=orbitPoint(now),radarHits=hits(function(s){return s.radarReturn>.45;},7,120,'PEL-SAR'),
+  opticalHits=hits(function(s){return s.opticalValid&&s.reflectance>.5;},11,90,'PEL-EO'),
+  thermalHits=hits(function(s){return s.thermalC>6;},9,100,'PEL-IR'),
+  laserHits=hits(function(s){return s.laserValid;},13,90,'PEL-LASER'),
+  fusedHits=hits(function(s){return s.fusedSigmaM<1.5;},17,90,'PEL-FUSED');
  var frames=[
   {sensor_id:'DAEDALUS-01-ORBITAL-RADAR-GLOBAL',sensor_name:'ORBITAL RADAR // GLOBAL SURFACE RETURNS',modality:'radar',detected_contacts:radarHits,measurements:[{label:'ORBIT ALTITUDE',value:cfg.altitudeKm,units:'km'},{label:'GLOBAL SAMPLE CELLS',value:samples.length,units:'cells'},{label:'RADAR RETURNS',value:radarHits.length,units:'returns'},{label:'ORBITAL GROUND TRACK',value:point.latitudeDeg.toFixed(2)+'° / '+point.longitudeDeg.toFixed(2)+'°',units:''}]},
   {sensor_id:'DAEDALUS-01-OPTICAL-GLOBAL',sensor_name:'TELESCOPE / MULTISPECTRAL OPTICS // GLOBAL',modality:'optical',detected_contacts:opticalHits,measurements:[{label:'OPTICAL RETURNS',value:opticalHits.length,units:'features'},{label:'VISIBLE / NIR CALIBRATION',value:(busLatest('optics')&&busLatest('optics').data.wavelength_nm)||'532',units:'nm'},{label:'DETECTOR POWER',value:(busLatest('optics')&&busLatest('optics').data.detector_power_mw)||'SIM BASELINE',units:'mW'}]},
