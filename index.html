@@ -4267,6 +4267,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
           canvas._vigilContactIds=idCanvas;
         }
       }
+      var selectedContactLabelId=null,contactLabelHitBoxes=[];
       function drawContactIdLabels(center,east,north,aspect,focal,distance,width,height,dpr){
         if(!idCanvas||!idCanvas.isConnected)return;
         var rect=canvas.getBoundingClientRect(),host=idCanvas.parentElement,hostRect=host.getBoundingClientRect();
@@ -4278,7 +4279,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         var ctx=idCanvas.getContext('2d');if(!ctx)return;
         ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,cssW,cssH);
         var labels=[];
-        function add(position,lines,color){
+        function add(id,position,lines,color){
           if(!position||!lines||!lines.length)return;
           var lx=position.x*east.x+position.y*east.y+position.z*east.z;
           var ly=position.x*north.x+position.y*north.y+position.z*north.z;
@@ -4288,7 +4289,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
           var nx=(lx*focal/aspect)/cameraZ,ny=(ly*focal)/cameraZ;
           var x=(nx+1)*cssW*.5,y=(1-ny)*cssH*.5;
           if(x<0||x>cssW||y<0||y>cssH)return;
-          labels.push({x:x,y:y,lines:lines.map(function(line){return String(line).slice(0,74);}),color:color});
+          labels.push({id:String(id),x:x,y:y,lines:lines.map(function(line){return String(line).slice(0,74);}),color:color});
         }
         function classDescription(ship){
           var classes={carrier:'AIRCRAFT CARRIER',destroyer:'GUIDED-MISSILE DESTROYER',submarine:'SUBMARINE',submersible:'UNMANNED SUBMERSIBLE',drone:'AIRBORNE DRONE',mech:'GROUND MECH',facility:'FIXED FACILITY'};
@@ -4307,48 +4308,87 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
             'OPERATING AREA: '+String(ship.worldId||'PELAGOS-01')+'  //  DOMAIN: '+domain,
             'STATUS: '+String(ship.deploymentStatus||ship.bayStatus||'DEPLOYED').toUpperCase()
           ];
-          if(Number.isFinite(Number(ship.lengthM))&&Number(ship.lengthM)>0&&Number.isFinite(Number(ship.beamM))&&Number(ship.beamM)>0){
-            lines.push('HULL: '+Number(ship.lengthM).toFixed(1)+' M LONG  //  '+Number(ship.beamM).toFixed(1)+' M BEAM');
-          }
+          if(Number.isFinite(Number(ship.lengthM))&&Number(ship.lengthM)>0&&Number.isFinite(Number(ship.beamM))&&Number(ship.beamM)>0)lines.push('HULL: '+Number(ship.lengthM).toFixed(1)+' M LONG  //  '+Number(ship.beamM).toFixed(1)+' M BEAM');
           if(ship.source)lines.push('REFERENCE: '+String(ship.source).toUpperCase());
-          add({x:point.x*radius,y:point.y*radius,z:point.z*radius},lines,'#ffb16f');
+          add(ship.id,{x:point.x*radius,y:point.y*radius,z:point.z*radius},lines,'#ffb16f');
         });
         state.tracks.forEach(function(track){
           if(!track||!Array.isArray(track.position)||track.position.length<2)return;
-          var matchedPlatform=state.assets.find(function(ship){return ship&&String(ship.id)===String(track.id);});
-          if(matchedPlatform)return; // A sensor return for a known vessel is represented by that vessel's surface/depth marker.
+          if(state.assets.find(function(ship){return ship&&String(ship.id)===String(track.id);}))return;
           var point=vigilPlanetVector(track.position[0],track.position[1]);
-          add({x:point.x*1.026,y:point.y*1.026,z:point.z*1.026},[
-            'DAEDALUS SENSOR CONTACT',
-            'TRACK ID: '+String(track.id),
+          add(track.id,{x:point.x*1.026,y:point.y*1.026,z:point.z*1.026},[
+            'DAEDALUS SENSOR CONTACT','TRACK ID: '+String(track.id),
             'SENSOR MODALITY: '+String(track.modality||'UNKNOWN').toUpperCase(),
             'CLASSIFICATION: '+String(track.classification||track.objectClass||'NOT PROVIDED BY SENSOR FEED').toUpperCase(),
             'SOURCE SENSOR: '+String(track.sensorId||'DAEDALUS SENSOR ARRAY'),
             'CONFIDENCE: '+(track.confidence==null?'NOT REPORTED':String(track.confidence))
           ],'#ff9a62');
         });
-        labels.forEach(function(item){
-          ctx.font='bold 10px Courier New,monospace';ctx.textBaseline='middle';
-          var maxTextWidth=Math.min(390,Math.max(160,cssW-20)),wrapped=[];
-          item.lines.forEach(function(line){
-            var words=line.split(/\s+/),current='';
-            words.forEach(function(word){
-              var trial=current?current+' '+word:word;
-              if(current&&ctx.measureText(trial).width>maxTextWidth-14){wrapped.push(current);current=word;}
-              else current=trial;
-            });
-            if(current)wrapped.push(current);
-          });
-          var boxW=Math.min(maxTextWidth,Math.max.apply(null,wrapped.map(function(line){return ctx.measureText(line).width+14;})));
-          var rowH=14,boxH=wrapped.length*rowH+8;
-          var x=Math.max(4,Math.min(cssW-boxW-4,item.x+12));
-          var y=Math.max(4,Math.min(cssH-boxH-4,item.y-boxH*.5-12));
-          ctx.globalAlpha=.96;ctx.strokeStyle=item.color;ctx.lineWidth=1;
-          ctx.beginPath();ctx.moveTo(item.x,item.y);ctx.lineTo(x,y+Math.min(boxH*.5,18));ctx.stroke();
-          ctx.fillStyle='#00100b';ctx.fillRect(x,y,boxW,boxH);ctx.strokeRect(x,y,boxW,boxH);
-          ctx.globalAlpha=1;ctx.fillStyle=item.color;
-          wrapped.forEach(function(line,index){ctx.fillText(line,x+7,y+8+index*rowH);});
+        state.sonarTracks.forEach(function(track){
+          if(!track||!Array.isArray(track.position)||track.position.length<2)return;
+          var point=vigilPlanetVector(track.position[0],track.position[1]),depth=Number(track.depthMeters);
+          var radius=Number.isFinite(depth)&&depth>0?Math.max(.80,1.018-Math.min(30000,depth)/30000*.218):1.018;
+          add(track.id,{x:point.x*radius,y:point.y*radius,z:point.z*radius},[
+            'UUV SONAR RETURN','RETURN ID: '+String(track.id),
+            'CLASSIFICATION: '+String(track.classification||'UNCLASSIFIED'),
+            'SOURCE FEED: '+String(track.feedId||'UPLOADED UUV FEED'),
+            'DEPTH: '+(Number.isFinite(depth)?depth.toFixed(1)+' M':'NOT PROVIDED')
+          ],'#8de7ff');
         });
+        if(!labels.length){contactLabelHitBoxes=[];return;}
+        labels.sort(function(a,b){return a.id.localeCompare(b.id);});
+        var selected=labels.find(function(item){return item.id===selectedContactLabelId;});
+        if(!selected){selected=labels[0];selectedContactLabelId=selected.id;}
+        var pad=5,rowH=21,railW=Math.min(230,Math.max(150,cssW*.32)),railX=cssW-railW-pad,railY=8;
+        var railRows=Math.max(1,Math.floor((cssH-16)/rowH)),railCount=Math.min(labels.length,railRows);
+        var railLabels=labels.filter(function(item){return item.id!==selected.id;});
+        var shown=railLabels.slice(0,Math.max(0,railRows-1));
+        contactLabelHitBoxes=[];
+        ctx.font='bold 10px Courier New,monospace';ctx.textBaseline='middle';
+        function drawButton(item,x,y,w,h,isSelected){
+          ctx.globalAlpha=.97;ctx.fillStyle=isSelected?'#123c2c':'#00100b';ctx.strokeStyle=item.color;ctx.lineWidth=isSelected?2:1;
+          ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);ctx.globalAlpha=1;
+          ctx.fillStyle=item.color;var label=(isSelected?'▶ ':'')+item.id;
+          ctx.fillText(label,x+7,y+h/2);
+          contactLabelHitBoxes.push({id:item.id,x:x,y:y,w:w,h:h});
+        }
+        var detailW=Math.min(420,Math.max(190,cssW-railW-24)),detailX=8,detailY=8;
+        if(cssW<520){detailW=Math.min(cssW-16,railW);detailX=8;detailY=cssH-120;}
+        var detailLines=selected.lines.slice(),detailRow=14,detailH=Math.min(cssH-16,detailLines.length*detailRow+34);
+        if(detailY+detailH>cssH-4)detailY=Math.max(4,cssH-detailH-4);
+        ctx.globalAlpha=.96;ctx.fillStyle='#00100b';ctx.strokeStyle=selected.color;ctx.lineWidth=1.5;
+        ctx.fillRect(detailX,detailY,detailW,detailH);ctx.strokeRect(detailX,detailY,detailW,detailH);ctx.globalAlpha=1;
+        ctx.fillStyle=selected.color;ctx.fillText('SELECTED CONTACT // '+selected.id,detailX+7,detailY+12);
+        var detailText=detailLines.slice(0,Math.max(1,Math.floor((detailH-24)/detailRow)));
+        detailText.forEach(function(line,i){
+          var text=String(line),maxChars=Math.max(18,Math.floor((detailW-14)/6));
+          if(text.length>maxChars)text=text.slice(0,maxChars-1)+'…';
+          ctx.fillText(text,detailX+7,detailY+25+i*detailRow);
+        });
+        var listX=railX,listY=railY+detailH+8;
+        if(cssW<520){listX=railX;listY=8;}
+        var listW=cssW-listX-pad;
+        ctx.fillStyle='#00100b';ctx.strokeStyle='#367d60';ctx.lineWidth=1;
+        ctx.fillRect(listX,listY,listW,Math.max(rowH,shown.length*rowH+8));ctx.strokeRect(listX,listY,listW,Math.max(rowH,shown.length*rowH+8));
+        ctx.fillStyle='#9bd9b8';ctx.fillText('CONTACT TRACKS // SELECT ID',listX+6,listY+10);
+        shown.forEach(function(item,i){drawButton(item,listX+4,listY+18+i*rowH,listW-8,rowH-2,false);});
+        drawButton(selected,detailX+detailW-100,detailY+2,94,18,true);
+        if(labels.length>shown.length+1){
+          ctx.fillStyle='#9bd9b8';ctx.fillText('+'+(labels.length-shown.length-1)+' MORE CONTACTS',listX+6,Math.min(cssH-8,listY+shown.length*rowH+25));
+        }
+        // Clicking a listed ID changes the detail pane; the globe remains draggable elsewhere.
+        if(!host._vigilContactPicker){
+          host._vigilContactPicker=function(event){
+            if(event.type!=='pointerdown'||event.button!==0)return;
+            var box=canvas.getBoundingClientRect(),px=event.clientX-box.left,py=event.clientY-box.top;
+            var hit=contactLabelHitBoxes.slice().reverse().find(function(h){return px>=h.x&&px<=h.x+h.w&&py>=h.y&&py<=h.y+h.h;});
+            if(!hit)return;
+            selectedContactLabelId=hit.id;
+            event.preventDefault();event.stopPropagation();
+            if(event.stopImmediatePropagation)event.stopImmediatePropagation();
+          };
+          host.addEventListener('pointerdown',host._vigilContactPicker,true);
+        }
       }
       function draw(timestamp){
         if(!canvas.isConnected)return;
