@@ -3274,7 +3274,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   var daedalusBaySlots={'DDG-51':'BAY-A // MAIN FLIGHT DECK','SSN-774':'BAY-B // SUBMERSIBLE WELL','DRONE-01':'BAY-C // AERIAL HANGAR','MECH-01':'BAY-E // EVA VEHICLE DECK'};
   regionalTrainingFleet.forEach(function(ship){
     if(daedalusBayIds.indexOf(ship.id)>=0&&daedalusCarrier){
-      ship.parentId='DAEDALUS-01';ship.deploymentStatus='docked';ship.bayStatus='secured';ship.baySlot=daedalusBaySlots[ship.id];ship.bayLaunchHeading=Number(ship.heading)||0;
+      ship.side='friendly';ship.parentId='DAEDALUS-01';ship.deploymentStatus='docked';ship.bayStatus='secured';ship.baySlot=daedalusBaySlots[ship.id];ship.bayLaunchHeading=Number(ship.heading)||0;
       ship.x=daedalusCarrier.x;ship.y=daedalusCarrier.y;ship.heading=daedalusCarrier.heading;
       ship.speed=0;ship.targetSpeed=0;ship.stationKeepingEnabled=false;
     }
