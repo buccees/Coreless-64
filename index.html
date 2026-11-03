@@ -410,16 +410,16 @@ body{padding-top:108px}
 <section id="login-panel" class="panel report-panel" data-category="login" hidden>
 <h2>00 // SERVER LOGIN</h2>
 <div class="content">
-<p class="muted">SERVER AUTHENTICATION IS CENTRALIZED HERE. Sign in once on this tab, then return to Simulation + Sensor Control and use CONNECT to join the shared campaign. Credentials are not persisted; the session token remains in browser memory only.</p>
+<p class="muted">SERVER AUTHENTICATION IS CENTRALIZED HERE. Sign in and connect to or disconnect from the shared campaign here. All server session controls are centralized on this tab. Credentials are not persisted; the session token remains in browser memory only.</p>
 <div id="vigil-login-console" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;padding:12px;border:1px solid #315b40;background:#07150f;color:#c5e8b4">
 <label style="display:grid;gap:5px">HTTPS server endpoint<input id="vigil-regional-url" type="url" value="https://localhost:8445/api/regional/snapshot" autocomplete="url" style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:9px;font:inherit"></label>
 <label style="display:grid;gap:5px">Player username<input id="vigil-regional-username" type="text" autocomplete="username" placeholder="Player name" style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:9px;font:inherit"></label>
 <label style="display:grid;gap:5px">Password<input id="vigil-regional-password" type="password" autocomplete="current-password" placeholder="Server account password" style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:9px;font:inherit"></label>
-<div style="display:flex;gap:7px;align-items:end;flex-wrap:wrap"><button type="button" id="vigil-regional-login">LOGIN TO SERVER</button><button type="button" id="vigil-regional-logout" disabled>LOG OUT</button></div>
+<div style="display:flex;gap:7px;align-items:end;flex-wrap:wrap"><button type="button" id="vigil-regional-login">LOGIN TO SERVER</button><button type="button" id="vigil-regional-logout" disabled>LOG OUT</button><button type="button" id="vigil-regional-connect">CONNECT CAMPAIGN</button><button type="button" id="vigil-regional-disconnect">DISCONNECT CAMPAIGN</button></div>
 <label style="display:grid;gap:5px">Session token <span class="muted">Filled by login; kept in memory only</span><input id="vigil-regional-token" type="password" autocomplete="off" spellcheck="false" placeholder="Not signed in" readonly style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:9px;font:inherit"></label>
 <div id="vigil-login-status" role="status" aria-live="polite" style="align-self:end;color:#8bb99b">NOT SIGNED IN // Enter the HTTPS server URL and account credentials.</div>
 </div>
-<p class="muted" style="margin-top:10px">After successful login, open <b>04 // SIMULATION + SENSOR CONTROL</b> and select CONNECT under Regional Link. Signing out clears the in-memory session and disconnects the shared campaign.</p>
+<p class="muted" style="margin-top:10px">Use CONNECT CAMPAIGN after login to join the shared campaign. DISCONNECT CAMPAIGN ends the connection; LOG OUT also clears the in-memory session.</p>
 </div></section>
 <section id="overview-panel" class="panel report-panel" data-category="overview"><h2>SPECIMEN OVERVIEW</h2><div class="content">
 <p><span class="green">SPECIMEN:</span> XN-01 / Xenomorph-type organism</p><p><span class="green">EXAMINATION:</span> Cranial carapace and xenoneural network</p><p><span class="green">OBJECTIVE:</span> Reverse-engineer the conceptual architecture of distributed spatial perception for VIGIL.</p><p class="muted">Working hypothesis: multiple sensory channels converge into a shared environmental model, forming a unified spatial intelligence.</p></div></section>
@@ -1191,7 +1191,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   </div>
   <div id="vigil-regional-command" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;padding:10px;margin-top:8px;background:#07150f;border:1px solid #315b40;color:#c5e8b4;font-size:11px">
     <div style="grid-column:1/-1;letter-spacing:.12em;color:#9bd58a">REGIONAL LINK // SERVER-AUTHORITATIVE CAMPAIGN CONTROLS</div>
-    <div style="display:flex;gap:6px;align-items:end;flex-wrap:wrap"><button type="button" id="vigil-regional-connect">CONNECT</button><button type="button" id="vigil-regional-disconnect">DISCONNECT</button><span class="muted">Authenticate first on 00 // LOGIN.</span></div>
+    
     <label style="display:grid;gap:4px">Controlled vessel<select id="vigil-regional-ship" style="background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"><option value="">Connect to load vessels</option></select></label>
     <label style="display:grid;gap:4px">Course · degrees<input id="vigil-regional-heading" type="number" min="0" max="359.9" step="1" value="90" style="background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label>
     <div style="display:flex;align-items:end"><button type="button" id="vigil-regional-set-heading">SET COURSE</button></div>
