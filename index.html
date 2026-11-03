@@ -1168,6 +1168,13 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     <div id="sim-globe-feed-counts">INITIALIZING WORLD / SENSOR INPUTS</div>
     <div id="sim-globe-feed-source" style="grid-column:1/-1;color:#77dca8">INPUT: PELAGOS-01 WORLD ENGINE // WAITING FOR DAEDALUS SENSOR FEEDS</div>
   </div>
+  <div id="sim-uuv-sonar-upload" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 10px;padding:9px;border:1px solid #8b6b35;background:linear-gradient(90deg,rgba(76,48,12,.25),rgba(3,12,8,.9));color:#f4d49a;font:10px monospace">
+    <strong>UUV SUBSURFACE INPUT // UPLOAD SENSOR JSON</strong>
+    <button type="button" id="sim-uuv-sonar-upload-open" style="background:#171006;color:#ffd58c;border:1px solid #9b763d;padding:8px 10px;font:inherit;cursor:pointer">UPLOAD UUV SONAR FEED</button>
+    <input id="sim-uuv-sonar-upload-file" type="file" accept=".json,application/json" hidden>
+    <button type="button" id="sim-uuv-sonar-upload-clear" style="background:#100d08;color:#e7bd76;border:1px solid #75582e;padding:8px 10px;font:inherit;cursor:pointer">CLEAR UUV LAYER</button>
+    <span id="sim-uuv-sonar-upload-status" role="status" aria-live="polite">NO UUV SONAR UPLOADS // SURFACE GLOBE INPUT IS LIVE</span>
+  </div>
   <div id="vigil-regional-command" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;padding:10px;margin-top:8px;background:#07150f;border:1px solid #315b40;color:#c5e8b4;font-size:11px">
     <div style="grid-column:1/-1;letter-spacing:.12em;color:#9bd58a">REGIONAL LINK // SERVER-AUTHORITATIVE CAMPAIGN CONTROLS</div>
     <label style="display:grid;gap:4px">Snapshot endpoint<input id="vigil-regional-url" type="url" value="https://localhost:8445/api/regional/snapshot" autocomplete="url" style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label>
@@ -4058,6 +4065,9 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   window.vigilGetStableWorldEntity=function(ix,iy){ix=Math.floor(Number(ix));iy=Math.floor(Number(iy));var cellPoint=window.vigilNormalizePlanetPoint((ix+.5)/42,(iy+.5)/42);ix=Math.floor(cellPoint.x*42);iy=Math.floor(cellPoint.y*42);/* Fixed, named locations adapted from Daggerfall's main quest; these are fictional Pelagos-01 sites, not Earth coordinates. */var questSites=[{x:21,y:21,id:'PEL-DAGGERFALL-01',name:'Daggerfall',kind:'DAGGERFALL SEAFLOOR VILLAGE',scale:1.8,description:'The permanent seafloor village of Daggerfall, built across drowned ridges. Survey its structures and chart the settlement.'},{x:22,y:20,id:'PEL-CASTLE-DAGGERFALL',name:'Castle Daggerfall',scale:1.55,description:'The drowned royal castle where the Lysandus investigation, the Totem decision, and several court intrigues converge.'},{x:5,y:7,id:'PEL-PRIVATEERS-HOLD',name:"Privateer's Hold",scale:1.35,description:'A collapsed sea-cave stronghold and wreck approach; the opening expedition begins here.'},{x:14,y:8,id:'PEL-CASTLE-WAYREST',name:'Castle Wayrest',scale:1.5,description:'A drowned royal citadel with sealed chambers, political records, and evidence tied to the Iliac succession.'},{x:33,y:12,id:'PEL-CASTLE-SENTINEL',name:'Castle Sentinel',scale:1.5,description:'A fortified reef-city ruin guarding an old shipping channel and records of a missing prince.'},{x:24,y:31,id:'PEL-SHEDUNGENT',name:'Shedungent',scale:1.3,description:'A remote mountain-root complex beneath the seabed, associated with Nulfaga and the Lysandus mystery.'},{x:8,y:28,id:'PEL-ORSINIUM',name:'Orsinium',scale:1.5,description:'A fortified undersea enclave with recovered correspondence, rare texts, and a contested political claim.'},{x:30,y:29,id:'PEL-DIRENNI-TOWER',name:'Direnni Tower',scale:1.35,description:'A towering submerged structure sealed by an ancient curse and a pressure-locked inner gate.'},{x:18,y:15,id:'PEL-LYSANDUS-TOMB',name:"Lysandus' Tomb",scale:1.4,description:'A burial complex beneath a fractured shelf, central to the investigation into the restless king.'},{x:12,y:34,id:'PEL-CASTLE-WOODBORNE',name:'Castle Woodborne',scale:1.4,description:'A fortified wreck-site holding evidence that can expose the truth behind Lysandus’ murder.'},{x:27,y:5,id:'PEL-SCOURG-BARROW',name:'Scourg Barrow',scale:1.35,description:'A sprawling barrow and necromantic archive with branching passages and a concealed relic chamber.'},{x:35,y:23,id:'PEL-MANTELLA-REVEALED',name:'The Mantella Vault',scale:1.4,description:'A deep containment site linked to the lost Mantella and the ancient machine.'},{x:7,y:18,id:'PEL-UNDERKING-WATCH',name:'The Ancient Watcher',scale:1.2,description:'A silent observation station associated with the Underking’s agents and a conflict with necromancers.'},{x:17,y:37,id:'PEL-TOTEM-VAULT',name:'Totem Vault',scale:1.4,description:'A heavily defended royal vault containing the key to a campaign-defining choice of allegiance.'},{x:37,y:7,id:'PEL-MANTELLAN-CRUX',name:'Mantellan Crux Anomaly',scale:1.6,description:'A remote abyssal anomaly represented as a deep-sea rift; its far side is a campaign-only extraplanar destination.'},{x:3,y:24,id:'PEL-NUMIDIUM-SITE',name:'Numidium Foundry',scale:1.6,description:'A colossal machine-site buried in the ocean floor, whose activation could reshape the balance of power.'}];for(var qi=0;qi<questSites.length;qi++){var site=questSites[qi];if(ix===site.x&&iy===site.y){var evidenceIds=vigilHistoricalEvidence.filter(function(record){return record.siteId===site.id;}).map(function(record){return record.id;});return {id:site.id,name:site.name,kind:site.id==='PEL-DAGGERFALL-01'?'DAGGERFALL SEAFLOOR VILLAGE':'MAIN QUEST SITE',x:(ix+.5)/42,y:(iy+.5)/42,scale:site.scale,seed:VIGIL_WORLD_SEED,description:site.description,questLocation:true,evidenceIds:evidenceIds};}}var roll=vigilWorldHash(ix,iy,31);if(roll>.11)return null;var kinds=['VENT FIELD','BOULDER FIELD','SIMULATED WRECK SITE','SEAMOUNT','CABLE RELAY RUIN'];var k=Math.floor(vigilWorldHash(ix,iy,37)*kinds.length);return {id:'PEL-'+ix+'-'+iy+'-'+k,kind:kinds[k],x:(ix+.18+vigilWorldHash(ix,iy,41)*.64)/42,y:(iy+.18+vigilWorldHash(ix,iy,43)*.64)/42,scale:.55+vigilWorldHash(ix,iy,47)*.9,seed:VIGIL_WORLD_SEED};};
   var mapCamera={x:.72,y:.5,zoom:1},mapDrag=null;
   var orbitalHologramRenderer=null;
+  // Explicit UUV upload layer: retained for this page session until the operator clears it.
+  // These are sensor observations, not authoritative edits to the planet's generated terrain.
+  var vigilUuvUploadedSonarLayers=[];
   function renderBathymetry(data){
     var canvas=document.getElementById('sim-bathymetry-map');if(!canvas)return;
     // The planetary surface comes from the live Pelagos-01 simulation world generator.
@@ -4171,7 +4181,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         aspect:gl.getUniformLocation(overlayProgram,'uAspect'),focal:gl.getUniformLocation(overlayProgram,'uFocal'),distance:gl.getUniformLocation(overlayProgram,'uCameraDistance'),
         pointSize:gl.getUniformLocation(overlayProgram,'uPointSize'),pointMode:gl.getUniformLocation(overlayProgram,'uPointMode'),alpha:gl.getUniformLocation(overlayProgram,'uAlpha')
       };
-      var state={feeds:[],tracks:[],assets:[],sourceCount:0,rendererStatus:'WEBGL 3D ONLINE'};
+      var state={feeds:[],tracks:[],assets:[],sonarTracks:[],sonarMeasurementOnly:0,sourceCount:0,rendererStatus:'WEBGL 3D ONLINE'};
       function draw(timestamp){
         if(!canvas.isConnected)return;
         var rect=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
@@ -4191,7 +4201,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         gl.bindBuffer(gl.ARRAY_BUFFER,mesh.uvBuffer);gl.enableVertexAttribArray(surfaceLocations.uv);gl.vertexAttribPointer(surfaceLocations.uv,2,gl.FLOAT,false,0,0);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,mesh.indexBuffer);gl.drawElements(gl.TRIANGLES,mesh.indexCount,gl.UNSIGNED_SHORT,0);
 
-        var overlay=[],orbitStart=0,orbitCount=0,limbStart=0,limbCount=0,ownIndex=0,assetStart=0,assetCount=0,trackStart=0,trackCount=0;
+        var overlay=[],orbitStart=0,orbitCount=0,limbStart=0,limbCount=0,ownIndex=0,assetStart=0,assetCount=0,trackStart=0,trackCount=0,sonarLineStart=0,sonarLineCount=0,sonarPointStart=0,sonarPointCount=0;
         function vertex(p,col){overlay.push(p.x,p.y,p.z,col[0],col[1],col[2]);}
         var carrier=regionalTrainingFleet.find(function(s){return s.id==='DAEDALUS-01';});
         var orbitalAnchor=carrier?vigilPlanetVector(carrier.x,carrier.y):vigilPlanetVector(.35,.4);
@@ -4221,6 +4231,28 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
           vertex({x:p.x*1.026,y:p.y*1.026,z:p.z*1.026},color);
         });
         trackCount=overlay.length/6-trackStart;
+        // UUV sonar uploads are a separate subsurface layer. A supplied depth is mapped
+        // radially inside the globe for visualization; missing depth is never fabricated.
+        sonarLineStart=overlay.length/6;
+        state.sonarTracks.forEach(function(hit){
+          if(!Array.isArray(hit.position)||hit.position.length<2)return;
+          var p=vigilPlanetVector(hit.position[0],hit.position[1]);
+          if(hit.depthM!==null&&hit.depthM!==undefined&&Number.isFinite(Number(hit.depthM))&&Number(hit.depthM)>=0){
+            var depth=Number(hit.depthM),radius=Math.max(.80,1.018-Math.min(30000,depth)/30000*.218);
+            vertex({x:p.x*1.018,y:p.y*1.018,z:p.z*1.018},[1,.72,.28]);
+            vertex({x:p.x*radius,y:p.y*radius,z:p.z*radius},[1,.48,.14]);
+          }
+        });
+        sonarLineCount=overlay.length/6-sonarLineStart;
+        sonarPointStart=overlay.length/6;
+        state.sonarTracks.forEach(function(hit){
+          if(!Array.isArray(hit.position)||hit.position.length<2)return;
+          var p=vigilPlanetVector(hit.position[0],hit.position[1]);
+          var depth=hit.depthM!==null&&hit.depthM!==undefined&&Number.isFinite(Number(hit.depthM))&&Number(hit.depthM)>=0?Number(hit.depthM):null;
+          var radius=depth===null?1.034:Math.max(.80,1.018-Math.min(30000,depth)/30000*.218);
+          vertex({x:p.x*radius,y:p.y*radius,z:p.z*radius},depth===null?[1,.84,.42]:[1,.55,.16]);
+        });
+        sonarPointCount=overlay.length/6-sonarPointStart;
         gl.useProgram(overlayProgram);
         gl.uniform3f(overlayLocations.east,east.x,east.y,east.z);gl.uniform3f(overlayLocations.north,north.x,north.y,north.z);gl.uniform3f(overlayLocations.center,center.x,center.y,center.z);
         gl.uniform1f(overlayLocations.aspect,aspect);gl.uniform1f(overlayLocations.focal,focal);gl.uniform1f(overlayLocations.distance,distance);
@@ -4233,13 +4265,17 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         gl.uniform1f(overlayLocations.pointMode,1);gl.uniform1f(overlayLocations.alpha,1);gl.uniform1f(overlayLocations.pointSize,17);gl.drawArrays(gl.POINTS,ownIndex,1);
         gl.uniform1f(overlayLocations.pointSize,10);if(assetCount)gl.drawArrays(gl.POINTS,assetStart,assetCount);
         gl.uniform1f(overlayLocations.pointSize,12);if(trackCount)gl.drawArrays(gl.POINTS,trackStart,trackCount);
+        gl.uniform1f(overlayLocations.pointMode,0);gl.uniform1f(overlayLocations.alpha,.9);if(sonarLineCount)gl.drawArrays(gl.LINES,sonarLineStart,sonarLineCount);
+        gl.uniform1f(overlayLocations.pointMode,1);gl.uniform1f(overlayLocations.pointSize,11);if(sonarPointCount)gl.drawArrays(gl.POINTS,sonarPointStart,sonarPointCount);
         gl.disable(gl.BLEND);
         var readout=document.getElementById('sim-globe-input-readout');
         if(readout){
           var counts=document.getElementById('sim-globe-feed-counts');
           var source=document.getElementById('sim-globe-feed-source');
-          if(counts)counts.textContent=state.assets.length+' SURFACE ASSETS // '+state.tracks.length+' DAEDALUS SENSOR TRACKS // '+state.feeds.length+' LIVE SPACE-SENSOR FEEDS';
-          if(source)source.textContent=state.feeds.length?'INPUT: DAEDALUS UNIT FEEDS + PELAGOS-01 3D WORLD ENGINE':'INPUT: PELAGOS-01 3D WORLD ENGINE // NO CURRENT DAEDALUS SPACE-SENSOR TRACKS';
+          if(counts)counts.textContent=state.assets.length+' SURFACE ASSETS // '+state.tracks.length+' DAEDALUS SPACE TRACKS // '+state.feeds.length+' DAEDALUS FEEDS // '+state.sonarTracks.length+' UUV SONAR RETURNS';
+          if(source)source.textContent=state.feeds.length?'INPUT: DAEDALUS SPACE-SENSOR FEEDS + PELAGOS-01 3D WORLD ENGINE':'INPUT: PELAGOS-01 3D WORLD ENGINE // NO CURRENT DAEDALUS SPACE-SENSOR TRACKS';
+          var sonarStatus=document.getElementById('sim-uuv-sonar-upload-status');
+          if(sonarStatus){var placed=state.sonarTracks.filter(function(t){return Array.isArray(t.position);}).length;sonarStatus.textContent=vigilUuvUploadedSonarLayers.length+' UUV SONAR FEED(S) UPLOADED // '+placed+' GEOREFERENCED RETURNS // DEPTH SCALE IS VISUALIZED, NOT TERRAIN TRUTH';}
         }
         window.requestAnimationFrame(draw);
       }
@@ -4279,7 +4315,16 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       if(Number(ship.depthMeters)>0)return false;
       return Number.isFinite(Number(ship.x))&&Number.isFinite(Number(ship.y));
     });
+    var sonarTracks=[];
+    vigilUuvUploadedSonarLayers.forEach(function(layer){
+      layer.contacts.forEach(function(hit){
+        if(!Array.isArray(hit.position)||hit.position.length<2)return;
+        sonarTracks.push({id:hit.id,position:hit.position.slice(),depthM:hit.depthM,classification:hit.classification,feedId:layer.sensorId});
+      });
+    });
     orbitalHologramRenderer.state.feeds=feeds;orbitalHologramRenderer.state.tracks=tracks;orbitalHologramRenderer.state.assets=assets;
+    orbitalHologramRenderer.state.sonarTracks=sonarTracks;
+    orbitalHologramRenderer.state.sonarMeasurementOnly=vigilUuvUploadedSonarLayers.reduce(function(n,layer){return n+layer.measurementOnly;},0);
     orbitalHologramRenderer.state.sourceCount=feeds.length;orbitalHologramRenderer.state.rendererStatus='WEBGL 3D ONLINE';
   }
 
@@ -4302,6 +4347,57 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     canvas.addEventListener('pointerup',stopDrag);canvas.addEventListener('pointercancel',stopDrag);
     canvas.addEventListener('wheel',function(e){e.preventDefault();mapCamera.zoom=Math.max(1,Math.min(5,mapCamera.zoom+(e.deltaY<0?.25:-.25)));refreshMapView();},{passive:false});
     canvas.style.cursor='grab';canvas.style.touchAction='none';
+  })();
+
+  (function setupUuvSonarGlobeUpload(){
+    var open=document.getElementById('sim-uuv-sonar-upload-open'),file=document.getElementById('sim-uuv-sonar-upload-file');
+    var clear=document.getElementById('sim-uuv-sonar-upload-clear'),status=document.getElementById('sim-uuv-sonar-upload-status');
+    if(!open||!file||!clear||!status)return;
+    var allowed=['sonar','acoustic','multibeam','mbes','side_scan','sidescan','sub_bottom','subbottom'];
+    open.addEventListener('click',function(){file.click();});
+    file.addEventListener('change',function(){
+      var selected=file.files&&file.files[0];if(!selected)return;
+      if(selected.size>16*1024*1024){status.textContent='UPLOAD REJECTED // JSON FILE EXCEEDS 16 MB';file.value='';return;}
+      var reader=new FileReader();
+      reader.onload=function(){
+        try{
+          var parsed=JSON.parse(String(reader.result||'')),payloads=Array.isArray(parsed)?parsed:Array.isArray(parsed.feeds)?parsed.feeds:[parsed];
+          var accepted=0,rejected=[];
+          payloads.forEach(function(payload,index){
+            try{
+              var owner=String(payload&&(payload.unit_id||payload.source_unit_id)||'').trim().toUpperCase();
+              var modality=String(payload&&payload.modality||'').toLowerCase().replace(/[\s-]+/g,'_');
+              if(owner!=='UUV-01')throw new Error('FEED OWNER MUST BE UUV-01; received '+(owner||'UNASSIGNED'));
+              if(allowed.indexOf(modality)<0)throw new Error('UNSUPPORTED UUV SUBSURFACE MODALITY '+(modality||'(missing)'));
+              if(!Array.isArray(payload.contacts))throw new Error('FEED MUST CONTAIN contacts[]');
+              var result=window.vigilIngestSensorObservation(payload);
+              if(!result||!result.accepted)throw new Error('SENSOR INGEST DID NOT ACCEPT THIS FEED');
+              var contacts=[],measurementOnly=0;
+              payload.contacts.forEach(function(hit){
+                var raw=hit&&hit.normalized_position,position=Array.isArray(raw)&&raw.length>=2&&Number.isFinite(Number(raw[0]))&&Number.isFinite(Number(raw[1]))?[Number(raw[0]),Number(raw[1])]:null;
+                var depthValue=hit&&hit.depth_m!==undefined?hit.depth_m:(hit&&hit.measurements?hit.measurements.depth_m:null);
+                var depth=depthValue===null||depthValue===undefined||depthValue===''||!Number.isFinite(Number(depthValue))?null:Number(depthValue);
+                if(depth!==null&&depth<0)throw new Error('DEPTH VALUES MUST BE NON-NEGATIVE');
+                if(!position){measurementOnly++;return;}
+                contacts.push({id:String(hit.contact_id||'SONAR-'+contacts.length),position:position,depthM:depth,classification:String(hit.classification||'UUV SONAR RETURN')});
+              });
+              vigilUuvUploadedSonarLayers.push({sensorId:String(payload.sensor_id),modality:modality,receivedAt:new Date().toISOString(),contacts:contacts,measurementOnly:measurementOnly,waterfallBins:Array.isArray(payload.waterfall_bins)?payload.waterfall_bins.slice():null});
+              accepted++;
+            }catch(error){rejected.push('ITEM '+(index+1)+' // '+String(error&&error.message||error));}
+          });
+          if(typeof window.vigilRefreshSensorFeedRoster==='function')window.vigilRefreshSensorFeedRoster();
+          renderBathymetry(lastObservationData);
+          status.textContent='UUV UPLOAD COMPLETE // '+accepted+' FEED(S) ACCEPTED'+(rejected.length?' // '+rejected.length+' REJECTED: '+rejected.slice(0,2).join(' | '):'');
+        }catch(error){status.textContent='UPLOAD FAILED // INVALID JSON // '+String(error&&error.message||error);}
+        file.value='';
+      };
+      reader.onerror=function(){status.textContent='UPLOAD FAILED // FILE COULD NOT BE READ';file.value='';};
+      reader.readAsText(selected);
+    });
+    clear.addEventListener('click',function(){
+      vigilUuvUploadedSonarLayers=[];renderBathymetry(lastObservationData);
+      status.textContent='UUV SONAR LAYER CLEARED // ORIGINAL PLANET SIMULATION TERRAIN UNCHANGED';
+    });
   })();
 
   startRegionalFleet();
