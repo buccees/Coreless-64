@@ -3219,9 +3219,9 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   var regionalTrainingFleet=[
     {id:'DDG-51',name:'ARLEIGH BURKE-CLASS',x:.35,y:.44,lengthM:153.92,beamM:18.0,heading:28,speed:.018,maxSpeed:.04,weaponRange:.4,weaponDamage:2,weaponReloadSeconds:8,weaponCooldownRemaining:0,hull:6,maxHull:6,shipClass:'destroyer',weaponSystems:['main_battery','torpedo','missile'],side:'friendly',afloat:true,source:'U.S. Navy DDG-51 fact sheet'},
     {id:'DAEDALUS-01',name:'DAEDALUS // DE-01 ORBITAL RESEARCH MOTHERSHIP',x:.35,y:.40,lengthM:480,beamM:162,heading:0,speed:0,maxSpeed:.025,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:80,maxHull:80,shipClass:'mothership',unitType:'mothership',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL fictional spacecraft design',orbitalAltitudeKm:420,orbitalVelocityKmS:7.66,orbitalPeriodMinutes:92.6,orbitInclinationDeg:51.6},
-    {id:'SSN-774',name:'VIRGINIA-CLASS ATTACK SUBMARINE',x:.22,y:.78,lengthM:115,beamM:10.4,heading:25,speed:.006,maxSpeed:.03,weaponRange:.42,weaponDamage:4,weaponReloadSeconds:14,weaponCooldownRemaining:0,hull:7,maxHull:7,shipClass:'submarine',weaponSystems:['torpedo','missile'],side:'friendly',afloat:true,source:'U.S. Navy Virginia-class fact sheet'},
+    {id:'SSN-774',name:'VIRGINIA-CLASS ATTACK SUBMARINE',x:.22,y:.78,lengthM:115,beamM:10.4,heading:25,speed:.006,maxSpeed:.03,depthMeters:180,targetDepthMeters:180,maxVerticalSpeedMps:5,weaponRange:.42,weaponDamage:4,weaponReloadSeconds:14,weaponCooldownRemaining:0,hull:7,maxHull:7,shipClass:'submarine',weaponSystems:['torpedo','missile'],side:'friendly',afloat:true,source:'U.S. Navy Virginia-class fact sheet',deploymentStatus:'deployed',bayStatus:'underway',parentId:null,stationKeepingEnabled:false},
     {id:'DRONE-01',name:'VIGIL RECONNAISSANCE DRONE',x:.39,y:.38,lengthM:3.2,beamM:2.1,heading:42,speed:.025,maxSpeed:.06,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:2,maxHull:2,shipClass:'drone',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'drone',parentId:'DDG-51',stationKeepingEnabled:true,stationOffsetForward:.035,stationOffsetStarboard:.028,stationKeepingGain:1.15},
-    {id:'UUV-01',name:'VIGIL UNCREWED SUBMERSIBLE',x:.22,y:.79,lengthM:4.5,beamM:1.1,heading:31,speed:.012,maxSpeed:.035,depthMeters:120,targetDepthMeters:120,maxVerticalSpeedMps:8,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:2,maxHull:2,shipClass:'submersible',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'submersible',lockedArtifactContainer:{locked:true,artifactIds:[]},parentId:'SSN-774',stationKeepingEnabled:true,stationOffsetForward:-.045,stationOffsetStarboard:-.012,stationKeepingGain:.7},
+    {id:'UUV-01',name:'VIGIL UNCREWED SUBMERSIBLE',x:.22,y:.79,lengthM:4.5,beamM:1.1,heading:31,speed:.012,maxSpeed:.035,depthMeters:120,targetDepthMeters:120,maxVerticalSpeedMps:8,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:2,maxHull:2,shipClass:'submersible',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'submersible',lockedArtifactContainer:{locked:true,artifactIds:[]},parentId:'SSN-774',deploymentStatus:'deployed',bayStatus:'SUBMARINE-LAUNCHED',stationKeepingEnabled:true,stationOffsetForward:-.045,stationOffsetStarboard:-.012,stationKeepingGain:.7},
     {id:'MECH-01',name:'VIGIL GROUND MECH',x:.38,y:.42,lengthM:4.2,beamM:2.4,heading:90,speed:.008,maxSpeed:.025,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:3,maxHull:3,shipClass:'mech',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'mech'},
     {id:'FAC-01',name:'VIGIL FORWARD SENSOR FACILITY',x:.22,y:.78,lengthM:0,beamM:0,heading:0,speed:0,maxSpeed:0,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:5,maxHull:5,shipClass:'facility',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'facility'},
     {id:'CVN',name:'NIMITZ-CLASS',x:.50,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.025,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
@@ -3270,8 +3270,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   regionalTrainingFleet.forEach(function(unit){if(unit&&unit.id==='CVN'){unit.factionId='WYCF';unit.worldId=vigilFactionWorlds.WYCF.worldId;unit.x=vigilFactionWorlds.WYCF.spawn.x;unit.y=vigilFactionWorlds.WYCF.spawn.y;unit.heading=vigilFactionWorlds.WYCF.spawn.heading;}});
   // The Daedalus is the carrier for every mobile VIGIL vehicle. Craft begin secured in its internal bays.
   var daedalusCarrier=regionalTrainingFleet.find(function(s){return s.id==='DAEDALUS-01';});
-  var daedalusBayIds=['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'];
-  var daedalusBaySlots={'DDG-51':'BAY-A // MAIN FLIGHT DECK','SSN-774':'BAY-B // SUBMERSIBLE WELL','DRONE-01':'BAY-C // AERIAL HANGAR','UUV-01':'BAY-D // SUBSEA LOCK','MECH-01':'BAY-E // EVA VEHICLE DECK'};
+  var daedalusBayIds=['DDG-51','DRONE-01','MECH-01'];
+  var daedalusBaySlots={'DDG-51':'BAY-A // MAIN FLIGHT DECK','DRONE-01':'BAY-C // AERIAL HANGAR','MECH-01':'BAY-E // EVA VEHICLE DECK'};
   regionalTrainingFleet.forEach(function(ship){
     if(daedalusBayIds.indexOf(ship.id)>=0&&daedalusCarrier){
       ship.parentId='DAEDALUS-01';ship.deploymentStatus='docked';ship.bayStatus='secured';ship.baySlot=daedalusBaySlots[ship.id];ship.bayLaunchHeading=Number(ship.heading)||0;
@@ -3385,7 +3385,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     },
     launch:function(unitId,heading,speed){
       var id=String(unitId||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===id;});
-      if(!unit||['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'].indexOf(id)<0)return {ok:false,reason:'UNIT IS NOT ASSIGNED TO THE DAEDALUS CARRIER BAY.'};
+      if(!unit||['DDG-51','DRONE-01','MECH-01'].indexOf(id)<0)return {ok:false,reason:'UNIT IS NOT ASSIGNED TO THE DAEDALUS CARRIER BAY.'};
       if(unit.deploymentStatus!=='docked')return {ok:false,reason:'UNIT IS ALREADY DEPLOYED.'};
       var carrier=regionalTrainingFleet.find(function(s){return s.id==='DAEDALUS-01'&&s.afloat!==false;});
       var launchHeading=heading===undefined?(Number.isFinite(Number(unit.bayLaunchHeading))?Number(unit.bayLaunchHeading):(Number(carrier&&carrier.heading)||0)):heading;
@@ -3406,7 +3406,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       return window.vigilSetSimulationUnitState(id,{speed:0});
     },
     launchAll:function(){
-      var ids=['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'],results=[];
+      var ids=['DDG-51','DRONE-01','MECH-01'],results=[];
       ids.forEach(function(id){var unit=regionalTrainingFleet.find(function(s){return s.id===id;});if(unit&&unit.deploymentStatus==='docked')results.push({unit_id:id,result:window.vigilMothershipCommand.launch(id,Number(unit.bayLaunchHeading)||0)});});
       return {ok:results.every(function(x){return x.result&&x.result.ok;}),results:results};
     }
