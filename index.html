@@ -4510,10 +4510,26 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     document.getElementById('sim-fleet-start').addEventListener('click',startRegionalFleet);
     document.getElementById('sim-fleet-pause').addEventListener('click',pauseRegionalFleet);
     document.getElementById('sim-fleet-reset').addEventListener('click',resetRegionalFleet);
-    canvas.addEventListener('pointerdown',function(e){mapDrag={x:e.clientX,y:e.clientY,cx:mapCamera.x,cy:mapCamera.y};canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing';});
-    canvas.addEventListener('pointermove',function(e){if(!mapDrag)return;var rect=canvas.getBoundingClientRect(),scale=.5/(Math.max(1,Math.min(rect.width,rect.height))*mapCamera.zoom),east=-(e.clientX-mapDrag.x)*scale,north=(e.clientY-mapDrag.y)*scale,distance=Math.hypot(east,north),bearing=Math.atan2(east,north)*180/Math.PI;var center=window.vigilAdvancePlanetPoint(mapDrag.cx,mapDrag.cy,bearing,distance);mapCamera.x=center.x;mapCamera.y=center.y;refreshMapView();});
+    // Bind drag handling to the stable map container, not the WebGL canvas itself.
+    // The identification overlay may wrap/reparent the canvas; delegated pointer
+    // handling keeps globe rotation working after that DOM change.
+    var dragSurface=canvas.parentElement||canvas;
+    dragSurface.addEventListener('pointerdown',function(e){
+      if(e.target!==canvas)return;
+      mapDrag={x:e.clientX,y:e.clientY,cx:mapCamera.x,cy:mapCamera.y};
+      if(dragSurface.setPointerCapture){try{dragSurface.setPointerCapture(e.pointerId);}catch(ignore){}}
+      canvas.style.cursor='grabbing';e.preventDefault();
+    });
+    dragSurface.addEventListener('pointermove',function(e){
+      if(!mapDrag)return;
+      var rect=canvas.getBoundingClientRect(),scale=.5/(Math.max(1,Math.min(rect.width,rect.height))*mapCamera.zoom),
+        east=-(e.clientX-mapDrag.x)*scale,north=(e.clientY-mapDrag.y)*scale,
+        distance=Math.hypot(east,north),bearing=Math.atan2(east,north)*180/Math.PI,
+        center=window.vigilAdvancePlanetPoint(mapDrag.cx,mapDrag.cy,bearing,distance);
+      mapCamera.x=center.x;mapCamera.y=center.y;refreshMapView();
+    });
     function stopDrag(){mapDrag=null;canvas.style.cursor='grab';}
-    canvas.addEventListener('pointerup',stopDrag);canvas.addEventListener('pointercancel',stopDrag);
+    dragSurface.addEventListener('pointerup',stopDrag);dragSurface.addEventListener('pointercancel',stopDrag);dragSurface.addEventListener('lostpointercapture',stopDrag);
     canvas.addEventListener('wheel',function(e){e.preventDefault();mapCamera.zoom=Math.max(1,Math.min(5,mapCamera.zoom+(e.deltaY<0?.25:-.25)));refreshMapView();},{passive:false});
     canvas.style.cursor='grab';canvas.style.touchAction='none';
   })();
