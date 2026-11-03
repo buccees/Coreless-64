@@ -3065,10 +3065,14 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       frame_id:'normalized-regional-map-v1',metadata:{sonar_posture:modality==='sonar'||modality==='acoustic'?'passive monitoring':modality+' sensor input',source:'external-sensor-adapter'},
       objects:objects,waterfall_bins:suppliedWaterfall,image_data_url:imageDataUrl};
     externalSensorObservationActive=true;lastObservationData=data;lastExternalObservationReceivedAt=Date.now();
-    recordSensorFeed(payload.sensor_id,modality,objects,suppliedWaterfall,'external',imageDataUrl,lastExternalObservationReceivedAt,payload.unit_id||payload.source_unit_id||null);
+    var owningUnitId=String(payload.unit_id||payload.source_unit_id||'').trim().toUpperCase()||null;
+    recordSensorFeed(payload.sensor_id,modality,objects,suppliedWaterfall,'external',imageDataUrl,lastExternalObservationReceivedAt,owningUnitId);
     if(window.vigilRefreshSensorFeedRoster)window.vigilRefreshSensorFeedRoster();
-    if(objects.some(function(o){return Array.isArray(o.normalized_position); })){renderReconContacts(data);renderBathymetry(data);}
-    if(modality==='sonar'||modality==='acoustic'||modality==='proximity')renderNavalSonar(data);
+    // Unit-owned feeds stay within their assigned platform pipeline; the shared demo recon/sonar
+    // canvases are not overwritten by a UUV or Daedalus upload.
+    if(!owningUnitId&&objects.some(function(o){return Array.isArray(o.normalized_position);}))renderReconContacts(data);
+    renderBathymetry(data);
+    if(!owningUnitId&&(modality==='sonar'||modality==='acoustic'||modality==='proximity'))renderNavalSonar(data);
     if(typeof window.vigilGetSensorInputSnapshot==='function')window.dispatchEvent(new CustomEvent('vigil:sensor-observation',{detail:{sensor_id:payload.sensor_id,modality:modality,track_count:objects.length,timestamp:data.revision}}));
     var sourceStatus=document.getElementById('vigil-sensor-source-status');
     if(sourceStatus)sourceStatus.textContent='SENSOR INPUT: EXTERNAL '+modality.toUpperCase()+' // '+payload.sensor_id+' // '+objects.length+' TRACK(S)';
@@ -4275,7 +4279,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
           if(counts)counts.textContent=state.assets.length+' SURFACE ASSETS // '+state.tracks.length+' DAEDALUS SPACE TRACKS // '+state.feeds.length+' DAEDALUS FEEDS // '+state.sonarTracks.length+' UUV SONAR RETURNS';
           if(source)source.textContent=state.feeds.length?'INPUT: DAEDALUS SPACE-SENSOR FEEDS + PELAGOS-01 3D WORLD ENGINE':'INPUT: PELAGOS-01 3D WORLD ENGINE // NO CURRENT DAEDALUS SPACE-SENSOR TRACKS';
           var sonarStatus=document.getElementById('sim-uuv-sonar-upload-status');
-          if(sonarStatus){var placed=state.sonarTracks.filter(function(t){return Array.isArray(t.position);}).length;sonarStatus.textContent=vigilUuvUploadedSonarLayers.length+' UUV SONAR FEED(S) UPLOADED // '+placed+' GEOREFERENCED RETURNS // DEPTH SCALE IS VISUALIZED, NOT TERRAIN TRUTH';}
+          if(sonarStatus){var placed=state.sonarTracks.length;sonarStatus.textContent=vigilUuvUploadedSonarLayers.length+' UUV SONAR FEED(S) UPLOADED // '+placed+' GEOREFERENCED RETURNS // '+state.sonarMeasurementOnly+' MEASUREMENT-ONLY RETURNS // DEPTH SCALE IS VISUALIZED, NOT TERRAIN TRUTH';}
         }
         window.requestAnimationFrame(draw);
       }
@@ -4370,8 +4374,6 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
               if(owner!=='UUV-01')throw new Error('FEED OWNER MUST BE UUV-01; received '+(owner||'UNASSIGNED'));
               if(allowed.indexOf(modality)<0)throw new Error('UNSUPPORTED UUV SUBSURFACE MODALITY '+(modality||'(missing)'));
               if(!Array.isArray(payload.contacts))throw new Error('FEED MUST CONTAIN contacts[]');
-              var result=window.vigilIngestSensorObservation(payload);
-              if(!result||!result.accepted)throw new Error('SENSOR INGEST DID NOT ACCEPT THIS FEED');
               var contacts=[],measurementOnly=0;
               payload.contacts.forEach(function(hit){
                 var raw=hit&&hit.normalized_position,position=Array.isArray(raw)&&raw.length>=2&&Number.isFinite(Number(raw[0]))&&Number.isFinite(Number(raw[1]))?[Number(raw[0]),Number(raw[1])]:null;
@@ -4381,6 +4383,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
                 if(!position){measurementOnly++;return;}
                 contacts.push({id:String(hit.contact_id||'SONAR-'+contacts.length),position:position,depthM:depth,classification:String(hit.classification||'UUV SONAR RETURN')});
               });
+              var result=window.vigilIngestSensorObservation(payload);
+              if(!result||!result.accepted)throw new Error('SENSOR INGEST DID NOT ACCEPT THIS FEED');
               vigilUuvUploadedSonarLayers.push({sensorId:String(payload.sensor_id),modality:modality,receivedAt:new Date().toISOString(),contacts:contacts,measurementOnly:measurementOnly,waterfallBins:Array.isArray(payload.waterfall_bins)?payload.waterfall_bins.slice():null});
               accepted++;
             }catch(error){rejected.push('ITEM '+(index+1)+' // '+String(error&&error.message||error));}
