@@ -4510,29 +4510,43 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     document.getElementById('sim-fleet-start').addEventListener('click',startRegionalFleet);
     document.getElementById('sim-fleet-pause').addEventListener('click',pauseRegionalFleet);
     document.getElementById('sim-fleet-reset').addEventListener('click',resetRegionalFleet);
-    // The canvas itself is the drag origin. Track movement on window so pointer
-    // capture/reparenting cannot strand the drag gesture on a wrapper element.
-    canvas.addEventListener('pointerdown',function(e){
-      if(e.button!==undefined&&e.button!==0)return;
-      mapDrag={x:e.clientX,y:e.clientY,cx:mapCamera.x,cy:mapCamera.y};
-      canvas.style.cursor='grabbing';
-      if(canvas.setPointerCapture){try{canvas.setPointerCapture(e.pointerId);}catch(ignore){}}
-      e.preventDefault();
-    });
-    window.addEventListener('pointermove',function(e){
+    // Capture drag gestures at document level and hit-test the canvas bounds.
+    // This still works if the label layer or another transparent child becomes
+    // the event target, and it does not depend on pointer capture or bubbling.
+    canvas.style.pointerEvents='auto';
+    canvas.style.touchAction='none';
+    canvas.style.userSelect='none';
+    canvas.style.cursor='grab';
+    function pointerIsOnGlobe(e){
+      var rect=canvas.getBoundingClientRect();
+      return rect.width>0&&rect.height>0&&e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom;
+    }
+    function stopGlobeDrag(e){
       if(!mapDrag)return;
+      if(e&&mapDrag.pointerId!==undefined&&e.pointerId!==undefined&&e.pointerId!==mapDrag.pointerId)return;
+      mapDrag=null;canvas.style.cursor='grab';
+    }
+    document.addEventListener('pointerdown',function(e){
+      if((e.button!==undefined&&e.button!==0)||e.isPrimary===false||!pointerIsOnGlobe(e))return;
+      mapDrag={pointerId:e.pointerId,x:e.clientX,y:e.clientY,cx:mapCamera.x,cy:mapCamera.y};
+      canvas.style.cursor='grabbing';
+      e.preventDefault();
+    },{capture:true,passive:false});
+    document.addEventListener('pointermove',function(e){
+      if(!mapDrag||(mapDrag.pointerId!==undefined&&e.pointerId!==mapDrag.pointerId))return;
       var rect=canvas.getBoundingClientRect();
       if(!rect.width||!rect.height)return;
       var scale=.5/(Math.max(1,Math.min(rect.width,rect.height))*mapCamera.zoom),
         east=-(e.clientX-mapDrag.x)*scale,north=(e.clientY-mapDrag.y)*scale,
         distance=Math.hypot(east,north),bearing=Math.atan2(east,north)*180/Math.PI,
         center=window.vigilAdvancePlanetPoint(mapDrag.cx,mapDrag.cy,bearing,distance);
-      mapCamera.x=center.x;mapCamera.y=center.y;refreshMapView();
-    },{passive:true});
-    function stopDrag(){if(!mapDrag)return;mapDrag=null;canvas.style.cursor='grab';}
-    window.addEventListener('pointerup',stopDrag);
-    window.addEventListener('pointercancel',stopDrag);
-    canvas.addEventListener('lostpointercapture',stopDrag);
+      mapCamera.x=center.x;mapCamera.y=center.y;
+      // The WebGL renderer already runs continuously; update its camera directly
+      // instead of rebuilding sensor state on every mouse movement.
+      clampMapCamera();
+    },{capture:true,passive:true});
+    document.addEventListener('pointerup',stopGlobeDrag,true);
+    document.addEventListener('pointercancel',stopGlobeDrag,true);
     canvas.addEventListener('wheel',function(e){e.preventDefault();mapCamera.zoom=Math.max(1,Math.min(5,mapCamera.zoom+(e.deltaY<0?.25:-.25)));refreshMapView();},{passive:false});
     canvas.style.cursor='grab';canvas.style.touchAction='none';
   })();
