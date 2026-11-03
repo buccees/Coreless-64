@@ -3828,7 +3828,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   }
   function stepRegionalFleet(now){
     if(!regionalFleetLastTick)regionalFleetLastTick=now;
-    var dt=Math.min(.25,Math.max(0,(now-regionalFleetLastTick)/1000))*.12; // Deliberate planetary combat pacing: 8.3x slower maneuvering.
+    var dt=Math.min(.25,Math.max(0,(now-regionalFleetLastTick)/1000)); // Advance fleet physics against elapsed real time.
     regionalFleetLastTick=now;
     // Evaluate traffic and parent stations against one frame snapshot so results do not depend on array order.
     var frameShips=regionalTrainingFleet.map(function(s){return {
