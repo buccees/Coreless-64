@@ -4054,7 +4054,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   function renderBathymetry(data){
     var canvas=document.getElementById('sim-bathymetry-map');if(!canvas)return;
     var ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
-    var cx=w*.5,cy=h*.51,r=Math.min(w*.43,h*.445),center=window.vigilPlanetVector(mapCamera.x,mapCamera.y);
+    var cx=w*.5,cy=h*.51,r=Math.min(w*.43,h*.445)*Math.max(1,mapCamera.zoom),center=window.vigilPlanetVector(mapCamera.x,mapCamera.y);
     var east={x:Math.cos(center.lon),y:0,z:-Math.sin(center.lon)};
     var north={x:-Math.sin(center.lat)*Math.sin(center.lon),y:Math.cos(center.lat),z:-Math.sin(center.lat)*Math.cos(center.lon)};
     var colors=['#a8c98b','#78ad68','#477d50','#285b43','#173d32'];
@@ -4141,7 +4141,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     if(mapCamera.zoom<=1){mapCamera.x=.5;mapCamera.y=.5;return;}
     var p=window.vigilNormalizePlanetPoint(mapCamera.x,mapCamera.y);mapCamera.x=p.x;mapCamera.y=p.y;
   }
-  function refreshMapView(){clampMapCamera();var scale=document.getElementById('sim-map-scale');if(scale)scale.textContent=(mapCamera.zoom<=1?'REGIONAL VIEW':'TACTICAL VIEW')+' · '+mapCamera.zoom.toFixed(1)+'×';renderBathymetry(lastObservationData);}
+  function refreshMapView(){clampMapCamera();var scale=document.getElementById('sim-map-scale');if(scale)scale.textContent='PLANETARY GLOBE · '+mapCamera.zoom.toFixed(1)+'×';renderBathymetry(lastObservationData);}
   (function setupMapNavigation(){
     var canvas=document.getElementById('sim-bathymetry-map');if(!canvas)return;
     document.getElementById('sim-map-zoom-in').addEventListener('click',function(){mapCamera.zoom=Math.min(5,mapCamera.zoom+.5);refreshMapView();});
