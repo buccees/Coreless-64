@@ -1157,12 +1157,12 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
 <div class="sim-board-wrap sim-regional-map-wrap" id="sim-regional-theater">
   <div class="sim-board-head"><strong>REGIONAL THEATER // CONTINUOUS BATTLESPACE</strong><span id="sim-regional-turn-status" role="status" aria-live="polite">LOCAL DEMO // REGIONAL VIEW</span></div>
   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font:10px monospace;letter-spacing:.08em;margin:8px 0">
-    <span>PELAGOS // FICTIONAL OCEAN WORLD · SEEDED GEOGRAPHY + SHIP TRACKS</span>
+    <span>DAEDALUS ORBITAL SENSOR SUITE // PLANETARY SURVEILLANCE · FULL GLOBE</span>
     <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
       <button type="button" id="sim-map-zoom-out" aria-label="Zoom out on regional map">−</button><button type="button" id="sim-map-zoom-in" aria-label="Zoom in on regional map">+</button><button type="button" id="sim-map-reset">RESET VIEW</button><button type="button" id="sim-fleet-start">START MOTION</button><button type="button" id="sim-fleet-pause">PAUSE</button><button type="button" id="sim-fleet-reset">RESET SHIPS</button><span id="sim-map-scale">REGIONAL VIEW · 1.0×</span>
     </span>
   </div>
-  <canvas id="sim-bathymetry-map" width="900" height="430" aria-label="Continuous regional naval map showing illustrative bathymetry, moving vessels, and authorized contact estimates" style="display:block;width:100%;height:auto;background:#06150e;border:1px solid #47734a;touch-action:none"></canvas>
+  <canvas id="sim-bathymetry-map" width="1000" height="720" aria-label="Orbital planetary surveillance radar showing the full Pelagos-01 globe, visible surface hemisphere, landmass, friendly assets and detected contacts from Daedalus ownship" style="display:block;width:100%;height:auto;min-height:420px;background:#020b08;border:1px solid #47734a;touch-action:none"></canvas>
   <div id="vigil-regional-command" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;padding:10px;margin-top:8px;background:#07150f;border:1px solid #315b40;color:#c5e8b4;font-size:11px">
     <div style="grid-column:1/-1;letter-spacing:.12em;color:#9bd58a">REGIONAL LINK // SERVER-AUTHORITATIVE CAMPAIGN CONTROLS</div>
     <label style="display:grid;gap:4px">Snapshot endpoint<input id="vigil-regional-url" type="url" value="https://localhost:8445/api/regional/snapshot" autocomplete="url" style="min-width:0;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px;font:inherit"></label>
@@ -4053,127 +4053,87 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   window.vigilGetStableWorldEntity=function(ix,iy){ix=Math.floor(Number(ix));iy=Math.floor(Number(iy));var cellPoint=window.vigilNormalizePlanetPoint((ix+.5)/42,(iy+.5)/42);ix=Math.floor(cellPoint.x*42);iy=Math.floor(cellPoint.y*42);/* Fixed, named locations adapted from Daggerfall's main quest; these are fictional Pelagos-01 sites, not Earth coordinates. */var questSites=[{x:21,y:21,id:'PEL-DAGGERFALL-01',name:'Daggerfall',kind:'DAGGERFALL SEAFLOOR VILLAGE',scale:1.8,description:'The permanent seafloor village of Daggerfall, built across drowned ridges. Survey its structures and chart the settlement.'},{x:22,y:20,id:'PEL-CASTLE-DAGGERFALL',name:'Castle Daggerfall',scale:1.55,description:'The drowned royal castle where the Lysandus investigation, the Totem decision, and several court intrigues converge.'},{x:5,y:7,id:'PEL-PRIVATEERS-HOLD',name:"Privateer's Hold",scale:1.35,description:'A collapsed sea-cave stronghold and wreck approach; the opening expedition begins here.'},{x:14,y:8,id:'PEL-CASTLE-WAYREST',name:'Castle Wayrest',scale:1.5,description:'A drowned royal citadel with sealed chambers, political records, and evidence tied to the Iliac succession.'},{x:33,y:12,id:'PEL-CASTLE-SENTINEL',name:'Castle Sentinel',scale:1.5,description:'A fortified reef-city ruin guarding an old shipping channel and records of a missing prince.'},{x:24,y:31,id:'PEL-SHEDUNGENT',name:'Shedungent',scale:1.3,description:'A remote mountain-root complex beneath the seabed, associated with Nulfaga and the Lysandus mystery.'},{x:8,y:28,id:'PEL-ORSINIUM',name:'Orsinium',scale:1.5,description:'A fortified undersea enclave with recovered correspondence, rare texts, and a contested political claim.'},{x:30,y:29,id:'PEL-DIRENNI-TOWER',name:'Direnni Tower',scale:1.35,description:'A towering submerged structure sealed by an ancient curse and a pressure-locked inner gate.'},{x:18,y:15,id:'PEL-LYSANDUS-TOMB',name:"Lysandus' Tomb",scale:1.4,description:'A burial complex beneath a fractured shelf, central to the investigation into the restless king.'},{x:12,y:34,id:'PEL-CASTLE-WOODBORNE',name:'Castle Woodborne',scale:1.4,description:'A fortified wreck-site holding evidence that can expose the truth behind Lysandus’ murder.'},{x:27,y:5,id:'PEL-SCOURG-BARROW',name:'Scourg Barrow',scale:1.35,description:'A sprawling barrow and necromantic archive with branching passages and a concealed relic chamber.'},{x:35,y:23,id:'PEL-MANTELLA-REVEALED',name:'The Mantella Vault',scale:1.4,description:'A deep containment site linked to the lost Mantella and the ancient machine.'},{x:7,y:18,id:'PEL-UNDERKING-WATCH',name:'The Ancient Watcher',scale:1.2,description:'A silent observation station associated with the Underking’s agents and a conflict with necromancers.'},{x:17,y:37,id:'PEL-TOTEM-VAULT',name:'Totem Vault',scale:1.4,description:'A heavily defended royal vault containing the key to a campaign-defining choice of allegiance.'},{x:37,y:7,id:'PEL-MANTELLAN-CRUX',name:'Mantellan Crux Anomaly',scale:1.6,description:'A remote abyssal anomaly represented as a deep-sea rift; its far side is a campaign-only extraplanar destination.'},{x:3,y:24,id:'PEL-NUMIDIUM-SITE',name:'Numidium Foundry',scale:1.6,description:'A colossal machine-site buried in the ocean floor, whose activation could reshape the balance of power.'}];for(var qi=0;qi<questSites.length;qi++){var site=questSites[qi];if(ix===site.x&&iy===site.y){var evidenceIds=vigilHistoricalEvidence.filter(function(record){return record.siteId===site.id;}).map(function(record){return record.id;});return {id:site.id,name:site.name,kind:site.id==='PEL-DAGGERFALL-01'?'DAGGERFALL SEAFLOOR VILLAGE':'MAIN QUEST SITE',x:(ix+.5)/42,y:(iy+.5)/42,scale:site.scale,seed:VIGIL_WORLD_SEED,description:site.description,questLocation:true,evidenceIds:evidenceIds};}}var roll=vigilWorldHash(ix,iy,31);if(roll>.11)return null;var kinds=['VENT FIELD','BOULDER FIELD','SIMULATED WRECK SITE','SEAMOUNT','CABLE RELAY RUIN'];var k=Math.floor(vigilWorldHash(ix,iy,37)*kinds.length);return {id:'PEL-'+ix+'-'+iy+'-'+k,kind:kinds[k],x:(ix+.18+vigilWorldHash(ix,iy,41)*.64)/42,y:(iy+.18+vigilWorldHash(ix,iy,43)*.64)/42,scale:.55+vigilWorldHash(ix,iy,47)*.9,seed:VIGIL_WORLD_SEED};};
   function renderBathymetry(data){
     var canvas=document.getElementById('sim-bathymetry-map');if(!canvas)return;
-    var ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height,nx=90,ny=43,values=[];
-    function depthAt(x,y){var world=vigilWorldAt(x,y);return world.isLand?-0.12:world.depthNorm;}
-    var viewW=1/mapCamera.zoom,viewH=1/mapCamera.zoom,x0=mapCamera.x-viewW/2,y0=mapCamera.y-viewH/2;
-    function sampleMapPoint(gx,gy){
-      if(mapCamera.zoom<=1)return window.vigilNormalizePlanetPoint(x0+gx/nx*viewW,y0+gy/ny*viewH);
-      var east=(gx/nx-.5)*viewW,south=(gy/ny-.5)*viewH,distance=Math.hypot(east,south),bearing=Math.atan2(east,-south)*180/Math.PI;
-      return window.vigilAdvancePlanetPoint(mapCamera.x,mapCamera.y,bearing,distance);
-    }
+    var ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
+    var cx=w*.5,cy=h*.51,r=Math.min(w*.43,h*.445),center=window.vigilPlanetVector(mapCamera.x,mapCamera.y);
+    var east={x:Math.cos(center.lon),y:0,z:-Math.sin(center.lon)};
+    var north={x:-Math.sin(center.lat)*Math.sin(center.lon),y:Math.cos(center.lat),z:-Math.sin(center.lat)*Math.cos(center.lon)};
+    var colors=['#a8c98b','#78ad68','#477d50','#285b43','#173d32'];
+    function colorFor(v){return v<0?'#a9b77e':colors[v<.16?0:v<.34?1:v<.56?2:v<.76?3:4];}
     function projectMapPoint(x,y){
-      var p=window.vigilNormalizePlanetPoint(x,y);
-      if(mapCamera.zoom<=1)return {x:(p.x-x0)/viewW*w,y:(p.y-y0)/viewH*h};
-      var relative=window.vigilGetPlanetRangeBearing(mapCamera.x,mapCamera.y,p.x,p.y);
-      return {x:w*.5+relative.east/viewW*w,y:h*.5-relative.north/viewH*h};
+      var v=vigilPlanetVector(x,y),depth=v.x*center.x+v.y*center.y+v.z*center.z;
+      if(depth<0)return {visible:false};
+      return {visible:true,x:cx+r*(v.x*east.x+v.y*east.y+v.z*east.z),y:cy-r*(v.x*north.x+v.y*north.y+v.z*north.z),depth:depth};
     }
-    for(var gy=0;gy<=ny;gy++){values[gy]=[];for(var gx=0;gx<=nx;gx++){var sample=sampleMapPoint(gx,gy);values[gy][gx]=depthAt(sample.x,sample.y);}}
-    var colors=['#b5d8a4','#79b77b','#438c68','#28684f','#143d35'];
-    function colorFor(v){return v<0?'#9aab78':colors[v<.16?0:v<.34?1:v<.56?2:v<.76?3:4];}
-    ctx.fillStyle='#06131b';ctx.fillRect(0,0,w,h);
-    for(var y=0;y<ny;y++)for(var x=0;x<nx;x++){var v=(values[y][x]+values[y][x+1]+values[y+1][x]+values[y+1][x+1])/4;ctx.fillStyle=colorFor(v);ctx.fillRect(x*w/nx,y*h/ny,Math.ceil(w/nx)+1,Math.ceil(h/ny)+1);}
-    var levels=[.16,.34,.56,.76];
-    levels.forEach(function(level,li){
-      ctx.beginPath();ctx.strokeStyle=li%2?'rgba(191,235,239,.55)':'rgba(224,245,238,.7)';ctx.lineWidth=li===1?1.5:1;
-      for(var y=0;y<ny;y++)for(var x=0;x<nx;x++){
-        var v=[values[y][x],values[y][x+1],values[y+1][x+1],values[y+1][x]],pts=[];
-        var edges=[[0,1],[1,2],[2,3],[3,0]];
-        edges.forEach(function(e){var a=v[e[0]],b=v[e[1]];if((a<level&&b>=level)||(a>=level&&b<level)){var t=(level-a)/(b-a),corners=[[x*w/nx,y*h/ny],[(x+1)*w/nx,y*h/ny],[(x+1)*w/nx,(y+1)*h/ny],[x*w/nx,(y+1)*h/ny]];pts.push([corners[e[0]][0]+(corners[e[1]][0]-corners[e[0]][0])*t,corners[e[0]][1]+(corners[e[1]][1]-corners[e[0]][1])*t]);}});
-        if(pts.length>=2){ctx.moveTo(pts[0][0],pts[0][1]);ctx.lineTo(pts[1][0],pts[1][1]);if(pts.length===4){ctx.moveTo(pts[2][0],pts[2][1]);ctx.lineTo(pts[3][0],pts[3][1]);}}
+    ctx.clearRect(0,0,w,h);ctx.fillStyle='#020b08';ctx.fillRect(0,0,w,h);
+    // Planetary limb and atmospheric edge.
+    ctx.save();ctx.shadowColor='rgba(94,255,175,.55)';ctx.shadowBlur=25;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle='#092218';ctx.fill();ctx.restore();
+    ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();
+    // Orthographic globe sampling: every sample is a real point on the same stitched spherical world used by navigation.
+    var grid=124;
+    for(var gy=0;gy<grid;gy++)for(var gx=0;gx<grid;gx++){
+      var sx=(gx+.5)/grid*2-1,sy=(gy+.5)/grid*2-1,rr=sx*sx+sy*sy;if(rr>1)continue;
+      var z=Math.sqrt(1-rr);
+      var vx=center.x*z+east.x*sx+north.x*sy;
+      var vy=center.y*z+east.y*sx+north.y*sy;
+      var vz=center.z*z+east.z*sx+north.z*sy;
+      var lat=Math.asin(Math.max(-1,Math.min(1,vy))),lon=Math.atan2(vx,vz);
+      var p=normalizeVigilPlanetPoint(lon/(Math.PI*2)+.5,.5-lat/Math.PI);
+      var terrain=vigilWorldAt(p.x,p.y),light=.48+.52*Math.max(0,(vx*-.35+vy*.72+vz*.6));
+      var rgb=colorFor(terrain.isLand?-.12:terrain.depthNorm);
+      ctx.globalAlpha=light;ctx.fillStyle=rgb;
+      var px=cx+(gx/grid*2-1)*r,py=cy+(gy/grid*2-1)*r,cell=2*r/grid+1;
+      ctx.fillRect(px,py,cell,cell);
+    }
+    ctx.globalAlpha=1;
+    // Planetary graticule, clipped to the visible hemisphere.
+    ctx.strokeStyle='rgba(174,245,191,.28)';ctx.lineWidth=1;
+    for(var latDeg=-60;latDeg<=60;latDeg+=30){
+      ctx.beginPath();var begun=false;
+      for(var lonDeg=-180;lonDeg<=180;lonDeg+=3){
+        var latR=latDeg*Math.PI/180,lonR=lonDeg*Math.PI/180;
+        var gxv=Math.cos(latR)*Math.sin(lonR),gyv=Math.sin(latR),gzv=Math.cos(latR)*Math.cos(lonR);
+        var dot=gxv*center.x+gyv*center.y+gzv*center.z;
+        if(dot<=0){begun=false;continue;}
+        var qx=cx+r*(gxv*east.x+gyv*east.y+gzv*east.z),qy=cy-r*(gxv*north.x+gyv*north.y+gzv*north.z);
+        if(!begun){ctx.moveTo(qx,qy);begun=true;}else ctx.lineTo(qx,qy);
       }ctx.stroke();
-    });
-    ctx.strokeStyle='rgba(183,235,180,.22)';ctx.lineWidth=1;
-    for(var gx=0;gx<=6;gx++){var xx=gx*w/6;ctx.beginPath();ctx.moveTo(xx,0);ctx.lineTo(xx,h);ctx.stroke();ctx.fillStyle='#c7efbd';ctx.font='12px monospace';ctx.fillText(String.fromCharCode(65+gx),xx+5,16);}
-    for(var gy=0;gy<=4;gy++){var yy=gy*h/4;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke();ctx.fillStyle='#b6dce4';ctx.font='12px monospace';ctx.fillText(''+(gy+1),5,yy+14);}
-    ctx.fillStyle='rgba(4,22,14,.82)';ctx.fillRect(w-180,h-48,170,38);ctx.fillStyle='#e4f6d7';ctx.font='12px monospace';ctx.fillText('PELAGOS // NOT TO SCALE',w-170,h-32);ctx.fillStyle='#a9d99b';ctx.fillText('FICTIONAL SEEDED WORLD',w-170,h-16);
-    ctx.fillStyle='rgba(4,22,14,.88)';ctx.fillRect(10,h-62,420,52);ctx.fillStyle='#7df9ff';ctx.font='bold 11px monospace';ctx.fillText('DOUBLE RING + CYAN VECTOR = OWN SHIP / DAEDALUS',18,h-46);ctx.fillStyle='#42d9e8';ctx.font='11px monospace';ctx.fillText('DASH = ORDERED HEADING',18,h-30);ctx.fillStyle='#ffd479';ctx.fillText('ARROW = ACTUAL MOTION',205,h-30);ctx.fillStyle='#d4f6a8';ctx.fillText('FRIENDLY UNITS   //   AMBER = CONTACTS',18,h-14);
+    }
+    for(var lonLine=-180;lonLine<180;lonLine+=30){
+      ctx.beginPath();var started=false;
+      for(var latLine=-90;latLine<=90;latLine+=2){
+        var la=latLine*Math.PI/180,lo=lonLine*Math.PI/180,xx=Math.cos(la)*Math.sin(lo),yy=Math.sin(la),zz=Math.cos(la)*Math.cos(lo);
+        if(xx*center.x+yy*center.y+zz*center.z<=0){started=false;continue;}
+        var qxx=cx+r*(xx*east.x+yy*east.y+zz*east.z),qyy=cy-r*(xx*north.x+yy*north.y+zz*north.z);
+        if(!started){ctx.moveTo(qxx,qyy);started=true;}else ctx.lineTo(qxx,qyy);
+      }ctx.stroke();
+    }
+    // Orbital planetary-surveillance sweep, shown as a translucent moving radial sector.
+    var sweepAngle=(performance.now()/9500)%(Math.PI*2),sweepGrad=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    sweepGrad.addColorStop(0,'rgba(83,255,174,.04)');sweepGrad.addColorStop(1,'rgba(83,255,174,.19)');
+    ctx.fillStyle=sweepGrad;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,sweepAngle-.16,sweepAngle+.16);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(111,255,184,.8)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(sweepAngle)*r,cy+Math.sin(sweepAngle)*r);ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle='#7df9b4';ctx.lineWidth=3;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
+    // Surface contacts and friendly assets are plotted only when they lie on the visible hemisphere.
     var objects=data&&Array.isArray(data.objects)?data.objects:[];
-    objects.forEach(function(o,i){var p=o.normalized_position||[];if(p.length<2)return;var projected=projectMapPoint(Number(p[0]),Number(p[1])),px=projected.x,py=projected.y;if(px<0||px>w||py<0||py>h)return;ctx.strokeStyle=o.conflict?'#ffca7a':'#f5f6ce';ctx.fillStyle=o.conflict?'#ffca7a':'#f5f6ce';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px,py-7);ctx.lineTo(px+7,py);ctx.lineTo(px,py+7);ctx.lineTo(px-7,py);ctx.closePath();ctx.stroke();ctx.fillText('E'+String(i+1).padStart(2,'0'),px+10,py-8);});
-    // Shared-state vessel and unit symbology. Hulls are illustrative envelopes,
-    // not verified blueprint silhouettes; minimum sizes keep small units legible.
+    objects.forEach(function(o,i){var p=o.normalized_position||[];if(p.length<2)return;var q=projectMapPoint(Number(p[0]),Number(p[1]));if(!q.visible)return;ctx.strokeStyle=o.conflict?'#ffca7a':'#f5f6ce';ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=2;ctx.beginPath();ctx.arc(q.x,q.y,5,0,Math.PI*2);ctx.stroke();ctx.fillText('E'+String(i+1).padStart(2,'0'),q.x+7,q.y-7);});
     regionalTrainingFleet.forEach(function(ship){
-      var projected=projectMapPoint(ship.x,ship.y),px=projected.x,py=projected.y;
-      if(px< -240||px>w+240||py< -100||py>h+100)return;
-      var pxPerMeter=(10/18)*mapCamera.zoom;
-      var lengthPx=ship.lengthM>0?Math.max(12,ship.lengthM*pxPerMeter):0;
-      var beamPx=ship.beamM>0?Math.max(5,ship.beamM*pxPerMeter):0;
-      var actualHeading=((Number(ship.heading)||0)%360+360)%360;
-      var commandedHeading=((Number(ship.desiredHeading==null?ship.heading:ship.desiredHeading)%360)+360)%360;
-      var actualRad=actualHeading*Math.PI/180,commandRad=commandedHeading*Math.PI/180;
-      var isFriendly=ship.side==='friendly';
-      var isOwnShip=ship.id==='DAEDALUS-01';
-      var hullStroke=isOwnShip?'#7df9ff':(isFriendly?'#d4f6a8':'#ffcc86');
-      var hullFill=isOwnShip?'rgba(5,54,67,.96)':(isFriendly?'rgba(11,43,24,.88)':'rgba(65,37,15,.88)');
-      // Only friendly units under direct helm show a commanded-course guide.
-      if(isFriendly&&ship.shipClass!=='facility'&&ship.formationActive!==true){
-        var guideLen=Math.max(24,Math.min(78,Math.max(lengthPx,16)*.72));
-        var gx=px+Math.sin(commandRad)*guideLen,gy=py-Math.cos(commandRad)*guideLen;
-        ctx.save();ctx.setLineDash([5,4]);ctx.strokeStyle='#42d9e8';ctx.lineWidth=1.5;
-        ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(gx,gy);ctx.stroke();ctx.setLineDash([]);
-        ctx.beginPath();ctx.arc(gx,gy,2.5,0,Math.PI*2);ctx.stroke();ctx.restore();
-      }
-      // Assigned support units show their parent-relative station on the same map.
-      if(isFriendly&&ship.formationActive===true&&ship.formationTarget){
-        var ftx=((ship.formationTarget.x-x0)/viewW)*w,fty=((ship.formationTarget.y-y0)/viewH)*h;
-        ctx.save();ctx.setLineDash([3,5]);ctx.strokeStyle='#82f6c4';ctx.lineWidth=1.4;
-        ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(ftx,fty);ctx.stroke();ctx.setLineDash([]);
-        ctx.beginPath();ctx.arc(ftx,fty,6,0,Math.PI*2);ctx.moveTo(ftx-9,fty);ctx.lineTo(ftx+9,fty);
-        ctx.moveTo(ftx,fty-9);ctx.lineTo(ftx,fty+9);ctx.stroke();ctx.restore();
-      }
-      // Heading is clockwise from north, so 0° points up and 90° points right.
-      ctx.save();ctx.translate(px,py);ctx.rotate((actualHeading-90)*Math.PI/180);
-      ctx.fillStyle=hullFill;ctx.strokeStyle=hullStroke;ctx.lineWidth=1.8;
-      if(isOwnShip){
-        // Daedalus is the ownship/reference platform, never an ordinary radar contact.
-        // The double ring and heading vector make the sensor origin unambiguous.
-        ctx.beginPath();ctx.arc(0,0,Math.max(17,Math.min(25,lengthPx*.24)),0,Math.PI*2);ctx.stroke();
-        ctx.beginPath();ctx.arc(0,0,Math.max(11,Math.min(17,lengthPx*.16)),0,Math.PI*2);ctx.stroke();
-        ctx.beginPath();ctx.moveTo(-30,0);ctx.lineTo(-19,0);ctx.moveTo(19,0);ctx.lineTo(30,0);ctx.moveTo(0,-30);ctx.lineTo(0,-19);ctx.moveTo(0,19);ctx.lineTo(0,30);ctx.stroke();
-        ctx.beginPath();ctx.moveTo(lengthPx/2,0);ctx.lineTo(lengthPx*.24,-beamPx/2);ctx.lineTo(-lengthPx/2,-beamPx/2);ctx.lineTo(-lengthPx/2,beamPx/2);ctx.lineTo(lengthPx*.24,beamPx/2);ctx.closePath();ctx.fill();ctx.stroke();
-        ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-Math.max(34,lengthPx*.42));ctx.strokeStyle='#7df9ff';ctx.lineWidth=2.5;ctx.stroke();
-      }else if(ship.shipClass==='facility'){
-        ctx.beginPath();ctx.rect(-7,-7,14,14);ctx.fill();ctx.stroke();
-        ctx.beginPath();ctx.moveTo(-10,0);ctx.lineTo(10,0);ctx.moveTo(0,-10);ctx.lineTo(0,10);ctx.stroke();
-      }else if(ship.shipClass==='drone'||ship.shipClass==='submersible'||ship.shipClass==='mech'){
-        ctx.beginPath();ctx.moveTo(lengthPx/2,0);ctx.lineTo(0,-beamPx/2);ctx.lineTo(-lengthPx/2,0);ctx.lineTo(0,beamPx/2);ctx.closePath();ctx.fill();ctx.stroke();
-        ctx.beginPath();ctx.moveTo(-lengthPx*.22,0);ctx.lineTo(lengthPx*.22,0);ctx.strokeStyle='rgba(212,246,168,.72)';ctx.stroke();
-      }else{
-        ctx.beginPath();ctx.moveTo(lengthPx/2,0);ctx.lineTo(lengthPx*.24,-beamPx/2);ctx.lineTo(-lengthPx/2,-beamPx/2);ctx.lineTo(-lengthPx/2,beamPx/2);ctx.lineTo(lengthPx*.24,beamPx/2);ctx.closePath();ctx.fill();ctx.stroke();
-        ctx.beginPath();ctx.moveTo(-lengthPx*.36,0);ctx.lineTo(lengthPx*.34,0);ctx.strokeStyle='rgba(212,246,168,.7)';ctx.lineWidth=1;ctx.stroke();
-      }
-      ctx.restore();
-      // Motion arrow length reflects actual speed relative to maximum speed.
-      var maxSpeed=Math.max(0,Number(ship.maxSpeed)||0),actualSpeed=Math.max(0,Number(ship.speed)||0);
-      var targetSpeed=Math.max(0,Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed)||0);
-      var displayTargetSpeed=ship.formationActive===true&&Number.isFinite(Number(ship.formationTargetSpeed))?Number(ship.formationTargetSpeed):targetSpeed;
-      var speedRatio=maxSpeed>0?Math.max(0,Math.min(1,actualSpeed/maxSpeed)):0;
-      if(speedRatio>.005){
-        var arrowLen=8+speedRatio*24;
-        var sideOffset=Math.max(6,Math.min(14,beamPx/2+4));
-        var sideX=Math.cos(actualRad),sideY=Math.sin(actualRad);
-        var dirX=Math.sin(actualRad),dirY=-Math.cos(actualRad);
-        var bx=px+sideX*sideOffset,by=py+sideY*sideOffset;
-        var ex=bx+dirX*arrowLen,ey=by+dirY*arrowLen;
-        ctx.strokeStyle=isFriendly?'#ffd479':'#ff9d78';ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=2;
-        ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(ex,ey);ctx.stroke();
-        ctx.beginPath();ctx.moveTo(ex,ey);ctx.lineTo(ex-dirX*6+sideX*3,ey-dirY*6+sideY*3);
-        ctx.lineTo(ex-dirX*6-sideX*3,ey-dirY*6-sideY*3);ctx.closePath();ctx.fill();
-      }
-      ctx.fillStyle=isOwnShip?'#7df9ff':(isFriendly?'#edffd8':'#ffe0b5');ctx.font='bold 12px monospace';ctx.fillText(isOwnShip?'OWN SHIP // DAEDALUS':ship.id,px+8,py-10);
-      if(ship.shipClass!=='facility'){
-        ctx.fillStyle=isFriendly?'#a6ddcf':'#ffc49a';ctx.font='10px monospace';
-        ctx.fillText('SPD '+actualSpeed.toFixed(3)+'→'+displayTargetSpeed.toFixed(3),px+8,py+3);
-        if(ship.formationActive===true){
-          var formationDistance=Math.max(0,Number(ship.formationDistance)||0);
-          ctx.fillStyle='#82f6c4';ctx.font='bold 10px monospace';
-          ctx.fillText(formationDistance<.008?'STATION':'FORM '+formationDistance.toFixed(3),px+8,py+15);
-        }else if(ship.stationKeepingEnabled===true&&ship.parentId){
-          ctx.fillStyle='#ffb36b';ctx.font='bold 10px monospace';ctx.fillText('PARENT N/A',px+8,py+15);
-        }
-        if(ship.avoidanceActive===true){ctx.fillStyle='#ffb36b';ctx.font='bold 10px monospace';ctx.fillText('AVOID',px+8,py+27);}
-      }
+      if(ship.id==='DAEDALUS-01')return; // Daedalus is in orbit, not on the planetary surface.
+      var q=projectMapPoint(ship.x,ship.y);if(!q.visible)return;
+      var friendly=ship.side==='friendly',col=friendly?'#d4f6a8':'#ffbd79';
+      ctx.save();ctx.translate(q.x,q.y);ctx.rotate((Number(ship.heading||0)-90)*Math.PI/180);
+      ctx.fillStyle=friendly?'rgba(8,42,23,.95)':'rgba(65,37,15,.95)';ctx.strokeStyle=col;ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(-7,-5);ctx.lineTo(-5,0);ctx.lineTo(-7,5);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+      ctx.fillStyle=col;ctx.font='bold 11px monospace';ctx.fillText(ship.id,q.x+10,q.y-9);
     });
-
+    // Ownship is an orbital platform; show its orbital status outside the surface plot.
+    ctx.fillStyle='rgba(2,17,12,.9)';ctx.fillRect(14,14,285,58);
+    ctx.strokeStyle='#7df9ff';ctx.strokeRect(14,14,285,58);
+    ctx.fillStyle='#7df9ff';ctx.font='bold 13px monospace';ctx.fillText('ORBITAL OWN SHIP // DAEDALUS-01',24,34);
+    ctx.fillStyle='#d4f6a8';ctx.font='11px monospace';ctx.fillText('ALT 420 km  //  ORBITAL VELOCITY 7.66 km/s',24,52);
+    ctx.fillStyle='#b8e9c8';ctx.fillText('PLANETARY SURVEILLANCE RADAR',24,66);
+    ctx.fillStyle='rgba(2,17,12,.9)';ctx.fillRect(w-224,h-34,210,22);
+    ctx.fillStyle='#b8e9c8';ctx.font='11px monospace';ctx.fillText('PELAGOS-01 // ORTHOGRAPHIC GLOBE',w-216,h-19);
   }
   var mapCamera={x:.5,y:.5,zoom:1},mapDrag=null;
   function clampMapCamera(){
