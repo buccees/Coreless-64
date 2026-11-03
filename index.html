@@ -3253,6 +3253,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     if(!String(worldName||'').trim()||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(heading)||x<0||x>1||y<0||y>1)return {ok:false,reason:'World name and valid normalized spawn coordinates (0–1) are required.'};
     var worldId=String(worldName).trim().toUpperCase().replace(/[^A-Z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,32);
     if(!worldId)return {ok:false,reason:'World name is invalid.'};
+    var occupied=Object.keys(vigilFactionWorlds).find(function(otherId){return otherId!==id&&vigilFactionWorlds[otherId].worldId===worldId;});
+    if(occupied)return {ok:false,reason:'Each faction must have a different world. '+worldId+' is already assigned to '+occupied+'.'};
     vigilFactionWorlds[id]={name:current.name,worldId:worldId,worldName:String(worldName).trim().toUpperCase(),spawn:{x:x,y:y,heading:((heading%360)+360)%360}};
     try{localStorage.setItem('vigil-faction-world-deployments-v1',JSON.stringify(vigilFactionWorlds));}catch(e){return {ok:false,reason:'Deployment could not be saved in this browser.'};}
     regionalTrainingFleet.forEach(function(unit){
