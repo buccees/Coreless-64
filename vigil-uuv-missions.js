@@ -78,7 +78,7 @@ function boot(){
   collect.textContent=p.item&&p.item.status==='LOST'?'RECOVER LOST ARCHIVE':'RECOVER ARCHIVE';
   board.querySelector('#v3-mission-course').disabled=!u||p.near||!Number.isFinite(p.distance);
   board.querySelector('#v3-mission-hold').disabled=!u||Math.abs(Number(u.target_speed==null?u.speed:u.target_speed)||0)<.00001;
-  board.querySelector('#v3-mission-restart').textContent=saved.completed[m.id]?'REPLAY / RESET OBJECTIVE':'RESET MISSION TIMER';
+  var restart=board.querySelector('#v3-mission-restart');restart.disabled=!!saved.completed[m.id]&&m.kind!=='rift';restart.textContent=saved.completed[m.id]?(m.kind==='rift'?'RUN ANOTHER TRANSECT':'UNIQUE RECOVERY COMPLETE'):'RESET MISSION TIMER';
   board.querySelector('#v3-mission-serial').textContent='UUV-01 // '+(u?'LOCAL SIMULATION':'UNIT UNAVAILABLE');
  }
  select.addEventListener('change',function(){activeId=this.value;if(!Number.isFinite(Number(saved.baseline[activeId])))saved.baseline[activeId]=Number(getSurvey().sweepCount)||0;persist();render();});
@@ -104,7 +104,7 @@ function boot(){
   board.querySelector('#v3-mission-status').textContent=result&&result.ok?'ARCHIVE SECURED // UNIQUE ITEM PLACED IN UUV-01 LOCKED CONTAINER':'RECOVERY DENIED // '+String(result&&result.reason||'ARTIFACT SYSTEM UNAVAILABLE');render();
  });
  board.querySelector('#v3-mission-restart').addEventListener('click',function(){
-  var m=currentMission();saved.baseline[m.id]=Number(getSurvey().sweepCount)||0;delete saved.completed[m.id];persist();render();
+  var m=currentMission();if(saved.completed[m.id]&&m.kind!=='rift'){board.querySelector('#v3-mission-status').textContent='UNIQUE RECOVERY ALREADY VERIFIED // THIS PHYSICAL ARCHIVE CANNOT BE DUPLICATED';return;}saved.baseline[m.id]=Number(getSurvey().sweepCount)||0;delete saved.completed[m.id];persist();render();
   board.querySelector('#v3-mission-status').textContent='MISSION REINITIALIZED // WORLD SURVEY AND UNIQUE ARTIFACTS WERE NOT RESET';
  });
  view.querySelector('#v3-scan').addEventListener('click',function(){window.setTimeout(render,0);});
