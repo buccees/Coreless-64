@@ -1182,6 +1182,20 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     <div id="sim-globe-feed-counts">INITIALIZING WORLD / SENSOR INPUTS</div>
     <div id="sim-globe-feed-source" style="grid-column:1/-1;color:#77dca8">INPUT: PELAGOS-01 WORLD ENGINE // WAITING FOR DAEDALUS SENSOR FEEDS</div>
   </div>
+  <section id="vigil-faction-deployment" style="margin:10px 0;padding:12px;border:1px solid #47734a;background:#04110b;color:#b8edc9;font:11px/1.5 monospace">
+    <strong style="letter-spacing:.12em">FACTION THEATERS // PLANETARY DEPLOYMENT</strong>
+    <p style="margin:5px 0 10px;color:#8eb99c">Each faction has a separate spherical homeworld and an independently configurable surface spawn. Coordinates are normalized longitude / latitude; heading is degrees clockwise from north. Settings persist in this browser.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">
+      <label>FACTION<select id="vigil-faction-select" style="display:block;width:100%;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px"><option value="WYCF">WEYLAND-YUTANI</option><option value="PRO">PRODIGY</option><option value="LYN">LYNCH</option><option value="DYN">DYNAMIC</option><option value="THR">THRESHOLD</option></select></label>
+      <label>HOMEWORLD NAME<input id="vigil-faction-world" maxlength="32" style="display:block;width:100%;box-sizing:border-box;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px"></label>
+      <label>SPAWN LONGITUDE · 0–1<input id="vigil-faction-spawn-x" type="number" min="0" max="1" step=".001" style="display:block;width:100%;box-sizing:border-box;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px"></label>
+      <label>SPAWN LATITUDE · 0–1<input id="vigil-faction-spawn-y" type="number" min="0" max="1" step=".001" style="display:block;width:100%;box-sizing:border-box;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px"></label>
+      <label>INITIAL HEADING · DEG<input id="vigil-faction-spawn-heading" type="number" min="0" max="359.9" step="1" style="display:block;width:100%;box-sizing:border-box;background:#020a06;color:#c5e8b4;border:1px solid #315b40;padding:7px"></label>
+      <div style="display:flex;align-items:end"><button type="button" id="vigil-faction-deploy" style="width:100%;padding:8px;background:#123b27;color:#c8f6d4;border:1px solid #4d9a68;cursor:pointer">SAVE FACTION SPAWN</button></div>
+    </div>
+    <div id="vigil-faction-deployment-status" role="status" aria-live="polite" style="margin-top:8px;color:#8fd8a6">FACTION WORLD REGISTRY READY</div>
+    <div id="vigil-faction-world-roster" style="margin-top:6px;color:#9fc9ad"></div>
+  </section>
   <div id="sim-uuv-sonar-upload" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 10px;padding:9px;border:1px solid #8b6b35;background:linear-gradient(90deg,rgba(76,48,12,.25),rgba(3,12,8,.9));color:#f4d49a;font:10px monospace">
     <strong>UUV SUBSURFACE INPUT // UPLOAD SENSOR JSON</strong>
     <button type="button" id="sim-uuv-sonar-upload-open" style="background:#171006;color:#ffd58c;border:1px solid #9b763d;padding:8px 10px;font:inherit;cursor:pointer">UPLOAD UUV SONAR FEED</button>
@@ -3212,6 +3226,46 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     {id:'FAC-01',name:'VIGIL FORWARD SENSOR FACILITY',x:.22,y:.78,lengthM:0,beamM:0,heading:0,speed:0,maxSpeed:0,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:5,maxHull:5,shipClass:'facility',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'facility'},
     {id:'CVN',name:'NIMITZ-CLASS',x:.50,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.025,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
   ];
+  // Faction homeworld and deployment registry. Each faction owns a distinct spherical world.
+  var vigilFactionWorlds={
+    WYCF:{name:'WEYLAND-YUTANI',worldId:'PELAGOS-01',worldName:'PELAGOS',spawn:{x:.50,y:.61,heading:342}},
+    PRO:{name:'PRODIGY',worldId:'THALASSA-02',worldName:'THALASSA',spawn:{x:.24,y:.42,heading:90}},
+    LYN:{name:'LYNCH',worldId:'KHEPRI-03',worldName:'KHEPRI',spawn:{x:.72,y:.33,heading:180}},
+    DYN:{name:'DYNAMIC',worldId:'VESTA-04',worldName:'VESTA',spawn:{x:.38,y:.76,heading:270}},
+    THR:{name:'THRESHOLD',worldId:'NACRE-05',worldName:'NACRE',spawn:{x:.63,y:.55,heading:45}}
+  };
+  try{
+    var savedFactionWorlds=JSON.parse(localStorage.getItem('vigil-faction-world-deployments-v1')||'null');
+    if(savedFactionWorlds&&typeof savedFactionWorlds==='object'){
+      Object.keys(vigilFactionWorlds).forEach(function(id){
+        var saved=savedFactionWorlds[id];
+        if(saved&&saved.worldId&&saved.worldName&&saved.spawn&&Number.isFinite(Number(saved.spawn.x))&&Number.isFinite(Number(saved.spawn.y))&&Number.isFinite(Number(saved.spawn.heading))){
+          vigilFactionWorlds[id]={name:vigilFactionWorlds[id].name,worldId:String(saved.worldId),worldName:String(saved.worldName),spawn:{x:Math.max(0,Math.min(1,Number(saved.spawn.x))),y:Math.max(0,Math.min(1,Number(saved.spawn.y))),heading:((Number(saved.spawn.heading)%360)+360)%360}};
+        }
+      });
+    }
+  }catch(e){}
+  window.vigilGetFactionWorldDeployments=function(){return JSON.parse(JSON.stringify(vigilFactionWorlds));};
+  window.vigilSetFactionWorldDeployment=function(factionId,worldName,x,y,heading){
+    var id=String(factionId||'').toUpperCase(),current=vigilFactionWorlds[id];
+    x=Number(x);y=Number(y);heading=Number(heading);
+    if(!current)return {ok:false,reason:'Unknown faction.'};
+    if(!String(worldName||'').trim()||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(heading)||x<0||x>1||y<0||y>1)return {ok:false,reason:'World name and valid normalized spawn coordinates (0–1) are required.'};
+    var worldId=String(worldName).trim().toUpperCase().replace(/[^A-Z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,32);
+    if(!worldId)return {ok:false,reason:'World name is invalid.'};
+    vigilFactionWorlds[id]={name:current.name,worldId:worldId,worldName:String(worldName).trim().toUpperCase(),spawn:{x:x,y:y,heading:((heading%360)+360)%360}};
+    try{localStorage.setItem('vigil-faction-world-deployments-v1',JSON.stringify(vigilFactionWorlds));}catch(e){return {ok:false,reason:'Deployment could not be saved in this browser.'};}
+    regionalTrainingFleet.forEach(function(unit){
+      if(unit&&unit.factionId===id){
+        unit.worldId=worldId;unit.x=x;unit.y=y;unit.heading=vigilFactionWorlds[id].spawn.heading;unit.desiredHeading=unit.heading;unit.navigationHeading=unit.heading;unit.speed=0;unit.targetSpeed=0;unit.navigationTargetSpeed=0;unit.stationKeepingEnabled=false;
+      }
+    });
+    if(typeof renderBathymetry==='function')renderBathymetry(lastObservationData);
+    publishVigilSharedSimulationState(performance.now(),true);
+    return {ok:true,deployment:JSON.parse(JSON.stringify(vigilFactionWorlds[id]))};
+  };
+  // The initial surface contact belongs to WYCF; VIGIL-controlled craft remain fleet assets.
+  regionalTrainingFleet.forEach(function(unit){if(unit&&unit.id==='CVN'){unit.factionId='WYCF';unit.worldId=vigilFactionWorlds.WYCF.worldId;unit.x=vigilFactionWorlds.WYCF.spawn.x;unit.y=vigilFactionWorlds.WYCF.spawn.y;unit.heading=vigilFactionWorlds.WYCF.spawn.heading;}});
   // The Daedalus is the carrier for every mobile VIGIL vehicle. Craft begin secured in its internal bays.
   var daedalusCarrier=regionalTrainingFleet.find(function(s){return s.id==='DAEDALUS-01';});
   var daedalusBayIds=['DDG-51','SSN-774','DRONE-01','UUV-01','MECH-01'];
@@ -3772,7 +3826,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   }
   function stepRegionalFleet(now){
     if(!regionalFleetLastTick)regionalFleetLastTick=now;
-    var dt=Math.min(.25,Math.max(0,(now-regionalFleetLastTick)/1000));
+    var dt=Math.min(.25,Math.max(0,(now-regionalFleetLastTick)/1000))*.12; // Deliberate planetary combat pacing: 8.3x slower maneuvering.
     regionalFleetLastTick=now;
     // Evaluate traffic and parent stations against one frame snapshot so results do not depend on array order.
     var frameShips=regionalTrainingFleet.map(function(s){return {
@@ -6481,4 +6535,23 @@ if(!boot()){var attempts=0;var retry=setInterval(function(){attempts++;if(boot()
 <script src="vigil-mothership-command.js"></script>
 <script src="daedalus-rd-integration.js?v=daedalus-rd-4"></script>
 <script src="vigil-daedalus-orbital-sensor-suite.js?v=3"></script>
+<script>
+(function(){
+'use strict';
+var root=document.getElementById('vigil-faction-deployment');if(!root)return;
+var faction=document.getElementById('vigil-faction-select'),world=document.getElementById('vigil-faction-world');
+var x=document.getElementById('vigil-faction-spawn-x'),y=document.getElementById('vigil-faction-spawn-y'),heading=document.getElementById('vigil-faction-spawn-heading');
+var status=document.getElementById('vigil-faction-deployment-status'),roster=document.getElementById('vigil-faction-world-roster');
+function read(){var all=window.vigilGetFactionWorldDeployments?window.vigilGetFactionWorldDeployments():{};var item=all[faction.value];if(!item)return;world.value=item.worldName;x.value=item.spawn.x;y.value=item.spawn.y;heading.value=item.spawn.heading;}
+function drawRoster(){var all=window.vigilGetFactionWorldDeployments?window.vigilGetFactionWorldDeployments():{};roster.textContent=Object.keys(all).map(function(id){return id+' → '+all[id].worldName+' // SPAWN '+Number(all[id].spawn.x).toFixed(3)+', '+Number(all[id].spawn.y).toFixed(3);}).join('  |  ');}
+faction.addEventListener('change',read);
+document.getElementById('vigil-faction-deploy').addEventListener('click',function(){
+ var result=window.vigilSetFactionWorldDeployment&&window.vigilSetFactionWorldDeployment(faction.value,world.value,x.value,y.value,heading.value);
+ if(!result||!result.ok){status.textContent='SAVE FAILED // '+(result&&result.reason||'Deployment API unavailable');return;}
+ status.textContent='SAVED // '+result.deployment.name+' ASSIGNED TO '+result.deployment.worldName+' // '+result.deployment.worldId+' // '+result.deployment.spawn.x.toFixed(3)+', '+result.deployment.spawn.y.toFixed(3)+' // HDG '+result.deployment.spawn.heading.toFixed(1)+'°';
+ drawRoster();
+});
+read();drawRoster();
+})();
+</script>
 </body></html>
