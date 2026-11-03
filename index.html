@@ -3826,6 +3826,34 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     vigilSharedStateLastEmit=now;
     window.dispatchEvent(new CustomEvent('vigil:simulation-state',{detail:window.vigilGetRegionalSimulationState()}));
   }
+  // Surface vessels and submersibles must remain in navigable water. Test the
+  // full great-circle leg, not just the destination, so fast frames cannot tunnel
+  // through a narrow island or coastline.
+  function vigilWaterRouteClear(x,y,heading,distance){
+    var terrainAt=window.vigilGetWorldTerrainAt;
+    if(typeof terrainAt!=='function')return true;
+    var leg=Math.max(0,Number(distance)||0),samples=Math.max(2,Math.ceil(leg/.00035));
+    for(var sample=1;sample<=samples;sample++){
+      var point=window.vigilAdvancePlanetPoint(x,y,heading,leg*sample/samples);
+      var terrain=terrainAt(point.x,point.y);
+      if(terrain&&terrain.isLand===true)return false;
+    }
+    return true;
+  }
+  function vigilWaterRouteHeading(x,y,heading,speed,targetSpeed){
+    var lookAhead=Math.max(.002,Math.min(.02,Math.max(Number(speed)||0,Number(targetSpeed)||0)*2));
+    if(vigilWaterRouteClear(x,y,heading,lookAhead))return {heading:heading,blocked:false};
+    // Search the smallest course changes first; alternating port/starboard keeps
+    // the route deterministic while finding a clear tangent around the coastline.
+    for(var offset=12;offset<=180;offset+=12){
+      var candidates=[heading+offset,heading-offset];
+      for(var i=0;i<candidates.length;i++){
+        var candidate=((candidates[i]%360)+360)%360;
+        if(vigilWaterRouteClear(x,y,candidate,lookAhead))return {heading:candidate,blocked:false};
+      }
+    }
+    return {heading:heading,blocked:true};
+  }
   function stepRegionalFleet(now){
     if(!regionalFleetLastTick)regionalFleetLastTick=now;
     var dt=Math.min(.25,Math.max(0,(now-regionalFleetLastTick)/1000)); // Advance fleet physics against elapsed real time.
@@ -3921,6 +3949,18 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         if(Math.hypot(adjustedX,adjustedY)>.001)steering=((Math.atan2(adjustedX,-adjustedY)*180/Math.PI)%360+360)%360;
       }
       ship.avoidanceActive=avoidStrength>.08;
+      // Only water-going hulls use the ocean/land collision constraint. Orbital
+      // craft, airborne drones, facilities and ground units retain their own domain.
+      var watergoing=ship.shipClass==='carrier'||ship.shipClass==='destroyer'||ship.shipClass==='submarine'||ship.shipClass==='submersible';
+      ship.navigationBlocked=false;
+      if(watergoing&&plannedSpeed>.00001){
+        var waterRoute=vigilWaterRouteHeading(ship.x,ship.y,steering,Math.max(Number(ship.speed)||0,navigationTargetSpeed),navigationTargetSpeed);
+        if(waterRoute.blocked){
+          ship.navigationBlocked=true;ship.speed=0;ship.navigationHeading=steering;
+          ship.navigationTargetSpeed=0;ship.avoidanceHeading=steering;return;
+        }
+        steering=waterRoute.heading;
+      }
       ship.avoidanceHeading=steering;
       var delta=((steering-ship.heading+540)%360)-180,maxTurn=(Number(ship.maxTurnRateDegPerSec)||0)*dt;
       if(Math.abs(delta)<=maxTurn)ship.heading=steering;else ship.heading=(ship.heading+Math.sign(delta)*maxTurn+360)%360;
@@ -3928,6 +3968,10 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       var accel=(Number(ship.accelerationPerSec)||0)*dt,difference=target-ship.speed;
       if(Math.abs(difference)<=accel)ship.speed=target;else ship.speed=Math.max(0,ship.speed+Math.sign(difference)*accel);
       var nextPlanetPoint=window.vigilAdvancePlanetPoint(ship.x,ship.y,ship.heading,ship.speed*dt);
+      if(watergoing&&!vigilWaterRouteClear(ship.x,ship.y,ship.heading,ship.speed*dt)){
+        // Last-frame guard: never commit a position that intersects generated land.
+        ship.speed=0;ship.navigationBlocked=true;return;
+      }
       ship.x=nextPlanetPoint.x;ship.y=nextPlanetPoint.y;
     });
     regionalFleetLastError='';
