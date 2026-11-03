@@ -3895,7 +3895,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     var shelf=Math.exp(-Math.pow((v.x+.72)/.22,2))*Math.exp(-Math.pow((v.y-.2)/.22,2))*.5;
     // Multiple seeded island chains are distributed over the stitched spherical surface.
     var landField=vigilPlanetNoise(point.x,point.y,4.2,17)*.58+vigilPlanetNoise(point.x,point.y,9.4,18)*.42;
-    var tamrielLand=vigilTamrielLandmass(point.x,point.y);\n    var land=tamrielLand||(landField>.69 && broad>.28 && broad<.82);
+    var tamrielLand=vigilTamrielLandmass(point.x,point.y);
+    var land=tamrielLand||(landField>.69 && broad>.28 && broad<.82);
     // PELAGOS ABYSSAL RIFT: long, curved, seeded crustal breach near the UUV operating area.
     var riftRange=vigilPlanetRangeBearing(.23,.79,point.x,point.y),riftAlong=riftRange.north,riftCross=Math.abs(riftRange.east-(.012*Math.sin(riftAlong*55)+.0035*Math.sin(riftAlong*171)));
     var riftSpan=Math.max(0,Math.min(1,(.285-Math.abs(riftAlong))/.055)),riftCore=Math.exp(-Math.pow(riftCross/.0065,2))*riftSpan,riftWall=Math.exp(-Math.pow((riftCross-.014)/.0045,2))*riftSpan;
