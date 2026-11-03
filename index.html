@@ -3224,7 +3224,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     {id:'UUV-01',name:'VIGIL UNCREWED SUBMERSIBLE',x:.22,y:.79,lengthM:4.5,beamM:1.1,heading:31,speed:.012,maxSpeed:.035,depthMeters:120,targetDepthMeters:120,maxVerticalSpeedMps:8,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:2,maxHull:2,shipClass:'submersible',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'submersible',lockedArtifactContainer:{locked:true,artifactIds:[]},parentId:'SSN-774',deploymentStatus:'deployed',bayStatus:'SUBMARINE-LAUNCHED',stationKeepingEnabled:true,stationOffsetForward:-.045,stationOffsetStarboard:-.012,stationKeepingGain:.7},
     {id:'MECH-01',name:'VIGIL GROUND MECH',x:.38,y:.42,lengthM:4.2,beamM:2.4,heading:90,speed:.008,maxSpeed:.025,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:3,maxHull:3,shipClass:'mech',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'mech'},
     {id:'FAC-01',name:'VIGIL FORWARD SENSOR FACILITY',x:.22,y:.78,lengthM:0,beamM:0,heading:0,speed:0,maxSpeed:0,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:5,maxHull:5,shipClass:'facility',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'facility'},
-    {id:'CVN',name:'NIMITZ-CLASS',x:.50,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.025,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
+    {id:'CVN',name:'NIMITZ-CLASS',x:.50,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.018,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
   ];
   // Faction homeworld and deployment registry. Each faction owns a distinct spherical world.
   var vigilFactionWorlds={
@@ -3281,7 +3281,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   });
   // Handling rates are game-tuning values, not claims about real-world classified performance.
   regionalTrainingFleet.forEach(function(ship){
-    var handling={destroyer:{turn:7,accel:.006},submarine:{turn:3.5,accel:.0025},carrier:{turn:2.2,accel:.0018},drone:{turn:24,accel:.012},submersible:{turn:5,accel:.003},mech:{turn:18,accel:.008},facility:{turn:0,accel:0},mothership:{turn:.35,accel:.0002}}[ship.unitType||ship.shipClass]||{turn:5,accel:.003};
+    var handling={destroyer:{turn:7,accel:.006},submarine:{turn:3.5,accel:.0025},carrier:{turn:2.2,accel:.00003},drone:{turn:24,accel:.012},submersible:{turn:5,accel:.003},mech:{turn:18,accel:.008},facility:{turn:0,accel:0},mothership:{turn:.35,accel:.0002}}[ship.unitType||ship.shipClass]||{turn:5,accel:.003};
     ship.maxTurnRateDegPerSec=handling.turn;ship.accelerationPerSec=handling.accel;
     ship.desiredHeading=((Number(ship.heading)||0)%360+360)%360;ship.targetSpeed=Number(ship.speed)||0;
     ship.stationKeepingEnabled=!!ship.parentId&&ship.stationKeepingEnabled!==false;
@@ -3841,7 +3841,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     return true;
   }
   function vigilWaterRouteHeading(x,y,heading,speed,targetSpeed){
-    var lookAhead=Math.max(.002,Math.min(.02,Math.max(Number(speed)||0,Number(targetSpeed)||0)*2));
+    var lookAhead=Math.max(.0001,Math.min(.02,Math.max(Number(speed)||0,Number(targetSpeed)||0)*2));
     if(vigilWaterRouteClear(x,y,heading,lookAhead))return {heading:heading,blocked:false};
     // Search the smallest course changes first; alternating port/starboard keeps
     // the route deterministic while finding a clear tangent around the coastline.
@@ -3952,9 +3952,10 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       // Only water-going hulls use the ocean/land collision constraint. Orbital
       // craft, airborne drones, facilities and ground units retain their own domain.
       var watergoing=ship.shipClass==='carrier'||ship.shipClass==='destroyer'||ship.shipClass==='submarine'||ship.shipClass==='submersible';
+      var movementDistanceScale=ship.shipClass==='carrier'?.00004:1;
       ship.navigationBlocked=false;
       if(watergoing&&plannedSpeed>.00001){
-        var waterRoute=vigilWaterRouteHeading(ship.x,ship.y,steering,Math.max(Number(ship.speed)||0,navigationTargetSpeed),navigationTargetSpeed);
+        var waterRoute=vigilWaterRouteHeading(ship.x,ship.y,steering,Math.max(Number(ship.speed)||0,navigationTargetSpeed)*movementDistanceScale,navigationTargetSpeed*movementDistanceScale);
         if(waterRoute.blocked){
           ship.navigationBlocked=true;ship.speed=0;ship.navigationHeading=steering;
           ship.navigationTargetSpeed=0;ship.avoidanceHeading=steering;return;
@@ -3967,8 +3968,9 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       var target=Math.max(0,Math.min(Number(ship.maxSpeed)||0,navigationTargetSpeed));
       var accel=(Number(ship.accelerationPerSec)||0)*dt,difference=target-ship.speed;
       if(Math.abs(difference)<=accel)ship.speed=target;else ship.speed=Math.max(0,ship.speed+Math.sign(difference)*accel);
-      var nextPlanetPoint=window.vigilAdvancePlanetPoint(ship.x,ship.y,ship.heading,ship.speed*dt);
-      if(watergoing&&!vigilWaterRouteClear(ship.x,ship.y,ship.heading,ship.speed*dt)){
+      var movementDistance=ship.speed*dt*movementDistanceScale;
+      var nextPlanetPoint=window.vigilAdvancePlanetPoint(ship.x,ship.y,ship.heading,movementDistance);
+      if(watergoing&&!vigilWaterRouteClear(ship.x,ship.y,ship.heading,movementDistance)){
         // Last-frame guard: never commit a position that intersects generated land.
         ship.speed=0;ship.navigationBlocked=true;return;
       }
@@ -4360,6 +4362,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         });
         state.tracks.forEach(function(track){
           if(!track||['thermal','infrared'].indexOf(String(track.modality||'').toLowerCase())<0)return;
+          var matchedPlatform=state.assets.find(function(ship){return ship&&String(ship.id)===String(track.id);});
+          if(matchedPlatform)return; // A sensor return for a known vessel is represented by that vessel's surface/depth marker.
           var point=vigilPlanetVector(track.position[0],track.position[1]);
           add({x:point.x*1.026,y:point.y*1.026,z:point.z*1.026},[
             'DAEDALUS SENSOR CONTACT',
@@ -4436,6 +4440,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         assetCount=overlay.length/6-assetStart;
         trackStart=overlay.length/6;
         state.tracks.forEach(function(track){
+          // If the sensor track resolves to a known platform, plot the platform once at its actual domain radius.
+          if(state.assets.some(function(ship){return ship&&String(ship.id)===String(track.id);}))return;
           var p=vigilPlanetVector(track.position[0],track.position[1]),modality=track.modality;
           var color=modality==='thermal'||modality==='infrared'?[1,.48,.22]:modality==='optical'?[.72,1,.55]:[.22,.9,1];
           vertex({x:p.x*1.026,y:p.y*1.026,z:p.z*1.026},color);
