@@ -4343,7 +4343,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
           return classes[String(ship.shipClass||'').toLowerCase()]||String(ship.shipClass||'PLATFORM').toUpperCase();
         }
         state.assets.forEach(function(ship){
-          if(!ship||ship.side==='friendly')return;
+          if(!ship)return;
           var point=vigilPlanetVector(ship.x,ship.y),depth=Number(ship.depthMeters);
           var radius=Number.isFinite(depth)&&depth>0?Math.max(.80,1.018-Math.min(30000,depth)/30000*.218):1.018;
           var faction=ship.factionId&&vigilFactionWorlds[ship.factionId];
@@ -4352,7 +4352,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
             String(ship.name||'UNIDENTIFIED PLATFORM').toUpperCase()+' '+classDescription(ship),
             'TRACK ID: '+String(ship.id)+'  //  SIDE: '+String(ship.side||'UNKNOWN').toUpperCase(),
             'AFFILIATION: '+(faction?faction.name+' ('+ship.factionId+')':String(ship.factionId||'UNASSIGNED')),
-            'OPERATING AREA: '+String(ship.worldId||'UNKNOWN WORLD')+'  //  DOMAIN: '+domain
+            'OPERATING AREA: '+String(ship.worldId||'PELAGOS-01')+'  //  DOMAIN: '+domain,
+            'STATUS: '+String(ship.deploymentStatus||ship.bayStatus||'DEPLOYED').toUpperCase()
           ];
           if(Number.isFinite(Number(ship.lengthM))&&Number(ship.lengthM)>0&&Number.isFinite(Number(ship.beamM))&&Number(ship.beamM)>0){
             lines.push('HULL: '+Number(ship.lengthM).toFixed(1)+' M LONG  //  '+Number(ship.beamM).toFixed(1)+' M BEAM');
@@ -4361,7 +4362,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
           add({x:point.x*radius,y:point.y*radius,z:point.z*radius},lines,'#ffb16f');
         });
         state.tracks.forEach(function(track){
-          if(!track||['thermal','infrared'].indexOf(String(track.modality||'').toLowerCase())<0)return;
+          if(!track||!Array.isArray(track.position)||track.position.length<2)return;
           var matchedPlatform=state.assets.find(function(ship){return ship&&String(ship.id)===String(track.id);});
           if(matchedPlatform)return; // A sensor return for a known vessel is represented by that vessel's surface/depth marker.
           var point=vigilPlanetVector(track.position[0],track.position[1]);
@@ -4369,7 +4370,9 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
             'DAEDALUS SENSOR CONTACT',
             'TRACK ID: '+String(track.id),
             'SENSOR MODALITY: '+String(track.modality||'UNKNOWN').toUpperCase(),
-            'CLASSIFICATION: NOT PROVIDED BY SENSOR FEED'
+            'CLASSIFICATION: '+String(track.classification||track.objectClass||'NOT PROVIDED BY SENSOR FEED').toUpperCase(),
+            'SOURCE SENSOR: '+String(track.sensorId||'DAEDALUS SENSOR ARRAY'),
+            'CONFIDENCE: '+(track.confidence==null?'NOT REPORTED':String(track.confidence))
           ],'#ff9a62');
         });
         labels.forEach(function(item){
@@ -4453,6 +4456,9 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         state.sonarTracks.forEach(function(hit){
           if(!Array.isArray(hit.position)||hit.position.length<2)return;
           var p=vigilPlanetVector(hit.position[0],hit.position[1]);
+          var depthLabel=hit.depthM!==null&&hit.depthM!==undefined&&Number.isFinite(Number(hit.depthM))&&Number(hit.depthM)>=0?Number(hit.depthM):null;
+          var sonarLines=['UUV SONAR RETURN','RETURN ID: '+String(hit.id||'UNIDENTIFIED'),'CLASSIFICATION: '+String(hit.classification||'UNCLASSIFIED').toUpperCase(),'SOURCE FEED: '+String(hit.feedId||'UPLOADED UUV FEED'),'DEPTH: '+(depthLabel===null?'NOT PROVIDED':depthLabel.toFixed(1)+' M')];
+          add({x:p.x*(depthLabel===null?1.034:Math.max(.80,1.018-Math.min(30000,depthLabel)/30000*.218)),y:p.y*(depthLabel===null?1.034:Math.max(.80,1.018-Math.min(30000,depthLabel)/30000*.218)),z:p.z*(depthLabel===null?1.034:Math.max(.80,1.018-Math.min(30000,depthLabel)/30000*.218))},sonarLines,'#ffc36b');
           if(hit.depthM!==null&&hit.depthM!==undefined&&Number.isFinite(Number(hit.depthM))&&Number(hit.depthM)>=0){
             var depth=Number(hit.depthM),radius=Math.max(.80,1.018-Math.min(30000,depth)/30000*.218);
             vertex({x:p.x*1.018,y:p.y*1.018,z:p.z*1.018},[1,.72,.28]);
@@ -4524,7 +4530,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       if(Number(object.depth_m)>0)return;
       var id=String(object.object_id||object.contact_id||feed.sensor_id+'-'+tracks.length);
       if(seen[id])return;seen[id]=true;
-      tracks.push({id:id,position:[Number(p[0]),Number(p[1])],modality:String(feed.modality||'radar').toLowerCase()});
+      tracks.push({id:id,position:[Number(p[0]),Number(p[1])],modality:String(feed.modality||'radar').toLowerCase(),sensorId:String(feed.sensor_id||feed.sensor_name||feed.unit_id||'DAEDALUS SENSOR ARRAY'),classification:String(object.classification||object.object_class||object.class||''),confidence:object.confidence==null?null:object.confidence});
     });});
     var assets=regionalTrainingFleet.filter(function(ship){
       // Plot every deployed friendly or contact platform on the planetary globe.
