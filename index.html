@@ -4267,7 +4267,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
           canvas._vigilContactIds=idCanvas;
         }
       }
-      var selectedContactLabelId=null,contactLabelHitBoxes=[];
+      var selectedContactLabelId=null,contactLabelHitBoxes=[],contactLabelPage=0;
       function drawContactIdLabels(center,east,north,aspect,focal,distance,width,height,dpr){
         if(!idCanvas||!idCanvas.isConnected)return;
         var rect=canvas.getBoundingClientRect(),host=idCanvas.parentElement,hostRect=host.getBoundingClientRect();
@@ -4340,9 +4340,11 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         var selected=labels.find(function(item){return item.id===selectedContactLabelId;});
         if(!selected){selected=labels[0];selectedContactLabelId=selected.id;}
         var pad=5,rowH=21,railW=Math.min(230,Math.max(150,cssW*.32)),railX=cssW-railW-pad,railY=8;
-        var railRows=Math.max(1,Math.floor((cssH-16)/rowH)),railCount=Math.min(labels.length,railRows);
+        var railRows=Math.max(3,Math.floor((cssH-16)/rowH));
         var railLabels=labels.filter(function(item){return item.id!==selected.id;});
-        var shown=railLabels.slice(0,Math.max(0,railRows-1));
+        var pageSize=Math.max(1,railRows-2),pageCount=Math.max(1,Math.ceil(railLabels.length/pageSize));
+        contactLabelPage=Math.max(0,Math.min(pageCount-1,contactLabelPage));
+        var shown=railLabels.slice(contactLabelPage*pageSize,(contactLabelPage+1)*pageSize);
         contactLabelHitBoxes=[];
         ctx.font='bold 10px Courier New,monospace';ctx.textBaseline='middle';
         function drawButton(item,x,y,w,h,isSelected){
@@ -4373,8 +4375,17 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         ctx.fillStyle='#9bd9b8';ctx.fillText('CONTACT TRACKS // SELECT ID',listX+6,listY+10);
         shown.forEach(function(item,i){drawButton(item,listX+4,listY+18+i*rowH,listW-8,rowH-2,false);});
         drawButton(selected,detailX+detailW-100,detailY+2,94,18,true);
-        if(labels.length>shown.length+1){
-          ctx.fillStyle='#9bd9b8';ctx.fillText('+'+(labels.length-shown.length-1)+' MORE CONTACTS',listX+6,Math.min(cssH-8,listY+shown.length*rowH+25));
+        if(pageCount>1){
+          var pagerY=Math.min(cssH-rowH-4,listY+18+shown.length*rowH+2),pagerW=(listW-12)/2;
+          ctx.fillStyle='#00100b';ctx.strokeStyle='#6ba98a';
+          ctx.fillRect(listX+4,pagerY,pagerW,rowH-2);ctx.strokeRect(listX+4,pagerY,pagerW,rowH-2);
+          ctx.fillRect(listX+8+pagerW,pagerY,pagerW,rowH-2);ctx.strokeRect(listX+8+pagerW,pagerY,pagerW,rowH-2);
+          ctx.fillStyle='#b9f3d2';
+          ctx.fillText('‹ PREV',listX+10,pagerY+(rowH-2)/2);
+          ctx.fillText('NEXT ›',listX+14+pagerW,pagerY+(rowH-2)/2);
+          contactLabelHitBoxes.push({id:'__prev',x:listX+4,y:pagerY,w:pagerW,h:rowH-2});
+          contactLabelHitBoxes.push({id:'__next',x:listX+8+pagerW,y:pagerY,w:pagerW,h:rowH-2});
+          ctx.fillStyle='#9bd9b8';ctx.fillText('PAGE '+(contactLabelPage+1)+' / '+pageCount,listX+6,Math.max(listY+10,pagerY-5));
         }
         // Clicking a listed ID changes the detail pane; the globe remains draggable elsewhere.
         if(!host._vigilContactPicker){
@@ -4383,7 +4394,9 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
             var box=canvas.getBoundingClientRect(),px=event.clientX-box.left,py=event.clientY-box.top;
             var hit=contactLabelHitBoxes.slice().reverse().find(function(h){return px>=h.x&&px<=h.x+h.w&&py>=h.y&&py<=h.y+h.h;});
             if(!hit)return;
-            selectedContactLabelId=hit.id;
+            if(hit.id==='__prev')contactLabelPage=Math.max(0,contactLabelPage-1);
+            else if(hit.id==='__next')contactLabelPage++;
+            else selectedContactLabelId=hit.id;
             event.preventDefault();event.stopPropagation();
             if(event.stopImmediatePropagation)event.stopImmediatePropagation();
           };
