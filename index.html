@@ -3193,8 +3193,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       maxTurnRateDegPerSec:Math.max(8,Number(config.turn_rate)||55),accelerationPerSec:Math.max(.001,Number(config.acceleration)||.012),
       weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:Math.max(1,Number(config.hull)||3),maxHull:Math.max(1,Number(config.hull)||3),
       shipClass:'mech',unitType:'mech',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL HOUND HANGER // '+String(config.name||id),
-      deploymentStatus:'deployed',bayStatus:'LAND DEPLOYED',hangerBuildId:String(config.build_id||id),corporation:'WYCF',
-      mechRole:String(config.role||'SOLDIER'),mechParts:config.parts||{},mechMounts:config.mounts||{},mechFootprint:config.footprint||{}};
+      deploymentStatus:config.deployed===false?'hanger':'deployed',bayStatus:config.deployed===false?'IN HANGER':'LAND DEPLOYED',hangerBuildId:String(config.build_id||id),corporation:'WYCF',
+      afloat:config.deployed!==false,mechRole:String(config.role||'SOLDIER'),mechParts:config.parts||{},mechMounts:config.mounts||{},mechFootprint:config.footprint||{}};
     if(unit){Object.assign(unit,record);}else{regionalTrainingFleet.push(record);}
     vigilMechFleetRegistry[id]=record;
     if(typeof publishVigilSharedSimulationState==='function')publishVigilSharedSimulationState(performance.now(),true);
@@ -3204,7 +3204,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     var key=String(id||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===key&&s.shipClass==='mech'&&s.side==='friendly';});
     if(!unit)return {ok:false,reason:'Mech entity not registered.'};
     config=config||{};var f=config.footprint||unit.mechFootprint||{};
-    if(config.name!==undefined)unit.name=String(config.name);
+    if(config.name!==undefined)unit.name=String(config.name);if(config.deployed!==undefined){unit.afloat=config.deployed===true;unit.deploymentStatus=unit.afloat?'deployed':'hanger';unit.bayStatus=unit.afloat?'LAND DEPLOYED':'IN HANGER';if(!unit.afloat){unit.speed=0;unit.targetSpeed=0;}}
     if(config.role!==undefined)unit.mechRole=String(config.role);
     if(config.max_speed!==undefined)unit.maxSpeed=Math.max(.001,Number(config.max_speed)||.001);
     if(config.turn_rate!==undefined)unit.maxTurnRateDegPerSec=Math.max(8,Number(config.turn_rate)||8);
@@ -3214,6 +3214,25 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     unit.source='VIGIL HOUND HANGER // '+unit.name;
     if(typeof publishVigilSharedSimulationState==='function')publishVigilSharedSimulationState(performance.now(),true);
     return {ok:true,unit_id:key,footprint3d:unit.footprint3d};
+  };
+  window.vigilDeployMechUnit=function(id){
+    var key=String(id||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===key&&s.shipClass==='mech'&&s.side==='friendly';});
+    if(!unit)return {ok:false,reason:'Mech entity not registered.'};if(unit.afloat!==false)return {ok:false,reason:'This HOUND is already deployed.'};
+    var origin={x:.38,y:.42},spawn=null;
+    if(typeof terrainAt==='function'&&window.vigilAdvancePlanetPoint){
+      for(var radius=.002;radius<=.12&&!spawn;radius+=.002){for(var bearing=0;bearing<360;bearing+=15){var p=window.vigilAdvancePlanetPoint(origin.x,origin.y,bearing,radius),t=terrainAt(p.x,p.y);if(t&&t.isLand===true){spawn=p;break;}}}
+    }
+    if(!spawn)return {ok:false,reason:'NO VERIFIED LAND DEPLOYMENT ZONE FOUND. Select a land location before deploying this HOUND.'};
+    unit.x=spawn.x;unit.y=spawn.y;unit.heading=90;unit.desiredHeading=90;unit.speed=0;unit.targetSpeed=0;unit.afloat=true;unit.deploymentStatus='deployed';unit.bayStatus='LAND DEPLOYED';unit.launchTimestamp=new Date().toISOString();
+    if(typeof publishVigilSharedSimulationState==='function')publishVigilSharedSimulationState(performance.now(),true);
+    window.dispatchEvent(new CustomEvent('vigil:mech-deployed',{detail:{unit_id:key,position:{x:unit.x,y:unit.y}}}));
+    return {ok:true,unit_id:key,position:{x:unit.x,y:unit.y}};
+  };
+  window.vigilRecoverMechUnit=function(id){
+    var key=String(id||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===key&&s.shipClass==='mech'&&s.side==='friendly';});
+    if(!unit)return {ok:false,reason:'Mech entity not registered.'};unit.afloat=false;unit.speed=0;unit.targetSpeed=0;unit.deploymentStatus='hanger';unit.bayStatus='IN HANGER';
+    if(typeof publishVigilSharedSimulationState==='function')publishVigilSharedSimulationState(performance.now(),true);
+    window.dispatchEvent(new CustomEvent('vigil:mech-recovered',{detail:{unit_id:key}}));return {ok:true,unit_id:key};
   };
   window.vigilRemoveMechUnit=function(id){
     var key=String(id||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===key&&s.shipClass==='mech'&&s.side==='friendly';});
@@ -3864,6 +3883,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     frameShips.forEach(function(s){frameById[s.id]=s;});
     try {
     regionalTrainingFleet.forEach(function(ship,index){
+      if(ship.afloat===false)return;
       if(ship.side==='friendly'&&ship.shipClass==='facility'){
         ship.speed=0;ship.targetSpeed=0;ship.maxSpeed=0;ship.navigationHeading=ship.heading;ship.navigationTargetSpeed=0;
         ship.formationActive=false;ship.formationTarget=null;ship.formationDistance=null;ship.formationTargetSpeed=null;
