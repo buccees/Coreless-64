@@ -3178,6 +3178,50 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     {id:'FAC-01',name:'VIGIL FORWARD SENSOR FACILITY',x:.22,y:.78,lengthM:0,beamM:0,heading:0,speed:0,maxSpeed:0,weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:5,maxHull:5,shipClass:'facility',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL simulated unit',unitType:'facility'},
     {id:'CVN',name:'NIMITZ-CLASS',x:.50,y:.61,lengthM:332.85,beamM:40.84,heading:342,speed:.009,maxSpeed:.018,weaponRange:.22,weaponDamage:1,weaponReloadSeconds:10,weaponCooldownRemaining:0,hull:12,maxHull:12,shipClass:'carrier',side:'contact',afloat:true,source:'U.S. Navy Nimitz-class fact sheet'}
   ];
+
+  // Independent ground-mech entities. Each hanger build owns its own regional position,
+  // movement state and measured assembly envelope; no build aliases another mech.
+  var vigilMechFleetRegistry={};
+  window.vigilRegisterMechUnit=function(config){
+    config=config||{};var id=String(config.unit_id||'').toUpperCase();
+    if(!/^MECH-[A-Z0-9-]{2,48}$/.test(id))return {ok:false,reason:'Invalid unique mech unit ID.'};
+    var unit=regionalTrainingFleet.find(function(s){return s.id===id;});
+    var footprint=config.footprint||{},length=Math.max(1,Number(footprint.length_m)||4.2),width=Math.max(.6,Number(footprint.width_m)||2.4),height=Math.max(.8,Number(footprint.height_m)||3.2);
+    var record={id:id,name:String(config.name||id),x:Number.isFinite(Number(config.x))?Number(config.x):.38,y:Number.isFinite(Number(config.y))?Number(config.y):.42,
+      lengthM:length,beamM:width,heightM:height,footprint3d:{length_m:length,width_m:width,height_m:height,parts:config.part_footprints||{}},
+      heading:Number(config.heading)||90,speed:0,targetSpeed:0,maxSpeed:Math.max(.001,Number(config.max_speed)||.025),
+      maxTurnRateDegPerSec:Math.max(8,Number(config.turn_rate)||55),accelerationPerSec:Math.max(.001,Number(config.acceleration)||.012),
+      weaponRange:0,weaponDamage:0,weaponReloadSeconds:0,weaponCooldownRemaining:0,hull:Math.max(1,Number(config.hull)||3),maxHull:Math.max(1,Number(config.hull)||3),
+      shipClass:'mech',unitType:'mech',weaponSystems:[],side:'friendly',afloat:true,source:'VIGIL HOUND HANGER // '+String(config.name||id),
+      deploymentStatus:'deployed',bayStatus:'LAND DEPLOYED',hangerBuildId:String(config.build_id||id),corporation:'WYCF',
+      mechRole:String(config.role||'SOLDIER'),mechParts:config.parts||{},mechMounts:config.mounts||{},mechFootprint:config.footprint||{}};
+    if(unit){Object.assign(unit,record);}else{regionalTrainingFleet.push(record);}
+    vigilMechFleetRegistry[id]=record;
+    if(typeof publishVigilSharedSimulationState==='function')publishVigilSharedSimulationState(performance.now(),true);
+    return {ok:true,unit_id:id,footprint3d:record.footprint3d};
+  };
+  window.vigilUpdateMechUnit=function(id,config){
+    var key=String(id||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===key&&s.shipClass==='mech'&&s.side==='friendly';});
+    if(!unit)return {ok:false,reason:'Mech entity not registered.'};
+    config=config||{};var f=config.footprint||unit.mechFootprint||{};
+    if(config.name!==undefined)unit.name=String(config.name);
+    if(config.role!==undefined)unit.mechRole=String(config.role);
+    if(config.max_speed!==undefined)unit.maxSpeed=Math.max(.001,Number(config.max_speed)||.001);
+    if(config.turn_rate!==undefined)unit.maxTurnRateDegPerSec=Math.max(8,Number(config.turn_rate)||8);
+    if(config.acceleration!==undefined)unit.accelerationPerSec=Math.max(.001,Number(config.acceleration)||.001);
+    if(config.footprint){unit.lengthM=Math.max(1,Number(f.length_m)||unit.lengthM);unit.beamM=Math.max(.6,Number(f.width_m)||unit.beamM);unit.heightM=Math.max(.8,Number(f.height_m)||unit.heightM);unit.footprint3d={length_m:unit.lengthM,width_m:unit.beamM,height_m:unit.heightM,parts:config.part_footprints||{}};unit.mechFootprint=f;}
+    if(config.parts)unit.mechParts=config.parts;if(config.mounts)unit.mechMounts=config.mounts;
+    unit.source='VIGIL HOUND HANGER // '+unit.name;
+    if(typeof publishVigilSharedSimulationState==='function')publishVigilSharedSimulationState(performance.now(),true);
+    return {ok:true,unit_id:key,footprint3d:unit.footprint3d};
+  };
+  window.vigilRemoveMechUnit=function(id){
+    var key=String(id||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===key&&s.shipClass==='mech'&&s.side==='friendly';});
+    if(!unit)return {ok:false,reason:'Mech entity not found.'};
+    regionalTrainingFleet=regionalTrainingFleet.filter(function(s){return s.id!==key;});delete vigilMechFleetRegistry[key];
+    if(typeof publishVigilSharedSimulationState==='function')publishVigilSharedSimulationState(performance.now(),true);
+    return {ok:true,unit_id:key};
+  };
   // Faction homeworld and deployment registry. Each faction owns a distinct spherical world.
   var vigilFactionWorlds={
     WYCF:{name:'WEYLAND-YUTANI',worldId:'PELAGOS-01',worldName:'PELAGOS',spawn:{x:.50,y:.61,heading:342}},
@@ -3257,7 +3301,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         turn_rate_deg_s:Number(s.maxTurnRateDegPerSec)||0,acceleration_per_s:Number(s.accelerationPerSec)||0,
         position:{x:Number(s.x),y:Number(s.y)},
         side:s.side==='friendly'?'friendly':'contact',
-        source:String(s.source||'regional simulation'),ship_class:String(s.shipClass||s.unitType||'unknown'),deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),bay_slot:String(s.baySlot||''),hull:s.hull==null?null:Number(s.hull)};
+        source:String(s.source||'regional simulation'),ship_class:String(s.shipClass||s.unitType||'unknown'),length_m:Number(s.lengthM)||0,width_m:Number(s.beamM)||0,height_m:Number(s.heightM)||0,footprint3d:s.footprint3d||null,mech_role:s.mechRole||null,deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),bay_slot:String(s.baySlot||''),hull:s.hull==null?null:Number(s.hull)};
     }).filter(function(s){return Number.isFinite(s.x)&&Number.isFinite(s.y);});
   };
   window.vigilGetRegionalSimulationUnit=function(unitId){
@@ -3942,7 +3986,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   function pauseRegionalFleet(){if(regionalFleetTimer!==null)cancelAnimationFrame(regionalFleetTimer);regionalFleetTimer=null;regionalFleetLastTick=0;}
   function resetRegionalFleet(){
     pauseRegionalFleet();
-    regionalTrainingFleet=regionalTrainingFleetDemo.map(function(ship){return Object.assign({},ship,{weaponSystems:Array.isArray(ship.weaponSystems)?ship.weaponSystems.slice():[]});});
+    regionalTrainingFleet=regionalTrainingFleetDemo.map(function(ship){return Object.assign({},ship,{weaponSystems:Array.isArray(ship.weaponSystems)?ship.weaponSystems.slice():[]});});Object.keys(vigilMechFleetRegistry).forEach(function(id){var unit=vigilMechFleetRegistry[id];if(unit)regionalTrainingFleet.push(unit);});
     regionalFleetLastTick=0;
     renderBathymetry(lastObservationData);
     publishVigilSharedSimulationState(performance.now(),true);
