@@ -143,7 +143,7 @@
     var cy=Math.cos(state.yaw),sy=Math.sin(state.yaw),cp=Math.cos(state.pitch),sp=Math.sin(state.pitch),z=state.zoom;
     return new Float32Array([cy/z,sy*sp/z,sy*cp/z,0,0,cp/z,-sp/z,0,-sy/z,cy*sp/z,cy*cp/z,0,0,0,0,1]);
   }
-  function drawGL(){if(!gl||!program)return;gl.viewport(0,0,canvas.width,canvas.height);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);gl.uniformMatrix4fv(gl.getUniformLocation(program,'m'),false,mat());gl.uniform4f(gl.getUniformLocation(program,'c'),.16,1,.68,1);gl.drawArrays(gl.LINES,0,buffers[0].count);}
+  function drawGL(){if(!gl||!program)return;gl.viewport(0,0,canvas.width,canvas.height);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);var ml=gl.getUniformLocation(program,'m'),cl=gl.getUniformLocation(program,'c');gl.uniform4f(cl,.16,1,.68,1);nmBots.forEach(function(bot){var m=mat();m[12]=bot.x/260/state.zoom;m[13]=bot.y/260/state.zoom;m[14]=bot.z/260/state.zoom;gl.uniformMatrix4fv(ml,false,m);gl.drawArrays(gl.LINES,0,buffers[0].count);});}
   function resizeGL(){var d=window.devicePixelRatio||1;canvas.width=Math.max(1,Math.floor(canvas.clientWidth*d));canvas.height=Math.max(1,Math.floor(canvas.clientHeight*d));drawGL();}
   canvas.addEventListener('pointerdown',function(e){state.drag=true;state.lastX=e.clientX;state.lastY=e.clientY;canvas.setPointerCapture(e.pointerId);});
   canvas.addEventListener('pointermove',function(e){if(!state.drag)return;state.yaw+=(e.clientX-state.lastX)*.008;state.pitch=Math.max(-1.3,Math.min(1.3,state.pitch+(e.clientY-state.lastY)*.008));state.lastX=e.clientX;state.lastY=e.clientY;drawGL();});
