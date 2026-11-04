@@ -32,7 +32,7 @@ var category=panel.querySelector('#category'),partsEl=panel.querySelector('#part
 if(!gl){panel.querySelector('#status').textContent='3D VIEWER UNAVAILABLE: this browser did not provide WebGL.';}
 var program=null,loc={},cubeBuffer=null;
 function shader(type,source){var sh=gl.createShader(type);gl.shaderSource(sh,source);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(sh));return sh;}
-if(gl){
+if(gl){try{
  var vs=shader(gl.VERTEX_SHADER,'attribute vec3 aPosition;attribute vec3 aNormal;uniform mat4 uMvp;uniform mat4 uModel;varying float vLight;void main(){vec3 n=normalize(mat3(uModel)*aNormal);vLight=.38+.62*max(dot(n,normalize(vec3(-.45,.8,.55))),0.0);gl_Position=uMvp*vec4(aPosition,1.0);}');
  var fs=shader(gl.FRAGMENT_SHADER,'precision mediump float;uniform vec4 uColor;varying float vLight;void main(){gl_FragColor=vec4(uColor.rgb*vLight,uColor.a);}');
  program=gl.createProgram();gl.attachShader(program,vs);gl.attachShader(program,fs);gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program));
@@ -41,6 +41,7 @@ if(gl){
  faces.forEach(function(face){var n=face[0],p=face.slice(1),order=[0,1,2,0,2,3];order.forEach(function(i){verts.push(p[i][0]*.5,p[i][1]*.5,p[i][2]*.5,n[0],n[1],n[2]);});});
  cubeBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,cubeBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.STATIC_DRAW);
  gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.clearColor(.008,.025,.014,1);
+ }catch(viewerError){gl=null;panel.querySelector('#status').textContent='3D RENDERER INITIALIZATION FAILED // '+String(viewerError&&viewerError.message||viewerError)+' // HANGER CONTROLS REMAIN AVAILABLE.';}
 }
 function matMul(a,b){var o=new Float32Array(16);for(var c=0;c<4;c++)for(var r=0;r<4;r++)o[c*4+r]=a[r]*b[c*4]+a[4+r]*b[c*4+1]+a[8+r]*b[c*4+2]+a[12+r]*b[c*4+3];return o;}
 function identity(){return new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);}
@@ -94,6 +95,6 @@ panel.querySelector('#apply').addEventListener('click',function(){var b=current(
 canvas.style.cursor='grab';canvas.style.touchAction='none';canvas.addEventListener('pointerdown',function(e){drag={x:e.clientX,y:e.clientY};canvas.style.cursor='grabbing';canvas.setPointerCapture(e.pointerId);});canvas.addEventListener('pointermove',function(e){if(!drag)return;yaw+=(e.clientX-drag.x)*.009;pitch=Math.max(-.8,Math.min(.8,pitch+(e.clientY-drag.y)*.007));drag={x:e.clientX,y:e.clientY};var b=current();if(b)draw(b);});function endDrag(){drag=null;canvas.style.cursor='grab';}canvas.addEventListener('pointerup',endDrag);canvas.addEventListener('pointercancel',endDrag);
 window.vigilGetMechGarageState=function(){return {builds:JSON.parse(JSON.stringify(state.builds)),selected:state.selected,medals:Object.assign({},state.medals)};};
 window.vigilRecordMechMissionResult=function(r){r=r||{};if(r.corporation!=='WYCF')return {ok:false,reason:'WAYLAND-YUTANI MEDALS ONLY.'};['deployments','eliminations','objectives','sRanks','soldier','defender','scout','sniper','heavyGunner','commander'].forEach(function(k){var n=Number(r[k]||0);if(Number.isFinite(n)&&n>0)state.medals[k]=Number(state.medals[k]||0)+n;});save();render();return {ok:true,medals:Object.assign({},state.medals)};};
-function visible(){var on=!!(window.vigilActiveSimulationUnit&&window.vigilActiveSimulationUnit.id==='mech');panel.style.display=on?'block':'none';if(on&&!state.builds.length)build();if(on)render();}
-window.addEventListener('vigil:active-unit-changed',visible);visible();
+function visible(e){var active=window.vigilActiveSimulationUnit&&window.vigilActiveSimulationUnit.id;var detail=e&&e.detail&&e.detail.unit&&e.detail.unit.id;var contextActive=host.dataset&&host.dataset.activeUnit;var on=(active==='mech'||detail==='mech'||contextActive==='mech');panel.style.display=on?'block':'none';if(on){if(!state.builds.length)build();render();panel.scrollIntoView({behavior:'smooth',block:'nearest'});}}
+window.addEventListener('vigil:active-unit-changed',visible);window.addEventListener('vigil:open-mech-hanger',function(){visible({detail:{unit:{id:'mech'}}});});visible();
 })();
