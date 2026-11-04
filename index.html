@@ -5083,7 +5083,7 @@ context.innerHTML='<div class="unit-context-controls"><label for="vigil-active-u
 var unitTabBar=document.createElement('nav');
 unitTabBar.className='vigil-simulation-unit-tabs';
 unitTabBar.setAttribute('aria-label','Simulation bay unit selection');
-unitTabBar.innerHTML='<h4>SIMULATION BAY // CONTROLLED UNITS</h4><div class="vigil-simulation-unit-tab-list" role="tablist" aria-label="Select unit to pilot"><button type="button" role="tab" data-unit="ship" aria-selected="false">SHIP <small>DDG-51</small></button><button type="button" role="tab" data-unit="daedalus" aria-selected="false">DAEDALUS <small>DE-01 / ORBITAL</small></button><button type="button" role="tab" data-unit="drone" aria-selected="false">DRONE <small>DRONE-01</small></button><button type="button" role="tab" data-unit="submersible" aria-selected="true">UUV <small>UUV-01</small></button><button type="button" role="tab" data-unit="submarine" aria-selected="false">SUBMARINE <small>SSN-774</small></button><button type="button" role="tab" data-unit="mech" aria-selected="false">MECH <small>MECH-01</small></button><button type="button" role="tab" data-unit="facility" aria-selected="false">INSTALLATION <small>FAC-01</small></button></div>';
+unitTabBar.innerHTML='<h4>SIMULATION BAY // CONTROLLED UNITS</h4><div class="vigil-simulation-unit-tab-list" role="tablist" aria-label="Select unit to pilot"><button type="button" role="tab" data-unit="ship" aria-selected="false">SHIP <small>DDG-51</small></button><button type="button" role="tab" data-unit="daedalus" aria-selected="false">DAEDALUS <small>DE-01 / ORBITAL</small></button><button type="button" role="tab" data-unit="drone" aria-selected="false">DRONE <small>DRONE-01</small></button><button type="button" role="tab" data-unit="submersible" aria-selected="true">UUV <small>UUV-01</small></button><button type="button" role="tab" data-unit="submarine" aria-selected="false">SUBMARINE <small>SSN-774</small></button><button type="button" role="tab" data-unit="mech" aria-selected="false">MECH HANGER <small>LAND // HOUND-01</small></button><button type="button" role="tab" data-unit="facility" aria-selected="false">INSTALLATION <small>FAC-01</small></button></div>';
 var bayContent=document.querySelector('#simulation-panel > .content')||consoleRoot.parentNode;
 bayContent.insertBefore(unitTabBar,consoleRoot);
 bayContent.insertBefore(context,consoleRoot);
@@ -6686,7 +6686,7 @@ if(!boot()){var attempts=0;var retry=setInterval(function(){attempts++;if(boot()
 })();
 </script>
 
-<script src="vigil-mech-garage.js?v=1"></script>
+<script src="vigil-mech-garage.js?v=2"></script>
 <script src="vigil-uuv-missions.js?v=1"></script>
 <script src="daedalus-mothership.js"></script>
 <script src="vigil-fleet-sensor-network.js?v=daedalus-orbital-6"></script>
