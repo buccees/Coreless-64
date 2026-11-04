@@ -3219,8 +3219,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     var key=String(id||'').toUpperCase(),unit=regionalTrainingFleet.find(function(s){return s.id===key&&s.shipClass==='mech'&&s.side==='friendly';});
     if(!unit)return {ok:false,reason:'Mech entity not registered.'};if(unit.afloat!==false)return {ok:false,reason:'This HOUND is already deployed.'};
     var origin={x:.38,y:.42},spawn=null;
-    if(typeof terrainAt==='function'&&window.vigilAdvancePlanetPoint){
-      for(var radius=.002;radius<=.12&&!spawn;radius+=.002){for(var bearing=0;bearing<360;bearing+=15){var p=window.vigilAdvancePlanetPoint(origin.x,origin.y,bearing,radius),t=terrainAt(p.x,p.y);if(t&&t.isLand===true){spawn=p;break;}}}
+    if(typeof window.vigilGetWorldTerrainAt==='function'&&window.vigilAdvancePlanetPoint){
+      for(var radius=.002;radius<=.12&&!spawn;radius+=.002){for(var bearing=0;bearing<360;bearing+=15){var p=window.vigilAdvancePlanetPoint(origin.x,origin.y,bearing,radius),t=window.vigilGetWorldTerrainAt(p.x,p.y);if(t&&t.isLand===true){spawn=p;break;}}}
     }
     if(!spawn)return {ok:false,reason:'NO VERIFIED LAND DEPLOYMENT ZONE FOUND. Select a land location before deploying this HOUND.'};
     unit.x=spawn.x;unit.y=spawn.y;unit.heading=90;unit.desiredHeading=90;unit.speed=0;unit.targetSpeed=0;unit.afloat=true;unit.deploymentStatus='deployed';unit.bayStatus='LAND DEPLOYED';unit.launchTimestamp=new Date().toISOString();
