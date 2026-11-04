@@ -42,6 +42,7 @@
         <button type="button" data-plague-view="world" aria-pressed="true">01 / NANO WORLD</button>
         <button type="button" data-plague-view="instrument" aria-pressed="false">02 / INSTRUMENT BAY</button>
         <button type="button" data-plague-view="evidence" aria-pressed="false">03 / OBSERVATION RECORD</button>
+        <button type="button" data-plague-view="control" aria-pressed="false">04 / ABILITY &amp; MISSION CONTROL</button>
       </div>
       <section data-plague-page="world">
         <div class="plague-grid">
@@ -97,6 +98,73 @@
           <p class="plague-small">Detection, localization, classification, and resolving individual bots are separate outcomes. The instrument never receives hidden entity labels or exact ground-truth coordinates. Uncertainty and false-positive risk are reported separately.</p>
         </div>
       </section>
+      <section data-plague-page="control" hidden>
+        <div class="plague-grid">
+          <div class="plague-card">
+            <h3>NANOBOT ABILITY LIBRARY // BONUS TREE MODULES</h3>
+            <div class="plague-readout"><b>DISEASE / COORDINATION TREE</b>
+• Distributed sensing and signal sharing
+• Navigation and route correction
+• Adaptive response to changing conditions
+• Task execution with state verification
+
+<b>PARASITE / INTERFACE TREE</b>
+• Surface attachment and release
+• Component recognition by observable signature
+• Persistence while task conditions remain valid
+• Controlled assimilation of eligible simulated components
+
+<b>FUNGUS / SWARM TREE</b>
+• Distributed area coverage
+• Branching search patterns
+• Dormant / low-activity state
+• Swarm coordination and local relay handoffs
+
+Abilities are simulated software behaviors. They do not create real organisms, pathogens, or physical deployment instructions.</div>
+            <h3>MISSION CONFIGURATION</h3>
+            <label>CONTROLLED UNIT / SWARM
+              <select id="plague-unit"><option value="PB-001">PB-001</option><option value="PB-002">PB-002</option><option value="PB-003">PB-003</option><option value="PB-004">PB-004</option><option value="PB-005">PB-005</option><option value="swarm">All five / coordinated swarm</option></select>
+            </label>
+            <label>SIMULATED MISSION
+              <select id="plague-mission"><option value="survey">Survey and map a bounded area</option><option value="inspect">Inspect a selected component</option><option value="attach">Attach to a compatible test fixture</option><option value="service">Perform a reversible maintenance task</option><option value="assimilate">Assimilate eligible enemy component (Wayland-Yutani only)</option><option value="coverage">Fungal-tree distributed coverage search</option><option value="dormant">Enter dormant / low-activity state</option></select>
+            </label>
+            <label>SIMULATED TARGET
+              <select id="plague-target"><option value="fixture-a">Fixture A // exposed test surface</option><option value="fixture-b">Fixture B // modular service port</option><option value="debris">Debris field // unknown signature</option><option value="enemy">Enemy assembly // Wayland-Yutani eligibility check</option><option value="zone">Bounded search zone // 1.0 µm³</option></select>
+            </label>
+            <div class="plague-readout" id="plague-preflight">PREFLIGHT NOT RUN</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
+              <button type="button" id="plague-preflight-run">RUN PREFLIGHT</button>
+              <button type="button" id="plague-mission-start">START WORKFLOW</button>
+              <button type="button" id="plague-mission-pause">PAUSE</button>
+              <button type="button" id="plague-mission-resume">RESUME</button>
+              <button type="button" id="plague-mission-abort">ABORT</button>
+              <button type="button" id="plague-mission-recall">RECALL</button>
+            </div>
+          </div>
+          <div class="plague-card">
+            <h3>DEPLOYMENT WORKFLOW // CONTROLLER</h3>
+            <div class="plague-readout" id="plague-workflow">SCAN → IDENTIFY → SELECT → ATTACH → PERFORM TASK → RETURN
+STATUS: IDLE // NO DEPLOYMENT
+The controller will report each stage and simulated resource state.</div>
+            <h3>LIVE TELEMETRY</h3>
+            <div class="plague-readout" id="plague-controller-telemetry">ENERGY: 100%
+COMMS: LINKED
+OBSTACLES: CLEAR
+TASK: STANDBY
+RETURN PATH: AVAILABLE
+SWARM: 5 UNITS READY</div>
+            <h3>ACTION LIBRARY / VALIDATION</h3>
+            <div class="plague-readout">SCAN — builds a sensor-limited observation, never reads hidden ground truth
+IDENTIFY — classifies only signatures supported by the selected sensor
+SELECT — assigns one unit or the coordinated swarm
+ATTACH — tests compatibility and attachment state on a simulated fixture
+PERFORM TASK — executes the selected reversible simulation action
+RETURN — navigates back to the launch point and reports completion
+
+Validation blocks incompatible targets, insufficient energy, lost communications, and unauthorized assimilation. PAUSE holds the current stage; ABORT stops task execution; RECALL requests return.</div>
+          </div>
+        </div>
+      </section>
       <div class="plague-grid" style="margin-top:10px">
         <div class="plague-card"><h3>SIMULATION INTEGRITY</h3><div class="plague-readout">WORLD STATE ≠ SENSOR OUTPUT<br>TRUE SCALE: NANOMETERS (nm)<br>RENDER SCALE: VIEW-ONLY<br>HIDDEN TRUTH: NOT EXPOSED TO SENSOR ADAPTERS</div></div>
         <div class="plague-card"><h3>MODEL VALIDITY</h3><div class="plague-readout">FICTIONAL NANOBOT DESIGN / SIMULATED PHYSICS<br>Instrument limits: simplified reference model<br>Not validated engineering data; not a claim that present-day nanobots can perform these tasks.</div></div>
@@ -119,6 +187,9 @@
     field:{name:'Specialized swarm-field detector (fictional)',resolution:null,detectMin:null,mode:'field',prep:false,surface:false,notes:'Fictional sensor detects only a modeled aggregate field signature above its noise floor. It cannot resolve or identify individual bots.'}
   };
   var scanRecord = null;
+  var mission = {status:'IDLE',stage:0,energy:100,comms:true,obstacles:0,attached:false,selected:[],target:null,log:[]};
+  var workflowStages=['SCAN','IDENTIFY','SELECT','ATTACH','PERFORM TASK','RETURN','COMPLETE'];
+  var assimilationRules={allowedManufacturer:'Wayland-Yutani',preserve:['manufacturer','appearance','3D footprint','identity','damage state']};
   var state = {yaw:0.35,pitch:0.25,zoom:2.4,drag:false,lastX:0,lastY:0};
   var canvas = document.getElementById('plague-webgl');
   var gl = canvas.getContext('webgl', {antialias:true,alpha:false});
@@ -249,9 +320,20 @@
     document.getElementById('plague-physical-readout').textContent+='\n\nLAST SCAN: '+inst.name+' // '+(detected?'AGGREGATE DETECTED':'NO DETECTION')+' // INDIVIDUALS '+(individual?'RESOLVED':'UNRESOLVED');
   }
   document.getElementById('plague-run-scan').addEventListener('click',scan);
+  function missionLog(message){mission.log.push(message);if(mission.log.length>10)mission.log.shift();var w=document.getElementById('plague-workflow');if(w)w.textContent='WORKFLOW: '+workflowStages.slice(0,Math.min(mission.stage+1,workflowStages.length)).join(' → ')+'\\nSTATUS: '+mission.status+'\\n'+mission.log.join('\\n');}
+  function missionTelemetry(){var el=document.getElementById('plague-controller-telemetry');if(!el)return;el.textContent='ENERGY: '+mission.energy.toFixed(0)+'%\\nCOMMS: '+(mission.comms?'LINKED':'LOST')+'\\nOBSTACLES: '+(mission.obstacles?'DETECTED ('+mission.obstacles+')':'CLEAR')+'\\nTASK: '+mission.status+'\\nATTACHMENT: '+(mission.attached?'ENGAGED':'RELEASED')+'\\nRETURN PATH: '+(mission.comms&&mission.energy>8?'AVAILABLE':'AT RISK')+'\\nSWARM: '+mission.selected.length+' UNIT(S) ASSIGNED';}
+  function preflight(){var unit=document.getElementById('plague-unit').value,task=document.getElementById('plague-mission').value,target=document.getElementById('plague-target').value;mission.selected=unit==='swarm'?nmBots.map(function(b){return b.id;}):[unit];mission.target=target;var issues=[];if(task==='assimilate'&&target!=='enemy')issues.push('Assimilation requires an enemy assembly target.');if(task==='assimilate'&&target==='enemy'&&assimilationRules.allowedManufacturer!=='Wayland-Yutani')issues.push('Assimilation blocked: target manufacturer is not eligible.');if(task==='attach'&&target==='debris')issues.push('Unknown debris signature: compatibility cannot be established.');if(mission.energy<20)issues.push('Insufficient energy reserve.');var report='UNIT(S): '+mission.selected.join(', ')+'\\nMISSION: '+task.toUpperCase()+'\\nTARGET: '+target+'\\nENERGY RESERVE: '+mission.energy+'%\\nCOMMUNICATIONS: '+(mission.comms?'LINKED':'LOST')+'\\nOBSTACLE CHECK: '+(mission.obstacles?'OBSTACLES PRESENT':'CLEAR')+'\\nVALIDATION: '+(issues.length?'BLOCKED':'PASSED')+(issues.length?'\\n• '+issues.join('\\n• '):'\\nRoute and simulated task constraints accepted.');var box=document.getElementById('plague-preflight');if(box)box.textContent=report;missionLog('PREFLIGHT '+(issues.length?'BLOCKED':'PASSED')+' // '+task);missionTelemetry();return issues.length===0;}
+  document.getElementById('plague-preflight-run').addEventListener('click',preflight);
+  document.getElementById('plague-mission-start').addEventListener('click',function(){if(!preflight())return;mission.status='RUNNING';mission.stage=0;mission.attached=false;missionLog('START // '+mission.target);missionAdvance();});
+  function missionAdvance(){if(mission.status!=='RUNNING')return;if(!mission.comms){mission.status='PAUSED — COMMS LOST';missionLog('Safety hold: communications link lost.');missionTelemetry();return;}if(mission.energy<8){mission.status='PAUSED — LOW ENERGY';missionLog('Safety hold: energy reserve below return threshold.');missionTelemetry();return;}var task=document.getElementById('plague-mission').value,stage=workflowStages[mission.stage];if(stage==='SCAN'){mission.energy-=3;missionLog('SCAN // sensor-limited survey completed.');}else if(stage==='IDENTIFY'){mission.energy-=3;missionLog('IDENTIFY // observable signature assessed; hidden entity labels withheld.');}else if(stage==='SELECT'){missionLog('SELECT // '+mission.selected.join(', ')+' assigned.');}else if(stage==='ATTACH'){if(task==='attach'||task==='service'||task==='assimilate'){if(task==='assimilate'){missionLog('ASSIMILATION VALIDATION // Wayland-Yutani component only; preserve manufacturer, appearance, 3D footprint, identity and damage state.');}mission.attached=true;mission.energy-=5;missionLog('ATTACH // simulated interface engaged.');}else{missionLog('ATTACH // no physical attachment required for this mission.');}}else if(stage==='PERFORM TASK'){mission.energy-=task==='coverage'?18:12;missionLog('TASK // '+task+' executed in bounded simulation.');}else if(stage==='RETURN'){mission.attached=false;mission.energy-=4;missionLog('RETURN // unit(s) returned to launch point.');}else{mission.status='COMPLETE';missionLog('COMPLETE // mission report available.');missionTelemetry();return;}mission.stage++;missionTelemetry();if(mission.stage<workflowStages.length)missionAdvance();}
+  document.getElementById('plague-mission-pause').addEventListener('click',function(){if(mission.status==='RUNNING'){mission.status='PAUSED';missionLog('Operator pause.');missionTelemetry();}});
+  document.getElementById('plague-mission-resume').addEventListener('click',function(){if(mission.status.indexOf('PAUSED')===0||mission.status==='PAUSED'){mission.status='RUNNING';missionLog('Operator resume.');missionAdvance();}});
+  document.getElementById('plague-mission-abort').addEventListener('click',function(){mission.status='ABORTED';mission.attached=false;missionLog('ABORT // task execution stopped; fixture released.');missionTelemetry();});
+  document.getElementById('plague-mission-recall').addEventListener('click',function(){mission.status='RECALLING';mission.attached=false;missionLog('RECALL // return path requested; units returning to launch point.');mission.status='RETURNED';mission.stage=6;missionTelemetry();missionLog('RETURNED // all assigned units accounted for.');});
+
   document.querySelectorAll('[data-plague-view]').forEach(function(btn){btn.addEventListener('click',function(){var v=btn.getAttribute('data-plague-view');document.querySelectorAll('[data-plague-view]').forEach(function(b){b.setAttribute('aria-pressed',String(b===btn));});document.querySelectorAll('[data-plague-page]').forEach(function(p){p.hidden=p.getAttribute('data-plague-page')!==v;});if(v==='instrument')specs();if(v==='world')resizeGL();});});
   var returnButton=document.getElementById('plague-return-rd');
   if(returnButton)returnButton.addEventListener('click',function(){root.hidden=true;});
   initGL();renderPhysical();specs();resizeGL();if(gl&&program)window.requestAnimationFrame(animatePlague);
-  window.VIGIL_PLAGUE = {getPhysicalEntities:function(){return nmBots.map(function(b){return Object.assign({},b);});},getLastObservation:function(){return scanRecord?Object.assign({},scanRecord):null;},getInstrumentProfiles:function(){return JSON.parse(JSON.stringify(instruments));}};
+  window.VIGIL_PLAGUE = {getPhysicalEntities:function(){return nmBots.map(function(b){return Object.assign({},b);});},getLastObservation:function(){return scanRecord?Object.assign({},scanRecord):null;},getInstrumentProfiles:function(){return JSON.parse(JSON.stringify(instruments));},getMissionState:function(){return JSON.parse(JSON.stringify(mission));}};
 })();
