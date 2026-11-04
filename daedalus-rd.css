@@ -395,3 +395,16 @@
   border-radius:0;
   box-shadow:none;
 }
+
+
+/* R&D project directory: keep independent research programs in separate folders. */
+.rd-folder-index{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.rd-folder-card{display:grid;grid-template-columns:42px minmax(0,1fr);gap:10px;align-items:start;border:1px solid #20583f;background:#020a07;padding:12px;min-width:0}
+.rd-folder-icon{display:grid;place-items:center;width:38px;height:38px;border:1px solid #75633b;color:#e7c77d;font-size:22px}
+.rd-folder-card b{display:block;color:var(--g);font-size:11px;letter-spacing:.5px}
+.rd-folder-card p{margin:6px 0;color:var(--dim);font-size:10px;line-height:1.55}
+.rd-folder-state{display:block;color:#b5a477;font-size:9px;letter-spacing:.5px;margin:5px 0 9px}
+.rd-folder-card button{background:#03150e;color:var(--g);border:1px solid var(--line);padding:8px 10px;font:inherit;font-size:10px;cursor:pointer}
+.rd-folder-card button:hover,.rd-folder-card button:focus-visible{background:#0b3828;outline:1px solid var(--g)}
+.rd-folder-panel{margin:14px 0;padding:10px;border:1px solid #75633b;background:#030805}
+@media(max-width:760px){.rd-folder-index{grid-template-columns:1fr}}
