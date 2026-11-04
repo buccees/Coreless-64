@@ -49,7 +49,7 @@ function assemblyFootprint(b){
  var cab=parts.COCKPIT;if(cab)height=Math.max(height,base.height_m+cab.height_m*.35);
  return {width_m:+width.toFixed(2),height_m:+height.toFixed(2),length_m:+length.toFixed(2),parts:parts};
 }
-function simulationUnitId(b){if(!b.simulationUnitId){var slug=String(b.id||'').replace(/^WY-HOUND-/,'').replace(/[^A-Z0-9-]/gi,'-').toUpperCase();b.simulationUnitId='MECH-'+(slug||Math.random().toString(36).slice(2,8).toUpperCase());}return b.simulationUnitId;}
+function simulationUnitId(b){if(!b.simulationUnitId){if(state.builds[0]===b)b.simulationUnitId='MECH-01';else{var slug=String(b.id||'').replace(/^WY-HOUND-/,'').replace(/[^A-Z0-9-]/gi,'-').toUpperCase();b.simulationUnitId='MECH-'+(slug||Date.now().toString(36).toUpperCase());}}return b.simulationUnitId;}
 function syncSimulationUnit(b,index){
  if(!window.vigilRegisterMechUnit||!b)return;
  var f=assemblyFootprint(b),s=stats(b),id=simulationUnitId(b),x=.38+(index%4)*.012,y=.42+Math.floor(index/4)*.014;
@@ -99,10 +99,10 @@ function draw(b){
  gl.viewport(0,0,pw,ph);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);gl.bindBuffer(gl.ARRAY_BUFFER,cubeBuffer);
  gl.enableVertexAttribArray(loc.pos);gl.vertexAttribPointer(loc.pos,3,gl.FLOAT,false,24,0);gl.enableVertexAttribArray(loc.normal);gl.vertexAttribPointer(loc.normal,3,gl.FLOAT,false,24,12);
  projection=matMul(perspective(.72,pw/ph,.1,100),matMul(lookAt(),matMul(rotateX(pitch),rotateY(yaw))));
- var base=rgb(b.paint),dark=[.12,.19,.14,1],joint=[.34,.43,.32,1],accent=[.72,.66,.38,1],m=findPart(b.parts['MOBILITY BASE']),type=m?m[2]:'Bipedal',bw=baseFoot.width_m*.34,bh=baseFoot.height_m*.34,bl=baseFoot.length_m*.34;
+ var base=rgb(b.paint),dark=[.12,.19,.14,1],joint=[.34,.43,.32,1],accent=[.72,.66,.38,1],m=findPart(b.parts['MOBILITY BASE']),type=m?m[2]:'Bipedal',bw=baseFoot.width_m*.34,bh=baseFoot.height_m*.34,bl=baseFoot.length_m*.34,cabFoot=assembly.parts.COCKPIT||{width_m:.9,height_m:.88,length_m:.82},genFoot=assembly.parts.GENERATOR||{width_m:.7,height_m:.6,length_m:.75},comFoot=assembly.parts['SYSTEM COM']||{width_m:.34,height_m:.38,length_m:.32};
  function part(x,y,z,sx,sy,sz,c){box(identity(),x,y,z,sx,sy,sz,c);}
  // Hip chassis, torso, cockpit and sensor crown.
- part(0,-.05,0,bw*.72,.42,bl*.55,dark);part(0,.58,0,bw*.62,bh*.35,bl*.55,base);part(0,.68,bl*.29,bw*.42,bh*.15,.055,[.055,.15,.105,1]);part(0,bh*.4,0,bw*.3,.28,bl*.32,joint);part(0,bh*.47,.03,bw*.48,.22,bl*.46,dark);
+ part(0,-.05,0,bw*.72,.42,bl*.55,dark);part(0,.58,0,bw*.62,bh*.35,bl*.55,base);part(0,.68,bl*.29,bw*.42,bh*.15,.055,[.055,.15,.105,1]);part(0,bh*.35,0,cabFoot.width_m*.34,cabFoot.height_m*.34,cabFoot.length_m*.34,joint);part(0,bh*.47,.03,bw*.48,.22,bl*.46,dark);part(0,-.02,-bl*.43,genFoot.width_m*.34,genFoot.height_m*.34,genFoot.length_m*.34,[.24,.34,.26,1]);part(0,.28,bl*.34,comFoot.width_m*.34,comFoot.height_m*.34,comFoot.length_m*.34,accent);
  // Shoulders and articulated arms; leg architecture varies by selected chassis.
  [-1,1].forEach(function(side){part(side*bw*.66,.78,0,.34,.36,.42,joint);part(side*bw*.9,.35,0,.25,.72,.28,base);part(side*bw*.91,-.08,.02,.3,.24,.32,dark);});
  if(type==='Tracked'||type==='Wheeled'||type==='Hover'){
