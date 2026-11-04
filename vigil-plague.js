@@ -101,11 +101,11 @@
     </div>`;
 
   var nmBots = [
-    {id:'PB-001',x:-130,y:0,z:0,diameter:80,feature:18},
-    {id:'PB-002',x:0,y:0,z:0,diameter:80,feature:18},
-    {id:'PB-003',x:130,y:0,z:0,diameter:80,feature:18},
-    {id:'PB-004',x:0,y:120,z:0,diameter:80,feature:18},
-    {id:'PB-005',x:0,y:-120,z:0,diameter:80,feature:18}
+    {id:'PB-001',x:-130,y:0,z:0,diameter:80,feature:18,ax:-130,ay:0,az:0,vx:0,vy:5,vz:0,phase:0.2,heading:0,tilt:0},
+    {id:'PB-002',x:0,y:0,z:0,diameter:80,feature:18,ax:0,ay:0,az:0,vx:4,vy:0,vz:2,phase:1.4,heading:0,tilt:0},
+    {id:'PB-003',x:130,y:0,z:0,diameter:80,feature:18,ax:130,ay:0,az:0,vx:0,vy:-4,vz:1,phase:2.6,heading:0,tilt:0},
+    {id:'PB-004',x:0,y:120,z:0,diameter:80,feature:18,ax:0,ay:120,az:0,vx:-3,vy:0,vz:-2,phase:3.8,heading:0,tilt:0},
+    {id:'PB-005',x:0,y:-120,z:0,diameter:80,feature:18,ax:0,ay:-120,az:0,vx:2,vy:1,vz:3,phase:5.0,heading:0,tilt:0}
   ];
   var instruments = {
     camera:{name:'Conventional camera / visible light',resolution:100000,detectMin:100000,mode:'optical',prep:false,surface:false,notes:'Typical imaging systems cannot resolve nanometer-scale individual bots. No individual detection expected.'},
@@ -139,11 +139,57 @@
     var loc=gl.getAttribLocation(program,'p');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,3,gl.FLOAT,false,0,0);buffers.push({buf:buf,count:data.length/3});
     drawGL();
   }
-  function mat(){
-    var cy=Math.cos(state.yaw),sy=Math.sin(state.yaw),cp=Math.cos(state.pitch),sp=Math.sin(state.pitch),z=state.zoom;
+  function mat(bot){
+    var yaw=state.yaw+(bot?bot.heading:0),pitch=state.pitch+(bot?bot.tilt:0);
+    var cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch),z=state.zoom;
     return new Float32Array([cy/z,sy*sp/z,sy*cp/z,0,0,cp/z,-sp/z,0,-sy/z,cy*sp/z,cy*cp/z,0,0,0,0,1]);
   }
-  function drawGL(){if(!gl||!program)return;gl.viewport(0,0,canvas.width,canvas.height);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);var ml=gl.getUniformLocation(program,'m'),cl=gl.getUniformLocation(program,'c');gl.uniform4f(cl,.16,1,.68,1);nmBots.forEach(function(bot){var m=mat();m[12]=bot.x/260/state.zoom;m[13]=bot.y/260/state.zoom;m[14]=bot.z/260/state.zoom;gl.uniformMatrix4fv(ml,false,m);gl.drawArrays(gl.LINES,0,buffers[0].count);});}
+  function drawGL(){if(!gl||!program)return;gl.viewport(0,0,canvas.width,canvas.height);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);var ml=gl.getUniformLocation(program,'m'),cl=gl.getUniformLocation(program,'c');gl.uniform4f(cl,.16,1,.68,1);nmBots.forEach(function(bot){var m=mat(bot);m[12]=bot.x/260/state.zoom;m[13]=bot.y/260/state.zoom;m[14]=bot.z/260/state.zoom;gl.uniformMatrix4fv(ml,false,m);gl.drawArrays(gl.LINES,0,buffers[0].count);});}
+  // Simplified fictional nanoscale dynamics: damped inertia, spring-guided
+  // motion, pairwise collision avoidance, and a bounded operating volume.
+  var simClock=0,lastFrame=0,lastTelemetry=0;
+  function updateSimulation(dt){
+    simClock+=dt;
+    nmBots.forEach(function(b){
+      var phase=simClock*.72+b.phase;
+      var tx=b.ax+Math.cos(phase)*34,ty=b.ay+Math.sin(phase*1.17)*30,tz=b.az+Math.sin(phase*.83)*24;
+      var fx=(tx-b.x)*.16-b.vx*.72,fy=(ty-b.y)*.16-b.vy*.72,fz=(tz-b.z)*.16-b.vz*.72;
+      nmBots.forEach(function(o){
+        if(o===b)return;
+        var dx=b.x-o.x,dy=b.y-o.y,dz=b.z-o.z,d2=dx*dx+dy*dy+dz*dz;
+        if(d2>0&&d2<10000){var d=Math.sqrt(d2),push=(100-d)*.10/d;fx+=dx*push;fy+=dy*push;fz+=dz*push;}
+      });
+      b.vx+=fx*dt;b.vy+=fy*dt;b.vz+=fz*dt;
+      var speed=Math.sqrt(b.vx*b.vx+b.vy*b.vy+b.vz*b.vz);
+      if(speed>28){var k=28/speed;b.vx*=k;b.vy*=k;b.vz*=k;}
+      b.x+=b.vx*dt;b.y+=b.vy*dt;b.z+=b.vz*dt;
+      [['x','vx'],['y','vy'],['z','vz']].forEach(function(pair){
+        var p=pair[0],v=pair[1];
+        if(b[p]>225){b[p]=225;b[v]=-Math.abs(b[v])*.65;}
+        if(b[p]<-225){b[p]=-225;b[v]=Math.abs(b[v])*.65;}
+      });
+      if(Math.abs(b.vx)+Math.abs(b.vy)+Math.abs(b.vz)>.01){
+        b.heading=Math.atan2(b.vy,b.vx);
+        b.tilt=Math.atan2(b.vz,Math.sqrt(b.vx*b.vx+b.vy*b.vy));
+      }
+    });
+  }
+  function animatePlague(now){
+    if(!gl||!program)return;
+    var dt=lastFrame?Math.min(.04,(now-lastFrame)/1000):.016;
+    lastFrame=now;
+    updateSimulation(dt);
+    drawGL();
+    if(now-lastTelemetry>600){
+      var register=document.getElementById('plague-entity-register');
+      if(register)register.textContent=nmBots.map(function(b){
+        var speed=Math.sqrt(b.vx*b.vx+b.vy*b.vy+b.vz*b.vz);
+        return b.id+' // '+b.diameter+' nm envelope // position ('+b.x.toFixed(1)+','+b.y.toFixed(1)+','+b.z.toFixed(1)+') nm // speed '+speed.toFixed(1)+' nm/s';
+      }).join('\\n');
+      lastTelemetry=now;
+    }
+    window.requestAnimationFrame(animatePlague);
+  }
   function resizeGL(){var d=window.devicePixelRatio||1;canvas.width=Math.max(1,Math.floor(canvas.clientWidth*d));canvas.height=Math.max(1,Math.floor(canvas.clientHeight*d));drawGL();}
   canvas.addEventListener('pointerdown',function(e){state.drag=true;state.lastX=e.clientX;state.lastY=e.clientY;canvas.setPointerCapture(e.pointerId);});
   canvas.addEventListener('pointermove',function(e){if(!state.drag)return;state.yaw+=(e.clientX-state.lastX)*.008;state.pitch=Math.max(-1.3,Math.min(1.3,state.pitch+(e.clientY-state.lastY)*.008));state.lastX=e.clientX;state.lastY=e.clientY;drawGL();});
@@ -185,6 +231,6 @@
   }
   document.getElementById('plague-run-scan').addEventListener('click',scan);
   document.querySelectorAll('[data-plague-view]').forEach(function(btn){btn.addEventListener('click',function(){var v=btn.getAttribute('data-plague-view');document.querySelectorAll('[data-plague-view]').forEach(function(b){b.setAttribute('aria-pressed',String(b===btn));});document.querySelectorAll('[data-plague-page]').forEach(function(p){p.hidden=p.getAttribute('data-plague-page')!==v;});if(v==='instrument')specs();if(v==='world')resizeGL();});});
-  initGL();renderPhysical();specs();resizeGL();
+  initGL();renderPhysical();specs();resizeGL();if(gl&&program)window.requestAnimationFrame(animatePlague);
   window.VIGIL_PLAGUE = {getPhysicalEntities:function(){return nmBots.map(function(b){return Object.assign({},b);});},getLastObservation:function(){return scanRecord?Object.assign({},scanRecord):null;},getInstrumentProfiles:function(){return JSON.parse(JSON.stringify(instruments));}};
 })();
