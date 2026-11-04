@@ -1,4 +1,5 @@
 /* VIGIL / PLAGUE — nanoscale world + instrument-limited observation model.
+ * 3D chassis geometry and physical-diameter scaling revision.
  * Fictional hardware simulation. Instrument limits are simplified reference assumptions,
  * not certified specifications or proof of real-world nanobot feasibility.
  */
@@ -47,8 +48,9 @@
           <div class="plague-card">
             <h3>LIVE NANOSCALE ASSEMBLY // WEBGL VIEW</h3>
             <canvas id="plague-webgl" aria-label="Interactive nanoscale nanobot assembly. Drag to rotate; use wheel or magnification control to zoom."></canvas>
+            <label>PHYSICAL NANOBOT DIAMETER <input id="plague-model-scale" type="range" min="40" max="160" value="80" step="1"><span id="plague-model-scale-label">80 nm // physical model size</span></label>
             <label>DISPLAY MAGNIFICATION <input id="plague-zoom" type="range" min="1" max="1000000" value="100000" step="1"><span id="plague-zoom-label">100,000× (view transform only)</span></label>
-            <p class="plague-small">Magnification changes only the view. It never changes bot dimensions, distances, mass, speed, or physical interactions. Drag to rotate; mouse wheel to zoom.</p>
+            <p class="plague-small">Physical diameter changes the nanobot geometry and its modeled feature dimensions. Display magnification changes only the camera. Drag to rotate; mouse wheel to zoom.</p>
           </div>
           <div class="plague-card">
             <h3>CANONICAL PHYSICAL MODEL</h3>
@@ -131,19 +133,34 @@
     gl.useProgram(program);gl.enable(gl.DEPTH_TEST);gl.clearColor(.004,.018,.012,1);
     var geom=[];
     function line(a,b){geom.push(a[0],a[1],a[2],b[0],b[1],b[2]);}
-    // Central engineered chassis, ring and four articulated tool arms.
-    var r=0.45,n=24;
-    for(var i=0;i<n;i++){var a=i*2*Math.PI/n,b=(i+1)*2*Math.PI/n;line([Math.cos(a)*r,Math.sin(a)*r,0],[Math.cos(b)*r,Math.sin(b)*r,0]);}
-    line([-.22,0,0],[.22,0,0]);line([0,-.22,0],[0,.22,0]);line([0,0,-.25],[0,0,.25]);
-    [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0]].forEach(function(v){var p=[v[0]*.42,v[1]*.42,0],q=[v[0]*.85,v[1]*.85,.08];line(p,q);line(q,[q[0]*1.14,q[1]*1.14,q[2]]);line([q[0]-.05,q[1],q[2]],[q[0]+.05,q[1],q[2]]);});
+    function ring(radius,z,segments,phase){for(var i=0;i<segments;i++){var a=phase+i*2*Math.PI/segments,b=phase+(i+1)*2*Math.PI/segments;line([Math.cos(a)*radius,Math.sin(a)*radius,z],[Math.cos(b)*radius,Math.sin(b)*radius,z]);}}
+    function sphere(center,radius,latitudes,longitudes){for(var lat=1;lat<latitudes;lat++){var p=-Math.PI/2+lat*Math.PI/latitudes;ringAt(p);}function ringAt(p){var rr=radius*Math.cos(p),z=center[2]+radius*Math.sin(p);for(var j=0;j<longitudes;j++){var a=j*2*Math.PI/longitudes,b=(j+1)*2*Math.PI/longitudes;line([center[0]+rr*Math.cos(a),center[1]+rr*Math.sin(a),z],[center[0]+rr*Math.cos(b),center[1]+rr*Math.sin(b),z]);}}for(var j=0;j<longitudes;j+=2){var a=j*2*Math.PI/longitudes;line([center[0],center[1],center[2]-radius],[center[0]+radius*Math.cos(a),center[1]+radius*Math.sin(a),center[2]]);line([center[0],center[1],center[2]+radius],[center[0]+radius*Math.cos(a),center[1]+radius*Math.sin(a),center[2]]);}}
+    function tube(a,b,radius,segments){var dx=b[0]-a[0],dy=b[1]-a[1],dz=b[2]-a[2],len=Math.sqrt(dx*dx+dy*dy+dz*dz)||1;var ux=dx/len,uy=dy/len,uz=dz/len;var ref=Math.abs(uz)<.85?[0,0,1]:[0,1,0];var vx=uy*ref[2]-uz*ref[1],vy=uz*ref[0]-ux*ref[2],vz=ux*ref[1]-uy*ref[0],vl=Math.sqrt(vx*vx+vy*vy+vz*vz)||1;vx/=vl;vy/=vl;vz/=vl;var wx=uy*vz-uz*vy,wy=uz*vx-ux*vz,wz=ux*vy-uy*vx;var prevA,prevB;for(var i=0;i<segments;i++){var t=i*2*Math.PI/segments,pt=[a[0]+radius*(vx*Math.cos(t)+wx*Math.sin(t)),a[1]+radius*(vy*Math.cos(t)+wy*Math.sin(t)),a[2]+radius*(vz*Math.cos(t)+wz*Math.sin(t))],qt=[b[0]+radius*(vx*Math.cos(t)+wx*Math.sin(t)),b[1]+radius*(vy*Math.cos(t)+wy*Math.sin(t)),b[2]+radius*(vz*Math.cos(t)+wz*Math.sin(t))];line(pt,qt);if(prevA){line(prevA,pt);line(prevB,qt);}prevA=pt;prevB=qt;}}
+    // A three-dimensional engineered nanobot: faceted chassis, nested
+    // pressure/energy rings, internal reactor, six articulated tool limbs,
+    // sensor mast, optical apertures and rear micro-thruster cluster.
+    var sides=8,phase=Math.PI/8;
+    ring(.39,.20,sides,phase);ring(.39,-.20,sides,phase);ring(.31,.31,sides,phase);ring(.31,-.31,sides,phase);
+    for(var i=0;i<sides;i++){var a=phase+i*2*Math.PI/sides,p=[Math.cos(a)*.39,Math.sin(a)*.39,.20],q=[Math.cos(a)*.39,Math.sin(a)*.39,-.20];line(p,q);line([Math.cos(a)*.31,Math.sin(a)*.31,.31],p);line(q,[Math.cos(a)*.31,Math.sin(a)*.31,-.31]);}
+    sphere([0,0,0],.245,7,12);sphere([0,0,.02],.145,6,10);
+    ring(.19,.24,16,0);ring(.19,-.24,16,0);
+    for(var j=0;j<8;j++){var a=phase+j*2*Math.PI/8;line([Math.cos(a)*.19,Math.sin(a)*.19,.24],[Math.cos(a)*.19,Math.sin(a)*.19,-.24]);}
+    // Six limbs with two visible joints, a tapered tool shaft and paired grippers.
+    for(var k=0;k<6;k++){var a=k*Math.PI/3,ux=Math.cos(a),uy=Math.sin(a),root=[ux*.34,uy*.34,0],elbow=[ux*.57,uy*.57,(k%2?-.10:.10)],wrist=[ux*.79,uy*.79,(k%2?-.14:.14)],tip=[ux*.91,uy*.91,(k%2?-.14:.14)];tube(root,elbow,.055,7);sphere(elbow,.075,5,8);tube(elbow,wrist,.035,7);sphere(wrist,.045,5,8);tube(wrist,tip,.025,6);var nx=-uy*.055,ny=ux*.055;line(tip,[tip[0]+nx,tip[1]+ny,tip[2]+.035]);line(tip,[tip[0]-nx,tip[1]-ny,tip[2]-.035]);}
+    // Raised sensor turret and paired detector lenses.
+    tube([0,0,.25],[0,0,.47],.055,8);sphere([0,0,.49],.095,6,10);
+    sphere([-.055,-.045,.54],.025,4,8);sphere([.055,-.045,.54],.025,4,8);
+    // Rear propulsion nozzles and stabilizer struts.
+    for(var n=0;n<3;n++){var a=Math.PI+n*2*Math.PI/3,base=[Math.cos(a)*.18,Math.sin(a)*.18,-.24],end=[Math.cos(a)*.31,Math.sin(a)*.31,-.48];tube(base,end,.065,8);ring(.065,-.48,8,a);line(end,[end[0]*1.12,end[1]*1.12,end[2]-.05]);}
     var data=new Float32Array(geom),buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);
     var loc=gl.getAttribLocation(program,'p');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,3,gl.FLOAT,false,0,0);buffers.push({buf:buf,count:data.length/3});
     drawGL();
   }
   function mat(bot){
     var yaw=state.yaw+(bot?bot.heading:0),pitch=state.pitch+(bot?bot.tilt:0);
-    var cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch),z=state.zoom;
-    return new Float32Array([cy/z,sy*sp/z,sy*cp/z,0,0,cp/z,-sp/z,0,-sy/z,cy*sp/z,cy*cp/z,0,0,0,0,1]);
+    var cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch),z=state.zoom,physicalScale=(bot?bot.diameter:80)/80;
+    var k=physicalScale/z;
+    return new Float32Array([cy*k,sy*sp*k,sy*cp*k,0,0,cp*k,-sp*k,0,-sy*k,cy*sp*k,cy*cp*k,0,0,0,0,1]);
   }
   function drawGL(){if(!gl||!program)return;gl.viewport(0,0,canvas.width,canvas.height);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);var ml=gl.getUniformLocation(program,'m'),cl=gl.getUniformLocation(program,'c');gl.uniform4f(cl,.16,1,.68,1);nmBots.forEach(function(bot){var m=mat(bot);m[12]=bot.x/260/state.zoom;m[13]=bot.y/260/state.zoom;m[14]=bot.z/260/state.zoom;gl.uniformMatrix4fv(ml,false,m);gl.drawArrays(gl.LINES,0,buffers[0].count);});}
   // Simplified fictional nanoscale dynamics: damped inertia, spring-guided
@@ -197,11 +214,12 @@
   ['pointerup','pointercancel','lostpointercapture'].forEach(function(ev){canvas.addEventListener(ev,function(){state.drag=false;});});
   canvas.addEventListener('wheel',function(e){e.preventDefault();state.zoom=Math.max(.7,Math.min(8,state.zoom+(e.deltaY>0?.15:-.15)));drawGL();},{passive:false});
   document.getElementById('plague-zoom').addEventListener('input',function(e){var v=Number(e.target.value);document.getElementById('plague-zoom-label').textContent=v.toLocaleString()+'× (view transform only)';state.zoom=Math.max(.7,Math.min(8,8-Math.log10(v)*.65));drawGL();});
+  document.getElementById('plague-model-scale').addEventListener('input',function(e){var diameter=Number(e.target.value);nmBots.forEach(function(b){b.diameter=diameter;b.feature=Math.round(diameter*.225*10)/10;});document.getElementById('plague-model-scale-label').textContent=diameter+' nm // physical geometry '+(diameter/80).toFixed(2)+'×';renderPhysical();drawGL();});
   window.addEventListener('resize',resizeGL);
 
   function renderPhysical(){
     document.getElementById('plague-physical-readout').textContent =
-      'BOT ENVELOPE: 80 nm diameter\nMINIMUM MODELLED FEATURE: 18 nm\nENTITY COUNT: '+nmBots.length+' individually tracked bots\nBOT CENTRE SPACING: 120–130 nm\nCOORDINATE FRAME: local nanoscale SI frame\nPOSITION UNIT: nm (1 nm = 10⁻⁹ m)\nDISPLAY SCALE: independent of physical scale\n\nThese are fictional design parameters for this simulation, not measured hardware.';
+      'BOT ENVELOPE: '+nmBots[0].diameter+' nm diameter\nMINIMUM MODELLED FEATURE: '+nmBots[0].feature+' nm\nENTITY COUNT: '+nmBots.length+' individually tracked bots\nBOT CENTRE SPACING: 120–130 nm (unchanged by diameter control)\nCOORDINATE FRAME: local nanoscale SI frame\nPOSITION UNIT: nm (1 nm = 10⁻⁹ m)\nPHYSICAL GEOMETRY SCALE: '+nmBots[0].diameter/80+'× baseline\nDISPLAY MAGNIFICATION: independent camera transform\n\nThese are fictional design parameters for this simulation, not measured hardware.';
     document.getElementById('plague-entity-register').textContent = nmBots.map(function(b){return b.id+' // '+b.diameter+' nm envelope // feature '+b.feature+' nm // position ('+b.x+','+b.y+','+b.z+') nm';}).join('\n');
   }
   function specs(){var inst=instruments[document.getElementById('plague-instrument').value];document.getElementById('plague-instrument-spec').textContent=inst.name+'\n'+(inst.resolution===null?'RESOLUTION: NOT APPLICABLE (aggregate signal only)':'REFERENCE RESOLUTION: '+inst.resolution+' nm')+'\nPREPARATION REQUIRED: '+(inst.prep?'YES':'not intrinsically required')+'\nSURFACE ACCESS REQUIRED: '+(inst.surface?'YES':'not for this simplified model')+'\n\n'+inst.notes;}
@@ -212,7 +230,7 @@
   function scan(){
     var key=document.getElementById('plague-instrument').value,inst=instruments[key],prep=document.getElementById('plague-prep').value==='prepared',surface=document.getElementById('plague-access').value==='surface',condition=Number(document.getElementById('plague-condition').value)/100;
     var blocked=(inst.prep&&!prep)||(inst.surface&&!surface);
-    var botSize=80,feature=18,clusterSpan=520;
+    var botSize=nmBots[0].diameter,feature=nmBots[0].feature,clusterSpan=520;
     var snr=key==='field'?condition*1.4:condition*(key==='optical'?1.05:.9);
     var detected=false,localized=false,classified=false,individual=false,reason='';
     if(blocked){reason=inst.prep&&!prep?'Specimen preparation and vacuum conditions are not satisfied.':'No accessible surface for probe interaction.';}
