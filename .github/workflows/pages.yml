@@ -10,6 +10,7 @@ on:
       - "daedalus-rd.js"
       - "vigil-daedalus-orbital-sensor-suite.js"
       - "vigil-rd-labs.js"
+      - "vigil-plague.js"
       - "daedalus-mothership.js"
       - "vigil-fleet-sensor-network.js"
       - "vigil-mothership-command.js"
@@ -45,6 +46,7 @@ jobs:
           cp daedalus-rd.js site/daedalus-rd.js
           cp vigil-daedalus-orbital-sensor-suite.js site/vigil-daedalus-orbital-sensor-suite.js
           cp vigil-rd-labs.js site/vigil-rd-labs.js
+          cp vigil-plague.js site/vigil-plague.js
           cp daedalus-mothership.js site/daedalus-mothership.js
           cp vigil-fleet-sensor-network.js site/vigil-fleet-sensor-network.js
           cp vigil-mothership-command.js site/vigil-mothership-command.js
@@ -56,6 +58,7 @@ jobs:
           test -s site/daedalus-rd.js
           test -s site/vigil-daedalus-orbital-sensor-suite.js
           test -s site/vigil-rd-labs.js
+          test -s site/vigil-plague.js
           test -s site/daedalus-mothership.js
           test -s site/vigil-fleet-sensor-network.js
           test -s site/vigil-mothership-command.js
@@ -70,6 +73,7 @@ jobs:
             site/daedalus-rd.js \
             site/vigil-daedalus-orbital-sensor-suite.js \
             site/vigil-rd-labs.js \
+            site/vigil-plague.js \
             site/daedalus-mothership.js \
             site/vigil-fleet-sensor-network.js \
             site/vigil-mothership-command.js \
