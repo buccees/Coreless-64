@@ -5094,6 +5094,7 @@ Array.prototype.forEach.call(unitTabs,function(tab,index){
  tab.setAttribute('tabindex',tab.getAttribute('aria-selected')==='true'?'0':'-1');
  tab.addEventListener('click',function(){
   if(select.value!==tab.dataset.unit){select.value=tab.dataset.unit;select.dispatchEvent(new Event('change'));}
+  if(tab.dataset.unit==='mech'){window.dispatchEvent(new CustomEvent('vigil:open-mech-hanger'));}
   unitTabs.forEach(function(other){other.setAttribute('tabindex',other===tab?'0':'-1');});
  });
  tab.addEventListener('keydown',function(event){
