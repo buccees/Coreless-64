@@ -13,6 +13,7 @@ on:
       - "elder-scrolls-astronomy.js"
       - "nirn-gravity-model.js"
       - "nirn-coupled-world.js"
+      - "vigil-celestial-world-view.js"
       - "vigil/test-nirn-coupled-world.cjs"
       - "vigil/test-nirn-gravity.cjs"
       - "rd/plague/**"
@@ -55,6 +56,7 @@ jobs:
           cp elder-scrolls-astronomy.js site/elder-scrolls-astronomy.js
           cp nirn-gravity-model.js site/nirn-gravity-model.js
           cp nirn-coupled-world.js site/nirn-coupled-world.js
+          cp vigil-celestial-world-view.js site/vigil-celestial-world-view.js
           cp rd/plague/vigil-plague.js site/rd/plague/vigil-plague.js
           cp daedalus-mothership.js site/daedalus-mothership.js
           cp vigil-fleet-sensor-network.js site/vigil-fleet-sensor-network.js
@@ -70,6 +72,7 @@ jobs:
           test -s site/elder-scrolls-astronomy.js
           test -s site/nirn-gravity-model.js
           test -s site/nirn-coupled-world.js
+          test -s site/vigil-celestial-world-view.js
           test -s site/rd/plague/vigil-plague.js
           test -s site/daedalus-mothership.js
           test -s site/vigil-fleet-sensor-network.js
