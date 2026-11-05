@@ -4130,7 +4130,30 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     publishVigilSharedSimulationState(now,false);
     if(regionalFleetTimer!==null)regionalFleetTimer=requestAnimationFrame(stepRegionalFleet);
   }
-  function startRegionalFleet(){if(regionalWorldSnapshotActive||regionalFleetTimer!==null)return;regionalFleetLastTick=0;regionalFleetTimer=requestAnimationFrame(stepRegionalFleet);}
+  function startRegionalFleet(){
+    var status=document.getElementById('sim-regional-turn-status');
+    if(regionalWorldSnapshotActive){
+      if(status)status.textContent='SERVER-AUTHORITATIVE WORLD // MOTION IS CONTROLLED BY THE CONNECTED SERVER';
+      var feed=document.getElementById('vgfs-status');if(feed)feed.textContent='SERVER-AUTHORITATIVE WORLD // LOCAL MOTION LOCKED';
+      return;
+    }
+    if(regionalFleetTimer!==null){if(status)status.textContent='FLEET MOTION ALREADY RUNNING';return;}
+    var started=0;
+    regionalTrainingFleet.forEach(function(ship){
+      if(!ship||ship.afloat===false||ship.deploymentStatus==='docked'||ship.shipClass==='facility')return;
+      var max=Math.max(0,Number(ship.maxSpeed)||0);
+      if(max<=0)return;
+      if(Number(ship.targetSpeed==null?ship.speed:ship.targetSpeed)<=0){
+        ship.targetSpeed=Math.max(.001,max*.25);
+        if(ship.side==='friendly')ship.stationKeepingEnabled=false;
+        started++;
+      }
+    });
+    regionalFleetLastTick=0;
+    regionalFleetTimer=requestAnimationFrame(stepRegionalFleet);
+    if(status)status.textContent=started?'FLEET MOTION ACTIVE // '+started+' UNIT(S) RELEASED AT 25% CRUISE':'FLEET MOTION ACTIVE // EXISTING HELM TARGETS RESUMED';
+    var feed=document.getElementById('vgfs-status');if(feed)feed.textContent='FLEET MOTION ACTIVE // LIVE TRACKS';
+  }
   function pauseRegionalFleet(){if(regionalFleetTimer!==null)cancelAnimationFrame(regionalFleetTimer);regionalFleetTimer=null;regionalFleetLastTick=0;}
   function resetRegionalFleet(){
     pauseRegionalFleet();
@@ -6886,6 +6909,7 @@ read();drawRoster();
 #vigil-globe-fullscreen .sim-board-wrap{padding:4px;border:0;background:transparent}
 #vigil-globe-fullscreen .sim-board-head{font-size:12px}
 #vigil-globe-fullscreen .vgfs-close{background:#173b27;color:#d8ffe5;border:1px solid #66c18c;padding:7px 12px;font: bold 10px "Courier New",monospace;cursor:pointer}
+#vigil-globe-fullscreen #sim-globe-fullscreen-open{display:none!important}
 @media(max-width:850px){#vigil-globe-fullscreen .vgfs-layout{grid-template-columns:minmax(0,1fr) 300px}#vigil-globe-fullscreen .vgfs-sonar{flex-basis:38%}}
 @media(max-width:650px){#vigil-globe-fullscreen .vgfs-layout{grid-template-columns:1fr;grid-template-rows:minmax(48vh,1fr) minmax(0,45vh);overflow:auto}#vigil-globe-fullscreen .vgfs-side{display:grid;grid-template-columns:1fr 1fr;min-height:320px}#vigil-globe-fullscreen .vgfs-track-panel,#vigil-globe-fullscreen .vgfs-sonar{min-height:0;overflow:auto}#vigil-globe-fullscreen #sim-bathymetry-map{height:48vh!important;min-height:300px}}
 </style>
