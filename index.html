@@ -4401,7 +4401,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         if(!labels.length){selectedContactLabelId=null;return;}
         labels.sort(function(a,b){return a.id.localeCompare(b.id);});
         var selected=labels.find(function(item){return item.id===selectedContactLabelId;});
-        if(!selected){selected=labels[0];selectedContactLabelId=selected.id;}
+        if(!selected){if(selectedContactLabelId)return;selected=labels[0];selectedContactLabelId=selected.id;}
         var detailW=Math.min(390,Math.max(220,cssW*.34)),detailX=10,detailRow=14;
         var detailH=Math.min(cssH-20,selected.lines.length*detailRow+28),detailY=Math.max(8,cssH-detailH-10);
         ctx.globalAlpha=.94;ctx.fillStyle='#00100b';ctx.strokeStyle=selected.color;ctx.lineWidth=1.5;
@@ -6792,18 +6792,35 @@ read();drawRoster();
    open.focus();
  }
  function drawList(){
-   var rows=window.vigilGetGlobeTrackRoster?window.vigilGetGlobeTrackRoster():[],selected='';
+   var rows=window.vigilGetGlobeTrackRoster?window.vigilGetGlobeTrackRoster():[];
    var active=window.vigilGetGlobeSelectedTrack?window.vigilGetGlobeSelectedTrack():null;
-   list.textContent='';
-   if(!rows.length){var empty=document.createElement('div');empty.className='vgfs-empty';empty.textContent='NO TRACKS REPORTED // Start fleet motion or connect an authorized sensor feed. Unobserved objects are not shown.';list.appendChild(empty);status.textContent='0 TRACKS // WAITING FOR OBSERVATIONS';return;}
-   rows.forEach(function(item){
-     var button=document.createElement('button');button.type='button';button.className='vgfs-track';button.setAttribute('role','option');button.setAttribute('aria-pressed',String(String(item.id)===String(active)));
-     var title=document.createElement('span');title.textContent=String(item.id);
-     var kind=document.createElement('span');kind.className='vgfs-kind';kind.textContent=String(item.kind||'TRACK');
-     var detail=document.createElement('small');detail.textContent=String(item.name||item.classification||'UNCLASSIFIED')+' // '+String(item.source||'SOURCE NOT REPORTED')+(item.modality?' // '+String(item.modality).toUpperCase():'')+(item.depthM!=null?' // DEPTH '+Number(item.depthM).toFixed(1)+' M':'');
-     button.appendChild(title);button.appendChild(kind);button.appendChild(detail);
-     button.addEventListener('click',function(){if(window.vigilSelectGlobeTrack)window.vigilSelectGlobeTrack(item.id);drawList();});
-     list.appendChild(button);
+   var signature=rows.map(function(item){return [item.id,item.kind,item.name,item.classification,item.source,item.modality,item.depthM].join('|');}).join('||');
+   if(list.getAttribute('data-roster-signature')!==signature){
+     list.textContent='';
+     if(!rows.length){
+       var empty=document.createElement('div');empty.className='vgfs-empty';
+       empty.textContent='NO TRACKS REPORTED // Start fleet motion or connect an authorized sensor feed. Unobserved objects are not shown.';
+       list.appendChild(empty);
+     }else{
+       rows.forEach(function(item){
+         var button=document.createElement('button');button.type='button';button.className='vgfs-track';
+         button.setAttribute('role','option');button.dataset.trackId=String(item.id);
+         var title=document.createElement('span');title.textContent=String(item.id);
+         var kind=document.createElement('span');kind.className='vgfs-kind';kind.textContent=String(item.kind||'TRACK');
+         var detail=document.createElement('small');
+         detail.textContent=String(item.name||item.classification||'UNCLASSIFIED')+' // '+String(item.source||'SOURCE NOT REPORTED')+(item.modality?' // '+String(item.modality).toUpperCase():'')+(item.depthM!=null?' // DEPTH '+Number(item.depthM).toFixed(1)+' M':'');
+         button.appendChild(title);button.appendChild(kind);button.appendChild(detail);
+         button.addEventListener('click',function(){
+           if(!window.vigilSelectGlobeTrack||!window.vigilSelectGlobeTrack(item.id)){status.textContent='SELECTION FAILED // TRACK ENGINE UNAVAILABLE';return;}
+           drawList();
+         });
+         list.appendChild(button);
+       });
+     }
+     list.setAttribute('data-roster-signature',signature);
+   }
+   Array.prototype.forEach.call(list.querySelectorAll('[data-track-id]'),function(button){
+     button.setAttribute('aria-pressed',String(button.dataset.trackId===String(active)));
    });
    status.textContent=rows.length+' TRACK(S) // SELECTED: '+String(active||'NONE');
  }
