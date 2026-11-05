@@ -23,7 +23,8 @@ function place(b){
  var mu=G*(p.mass+b.mass),speed=Math.sqrt(mu/r),tx=-Math.sin(a),ty=Math.cos(a)*Math.cos(inc),tz=Math.cos(a)*Math.sin(inc),norm=Math.hypot(tx,ty,tz);
  b.vx=p.vx+speed*tx/norm;b.vy=p.vy+speed*ty/norm;b.vz=p.vz+speed*tz/norm;b._placed=true;
 }
-bodies.forEach(place);bodies.forEach(function(b){delete b._placed;});return bodies;
+bodies.forEach(place);bodies.forEach(function(b){delete b._placed;});
+var total=0,cx=0,cy=0,cz=0,cvx=0,cvy=0,cvz=0;bodies.forEach(function(b){total+=b.mass;cx+=b.mass*b.x;cy+=b.mass*b.y;cz+=b.mass*b.z;cvx+=b.mass*b.vx;cvy+=b.mass*b.vy;cvz+=b.mass*b.vz;});cx/=total;cy/=total;cz/=total;cvx/=total;cvy/=total;cvz/=total;bodies.forEach(function(b){b.x-=cx;b.y-=cy;b.z-=cz;b.vx-=cvx;b.vy-=cvy;b.vz-=cvz;});return bodies;
 }
 function accelerations(bodies){
 var a=bodies.map(function(){return [0,0,0];});
@@ -78,7 +79,7 @@ function draw(){
 var w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);var bg=ctx.createLinearGradient(0,0,0,h);bg.addColorStop(0,'#07131d');bg.addColorStop(1,'#02070d');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
 ctx.strokeStyle='rgba(102,153,180,.11)';ctx.lineWidth=1;for(var x=0;x<w;x+=50){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}for(var y=0;y<h;y+=50){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
 var center=project(bodies[0]);ctx.strokeStyle='rgba(120,175,205,.18)';ctx.setLineDash([5,8]);[384400,12000000,17500000,23500000,29500000,36500000].forEach(function(r){ctx.beginPath();ctx.ellipse(center.x,center.y,r*.43,r*.43,0,0,Math.PI*2);ctx.stroke();});ctx.setLineDash([]);
-if(trails.checked)trail.forEach(function(t){ctx.fillStyle='rgba(116,205,172,.2)';ctx.beginPath();ctx.arc(t.x,t.y,1.5,0,Math.PI*2);ctx.fill();});
+if(trails.checked)trail.forEach(function(t){ctx.globalAlpha=.24;ctx.fillStyle=t.color;ctx.beginPath();ctx.arc(t.x,t.y,1.35,0,Math.PI*2);ctx.fill();});ctx.globalAlpha=1;
 var ordered=bodies.map(function(b){return {b:b,p:project(b)};}).sort(function(a,b){return a.p.z-b.p.z;});
 ordered.forEach(function(o){var b=o.b,p=o.p;var grad=ctx.createRadialGradient(p.x-p.r*.35,p.y-p.r*.4,1,p.x,p.y,p.r*1.6);grad.addColorStop(0,'#ffffff');grad.addColorStop(.22,b.color);grad.addColorStop(1,'#03070b');ctx.fillStyle=grad;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.save();ctx.translate(p.x,p.y);ctx.rotate(b.spinAngle||0);ctx.strokeStyle='rgba(245,250,255,.78)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(-p.r*.72,0);ctx.lineTo(p.r*.72,0);ctx.stroke();ctx.fillStyle='#f7f4df';ctx.beginPath();ctx.arc(p.r*.48,0,Math.max(1.4,p.r*.13),0,Math.PI*2);ctx.fill();ctx.restore();if(b.id===selected){ctx.strokeStyle='#fff2b0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,p.r+7,0,Math.PI*2);ctx.stroke();}ctx.fillStyle='#d8e7f2';ctx.font='bold 13px Courier New';ctx.textAlign='left';ctx.fillText(b.name,p.x+p.r+7,p.y+4);});
 var magnusX=w-110,magnusY=92;ctx.fillStyle='#ffe6a0';ctx.shadowColor='#ffe6a0';ctx.shadowBlur=18;ctx.beginPath();ctx.arc(magnusX,magnusY,15,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#f2dfb4';ctx.font='bold 13px Courier New';ctx.textAlign='center';ctx.fillText('MAGNUS',magnusX,magnusY+35);ctx.fillStyle='#9db2c2';ctx.font='10px Courier New';ctx.fillText('LORE LIGHT / NOT A MASS POINT',magnusX,magnusY+50);
@@ -101,7 +102,7 @@ var key=collisionsOnly.map(function(e){return e.a+':'+e.b;}).join('|');if(key&&k
 function renderReadout(){page.querySelector('#es-gravity-time').textContent='T+ '+(simSeconds/DAY).toFixed(2)+' DAYS';page.querySelector('#es-gravity-count').textContent=String(bodies.length);monitor();}
 function frame(now){
 if(!running)return;if(!last)last=now;var elapsed=Math.min(.1,(now-last)/1000);last=now;var factor=Number(speed.value)||1;accum+=elapsed*factor*DAY;
-var dt=3600,steps=0;while(accum>=dt&&steps<120){step(bodies,dt);accum-=dt;simSeconds+=dt;steps++;if(steps%6===0){var p=project(bodies[0]);trail.push({x:p.x,y:p.y});if(trail.length>450)trail.shift();}}
+var dt=3600,steps=0;while(accum>=dt&&steps<120){step(bodies,dt);accum-=dt;simSeconds+=dt;steps++;if(steps%6===0){bodies.forEach(function(body){var p=project(body);trail.push({id:body.id,x:p.x,y:p.y,color:body.color});});if(trail.length>2400)trail.splice(0,trail.length-2400);}}
 if(auto.checked){rotation+=elapsed*.12;rot.value=String(Math.round(rotation*180/Math.PI)%360);}
 draw();renderReadout();raf=requestAnimationFrame(frame);
 }
