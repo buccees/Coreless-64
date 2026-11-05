@@ -4790,8 +4790,8 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       }
     }
     function update(){
-      var cosmic=selector.value!=='pelagos';globe.hidden=cosmic;atlas.hidden=!cosmic;if(calendar)calendar.hidden=!cosmic;
-      if(note)note.textContent=selector.value==='pelagos'?'LIVE PELAGOS SIMULATION // AXIAL ROTATION':selector.value==='nirn'?'LORE SCHEMATIC // MUNDUS, NIRN, MASSER, SECUNDA & DIVINE PLANES':'LORE SCHEMATIC // MUNDUS, OBLIVION, AETHERIUS & THE VOID';
+      var cosmic=selector.value!=='pelagos';globe.hidden=cosmic;atlas.hidden=!cosmic;if(calendar)calendar.hidden=!cosmic;var launchButton=document.getElementById('vigil-open-nirn-gravity');if(launchButton)launchButton.hidden=selector.value!=='nirn';
+      if(note)note.textContent=selector.value==='pelagos'?'LIVE PELAGOS SIMULATION // AXIAL ROTATION':selector.value==='nirn'?'NIRN OVERVIEW // OPEN 3D GRAVITY MODEL FOR ROTATION, ORBITS & COLLISIONS':'LORE SCHEMATIC // MUNDUS, OBLIVION, AETHERIUS & THE VOID';
       if(cosmic)draw();
       else renderBathymetry(lastObservationData);
     }
