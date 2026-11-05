@@ -4454,7 +4454,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         state.assets.forEach(function(ship){
           var p=vigilPlanetVector(ship.x,ship.y),isFriendly=ship.side==='friendly';
           var depth=Number(ship.depthMeters),markerRadius=Number.isFinite(depth)&&depth>0?Math.max(.80,1.018-Math.min(30000,depth)/30000*.218):1.018;
-          vertex({x:p.x*markerRadius,y:p.y*markerRadius,z:p.z*markerRadius},isFriendly?[.34,1,.55]:[1,.48,.2]);
+          vertex({x:p.x*markerRadius,y:p.y*markerRadius,z:p.z*markerRadius},String(ship.id)===String(selectedContactLabelId)?[1,.84,.32]:isFriendly?[.34,1,.55]:[1,.48,.2]);
         });
         assetCount=overlay.length/6-assetStart;
         trackStart=overlay.length/6;
@@ -4462,7 +4462,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
           // If the sensor track resolves to a known platform, plot the platform once at its actual domain radius.
           if(state.assets.some(function(ship){return ship&&String(ship.id)===String(track.id);}))return;
           var p=vigilPlanetVector(track.position[0],track.position[1]),modality=track.modality;
-          var color=modality==='thermal'||modality==='infrared'?[1,.48,.22]:modality==='optical'?[.72,1,.55]:[.22,.9,1];
+          var color=String(track.id)===String(selectedContactLabelId)?[1,.84,.32]:modality==='thermal'||modality==='infrared'?[1,.48,.22]:modality==='optical'?[.72,1,.55]:[.22,.9,1];
           vertex({x:p.x*1.026,y:p.y*1.026,z:p.z*1.026},color);
         });
         trackCount=overlay.length/6-trackStart;
@@ -4488,7 +4488,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
           var p=vigilPlanetVector(hit.position[0],hit.position[1]);
           var depth=hit.depthM!==null&&hit.depthM!==undefined&&Number.isFinite(Number(hit.depthM))&&Number(hit.depthM)>=0?Number(hit.depthM):null;
           var radius=depth===null?1.034:Math.max(.80,1.018-Math.min(30000,depth)/30000*.218);
-          vertex({x:p.x*radius,y:p.y*radius,z:p.z*radius},depth===null?[1,.84,.42]:[1,.55,.16]);
+          vertex({x:p.x*radius,y:p.y*radius,z:p.z*radius},String(hit.id)===String(selectedContactLabelId)?[1,.84,.32]:depth===null?[1,.84,.42]:[1,.55,.16]);
         });
         sonarPointCount=overlay.length/6-sonarPointStart;
         gl.useProgram(overlayProgram);
@@ -4543,6 +4543,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       return rows;
     };
     window.vigilSelectGlobeTrack=function(id){if(!orbitalHologramRenderer||!orbitalHologramRenderer.selectTrack)return false;orbitalHologramRenderer.selectTrack(id);return true;};
+    window.vigilGetGlobeSelectedTrack=function(){return orbitalHologramRenderer&&orbitalHologramRenderer.getSelectedTrack?orbitalHologramRenderer.getSelectedTrack():null;};
     var snapshot={feeds:[]};
     try{if(typeof window.vigilGetSensorInputSnapshot==='function')snapshot=window.vigilGetSensorInputSnapshot()||snapshot;}catch(inputError){}
     var orbitalModalities=['radar','optical','thermal','infrared','lidar','ew','esm','rf','tracking','fused','sensor_fusion'];
@@ -6819,7 +6820,7 @@ read();drawRoster();
  document.addEventListener('fullscreenchange',function(){if(opened&&!document.fullscreenElement&&modal.getAttribute('aria-hidden')==='false'){closeView();}});
  document.addEventListener('keydown',function(e){if(opened&&e.key==='Escape'&&!document.fullscreenElement){closeView();}});
  window.addEventListener('resize',function(){if(opened)drawList();});
- window.vigilGetGlobeSelectedTrack=function(){return window.vigilGetGlobeTrackSelected?window.vigilGetGlobeTrackSelected():null;};
+
 })();
 </script>
 </body></html>
