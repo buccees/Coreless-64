@@ -1307,7 +1307,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     <span id="vigil-cosmic-view-note">LIVE SIMULATION GLOBE // AXIAL ROTATION</span>
   </div>
   <canvas id="sim-bathymetry-map" width="1200" height="750" aria-label="Interactive three-dimensional holographic planetary globe built from the Pelagos-01 simulation terrain, Daedalus orbital sensor tracks and deployed surface assets" style="display:block;width:100%;height:auto;aspect-ratio:16/10;min-height:420px;background:#020b08;border:1px solid #47734a;touch-action:none"></canvas>
-  <canvas id="vigil-cosmic-atlas" width="1200" height="750" aria-label="Schematic Elder Scrolls cosmology view showing the Nirn-centered Mundus and the Aurbis planes" hidden style="display:block;width:100%;height:auto;aspect-ratio:16/10;min-height:420px;background:#02070b;border:1px solid #47734a"></canvas>
+  <canvas id="vigil-cosmic-atlas" width="1200" height="750" aria-label="Interactive astronomical scope showing physics-derived Nirn system trajectories or a lore relationship diagram" hidden style="display:block;width:100%;height:auto;aspect-ratio:16/10;min-height:420px;background:#02070b;border:1px solid #47734a"></canvas>
   <div id="vigil-tamrielic-calendar" hidden style="padding:10px;border:1px solid #315e43;background:#03130c;color:#b9e9cb;font:10px/1.7 monospace">
     <strong style="letter-spacing:.12em">TAMRIELIC CALENDAR CYCLE</strong>
     <div>Morning Star · Sun's Dawn · First Seed · Rain's Hand · Second Seed · Mid Year · Sun's Height · Last Seed · Hearthfire · Frost Fall · Sun's Dusk · Evening Star</div>
@@ -4755,48 +4755,129 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   (function setupVigilCosmicAtlas(){
     var selector=document.getElementById('vigil-cosmic-view'),globe=document.getElementById('sim-bathymetry-map'),atlas=document.getElementById('vigil-cosmic-atlas'),note=document.getElementById('vigil-cosmic-view-note'),calendar=document.getElementById('vigil-tamrielic-calendar');
     if(!selector||!globe||!atlas)return;
-    var ctx=atlas.getContext('2d');
-    function draw(){
-      var w=atlas.width,h=atlas.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#02070b';ctx.fillRect(0,0,w,h);
-      ctx.strokeStyle='#173b34';ctx.lineWidth=1;
+    var ctx=atlas.getContext('2d'),raf=0,last=0,running=false,simBodies=null,orbitPaths=null,simDay=0,zoom=1,rotation=.35,pitch=.38,focus='nirn',selected='nirn',showPaths=true,showLabels=true,viewReady=false;
+    var launchButton=document.getElementById('vigil-open-nirn-gravity');
+    var controls=document.createElement('div');
+    controls.id='vigil-cosmic-navigation';
+    controls.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;padding:9px;border:1px solid #315e43;background:#03130c;color:#b9e9cb;font:10px monospace';
+    controls.innerHTML='<label>FOCUS <select id="vigil-cosmic-focus" style="background:#071b11;color:#d8ffe5;border:1px solid #4b966b;padding:6px"><option value="nirn">NIRN / SYSTEM BARYCENTER</option></select></label><label>ZOOM <input id="vigil-cosmic-zoom" type="range" min="0.65" max="2.4" step="0.05" value="1"></label><button type="button" id="vigil-cosmic-run">▶ RUN ORBITS</button><button type="button" id="vigil-cosmic-pause">Ⅱ PAUSE</button><button type="button" id="vigil-cosmic-reset">RESET VIEW</button><label><input id="vigil-cosmic-paths" type="checkbox" checked> TRAJECTORIES</label><label><input id="vigil-cosmic-labels" type="checkbox" checked> LABELS</label><span id="vigil-cosmic-clock">MODEL EPOCH · DAY 0</span>';
+    atlas.parentNode.insertBefore(controls,atlas);
+    var focusSelect=controls.querySelector('#vigil-cosmic-focus'),zoomInput=controls.querySelector('#vigil-cosmic-zoom'),clock=controls.querySelector('#vigil-cosmic-clock');
+    var core=null;
+    function getCore(){return window.VigilNirnGravityCore||null;}
+    function initializeModel(){
+      core=getCore();
+      if(!core){if(note)note.textContent='WAITING FOR SHARED NEWTONIAN GRAVITY MODEL';return false;}
+      simBodies=core.initialize(core.cloneBodies());
+      orbitPaths=simBodies.map(function(b){return {id:b.id,color:b.color,points:[]};});
+      // Trajectories are sampled by the same pairwise N-body solver used in the gravity workspace.
+      var sample=core.initialize(core.cloneBodies()),sampleStep=21600;
+      for(var n=0;n<1460;n++){
+        core.step(sample,sampleStep);
+        if(n%2===0)sample.forEach(function(b){var path=orbitPaths.find(function(p){return p.id===b.id;});if(path)path.points.push([b.x,b.y,b.z]);});
+      }
+      simBodies=core.initialize(core.cloneBodies());
+      simDay=0;
+      simBodies.forEach(function(b){var o=document.createElement('option');o.value=b.id;o.textContent=b.name;focusSelect.appendChild(o);});
+      viewReady=true;
+      return true;
+    }
+    function rotate(v){
+      var ca=Math.cos(rotation),sa=Math.sin(rotation),cp=Math.cos(pitch),sp=Math.sin(pitch);
+      var x=v[0]*ca-v[1]*sa,y=v[0]*sa+v[1]*ca,z=v[2];
+      return [x,y*cp-z*sp,y*sp+z*cp];
+    }
+    function project(v,w,h){
+      var r=Math.hypot(v[0],v[1],v[2]),mapped=r?Math.log10(1+r/18000)*126:0;
+      var q=rotate(v),k=r?mapped/r:0;
+      return [w/2+q[0]*k*zoom,h/2-q[1]*k*zoom,q[2]];
+    }
+    function drawGrid(w,h){
+      ctx.strokeStyle='rgba(93,151,126,.12)';ctx.lineWidth=1;
       for(var x=0;x<w;x+=48){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
       for(var y=0;y<h;y+=48){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
-      function label(t,x,y,color,size){ctx.fillStyle=color||'#b9efd0';ctx.font='bold '+(size||20)+'px Courier New,monospace';ctx.textAlign='center';var tw=ctx.measureText(t).width;x=Math.max(tw/2+14,Math.min(w-tw/2-14,x));y=Math.max(102,Math.min(h-34,y));ctx.fillText(t,x,y);}
-      function ring(x,y,r,color,dash){ctx.beginPath();ctx.setLineDash(dash||[]);ctx.strokeStyle=color;ctx.lineWidth=2;ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
-      function orb(x,y,r,color,name){var g=ctx.createRadialGradient(x-r*.35,y-r*.4,1,x,y,r);g.addColorStop(0,'#ffffff');g.addColorStop(.18,color);g.addColorStop(1,'#02070b');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();label(name,x,y+r+22,color,14);}
-      if(selector.value==='nirn'){
-        label('NIRN / PELAGOS-01 // MUNDUS REFERENCE',w/2,42,'#9cefc0',24);
-        label('CLEAN OVERVIEW // OPEN THE 3D GRAVITY WORKSPACE FOR LIVE PHYSICS',w/2,72,'#8cae9c',13);
-        var cx=w/2,cy=h/2;
-        ring(cx,cy,155,'#4bd88a',[5,7]);
-        ring(cx,cy,235,'#58c8e8',[2,8]);
-        orb(cx,cy,72,'#3eaf84','NIRN');
-        orb(cx+155,cy-12,20,'#d7a07c','MASSER / JODE');
-        orb(cx+222,cy+42,12,'#aebed0','SECUNDA / JONE');
-        orb(cx-300,cy-210,18,'#ffe6a0','MAGNUS');
-        orb(cx+300,cy-210,11,'#91c9ff','MNEMOLI');
-        label('DIVINE PLANETS + LORE LIGHTS ARE IN THE ROTATING R&D MODEL',w/2,h-24,'#9db8a8',13);
-      }else{
-        label('AURBIS // ELDER SCROLLS COSMOLOGICAL MAP',w/2,42,'#9cefc0',24);
-        label('CONCEPTUAL PLANES OF EXISTENCE // NOT A CONVENTIONAL STAR GALAXY',w/2,72,'#8cae9c',13);
-        var cx=w/2,cy=h/2;
-        ring(cx,cy,75,'#52d995');ring(cx,cy,145,'#68bce8');ring(cx,cy,215,'#b99be8');ring(cx,cy,275,'#c8b779',[8,9]);
-        orb(cx,cy,46,'#3eaf84','NIRN / MUNDUS');
-        label('MUNDUS',cx,cy-58,'#a5f0c3',16);
-        label('OBLIVION // DAEDRIC REALMS',cx,cy-118,'#8bd8ef',17);
-        label('AETHERIUS // CELESTIAL REALMS',cx,cy-184,'#d0b8ff',17);
-        label('THE VOID',cx,cy-245,'#d7c98c',17);
-        label('Magnus / Sun + stars: openings associated with Aetherius in the cosmology text',w/2,h-24,'#9db8a8',13);
-      }
+      ctx.strokeStyle='rgba(104,176,137,.22)';ctx.setLineDash([4,7]);ctx.beginPath();ctx.ellipse(w/2,h/2,Math.min(w,h)*.37,Math.min(w,h)*.15,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+    }
+    function drawNirn(){
+      var w=atlas.width,h=atlas.height;
+      ctx.clearRect(0,0,w,h);ctx.fillStyle='#020a08';ctx.fillRect(0,0,w,h);drawGrid(w,h);
+      if(!viewReady&&!initializeModel()){ctx.fillStyle='#d7c89c';ctx.font='bold 18px monospace';ctx.textAlign='center';ctx.fillText('NEWTONIAN MODEL NOT AVAILABLE',w/2,h/2);return;}
+      var center=simBodies.find(function(b){return b.id==='nirn';})||simBodies[0];
+      var origin=[center.x,center.y,center.z],pointsById={};
+      function relative(v){return [v[0]-origin[0],v[1]-origin[1],v[2]-origin[2]];}
+      if(showPaths&&orbitPaths)orbitPaths.forEach(function(path){
+        if(path.points.length<2)return;
+        ctx.beginPath();var started=false;
+        path.points.forEach(function(p){var q=project(relative(p),w,h);if(!started){ctx.moveTo(q[0],q[1]);started=true;}else ctx.lineTo(q[0],q[1]);});
+        ctx.strokeStyle=path.color;ctx.globalAlpha=.38;ctx.lineWidth=path.id==='nirn'?1:1.6;ctx.stroke();ctx.globalAlpha=1;
+      });
+      var ordered=simBodies.map(function(b){var p=project(relative([b.x,b.y,b.z]),w,h);pointsById[b.id]=p;return {body:b,p:p};}).sort(function(a,b){return a.p[2]-b.p[2];});
+      ordered.forEach(function(item){
+        var b=item.body,p=item.p,r=b.id==='nirn'?15:(b.kind==='MOON'?7:8);
+        var glow=ctx.createRadialGradient(p[0]-r*.3,p[1]-r*.35,1,p[0],p[1],r*2.2);glow.addColorStop(0,'#ffffff');glow.addColorStop(.22,b.color);glow.addColorStop(1,'rgba(2,8,12,0)');
+        ctx.fillStyle=glow;ctx.beginPath();ctx.arc(p[0],p[1],r*2.2,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle=b.color;ctx.beginPath();ctx.arc(p[0],p[1],r,0,Math.PI*2);ctx.fill();
+        if(b.id===selected){ctx.strokeStyle='#fff0a8';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p[0],p[1],r+7,0,Math.PI*2);ctx.stroke();}
+        if(showLabels){
+          var label=b.name,tx=p[0]+r+8,ty=p[1]+4,tw=ctx.measureText(label).width;
+          ctx.font='bold 12px Courier New,monospace';ctx.textAlign='left';
+          if(tx+tw>w-12){tx=p[0]-r-8-tw;}
+          ctx.fillStyle='rgba(1,8,7,.88)';ctx.fillRect(tx-3,ty-12,tw+6,16);ctx.fillStyle='#e1f1e5';ctx.fillText(label,tx,ty);
+        }
+      });
+      // Parent links communicate the current model hierarchy without pretending that bodies are at one common scale.
+      simBodies.forEach(function(b){if(!b.parent)return;var a=pointsById[b.id],parent=pointsById[b.parent];if(!a||!parent)return;ctx.strokeStyle='rgba(201,220,191,.24)';ctx.setLineDash([2,5]);ctx.beginPath();ctx.moveTo(parent[0],parent[1]);ctx.lineTo(a[0],a[1]);ctx.stroke();ctx.setLineDash([]);});
+      ctx.textAlign='left';ctx.font='bold 13px Courier New,monospace';ctx.fillStyle='#a9e9c2';ctx.fillText('NIRN SYSTEM // SHARED NEWTONIAN N-BODY SOLVER',18,28);
+      ctx.font='11px Courier New,monospace';ctx.fillStyle='#a9c3b1';ctx.fillText('LOGARITHMIC DISPLAY SCALE · PHYSICAL POSITIONS / VELOCITIES · TRAJECTORY PREVIEW: 180 DAYS',18,48);
+      ctx.fillStyle='#e7c88e';ctx.fillText('MODEL ASSUMPTIONS — NOT CANONICAL ORBITAL SOLUTIONS',18,h-24);
+      // Magnus and Mnemoli remain lore annotations, not fabricated gravitating bodies.
+      ctx.textAlign='right';ctx.fillStyle='#ffe3a0';ctx.fillText('MAGNUS · LORE / NON-MASSIVE IN THIS MODEL',w-18,28);ctx.fillStyle='#9cccf1';ctx.fillText('MNEMOLI · BLUE STAR / NO MASS ASSIGNED',w-18,46);
+      if(clock)clock.textContent='MODEL EPOCH · DAY '+simDay.toFixed(1);
+    }
+    function drawAurbis(){
+      var w=atlas.width,h=atlas.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#02070b';ctx.fillRect(0,0,w,h);drawGrid(w,h);
+      ctx.textAlign='center';ctx.font='bold 23px Courier New,monospace';ctx.fillStyle='#b8efd0';ctx.fillText('AURBIS // LORE COSMOLOGY',w/2,48);
+      ctx.font='12px Courier New,monospace';ctx.fillStyle='#9bb5a7';ctx.fillText('RELATIONSHIP DIAGRAM · NOT A SPATIAL GALAXY MAP OR NEWTONIAN ORBIT MODEL',w/2,72);
+      var layers=[
+        {y:145,h:120,color:'#3b9a75',title:'MUNDUS',sub:'NIRN · MORTAL WORLD · DIVINE PLANET TRADITIONS'},
+        {y:300,h:120,color:'#4c9dbb',title:'OBLIVION',sub:'DAEDRIC REALMS · BETWEEN MUNDUS AND AETHERIUS'},
+        {y:455,h:120,color:'#9677c5',title:'AETHERIUS',sub:'CELESTIAL REALMS · STARS / MAGNA-GE TRADITIONS'}
+      ];
+      layers.forEach(function(a){ctx.fillStyle='rgba(8,25,26,.82)';ctx.strokeStyle=a.color;ctx.lineWidth=2;ctx.fillRect(w*.18,a.y,w*.64,a.h);ctx.strokeRect(w*.18,a.y,w*.64,a.h);ctx.fillStyle=a.color;ctx.font='bold 22px Courier New,monospace';ctx.fillText(a.title,w/2,a.y+42);ctx.fillStyle='#d2e3d8';ctx.font='12px Courier New,monospace';ctx.fillText(a.sub,w/2,a.y+73);});
+      ctx.strokeStyle='#d6c68e';ctx.setLineDash([5,7]);ctx.beginPath();ctx.moveTo(w/2,265);ctx.lineTo(w/2,300);ctx.moveTo(w/2,420);ctx.lineTo(w/2,455);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#c9b987';ctx.font='11px Courier New,monospace';ctx.fillText('THE VOID / OUTER CONTEXT — COSMOLOGICAL DESCRIPTION, NOT A MEASURED BOUNDARY',w/2,h-30);
     }
     function update(){
-      var cosmic=selector.value!=='pelagos';globe.hidden=cosmic;atlas.hidden=!cosmic;if(calendar)calendar.hidden=!cosmic;var launchButton=document.getElementById('vigil-open-nirn-gravity');if(launchButton)launchButton.hidden=selector.value!=='nirn';
-      if(note)note.textContent=selector.value==='pelagos'?'LIVE PELAGOS SIMULATION // AXIAL ROTATION':selector.value==='nirn'?'NIRN OVERVIEW // OPEN 3D GRAVITY MODEL FOR ROTATION, ORBITS & COLLISIONS':'LORE SCHEMATIC // MUNDUS, OBLIVION, AETHERIUS & THE VOID';
-      if(cosmic)draw();
-      else renderBathymetry(lastObservationData);
+      var value=selector.value,cosmic=value!=='pelagos';
+      globe.hidden=cosmic;atlas.hidden=!cosmic;if(calendar)calendar.hidden=!cosmic;
+      controls.hidden=value!=='nirn';
+      if(launchButton)launchButton.hidden=value!=='nirn';
+      if(note)note.textContent=value==='pelagos'?'LIVE PELAGOS SIMULATION // AXIAL ROTATION':value==='nirn'?'LIVE NIRN SYSTEM // PHYSICS-SOLVER TRAJECTORIES':'AURBIS LORE RELATIONSHIPS // NOT A GALAXY MAP';
+      if(value==='nirn')drawNirn();else if(value==='aurbis')drawAurbis();else renderBathymetry(lastObservationData);
     }
-    selector.addEventListener('change',update);window.addEventListener('resize',function(){if(!atlas.hidden)draw();});
-    update();
+    function animate(now){
+      if(!running||selector.value!=='nirn')return;
+      if(!last)last=now;var elapsed=Math.min(.1,(now-last)/1000);last=now;
+      // Display clock advances at a readable rate; integration remains in physical seconds.
+      var seconds=elapsed*86400;
+      var remaining=seconds,stepSize=1800;
+      while(remaining>0){var dt=Math.min(stepSize,remaining);core.step(simBodies,dt);remaining-=dt;}
+      simDay+=seconds/86400;rotation+=elapsed*.035;drawNirn();raf=window.requestAnimationFrame(animate);
+    }
+    function stop(){running=false;if(raf)window.cancelAnimationFrame(raf);raf=0;last=0;}
+    controls.querySelector('#vigil-cosmic-run').addEventListener('click',function(){if(!viewReady&&!initializeModel())return;if(running)return;running=true;last=0;raf=window.requestAnimationFrame(animate);});
+    controls.querySelector('#vigil-cosmic-pause').addEventListener('click',stop);
+    controls.querySelector('#vigil-cosmic-reset').addEventListener('click',function(){stop();viewReady=false;initializeModel();drawNirn();});
+    zoomInput.addEventListener('input',function(){zoom=Number(zoomInput.value)||1;drawNirn();});
+    focusSelect.addEventListener('change',function(){selected=focusSelect.value;drawNirn();});
+    controls.querySelector('#vigil-cosmic-paths').addEventListener('change',function(e){showPaths=e.target.checked;drawNirn();});
+    controls.querySelector('#vigil-cosmic-labels').addEventListener('change',function(e){showLabels=e.target.checked;drawNirn();});
+    atlas.addEventListener('pointerdown',function(e){atlas.setPointerCapture(e.pointerId);atlas.dataset.dragX=e.clientX;atlas.dataset.dragY=e.clientY;});
+    atlas.addEventListener('pointermove',function(e){if(!atlas.hasPointerCapture(e.pointerId)||selector.value!=='nirn')return;rotation+=(e.clientX-Number(atlas.dataset.dragX))*.006;pitch=Math.max(-1.15,Math.min(1.15,pitch+(e.clientY-Number(atlas.dataset.dragY))*.004));atlas.dataset.dragX=e.clientX;atlas.dataset.dragY=e.clientY;drawNirn();});
+    atlas.addEventListener('pointerup',function(e){if(atlas.hasPointerCapture(e.pointerId))atlas.releasePointerCapture(e.pointerId);});
+    selector.addEventListener('change',function(){stop();update();});
+    window.addEventListener('resize',function(){if(!atlas.hidden){if(selector.value==='nirn')drawNirn();else if(selector.value==='aurbis')drawAurbis();}});
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){update();});else update();
   })();
 
   (function setupMapNavigation(){
