@@ -398,6 +398,79 @@ button[aria-pressed="true"],button[aria-selected="true"]{color:#f2ffe9;border-co
 .vigil-simulation-unit-tab-list [role="tab"][aria-selected="true"]{border-color:#d4b45e;background:linear-gradient(180deg,#3b3218,#1b1b0d);color:#fff0bd;box-shadow:inset 0 0 0 1px #d4b45e33}
 @media(prefers-reduced-motion:reduce){button,.nav-panel .nav-button{transition:none}}
 
+
+
+/* VIGIL JEWEL CONTROLS: rounded, translucent colored pushbuttons;
+   inspired by the tactile illuminated controls in Alien, not faceted gemstones. */
+:root{
+ --vigil-jewel-green:#39e69a;
+ --vigil-jewel-amber:#f0bd52;
+ --vigil-jewel-red:#f05d62;
+ --vigil-jewel-cyan:#55c9ef;
+}
+.nav-panel .nav-button{
+ border-radius:999px;
+ border:1px solid #326b50;
+ border-left:1px solid #326b50;
+ padding-left:15px;
+ background:linear-gradient(180deg,#15251d 0%,#07110c 100%);
+ box-shadow:inset 0 1px 2px #ffffff18,inset 0 -3px 6px #0009,0 2px 7px #0009;
+}
+.nav-panel .nav-button::before{
+ content:"";
+ flex:0 0 11px;width:11px;height:11px;border-radius:50%;
+ background:radial-gradient(circle at 32% 25%,#eafff4 0%,#9affc9 12%,#39e69a 34%,#087c4d 70%,#043a27 100%);
+ border:1px solid #74efb2;
+ box-shadow:inset 0 1px 2px #fff9,0 0 7px #39e69a88,0 0 14px #39e69a33;
+}
+.nav-panel .nav-button[aria-pressed="true"]::before{
+ background:radial-gradient(circle at 32% 25%,#fff 0%,#d6ffe8 12%,#69ffae 35%,#12a966 72%,#075333 100%);
+ box-shadow:inset 0 1px 2px #fff,0 0 9px #65ffad,0 0 19px #39e69a77;
+}
+.nav-panel .nav-button[aria-pressed="true"]::after{content:"ACTIVE";margin-left:auto}
+button{
+ border-radius:999px;
+ box-shadow:inset 0 1px 2px #ffffff16,inset 0 -2px 5px #0009,0 2px 5px #0006;
+}
+button[aria-pressed="true"],button[aria-selected="true"]{
+ border-radius:999px;
+}
+#site-settings-open,.screen-launcher,#sim-globe-fullscreen-open,#vigil-3d-seafloor-launch,#rd-open-plague-folder,#vigil-daedalus-rd-open,#vigil-sensor-open-feeds,#vigil-sensor-import-open,#spatial-import-open{
+ border-radius:999px;
+ border:1px solid #5be7a6;
+ border-left:1px solid #5be7a6;
+ padding:11px 19px 11px 14px;
+ background:linear-gradient(180deg,#183c2b 0%,#092417 48%,#06140d 100%);
+ box-shadow:inset 0 1px 2px #ffffff26,inset 0 -4px 8px #000b,0 3px 10px #0009,0 0 10px #39e69a22;
+}
+#site-settings-open::before,.screen-launcher::before,#sim-globe-fullscreen-open::before,#vigil-3d-seafloor-launch::before,#rd-open-plague-folder::before,#vigil-daedalus-rd-open::before,#vigil-sensor-open-feeds::before,#vigil-sensor-import-open::before,#spatial-import-open::before{
+ content:"";display:inline-block;flex:0 0 17px;width:17px;height:17px;border-radius:50%;
+ background:radial-gradient(circle at 32% 24%,#f1fff7 0%,#b8ffda 10%,#42e99d 31%,#0b9b60 63%,#03442b 100%);
+ border:1px solid #8dffc2;
+ box-shadow:inset 0 1px 2px #fff, inset 0 -2px 4px #003d25,0 0 8px #39e69a99,0 0 16px #39e69a44;
+}
+#site-settings-open::after,.screen-launcher::after,#sim-globe-fullscreen-open::after,#vigil-3d-seafloor-launch::after,#vigil-sensor-open-feeds::after{color:#a9ffd0}
+#vigil-daedalus-rd-open,#rd-open-plague-folder,#spatial-import-open,#vigil-sensor-import-open,#sim-uuv-sonar-upload-open{
+ border-radius:999px;border-left:1px solid #c49a49;
+}
+#vigil-daedalus-rd-open::before,#rd-open-plague-folder::before,#spatial-import-open::before,#vigil-sensor-import-open::before,#sim-uuv-sonar-upload-open::before{
+ content:"";display:inline-block;flex:0 0 17px;width:17px;height:17px;border-radius:50%;
+ background:radial-gradient(circle at 32% 24%,#fff9df 0%,#ffe7a0 12%,#f0bd52 34%,#a96b16 70%,#4d3009 100%);
+ border:1px solid #ffe09a;box-shadow:inset 0 1px 2px #fff, inset 0 -2px 4px #4d3009,0 0 8px #f0bd5288,0 0 15px #f0bd5233;
+}
+#vigil-daedalus-rd-open::after,#rd-open-plague-folder::after,#spatial-import-open::after,#vigil-sensor-import-open::after{color:#ffe4a0}
+#vigil-ops-fire,.ops-fire,.vigil-cb-emergency,[id*="delete"],[id*="clear"]{
+ border-radius:999px;
+ box-shadow:inset 0 1px 2px #fff2,inset 0 -3px 6px #000b,0 0 9px #f05d6244;
+}
+#vigil-ops-fire::before,.ops-fire::before,.vigil-cb-emergency::before{
+ content:"";display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;
+ background:radial-gradient(circle at 32% 24%,#fff 0%,#ffb7ae 13%,#f05d62 38%,#9a2029 74%,#451014 100%);
+ border:1px solid #ffaaa1;box-shadow:inset 0 1px 2px #fff,0 0 8px #f05d62aa;
+}
+.settings-tabs .settings-tab,.vigil-simulation-unit-tab-list [role="tab"]{border-radius:999px}
+@media(prefers-reduced-motion:reduce){.nav-panel .nav-button,button{transition:none}}
+
 </style><link rel="stylesheet" href="daedalus-rd.css"><script src="daedalus-rd.js?v=daedalus-rd-5" defer></script><script src="vigil-rd-labs.js?v=daedalus-rd-3" defer></script><!-- R&D asset deployment trigger --></head>
 <body><nav class="nav-panel" aria-label="VIGIL control room sections"><a class="nav-button" href="#login-panel" data-view="login" aria-pressed="false">00 // LOGIN</a><a class="nav-button" href="#overview-panel" data-view="overview" aria-pressed="true">01 // OVERVIEW</a><a class="nav-button" href="#architecture-panel" data-view="architecture" aria-pressed="false">02 // ARCHITECTURE</a><a class="nav-button" href="#spatial-panel" data-view="spatial" aria-pressed="false">03 // SPATIAL INTELLIGENCE</a><a class="nav-button" href="#simulation-panel" data-view="simulation" aria-pressed="false">04 // SIMULATION + SENSOR CONTROL</a><a class="nav-button" href="#specimen-panel" data-view="specimen" aria-pressed="false">05 // SPECIMEN PLATE</a><a class="nav-button" href="#lab-report-panel" data-view="lab-report" aria-pressed="false">06 // LAB REPORT</a><a class="nav-button" href="#notes-panel" data-view="project-history" aria-pressed="false">07 // PROJECT HISTORY</a><a class="nav-button" href="#roadmap-panel" data-view="roadmap" aria-pressed="false">08 // ROADMAP</a><a class="nav-button" href="#verification-panel" data-view="verification" aria-pressed="false">09 // VERIFICATION</a><a class="nav-button" href="#hardware-panel" data-view="hardware" aria-pressed="false">10 // VIRTUAL HARDWARE</a><a class="nav-button" href="#biology-panel" data-view="biology" aria-pressed="false">11 // BIO-SIMULATION</a><a class="nav-button" href="#machine-panel" data-view="machine" aria-pressed="false">12 // MACHINE STATUS</a><a class="nav-button" href="#experimental-panel" data-view="experimental" aria-pressed="false">13 // EXPERIMENTAL FEATURES</a><a class="nav-button" href="#wallpaper-panel" data-view="wallpaper" aria-pressed="false">14 // WALLPAPERS</a><a class="nav-button" href="#rd-panel" data-view="rd" aria-pressed="false">15 // R&amp;D</a><button type="button" class="nav-button settings-launch" id="site-settings-open" aria-haspopup="dialog" aria-controls="site-settings-panel">⚙ SETTINGS</button></nav><div class="settings-backdrop" id="site-settings-backdrop" hidden><section class="settings-panel" id="site-settings-panel" role="dialog" aria-modal="true" aria-labelledby="site-settings-title" tabindex="-1">
 <div class="settings-head"><div><div class="settings-kicker">VIGIL / CORELESS-64 // CONFIGURATION UTILITY</div><h2 id="site-settings-title">SYSTEM CONFIGURATION</h2><p>Global preferences • subsystem configuration • diagnostics</p></div><button type="button" id="site-settings-close" aria-label="Close settings">CLOSE ✕</button></div>
