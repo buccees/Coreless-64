@@ -12,6 +12,7 @@ on:
       - "vigil-rd-labs.js"
       - "elder-scrolls-astronomy.js"
       - "nirn-gravity-model.js"
+      - "vigil/test-nirn-gravity.cjs"
       - "rd/plague/**"
       - "daedalus-mothership.js"
       - "vigil-fleet-sensor-network.js"
@@ -88,6 +89,9 @@ jobs:
             site/daedalus-rd-integration.js; do
             node --check "$script"
           done
+
+      - name: Test Nirn gravitational mechanics
+        run: node vigil/test-nirn-gravity.cjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
