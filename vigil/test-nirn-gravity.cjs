@@ -1,0 +1,16 @@
+const assert = require('node:assert/strict');
+const core = require('../nirn-gravity-model.js');
+const bodies = core.initialize();
+const byId = Object.fromEntries(bodies.map(body => [body.id, body]));
+assert.equal(bodies.length, 11);
+assert.equal(byId.masser.parent, 'nirn');
+assert.equal(byId.secunda.parent, 'masser');
+assert.equal(byId.stendarr.parent, 'julianos');
+assert.equal(byId.dibella.parent, 'mara');
+assert.deepEqual(core.collisions(bodies), []);
+const acc = core.accelerations(bodies);
+const dx = byId.masser.x - byId.nirn.x, dy = byId.masser.y - byId.nirn.y, dz = byId.masser.z - byId.nirn.z;
+assert.ok(acc[0][0]*dx + acc[0][1]*dy + acc[0][2]*dz > 0);
+const overlap = core.collisions([{id:'a',x:0,y:0,z:0,radius:10},{id:'b',x:15,y:0,z:0,radius:10}]);
+assert.equal(overlap[0].status, 'COLLISION');
+console.log('Nirn gravity tests passed: hierarchy, Newtonian attraction, initial clearance, physical-radius collision detection.');
