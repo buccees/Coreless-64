@@ -4761,32 +4761,32 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       ctx.strokeStyle='#173b34';ctx.lineWidth=1;
       for(var x=0;x<w;x+=48){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
       for(var y=0;y<h;y+=48){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
-      function label(t,x,y,color,size){ctx.fillStyle=color||'#b9efd0';ctx.font='bold '+(size||20)+'px Courier New,monospace';ctx.textAlign='center';ctx.fillText(t,x,y);}
+      function label(t,x,y,color,size){ctx.fillStyle=color||'#b9efd0';ctx.font='bold '+(size||20)+'px Courier New,monospace';ctx.textAlign='center';var tw=ctx.measureText(t).width;x=Math.max(tw/2+14,Math.min(w-tw/2-14,x));y=Math.max(102,Math.min(h-34,y));ctx.fillText(t,x,y);}
       function ring(x,y,r,color,dash){ctx.beginPath();ctx.setLineDash(dash||[]);ctx.strokeStyle=color;ctx.lineWidth=2;ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
       function orb(x,y,r,color,name){var g=ctx.createRadialGradient(x-r*.35,y-r*.4,1,x,y,r);g.addColorStop(0,'#ffffff');g.addColorStop(.18,color);g.addColorStop(1,'#02070b');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();label(name,x,y+r+22,color,14);}
       if(selector.value==='nirn'){
         label('MUNDUS // NIRN-CENTERED COSMOLOGICAL SCHEMATIC',w/2,42,'#9cefc0',24);
         label('NOT TO SCALE // DIVINE PLANES ARE NOT ORDINARY PHYSICAL PLANETS',w/2,72,'#8cae9c',13);
-        var cx=w/2,cy=h/2+15;
-        [100,190,285,380].forEach(function(r,i){ring(cx,cy,r,['#4bd88a','#58c8e8','#c8a4ff','#d4b86d'][i],[i===0?4:0]);});
+        var cx=w/2,cy=h/2;
+        [78,145,215,275].forEach(function(r,i){ring(cx,cy,r,['#4bd88a','#58c8e8','#c8a4ff','#d4b86d'][i],[i===0?4:0]);});
         orb(cx,cy,44,'#3eaf84','NIRN');
-        orb(cx+100,cy-10,17,'#d7d2c5','MASSER');
-        orb(cx+125,cy+35,10,'#9aa8b8','SECUNDA');
-        var planets=[['AKATOSH',cx,cy-190,'#e7b95e'],['ARKAY',cx+190,cy,'#c5d6e7'],['DIBELLA',cx,cy+285,'#e88eaf'],['JULIANOS',cx-190,cy,'#76bde8'],['KYNARETH',cx+202,cy-202,'#72d99c'],['MARA',cx-202,cy+202,'#e9a4bf'],['STENDARR',cx-285,cy-50,'#d5e4ef'],['ZENITHAR',cx+285,cy+50,'#e7c36e']];
+        orb(cx+92,cy-10,17,'#d7d2c5','MASSER');
+        orb(cx+116,cy+34,10,'#9aa8b8','SECUNDA');
+        var planets=[['AKATOSH',cx,cy-165,'#e7b95e'],['ARKAY',cx+165,cy,'#c5d6e7'],['DIBELLA',cx,cy+235,'#e88eaf'],['JULIANOS',cx-165,cy,'#76bde8'],['KYNARETH',cx+175,cy-175,'#72d99c'],['MARA',cx-175,cy+175,'#e9a4bf'],['STENDARR',cx-235,cy-42,'#d5e4ef'],['ZENITHAR',cx+235,cy+42,'#e7c36e']];
         planets.forEach(function(p){orb(p[1],p[2],p[0]==='AKATOSH'||p[0]==='ARKAY'||p[0]==='JULIANOS'?25:19,p[3],p[0]);});
         label('Masser + Secunda // Nirn moons',cx,cy+75,'#a9c8db',13);
-        label('Traditional orrery associations: Stendarr–Julianos; Dibella–Mara–Zenithar',w/2,h-40,'#9db8a8',13);
+        label('Traditional orrery associations: Stendarr–Julianos; Dibella–Mara–Zenithar',w/2,h-24,'#9db8a8',13);
       }else{
         label('AURBIS // ELDER SCROLLS COSMOLOGICAL MAP',w/2,42,'#9cefc0',24);
         label('CONCEPTUAL PLANES OF EXISTENCE // NOT A CONVENTIONAL STAR GALAXY',w/2,72,'#8cae9c',13);
-        var cx=w/2,cy=h/2+15;
-        ring(cx,cy,110,'#52d995');ring(cx,cy,220,'#68bce8');ring(cx,cy,335,'#b99be8');ring(cx,cy,455,'#c8b779',[8,9]);
+        var cx=w/2,cy=h/2;
+        ring(cx,cy,75,'#52d995');ring(cx,cy,145,'#68bce8');ring(cx,cy,215,'#b99be8');ring(cx,cy,275,'#c8b779',[8,9]);
         orb(cx,cy,46,'#3eaf84','NIRN / MUNDUS');
-        label('MUNDUS',cx,cy-78,'#a5f0c3',16);
-        label('OBLIVION // DAEDRIC REALMS',cx,cy-190,'#8bd8ef',17);
-        label('AETHERIUS // CELESTIAL REALMS',cx,cy-305,'#d0b8ff',17);
-        label('THE VOID',cx,cy-430,'#d7c98c',17);
-        label('Magnus / Sun + stars: openings associated with Aetherius in the cosmology text',w/2,h-40,'#9db8a8',13);
+        label('MUNDUS',cx,cy-58,'#a5f0c3',16);
+        label('OBLIVION // DAEDRIC REALMS',cx,cy-118,'#8bd8ef',17);
+        label('AETHERIUS // CELESTIAL REALMS',cx,cy-184,'#d0b8ff',17);
+        label('THE VOID',cx,cy-245,'#d7c98c',17);
+        label('Magnus / Sun + stars: openings associated with Aetherius in the cosmology text',w/2,h-24,'#9db8a8',13);
       }
     }
     function update(){
