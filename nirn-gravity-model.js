@@ -2,9 +2,9 @@
 'use strict';
 var G=6.67430e-20,EARTH=5.9722e24,DAY=86400;
 function cloneBodies(){return [
-{id:'nirn',name:'NIRN / PELAGOS-01',kind:'PLANET',parent:null,mass:1*EARTH,radius:6371,visual:15,color:'#55d69a',x:0,y:0,z:0,vx:0,vy:0,vz:0,spin:23.93,spinAngle:0,spinAxis:[0,0,1],lore:'Mortal world; gravitational reference body in this reconstruction.'},
-{id:'masser',name:'MASSER / JODE',kind:'MOON',parent:'nirn',mass:.0123*EARTH,radius:1737,visual:7,color:'#d78b63',orbit:384400,phase:0.2,spin:655.7,spinAxis:[0.03,0,1],lore:'Larger visible moon. Physical parameters are reconstruction assumptions.'},
-{id:'secunda',name:'SECUNDA / JONE',kind:'MOON',parent:'masser',mass:.0008*EARTH,radius:900,visual:4.5,color:'#aebed0',orbit:24000,phase:2.1,spin:480,spinAxis:[0.08,0,1],lore:'Smaller moon; nested around Masser in this interpretation of the sky.'},
+{id:'nirn',name:'NIRN / PELAGOS-01',kind:'PLANET',parent:null,mass:1*EARTH,radius:6371,visual:15,color:'#55d69a',x:0,y:0,z:0,vx:0,vy:0,vz:0,spin:24.0,spinAngle:0,spinAxis:[0,0,1],lore:'Mortal world; gravitational reference body in this reconstruction.'},
+{id:'masser',name:'MASSER / JODE',kind:'MOON',parent:'nirn',mass:.00008*EARTH,radius:325,visual:7,color:'#d78b63',orbit:0,periodDays:24,phase:0.2,spin:655.7,spinAxis:[0.03,0,1],lore:'Larger visible moon. Physical parameters are reconstruction assumptions.'},
+{id:'secunda',name:'SECUNDA / JONE',kind:'MOON',parent:'nirn',mass:.00002*EARTH,radius:190,visual:4.5,color:'#aebed0',orbit:0,periodDays:30,phase:2.1,spin:480,spinAxis:[0.08,0,1],lore:'Smaller moon; nested around Masser in this interpretation of the sky.'},
 {id:'zenithar',name:'ZENITHAR',kind:'DIVINE PLANET',parent:'nirn',mass:.0012*EARTH,radius:4200,visual:8,color:'#e7c56e',orbit:12000000,phase:.5,spin:30,spinAxis:[.04,.02,1],lore:'Aedric planetary body. Finite mass and radius are model parameters, not canon.'},
 {id:'mara',name:'MARA',kind:'DIVINE PLANET',parent:'zenithar',mass:.00012*EARTH,radius:1500,visual:4.5,color:'#e99dbd',orbit:145000,phase:1.4,spin:42,spinAxis:[0,0,1],lore:'Nested with Zenithar in the traditional orrery reconstruction.'},
 {id:'dibella',name:'DIBELLA',kind:'DIVINE PLANET',parent:'mara',mass:.00004*EARTH,radius:900,visual:3.5,color:'#d88bb7',orbit:38000,phase:2.4,spin:28,spinAxis:[0,0,1],lore:'Nested with Mara in the traditional orrery reconstruction.'},
