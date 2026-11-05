@@ -76,6 +76,7 @@ jobs:
             site/daedalus-rd.js \
             site/vigil-daedalus-orbital-sensor-suite.js \
             site/vigil-rd-labs.js \
+            site/elder-scrolls-astronomy.js \
             site/rd/plague/vigil-plague.js \
             site/daedalus-mothership.js \
             site/vigil-fleet-sensor-network.js \
