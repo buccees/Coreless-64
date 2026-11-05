@@ -1294,7 +1294,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font:10px monospace;letter-spacing:.08em;margin:8px 0">
     <span>DAEDALUS ORBITAL SENSOR SUITE // LIVE 3D HOLOGRAPHIC PLANET // PELAGOS-01</span>
     <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
-      <button type="button" id="sim-map-zoom-out" aria-label="Zoom out on regional map">−</button><button type="button" id="sim-map-zoom-in" aria-label="Zoom in on regional map">+</button><button type="button" id="sim-map-reset">RESET VIEW</button><button type="button" id="sim-globe-fullscreen-open" aria-haspopup="dialog">FULL-SCREEN TRACK DISPLAY</button><button type="button" id="sim-fleet-start">START MOTION</button><button type="button" id="sim-fleet-pause">PAUSE</button><button type="button" id="sim-fleet-reset">RESET SHIPS</button><span id="sim-map-scale">HOLOGRAPHIC GLOBE · 1.0×</span>
+      <button type="button" id="sim-map-zoom-out" aria-label="Zoom out on regional map">−</button><button type="button" id="sim-map-zoom-in" aria-label="Zoom in on regional map">+</button><button type="button" id="sim-map-reset">RESET VIEW</button><button type="button" id="sim-globe-fullscreen-open" aria-haspopup="dialog">FULL-SCREEN TRACK DISPLAY</button><button type="button" id="sim-fleet-start">START MOTION</button><button type="button" id="sim-fleet-pause">STOP MOTION</button><button type="button" id="sim-fleet-reset">RESET SHIPS</button><span id="sim-map-scale">HOLOGRAPHIC GLOBE · 1.0×</span>
     </span>
   </div>
   <div id="vigil-cosmic-view-controls" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;padding:8px;border:1px solid #315e43;background:#03130c;color:#b9e9cb;font:10px monospace">
@@ -1308,6 +1308,12 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   </div>
   <canvas id="sim-bathymetry-map" width="1200" height="750" aria-label="Interactive three-dimensional holographic planetary globe built from the Pelagos-01 simulation terrain, Daedalus orbital sensor tracks and deployed surface assets" style="display:block;width:100%;height:auto;aspect-ratio:16/10;min-height:420px;background:#020b08;border:1px solid #47734a;touch-action:none"></canvas>
   <canvas id="vigil-cosmic-atlas" width="1200" height="750" aria-label="Schematic Elder Scrolls cosmology view showing the Nirn-centered Mundus and the Aurbis planes" hidden style="display:block;width:100%;height:auto;aspect-ratio:16/10;min-height:420px;background:#02070b;border:1px solid #47734a"></canvas>
+  <div id="vigil-tamrielic-calendar" hidden style="padding:10px;border:1px solid #315e43;background:#03130c;color:#b9e9cb;font:10px/1.7 monospace">
+    <strong style="letter-spacing:.12em">TAMRIELIC CALENDAR CYCLE</strong>
+    <div>Morning Star · Sun's Dawn · First Seed · Rain's Hand · Second Seed · Mid Year · Sun's Height · Last Seed · Hearthfire · Frost Fall · Sun's Dusk · Evening Star</div>
+    <div style="color:#8bb9a0">WEEK: Morndas · Tirdas · Middas · Turdas · Fredas · Loredas · Sundas</div>
+    <div style="color:#718e7e">Calendar supplies month and weekday names; it does not define astronomical coordinates or orbital ephemerides.</div>
+  </div>
   <div id="sim-globe-input-readout" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px;margin:7px 0 10px;padding:9px;border:1px solid #28634b;background:#020c08;color:#a8f5c7;font:10px/1.55 monospace">
     <div>3D SURFACE: <b>PELAGOS-01 LIVE SIMULATION TERRAIN</b></div>
     <div id="sim-globe-feed-counts">INITIALIZING WORLD / SENSOR INPUTS</div>
@@ -4745,7 +4751,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   }
   function refreshMapView(){clampMapCamera();var scale=document.getElementById('sim-map-scale');if(scale)scale.textContent='PLANETARY GLOBE · '+mapCamera.zoom.toFixed(1)+'×';renderBathymetry(lastObservationData);}
   (function setupVigilCosmicAtlas(){
-    var selector=document.getElementById('vigil-cosmic-view'),globe=document.getElementById('sim-bathymetry-map'),atlas=document.getElementById('vigil-cosmic-atlas'),note=document.getElementById('vigil-cosmic-view-note');
+    var selector=document.getElementById('vigil-cosmic-view'),globe=document.getElementById('sim-bathymetry-map'),atlas=document.getElementById('vigil-cosmic-atlas'),note=document.getElementById('vigil-cosmic-view-note'),calendar=document.getElementById('vigil-tamrielic-calendar');
     if(!selector||!globe||!atlas)return;
     var ctx=atlas.getContext('2d');
     function draw(){
@@ -4782,7 +4788,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       }
     }
     function update(){
-      var cosmic=selector.value!=='pelagos';globe.hidden=cosmic;atlas.hidden=!cosmic;
+      var cosmic=selector.value!=='pelagos';globe.hidden=cosmic;atlas.hidden=!cosmic;if(calendar)calendar.hidden=!cosmic;
       if(note)note.textContent=selector.value==='pelagos'?'LIVE PELAGOS SIMULATION // AXIAL ROTATION':selector.value==='nirn'?'LORE SCHEMATIC // MUNDUS, NIRN, MASSER, SECUNDA & DIVINE PLANES':'LORE SCHEMATIC // MUNDUS, OBLIVION, AETHERIUS & THE VOID';
       if(cosmic)draw();
       else renderBathymetry(lastObservationData);
