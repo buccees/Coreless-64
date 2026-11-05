@@ -4765,17 +4765,17 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       function ring(x,y,r,color,dash){ctx.beginPath();ctx.setLineDash(dash||[]);ctx.strokeStyle=color;ctx.lineWidth=2;ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
       function orb(x,y,r,color,name){var g=ctx.createRadialGradient(x-r*.35,y-r*.4,1,x,y,r);g.addColorStop(0,'#ffffff');g.addColorStop(.18,color);g.addColorStop(1,'#02070b');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();label(name,x,y+r+22,color,14);}
       if(selector.value==='nirn'){
-        label('MUNDUS // NIRN-CENTERED COSMOLOGICAL SCHEMATIC',w/2,42,'#9cefc0',24);
-        label('NOT TO SCALE // DIVINE PLANES ARE NOT ORDINARY PHYSICAL PLANETS',w/2,72,'#8cae9c',13);
+        label('NIRN / PELAGOS-01 // MUNDUS REFERENCE',w/2,42,'#9cefc0',24);
+        label('CLEAN OVERVIEW // OPEN THE 3D GRAVITY WORKSPACE FOR LIVE PHYSICS',w/2,72,'#8cae9c',13);
         var cx=w/2,cy=h/2;
-        [78,145,215,275].forEach(function(r,i){ring(cx,cy,r,['#4bd88a','#58c8e8','#c8a4ff','#d4b86d'][i],[i===0?4:0]);});
-        orb(cx,cy,44,'#3eaf84','NIRN');
-        orb(cx+92,cy-10,17,'#d7d2c5','MASSER');
-        orb(cx+116,cy+34,10,'#9aa8b8','SECUNDA');
-        var planets=[['AKATOSH',cx,cy-165,'#e7b95e'],['ARKAY',cx+165,cy,'#c5d6e7'],['DIBELLA',cx,cy+235,'#e88eaf'],['JULIANOS',cx-165,cy,'#76bde8'],['KYNARETH',cx+175,cy-175,'#72d99c'],['MARA',cx-175,cy+175,'#e9a4bf'],['STENDARR',cx-235,cy-42,'#d5e4ef'],['ZENITHAR',cx+235,cy+42,'#e7c36e']];
-        planets.forEach(function(p){orb(p[1],p[2],p[0]==='AKATOSH'||p[0]==='ARKAY'||p[0]==='JULIANOS'?25:19,p[3],p[0]);});
-        label('Masser + Secunda // Nirn moons',cx,cy+75,'#a9c8db',13);
-        label('Traditional orrery associations: Stendarr–Julianos; Dibella–Mara–Zenithar',w/2,h-24,'#9db8a8',13);
+        ring(cx,cy,155,'#4bd88a',[5,7]);
+        ring(cx,cy,235,'#58c8e8',[2,8]);
+        orb(cx,cy,72,'#3eaf84','NIRN');
+        orb(cx+155,cy-12,20,'#d7a07c','MASSER / JODE');
+        orb(cx+222,cy+42,12,'#aebed0','SECUNDA / JONE');
+        orb(cx-300,cy-210,18,'#ffe6a0','MAGNUS');
+        orb(cx+300,cy-210,11,'#91c9ff','MNEMOLI');
+        label('DIVINE PLANETS + LORE LIGHTS ARE IN THE ROTATING R&D MODEL',w/2,h-24,'#9db8a8',13);
       }else{
         label('AURBIS // ELDER SCROLLS COSMOLOGICAL MAP',w/2,42,'#9cefc0',24);
         label('CONCEPTUAL PLANES OF EXISTENCE // NOT A CONVENTIONAL STAR GALAXY',w/2,72,'#8cae9c',13);
