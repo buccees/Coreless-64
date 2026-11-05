@@ -408,3 +408,33 @@
 .rd-folder-card button:hover,.rd-folder-card button:focus-visible{background:#0b3828;outline:1px solid var(--g)}
 .rd-folder-panel{margin:14px 0;padding:10px;border:1px solid #75633b;background:#030805}
 @media(max-width:760px){.rd-folder-index{grid-template-columns:1fr}}
+
+
+/* Elder Scrolls astronomy is an isolated R&D project folder. */
+.es-astronomy-folder{border-color:#78633e;background:#080c12;color:#d6dfec;font:11px/1.55 "Courier New",monospace}
+.es-astronomy-folder[hidden]{display:none!important}
+.es-astro-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;border-bottom:1px solid #65563a;padding-bottom:10px;margin-bottom:12px}
+.es-astro-head h3{margin:0;color:#e5ca8a;font-size:15px;letter-spacing:1px}
+.es-astro-head p{margin:5px 0;color:#9caec1;max-width:850px}
+.es-astro-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.es-astro-tabs button,.es-astro-controls button{background:#111a25;color:#d8e7f4;border:1px solid #53667b;padding:8px 11px;font:10px "Courier New",monospace;cursor:pointer}
+.es-astro-tabs button.active{border-color:#d7b66d;color:#ffe6a8;background:#292313}
+.es-astro-page[hidden]{display:none!important}
+.es-astro-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.es-astro-card{border:1px solid #35495a;background:#0a121c;padding:12px;min-width:0}
+.es-astro-card h4{margin:0 0 8px;color:#e6c983;font-size:11px;letter-spacing:.7px}
+.es-astro-card p,.es-astro-card li{color:#b5c3d2;line-height:1.6}
+.es-astro-card ul{padding-left:18px;margin:6px 0}
+.es-astro-muted{color:#91a2b4!important;font-size:10px}
+.es-astro-warning{border-left:3px solid #d3a34c;background:#211b10;padding:9px;color:#e8d6ad;margin:10px 0}
+.es-astro-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin:10px 0}
+.es-astro-controls label{display:grid;gap:4px;color:#b8c8d7;font-size:10px}
+.es-astro-controls input{width:100px;background:#080f18;color:#f0f5fa;border:1px solid #52677e;padding:7px;font:11px monospace}
+.es-astro-canvas{display:block;width:100%;height:auto;background:#030811;border:1px solid #41566c}
+.es-astro-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:9px 0}
+.es-astro-metric{padding:8px;background:#0b1621;border:1px solid #2c4357}
+.es-astro-metric span{display:block;color:#8ea4b8;font-size:9px}
+.es-astro-metric b{display:block;color:#f0d99f;font-size:12px;margin-top:4px}
+.es-astro-event{padding:7px 9px;margin:5px 0;border-left:2px solid #c7a65f;background:#111a22;color:#c8d7e5}
+.es-astro-calendar{font-size:12px;color:#f1dba6}
+@media(max-width:700px){.es-astro-grid{grid-template-columns:1fr}.es-astro-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.es-astro-controls label{flex:1 1 40%}}
