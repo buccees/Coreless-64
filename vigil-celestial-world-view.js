@@ -46,7 +46,7 @@ function boot(){
         colors.push(Math.min(1,base[0]*band),Math.min(1,base[1]*band),Math.min(1,base[2]*band));
       }
     }
-    for(var j=0;j<rows;j++)for(var i=0;i<cols;i++){var a=j*(cols+1)+i,b=a+1,c=a+cols+1,d=c+1;indices.push(a,b,c,b,d,c);}
+    for(var j=0;j<rows;j++)for(var i=0;i<cols;i++){var a=j*(cols+1)+i,b=a+1,c=a+cols+1,d=c+1;indices.push(a,c,b,b,c,d);}
     gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(positions.concat(colors)),gl.STATIC_DRAW);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,indexBuffer);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(indices),gl.STATIC_DRAW);indexCount=indices.length;
   }
@@ -63,7 +63,7 @@ function boot(){
   }
   function matrix(){
     var c=Math.cos(angle),s=Math.sin(angle),f=1.75,aspect=canvas.width/canvas.height;
-    return new Float32Array([f/aspect*c,0,-s,0,0,f,0,0,s,0,c,0,0,0,-2.8,1]);
+    return new Float32Array([1.42/aspect*c,0,-s*.5,0,0,1.42,0,0,s*.5,0,c*.5,0,0,0,0,1]);
   }
   function draw(now){
     if(!canvas.isConnected)return;
