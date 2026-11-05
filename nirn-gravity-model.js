@@ -18,7 +18,7 @@ function initialize(source){
 var bodies=source||cloneBodies(),byId={};bodies.forEach(function(b){byId[b.id]=b;});
 function place(b){
  if(!b.parent)return;var p=byId[b.parent];if(!p||b._placed)return;place(p);
- var a=b.phase||0,r=b.orbit||100000,inc=b.id==='arkay'?.42:(b.id==='kynareth'?.13:.04),x=r*Math.cos(a),y=r*Math.sin(a)*Math.cos(inc),z=r*Math.sin(a)*Math.sin(inc);
+ var a=b.phase||0,r=b.orbit||(b.periodDays?Math.cbrt(G*(p.mass+b.mass)*Math.pow((b.periodDays*DAY)/(Math.PI*2),2)):100000),inc=b.id==='arkay'?.42:(b.id==='kynareth'?.13:.04),x=r*Math.cos(a),y=r*Math.sin(a)*Math.cos(inc),z=r*Math.sin(a)*Math.sin(inc);
  b.x=p.x+x;b.y=p.y+y;b.z=p.z+z;
  var mu=G*(p.mass+b.mass),speed=Math.sqrt(mu/r),tx=-Math.sin(a),ty=Math.cos(a)*Math.cos(inc),tz=Math.cos(a)*Math.sin(inc),norm=Math.hypot(tx,ty,tz);
  b.vx=p.vx+speed*tx/norm;b.vy=p.vy+speed*ty/norm;b.vz=p.vz+speed*tz/norm;b._placed=true;
