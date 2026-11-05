@@ -115,5 +115,5 @@ canvas.addEventListener('pointerup',function(e){if(canvas.hasPointerCapture(e.po
 canvas.addEventListener('pointercancel',function(){});
 renderReadout();draw();detail();
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();}
 })();
