@@ -352,6 +352,10 @@ body{padding-top:108px}
 @media(max-width:760px){.wallpaper-feature{grid-template-columns:minmax(0,1fr);padding:8px}.wallpaper-art{max-height:none;width:min(100%,420px)}.wallpaper-info{padding:12px}}
 
 /* VIGIL CONTROL SURFACE: screen launchers, navigation, and action hierarchy */
+/* Reset/view controls are caution amber, not destructive red. */
+button[id*="reset"]{border-color:#8a7040;color:#f0d69b;background:linear-gradient(180deg,#302610,#171207)}
+button[id*="reset"]:hover:not(:disabled){border-color:#e3c16b;color:#fff0bd;background:linear-gradient(180deg,#463817,#211908)}
+
 :root{--vigil-launch:#42e6a0;--vigil-launch-ink:#d9ffeb;--vigil-launch-bg:#08291c;--vigil-nav:#45c99b;--vigil-command:#9ab6a4;--vigil-review:#e5c36b;--vigil-danger:#ff7777}
 .nav-panel{gap:7px}
 .nav-panel .nav-button{
@@ -386,8 +390,8 @@ button[aria-pressed="true"],button[aria-selected="true"]{color:#f2ffe9;border-co
 #vigil-daedalus-rd-open::after,#rd-open-plague-folder::after{color:#ffe08a}
 #spatial-import-open,#vigil-sensor-import-open,#sim-uuv-sonar-upload-open{border-color:#9b8046;border-left-color:#f0c66c;color:#ffe7aa;background:linear-gradient(115deg,#382b12,#1b160b 72%,#100d08)}
 #spatial-import-open::after,#vigil-sensor-import-open::after{color:#ffe08a}
-#vigil-ops-fire,.ops-fire,.vigil-cb-emergency,[id*="delete"],[id*="clear"],[id*="reset"]{border-color:#8e4a43;color:#ffd5ce;background:linear-gradient(180deg,#351916,#1b0d0c)}
-#vigil-ops-fire:hover:not(:disabled),.vigil-cb-emergency:hover:not(:disabled),[id*="delete"]:hover:not(:disabled),[id*="clear"]:hover:not(:disabled),[id*="reset"]:hover:not(:disabled){border-color:#ff8b7d;background:linear-gradient(180deg,#54231d,#27100e);color:#fff}
+#vigil-ops-fire,.ops-fire,.vigil-cb-emergency,[id*="delete"],[id*="clear"]{border-color:#8e4a43;color:#ffd5ce;background:linear-gradient(180deg,#351916,#1b0d0c)}
+#vigil-ops-fire:hover:not(:disabled),.vigil-cb-emergency:hover:not(:disabled),[id*="delete"]:hover:not(:disabled),[id*="clear"]:hover:not(:disabled){border-color:#ff8b7d;background:linear-gradient(180deg,#54231d,#27100e);color:#fff}
 .settings-tabs .settings-tab{min-height:38px;border-color:#315e43;background:#09170f;color:#a9cbb5}
 .settings-tabs .settings-tab.active,.settings-tabs .settings-tab[aria-selected="true"]{border-color:#d4b45e;color:#fff0bd;background:linear-gradient(180deg,#3a3018,#1a1a0d)}
 .vigil-simulation-unit-tab-list [role="tab"]{border:1px solid #315e43;background:linear-gradient(180deg,#10251a,#09140e);color:#b8d9c4;border-radius:4px}
