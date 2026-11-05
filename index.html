@@ -7083,6 +7083,24 @@ read();drawRoster();
 #vigil-globe-fullscreen #sim-globe-fullscreen-open{display:none!important}
 @media(max-width:850px){#vigil-globe-fullscreen .vgfs-layout{grid-template-columns:minmax(0,1fr) 300px}#vigil-globe-fullscreen .vgfs-sonar{flex-basis:38%}}
 @media(max-width:650px){#vigil-globe-fullscreen .vgfs-layout{grid-template-columns:1fr;grid-template-rows:minmax(48vh,1fr) minmax(0,45vh);overflow:auto}#vigil-globe-fullscreen .vgfs-side{display:grid;grid-template-columns:1fr 1fr;min-height:320px}#vigil-globe-fullscreen .vgfs-track-panel,#vigil-globe-fullscreen .vgfs-sonar{min-height:0;overflow:auto}#vigil-globe-fullscreen #sim-bathymetry-map{height:48vh!important;min-height:300px}}
+
+/* Keep jewel indicators compact so button labels retain their space. */
+#site-settings-open::before,
+.screen-launcher::before,
+#sim-globe-fullscreen-open::before,
+#vigil-3d-seafloor-launch::before,
+#rd-open-plague-folder::before,
+#vigil-daedalus-rd-open::before,
+#vigil-sensor-open-feeds::before,
+#vigil-sensor-import-open::before,
+#spatial-import-open::before,
+#sim-uuv-sonar-upload-open::before {
+  width:10px!important;
+  height:10px!important;
+  flex:0 0 10px!important;
+  margin-right:7px!important;
+  box-shadow:inset 0 1px 1px #ffffffaa,inset 0 -1px 2px #00150d,0 0 5px currentColor!important;
+}
 </style>
 <div id="vigil-globe-fullscreen" role="dialog" aria-modal="true" aria-label="Full-screen planetary globe and track control" aria-hidden="true">
  <div class="vgfs-head"><strong>VIGIL // PLANETARY TRACK CONTROL</strong><span id="vgfs-status">GLOBE TRACKS // LIVE</span><button type="button" class="vgfs-close" id="vgfs-close">EXIT FULL SCREEN</button></div>
