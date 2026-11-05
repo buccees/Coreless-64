@@ -28,10 +28,11 @@ permissions:
 
 concurrency:
   group: vigil-report-pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/vigil-spatial-awareness'
     runs-on: ubuntu-22.04
     steps:
