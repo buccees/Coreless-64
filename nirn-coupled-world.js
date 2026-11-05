@@ -31,7 +31,7 @@ function surfaceToInertial(body,latitude,longitude,altitudeKm,localVelocity){
  var radius=finite(body.radius,6371)+finite(altitudeKm,0),offset=scale(up,radius),omega=bodyOmega(body);
  var velocity=add(bodyVelocity(body),cross(omega,offset));
  localVelocity=localVelocity||{};
- velocity=add(velocity,add(add(scale(east,finite(localVelocity.east,0)),scale(north,finite(localVelocity.north,0))),scale(up,finite(localVelocity.up,0))));
+ velocity=add(velocity,add(add(scale(east,finite(localVelocity.east,0)/1000),scale(north,finite(localVelocity.north,0)/1000)),scale(up,finite(localVelocity.up,0)/1000)));
  return {position:add(bodyPosition(body),offset),velocity:velocity,basis:{east:east,north:north,up:up},surfaceRadiusKm:radius};
 }
 function inertialToSurface(body,position,velocity){
