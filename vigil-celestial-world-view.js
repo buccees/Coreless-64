@@ -72,7 +72,7 @@ function boot(){
     gl.viewport(0,0,w,h);gl.clearColor(.002,.012,.009,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.cullFace(gl.BACK);gl.useProgram(program);
     var stride=24;gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer);gl.enableVertexAttribArray(posLoc);gl.vertexAttribPointer(posLoc,3,gl.FLOAT,false,12,0);
     // Repack attributes into an interleaved stream for the shader.
-    var body=byId[activeId],rows=80,cols=160,positions=[],colors=[],seed=body.id.split('').reduce(function(n,c){return n+c.charCodeAt(0);},0),base=[.25,.55,.38];try{var hx=body.color.slice(1);base=[parseInt(hx.slice(0,2),16)/255,parseInt(hx.slice(2,4),16)/255,parseInt(hx.slice(4,6),16)/255;}catch(e){}
+    var body=byId[activeId],rows=80,cols=160,positions=[],colors=[],seed=body.id.split('').reduce(function(n,c){return n+c.charCodeAt(0);},0),base=[.25,.55,.38];try{var hx=body.color.slice(1);base=[parseInt(hx.slice(0,2),16)/255,parseInt(hx.slice(2,4),16)/255,parseInt(hx.slice(4,6),16)/255];}catch(e){}
     // Buffers are stored as positions followed by colors; use separate attribute offsets.
     var vertexCount=(rows+1)*(cols+1);gl.vertexAttribPointer(posLoc,3,gl.FLOAT,false,0,0);
     gl.enableVertexAttribArray(colLoc);gl.vertexAttribPointer(colLoc,3,gl.FLOAT,false,0,vertexCount*3*4);
