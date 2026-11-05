@@ -1173,7 +1173,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font:10px monospace;letter-spacing:.08em;margin:8px 0">
     <span>DAEDALUS ORBITAL SENSOR SUITE // LIVE 3D HOLOGRAPHIC PLANET // PELAGOS-01</span>
     <span style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
-      <button type="button" id="sim-map-zoom-out" aria-label="Zoom out on regional map">−</button><button type="button" id="sim-map-zoom-in" aria-label="Zoom in on regional map">+</button><button type="button" id="sim-map-reset">RESET VIEW</button><button type="button" id="sim-fleet-start">START MOTION</button><button type="button" id="sim-fleet-pause">PAUSE</button><button type="button" id="sim-fleet-reset">RESET SHIPS</button><span id="sim-map-scale">HOLOGRAPHIC GLOBE · 1.0×</span>
+      <button type="button" id="sim-map-zoom-out" aria-label="Zoom out on regional map">−</button><button type="button" id="sim-map-zoom-in" aria-label="Zoom in on regional map">+</button><button type="button" id="sim-map-reset">RESET VIEW</button><button type="button" id="sim-globe-fullscreen-open" aria-haspopup="dialog">FULL-SCREEN TRACK DISPLAY</button><button type="button" id="sim-fleet-start">START MOTION</button><button type="button" id="sim-fleet-pause">PAUSE</button><button type="button" id="sim-fleet-reset">RESET SHIPS</button><span id="sim-map-scale">HOLOGRAPHIC GLOBE · 1.0×</span>
     </span>
   </div>
   <canvas id="sim-bathymetry-map" width="1200" height="750" aria-label="Interactive three-dimensional holographic planetary globe built from the Pelagos-01 simulation terrain, Daedalus orbital sensor tracks and deployed surface assets" style="display:block;width:100%;height:auto;aspect-ratio:16/10;min-height:420px;background:#020b08;border:1px solid #47734a;touch-action:none"></canvas>
@@ -4355,16 +4355,11 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
           var lx=position.x*east.x+position.y*east.y+position.z*east.z;
           var ly=position.x*north.x+position.y*north.y+position.z*north.z;
           var lz=position.x*center.x+position.y*center.y+position.z*center.z;
-          var cameraZ=distance-lz;
-          if(lz<-.02||cameraZ<=.08)return;
+          var cameraZ=distance-lz;if(lz<-.02||cameraZ<=.08)return;
           var nx=(lx*focal/aspect)/cameraZ,ny=(ly*focal)/cameraZ;
           var x=(nx+1)*cssW*.5,y=(1-ny)*cssH*.5;
           if(x<0||x>cssW||y<0||y>cssH)return;
-          labels.push({id:String(id),x:x,y:y,lines:lines.map(function(line){return String(line).slice(0,74);}),color:color});
-        }
-        function classDescription(ship){
-          var classes={carrier:'AIRCRAFT CARRIER',destroyer:'GUIDED-MISSILE DESTROYER',submarine:'SUBMARINE',submersible:'UNMANNED SUBMERSIBLE',drone:'AIRBORNE DRONE',mech:'GROUND MECH',facility:'FIXED FACILITY'};
-          return classes[String(ship.shipClass||'').toLowerCase()]||String(ship.shipClass||'PLATFORM').toUpperCase();
+          labels.push({id:String(id),x:x,y:y,lines:lines.map(function(line){return String(line).slice(0,90);}),color:color});
         }
         state.assets.forEach(function(ship){
           if(!ship)return;
@@ -4372,107 +4367,52 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
           var radius=Number.isFinite(depth)&&depth>0?Math.max(.80,1.018-Math.min(30000,depth)/30000*.218):1.018;
           var faction=ship.factionId&&vigilFactionWorlds[ship.factionId];
           var domain=ship.shipClass==='carrier'||ship.shipClass==='destroyer'?'SURFACE':ship.shipClass==='submarine'||ship.shipClass==='submersible'?'UNDERSEA':ship.shipClass==='drone'?'AIRBORNE':ship.shipClass==='mech'?'GROUND':'PLATFORM';
-          var lines=[
-            String(ship.name||'UNIDENTIFIED PLATFORM').toUpperCase()+' '+classDescription(ship),
-            'TRACK ID: '+String(ship.id)+'  //  SIDE: '+String(ship.side||'UNKNOWN').toUpperCase(),
+          add(ship.id,{x:point.x*radius,y:point.y*radius,z:point.z*radius},[
+            String(ship.name||'UNIDENTIFIED PLATFORM').toUpperCase(),
+            'TRACK ID: '+String(ship.id)+' // SIDE: '+String(ship.side||'UNKNOWN').toUpperCase(),
             'AFFILIATION: '+(faction?faction.name+' ('+ship.factionId+')':String(ship.factionId||'UNASSIGNED')),
-            'OPERATING AREA: '+String(ship.worldId||'PELAGOS-01')+'  //  DOMAIN: '+domain,
+            'AREA: '+String(ship.worldId||'PELAGOS-01')+' // DOMAIN: '+domain,
             'STATUS: '+String(ship.deploymentStatus||ship.bayStatus||'DEPLOYED').toUpperCase()
-          ];
-          if(Number.isFinite(Number(ship.lengthM))&&Number(ship.lengthM)>0&&Number.isFinite(Number(ship.beamM))&&Number(ship.beamM)>0)lines.push('HULL: '+Number(ship.lengthM).toFixed(1)+' M LONG  //  '+Number(ship.beamM).toFixed(1)+' M BEAM');
-          if(ship.source)lines.push('REFERENCE: '+String(ship.source).toUpperCase());
-          add(ship.id,{x:point.x*radius,y:point.y*radius,z:point.z*radius},lines,'#ffb16f');
+          ],'#ffb16f');
         });
         state.tracks.forEach(function(track){
           if(!track||!Array.isArray(track.position)||track.position.length<2)return;
-          if(state.assets.find(function(ship){return ship&&String(ship.id)===String(track.id);}))return;
+          if(state.assets.some(function(ship){return ship&&String(ship.id)===String(track.id);}))return;
           var point=vigilPlanetVector(track.position[0],track.position[1]);
           add(track.id,{x:point.x*1.026,y:point.y*1.026,z:point.z*1.026},[
             'DAEDALUS SENSOR CONTACT','TRACK ID: '+String(track.id),
-            'SENSOR MODALITY: '+String(track.modality||'UNKNOWN').toUpperCase(),
-            'CLASSIFICATION: '+String(track.classification||track.objectClass||'NOT PROVIDED BY SENSOR FEED').toUpperCase(),
-            'SOURCE SENSOR: '+String(track.sensorId||'DAEDALUS SENSOR ARRAY'),
+            'MODALITY: '+String(track.modality||'UNKNOWN').toUpperCase(),
+            'CLASSIFICATION: '+String(track.classification||'NOT PROVIDED').toUpperCase(),
+            'SOURCE: '+String(track.sensorId||'DAEDALUS SENSOR ARRAY'),
             'CONFIDENCE: '+(track.confidence==null?'NOT REPORTED':String(track.confidence))
           ],'#ff9a62');
         });
         state.sonarTracks.forEach(function(track){
           if(!track||!Array.isArray(track.position)||track.position.length<2)return;
-          var point=vigilPlanetVector(track.position[0],track.position[1]),depth=Number(track.depthMeters);
-          var radius=Number.isFinite(depth)&&depth>0?Math.max(.80,1.018-Math.min(30000,depth)/30000*.218):1.018;
+          var point=vigilPlanetVector(track.position[0],track.position[1]),depth=Number(track.depthM);
+          var radius=Number.isFinite(depth)&&depth>=0?Math.max(.80,1.018-Math.min(30000,depth)/30000*.218):1.034;
           add(track.id,{x:point.x*radius,y:point.y*radius,z:point.z*radius},[
             'UUV SONAR RETURN','RETURN ID: '+String(track.id),
             'CLASSIFICATION: '+String(track.classification||'UNCLASSIFIED'),
             'SOURCE FEED: '+String(track.feedId||'UPLOADED UUV FEED'),
-            'DEPTH: '+(Number.isFinite(depth)?depth.toFixed(1)+' M':'NOT PROVIDED')
+            'DEPTH: '+(Number.isFinite(depth)&&depth>=0?depth.toFixed(1)+' M':'NOT PROVIDED')
           ],'#8de7ff');
         });
-        if(!labels.length){contactLabelHitBoxes=[];return;}
+        if(!labels.length){selectedContactLabelId=null;return;}
         labels.sort(function(a,b){return a.id.localeCompare(b.id);});
         var selected=labels.find(function(item){return item.id===selectedContactLabelId;});
         if(!selected){selected=labels[0];selectedContactLabelId=selected.id;}
-        var pad=5,rowH=21,railW=Math.min(230,Math.max(150,cssW*.32)),railX=cssW-railW-pad,railY=8;
-        var railRows=Math.max(3,Math.floor((cssH-16)/rowH));
-        var railLabels=labels.filter(function(item){return item.id!==selected.id;});
-        var pageSize=Math.max(1,railRows-2),pageCount=Math.max(1,Math.ceil(railLabels.length/pageSize));
-        contactLabelPage=Math.max(0,Math.min(pageCount-1,contactLabelPage));
-        var shown=railLabels.slice(contactLabelPage*pageSize,(contactLabelPage+1)*pageSize);
-        contactLabelHitBoxes=[];
-        ctx.font='bold 10px Courier New,monospace';ctx.textBaseline='middle';
-        function drawButton(item,x,y,w,h,isSelected){
-          ctx.globalAlpha=.97;ctx.fillStyle=isSelected?'#123c2c':'#00100b';ctx.strokeStyle=item.color;ctx.lineWidth=isSelected?2:1;
-          ctx.fillRect(x,y,w,h);ctx.strokeRect(x,y,w,h);ctx.globalAlpha=1;
-          ctx.fillStyle=item.color;var label=(isSelected?'▶ ':'')+item.id;
-          ctx.fillText(label,x+7,y+h/2);
-          contactLabelHitBoxes.push({id:item.id,x:x,y:y,w:w,h:h});
-        }
-        var detailW=Math.min(420,Math.max(190,cssW-railW-24)),detailX=8,detailY=8;
-        if(cssW<520){detailW=Math.min(cssW-16,railW);detailX=8;detailY=cssH-120;}
-        var detailLines=selected.lines.slice(),detailRow=14,detailH=Math.min(cssH-16,detailLines.length*detailRow+34);
-        if(detailY+detailH>cssH-4)detailY=Math.max(4,cssH-detailH-4);
-        ctx.globalAlpha=.96;ctx.fillStyle='#00100b';ctx.strokeStyle=selected.color;ctx.lineWidth=1.5;
+        var detailW=Math.min(390,Math.max(220,cssW*.34)),detailX=10,detailRow=14;
+        var detailH=Math.min(cssH-20,selected.lines.length*detailRow+28),detailY=Math.max(8,cssH-detailH-10);
+        ctx.globalAlpha=.94;ctx.fillStyle='#00100b';ctx.strokeStyle=selected.color;ctx.lineWidth=1.5;
         ctx.fillRect(detailX,detailY,detailW,detailH);ctx.strokeRect(detailX,detailY,detailW,detailH);ctx.globalAlpha=1;
-        ctx.fillStyle=selected.color;ctx.fillText('SELECTED CONTACT // '+selected.id,detailX+7,detailY+12);
-        var detailText=detailLines.slice(0,Math.max(1,Math.floor((detailH-24)/detailRow)));
-        detailText.forEach(function(line,i){
-          var text=String(line),maxChars=Math.max(18,Math.floor((detailW-14)/6));
-          if(text.length>maxChars)text=text.slice(0,maxChars-1)+'…';
-          ctx.fillText(text,detailX+7,detailY+25+i*detailRow);
+        ctx.font='bold 10px Courier New,monospace';ctx.textBaseline='middle';ctx.fillStyle=selected.color;
+        ctx.fillText('SELECTED TRACK // '+selected.id,detailX+7,detailY+11);
+        selected.lines.slice(0,Math.max(1,Math.floor((detailH-20)/detailRow))).forEach(function(line,i){
+          var maxChars=Math.max(20,Math.floor((detailW-14)/6)),value=String(line);
+          if(value.length>maxChars)value=value.slice(0,maxChars-1)+'…';
+          ctx.fillText(value,detailX+7,detailY+24+i*detailRow);
         });
-        var listX=railX,listY=railY+detailH+8;
-        if(cssW<520){listX=railX;listY=8;}
-        var listW=cssW-listX-pad;
-        ctx.fillStyle='#00100b';ctx.strokeStyle='#367d60';ctx.lineWidth=1;
-        ctx.fillRect(listX,listY,listW,Math.max(rowH,shown.length*rowH+8));ctx.strokeRect(listX,listY,listW,Math.max(rowH,shown.length*rowH+8));
-        ctx.fillStyle='#9bd9b8';ctx.fillText('CONTACT TRACKS // SELECT ID',listX+6,listY+10);
-        shown.forEach(function(item,i){drawButton(item,listX+4,listY+18+i*rowH,listW-8,rowH-2,false);});
-        drawButton(selected,detailX+detailW-100,detailY+2,94,18,true);
-        if(pageCount>1){
-          var pagerY=Math.min(cssH-rowH-4,listY+18+shown.length*rowH+2),pagerW=(listW-12)/2;
-          ctx.fillStyle='#00100b';ctx.strokeStyle='#6ba98a';
-          ctx.fillRect(listX+4,pagerY,pagerW,rowH-2);ctx.strokeRect(listX+4,pagerY,pagerW,rowH-2);
-          ctx.fillRect(listX+8+pagerW,pagerY,pagerW,rowH-2);ctx.strokeRect(listX+8+pagerW,pagerY,pagerW,rowH-2);
-          ctx.fillStyle='#b9f3d2';
-          ctx.fillText('‹ PREV',listX+10,pagerY+(rowH-2)/2);
-          ctx.fillText('NEXT ›',listX+14+pagerW,pagerY+(rowH-2)/2);
-          contactLabelHitBoxes.push({id:'__prev',x:listX+4,y:pagerY,w:pagerW,h:rowH-2});
-          contactLabelHitBoxes.push({id:'__next',x:listX+8+pagerW,y:pagerY,w:pagerW,h:rowH-2});
-          ctx.fillStyle='#9bd9b8';ctx.fillText('PAGE '+(contactLabelPage+1)+' / '+pageCount,listX+6,Math.max(listY+10,pagerY-5));
-        }
-        // Clicking a listed ID changes the detail pane; the globe remains draggable elsewhere.
-        if(!host._vigilContactPicker){
-          host._vigilContactPicker=function(event){
-            if(event.type!=='pointerdown'||event.button!==0)return;
-            var box=canvas.getBoundingClientRect(),px=event.clientX-box.left,py=event.clientY-box.top;
-            var hit=contactLabelHitBoxes.slice().reverse().find(function(h){return px>=h.x&&px<=h.x+h.w&&py>=h.y&&py<=h.y+h.h;});
-            if(!hit)return;
-            if(hit.id==='__prev')contactLabelPage=Math.max(0,contactLabelPage-1);
-            else if(hit.id==='__next')contactLabelPage++;
-            else selectedContactLabelId=hit.id;
-            event.preventDefault();event.stopPropagation();
-            if(event.stopImmediatePropagation)event.stopImmediatePropagation();
-          };
-          host.addEventListener('pointerdown',host._vigilContactPicker,true);
-        }
       }
       function draw(timestamp){
         if(!canvas.isConnected)return;
@@ -4579,7 +4519,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         window.requestAnimationFrame(draw);
       }
       window.requestAnimationFrame(draw);
-      return {gl:gl,program:surfaceProgram,mesh:mesh,overlayBuffer:overlayBuffer,state:state,locations:surfaceLocations};
+      return {gl:gl,program:surfaceProgram,mesh:mesh,overlayBuffer:overlayBuffer,state:state,locations:surfaceLocations,selectTrack:function(id){selectedContactLabelId=String(id||"");contactLabelPage=0;},getSelectedTrack:function(){return selectedContactLabelId;}};
     }
     if(!orbitalHologramRenderer){
       try{orbitalHologramRenderer=createRenderer();}
@@ -4593,6 +4533,16 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         return;
       }
     }
+    window.vigilGetGlobeTrackRoster=function(){
+      var st=orbitalHologramRenderer&&orbitalHologramRenderer.state;if(!st)return [];
+      var rows=[],seen=Object.create(null);
+      function push(item){if(!item||item.id==null)return;var id=String(item.id);if(seen[id])return;seen[id]=true;rows.push(item);}
+      (st.assets||[]).forEach(function(ship){push({id:String(ship.id),name:String(ship.name||ship.id),kind:String(ship.shipClass||'PLATFORM').toUpperCase(),side:String(ship.side||'UNKNOWN'),source:'FLEET / WORLD ENGINE',classification:String(ship.name||ship.shipClass||'PLATFORM'),position:[Number(ship.x),Number(ship.y)]});});
+      (st.tracks||[]).forEach(function(track){push({id:String(track.id),name:String(track.classification||track.id),kind:'SENSOR CONTACT',side:'UNKNOWN',source:String(track.sensorId||'DAEDALUS SENSOR'),classification:String(track.classification||'NOT REPORTED'),modality:String(track.modality||'UNKNOWN'),confidence:track.confidence,position:track.position});});
+      (st.sonarTracks||[]).forEach(function(track){push({id:String(track.id),name:String(track.classification||track.id),kind:'UUV SONAR RETURN',side:'UNKNOWN',source:String(track.feedId||'UUV SONAR'),classification:String(track.classification||'UNCLASSIFIED'),depthM:track.depthM,position:track.position});});
+      return rows;
+    };
+    window.vigilSelectGlobeTrack=function(id){if(!orbitalHologramRenderer||!orbitalHologramRenderer.selectTrack)return false;orbitalHologramRenderer.selectTrack(id);return true;};
     var snapshot={feeds:[]};
     try{if(typeof window.vigilGetSensorInputSnapshot==='function')snapshot=window.vigilGetSensorInputSnapshot()||snapshot;}catch(inputError){}
     var orbitalModalities=['radar','optical','thermal','infrared','lidar','ew','esm','rf','tracking','fused','sensor_fusion'];
@@ -6786,6 +6736,90 @@ document.getElementById('vigil-faction-deploy').addEventListener('click',functio
  drawRoster();
 });
 read();drawRoster();
+})();
+</script>
+<style>
+#vigil-globe-fullscreen{display:none;position:fixed;inset:0;z-index:2147483000;background:#010805;color:#c5e8d4;font:11px/1.45 "Courier New",monospace}
+#vigil-globe-fullscreen[aria-hidden="false"]{display:block}
+#vigil-globe-fullscreen .vgfs-head{height:42px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 12px;background:#06170f;border-bottom:1px solid #347452}
+#vigil-globe-fullscreen .vgfs-head strong{color:#6df6b4;letter-spacing:.1em}
+#vigil-globe-fullscreen .vgfs-layout{height:calc(100% - 42px);display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:8px;padding:8px;box-sizing:border-box}
+#vigil-globe-fullscreen .vgfs-main{min-width:0;min-height:0;overflow:auto;border:1px solid #285b42;padding:6px}
+#vigil-globe-fullscreen .vgfs-side{min-width:0;min-height:0;display:flex;flex-direction:column;gap:8px}
+#vigil-globe-fullscreen .vgfs-track-panel{flex:1 1 55%;min-height:150px;overflow:auto;border:1px solid #347452;background:#020c08;padding:8px}
+#vigil-globe-fullscreen .vgfs-track-panel h3{margin:0 0 7px;color:#8ee6b2;font-size:11px;letter-spacing:.1em}
+#vigil-globe-fullscreen .vgfs-track-list{display:grid;gap:5px}
+#vigil-globe-fullscreen .vgfs-track{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;width:100%;text-align:left;padding:8px;background:#03140d;color:#bcebd0;border:1px solid #285b42;font:10px/1.4 "Courier New",monospace;cursor:pointer}
+#vigil-globe-fullscreen .vgfs-track:hover{border-color:#7ce8ad;background:#092719}
+#vigil-globe-fullscreen .vgfs-track[aria-pressed="true"]{border:2px solid #ffd47a;background:#17301d;color:#ffe5a6}
+#vigil-globe-fullscreen .vgfs-track small{grid-column:1/-1;color:#8cb69c;font-size:9px;overflow-wrap:anywhere}
+#vigil-globe-fullscreen .vgfs-track .vgfs-kind{color:#8de7ff;font-size:9px}
+#vigil-globe-fullscreen .vgfs-empty{padding:12px;color:#8cb69c;border:1px dashed #285b42}
+#vigil-globe-fullscreen .vgfs-sonar{flex:0 0 36%;min-height:230px;overflow:auto;border:1px solid #347452;background:#020c08;padding:8px}
+#vigil-globe-fullscreen .vgfs-sonar .vigil-sonar-pair{display:grid;grid-template-columns:1fr;gap:5px}
+#vigil-globe-fullscreen .vgfs-sonar canvas{display:block;width:100%;height:auto;max-height:175px;object-fit:contain}
+#vigil-globe-fullscreen #sim-regional-theater{width:100%;max-width:none;box-sizing:border-box;display:block}
+#vigil-globe-fullscreen #sim-bathymetry-map{display:block;width:100%;height:calc(100vh - 190px)!important;min-height:440px;max-height:none;aspect-ratio:auto}
+#vigil-globe-fullscreen #vigil-faction-deployment,#vigil-globe-fullscreen #sim-uuv-sonar-upload,#vigil-globe-fullscreen #vigil-regional-command{display:none!important}
+#vigil-globe-fullscreen .sim-board-wrap{padding:4px;border:0;background:transparent}
+#vigil-globe-fullscreen .sim-board-head{font-size:12px}
+#vigil-globe-fullscreen .vgfs-close{background:#173b27;color:#d8ffe5;border:1px solid #66c18c;padding:7px 12px;font: bold 10px "Courier New",monospace;cursor:pointer}
+@media(max-width:850px){#vigil-globe-fullscreen .vgfs-layout{grid-template-columns:minmax(0,1fr) 300px}#vigil-globe-fullscreen .vgfs-sonar{flex-basis:38%}}
+@media(max-width:650px){#vigil-globe-fullscreen .vgfs-layout{grid-template-columns:1fr;grid-template-rows:minmax(48vh,1fr) minmax(0,45vh);overflow:auto}#vigil-globe-fullscreen .vgfs-side{display:grid;grid-template-columns:1fr 1fr;min-height:320px}#vigil-globe-fullscreen .vgfs-track-panel,#vigil-globe-fullscreen .vgfs-sonar{min-height:0;overflow:auto}#vigil-globe-fullscreen #sim-bathymetry-map{height:48vh!important;min-height:300px}}
+</style>
+<div id="vigil-globe-fullscreen" role="dialog" aria-modal="true" aria-label="Full-screen planetary globe and track control" aria-hidden="true">
+ <div class="vgfs-head"><strong>VIGIL // PLANETARY TRACK CONTROL</strong><span id="vgfs-status">GLOBE TRACKS // LIVE</span><button type="button" class="vgfs-close" id="vgfs-close">EXIT FULL SCREEN</button></div>
+ <div class="vgfs-layout"><main class="vgfs-main" id="vgfs-main"></main><aside class="vgfs-side">
+  <section class="vgfs-track-panel"><h3>TRACK DIRECTORY // SELECT TO HIGHLIGHT ON GLOBE</h3><div id="vgfs-track-list" class="vgfs-track-list" role="listbox" aria-label="Selectable globe tracks"></div></section>
+  <section class="vgfs-sonar" id="vgfs-sonar-host"><h3 style="margin:0 0 6px;color:#8de7ff;letter-spacing:.1em">SONAR // CONTACT PLOT + WATERFALL</h3></section>
+ </aside></div>
+</div>
+<script>
+(function(){
+ 'use strict';
+ var modal=document.getElementById('vigil-globe-fullscreen'),main=document.getElementById('vgfs-main'),list=document.getElementById('vgfs-track-list'),status=document.getElementById('vgfs-status'),open=document.getElementById('sim-globe-fullscreen-open'),close=document.getElementById('vgfs-close');
+ var region=document.getElementById('sim-regional-theater'),sonar=document.querySelector('#vigil-ops-console section[aria-labelledby="vigil-sonar-title"]');
+ if(!modal||!main||!list||!region||!open||!close)return;
+ var regionPlaceholder=null,sonarPlaceholder=null,refreshTimer=null,opened=false;
+ function restore(node,placeholder){if(node&&placeholder&&placeholder.parentNode){placeholder.parentNode.insertBefore(node,placeholder);placeholder.parentNode.removeChild(placeholder);}}
+ function closeView(){
+   if(!opened)return;opened=false;
+   if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;}
+   restore(region,regionPlaceholder);restore(sonar,sonarPlaceholder);regionPlaceholder=null;sonarPlaceholder=null;
+   modal.setAttribute('aria-hidden','true');document.body.style.overflow='';
+   if(document.fullscreenElement&&document.exitFullscreen){try{document.exitFullscreen();}catch(e){}}
+   open.focus();
+ }
+ function drawList(){
+   var rows=window.vigilGetGlobeTrackRoster?window.vigilGetGlobeTrackRoster():[],selected='';
+   var active=window.vigilGetGlobeSelectedTrack?window.vigilGetGlobeSelectedTrack():null;
+   list.textContent='';
+   if(!rows.length){var empty=document.createElement('div');empty.className='vgfs-empty';empty.textContent='NO TRACKS REPORTED // Start fleet motion or connect an authorized sensor feed. Unobserved objects are not shown.';list.appendChild(empty);status.textContent='0 TRACKS // WAITING FOR OBSERVATIONS';return;}
+   rows.forEach(function(item){
+     var button=document.createElement('button');button.type='button';button.className='vgfs-track';button.setAttribute('role','option');button.setAttribute('aria-pressed',String(String(item.id)===String(active)));
+     var title=document.createElement('span');title.textContent=String(item.id);
+     var kind=document.createElement('span');kind.className='vgfs-kind';kind.textContent=String(item.kind||'TRACK');
+     var detail=document.createElement('small');detail.textContent=String(item.name||item.classification||'UNCLASSIFIED')+' // '+String(item.source||'SOURCE NOT REPORTED')+(item.modality?' // '+String(item.modality).toUpperCase():'')+(item.depthM!=null?' // DEPTH '+Number(item.depthM).toFixed(1)+' M':'');
+     button.appendChild(title);button.appendChild(kind);button.appendChild(detail);
+     button.addEventListener('click',function(){if(window.vigilSelectGlobeTrack)window.vigilSelectGlobeTrack(item.id);drawList();});
+     list.appendChild(button);
+   });
+   status.textContent=rows.length+' TRACK(S) // SELECTED: '+String(active||'NONE');
+ }
+ function openView(){
+   if(opened)return;opened=true;
+   regionPlaceholder=document.createComment('VIGIL regional globe original position');region.parentNode.insertBefore(regionPlaceholder,region);main.appendChild(region);
+   if(sonar){sonarPlaceholder=document.createComment('VIGIL sonar original position');sonar.parentNode.insertBefore(sonarPlaceholder,sonar);document.getElementById('vgfs-sonar-host').appendChild(sonar);}
+   modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+   drawList();refreshTimer=setInterval(drawList,650);
+   if(modal.requestFullscreen){try{var p=modal.requestFullscreen();if(p&&p.catch)p.catch(function(){});}catch(e){}}
+   close.focus();
+ }
+ open.addEventListener('click',openView);close.addEventListener('click',closeView);
+ document.addEventListener('fullscreenchange',function(){if(opened&&!document.fullscreenElement&&modal.getAttribute('aria-hidden')==='false'){closeView();}});
+ document.addEventListener('keydown',function(e){if(opened&&e.key==='Escape'&&!document.fullscreenElement){closeView();}});
+ window.addEventListener('resize',function(){if(opened)drawList();});
+ window.vigilGetGlobeSelectedTrack=function(){return window.vigilGetGlobeTrackSelected?window.vigilGetGlobeTrackSelected():null;};
 })();
 </script>
 </body></html>
