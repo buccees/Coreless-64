@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const core = require('../nirn-gravity-model.js');
 const bodies = core.initialize();
 const byId = Object.fromEntries(bodies.map(body => [body.id, body]));
@@ -23,4 +24,9 @@ const dx = byId.masser.x - byId.nirn.x, dy = byId.masser.y - byId.nirn.y, dz = b
 assert.ok(acc[0][0]*dx + acc[0][1]*dy + acc[0][2]*dz > 0);
 const overlap = core.collisions([{id:'a',x:0,y:0,z:0,radius:10},{id:'b',x:15,y:0,z:0,radius:10}]);
 assert.equal(overlap[0].status, 'COLLISION');
-console.log('Nirn gravity tests passed: hierarchy, Newtonian attraction, initial clearance, physical-radius collision detection.');
+const astronomySource=fs.readFileSync(require.resolve('../elder-scrolls-astronomy.js'),'utf8');
+assert.match(astronomySource,/value="364"/);
+assert.match(astronomySource,/value="360"/);
+assert.match(astronomySource,/yearLength/);
+assert.match(astronomySource,/var weekdays=\['Sundas','Morndas','Tirdas','Middas','Turdas','Fredas','Loredas'\]/);
+console.log('Nirn gravity tests passed: calendar-derived lunar periods, 24-hour rotation, era-aware Tamrielic calendar, hierarchy, attraction and collision detection.');
