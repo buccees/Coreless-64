@@ -60,7 +60,7 @@ function gravityAt(position,bodies){
 function effectiveSurfaceGravity(body,latitude,longitude,bodies){
  var state=surfaceToInertial(body,latitude,longitude,0,{});
  var omega=bodyOmega(body),centrifugal=scale(cross(omega,cross(omega,sub(state.position,bodyPosition(body)))), -1);
- var effective=add(gravityAt(state.position,bodies),centrifugal);
+ var effective=scale(add(gravityAt(state.position,bodies),centrifugal),1000); // Public surface-gravity readouts are m/s^2; inertial integrator remains km/s^2.
  return {vector:effective,magnitude:length(effective),up:dot(effective,state.basis.up),east:dot(effective,state.basis.east),north:dot(effective,state.basis.north)};
 }
 function createActor(body,latitude,longitude,altitudeKm,localVelocity){
