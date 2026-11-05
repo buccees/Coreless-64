@@ -86,6 +86,8 @@ jobs:
             site/vigil-daedalus-orbital-sensor-suite.js \
             site/vigil-rd-labs.js \
             site/elder-scrolls-astronomy.js \
+            site/nirn-gravity-model.js \
+            site/nirn-coupled-world.js \
             site/rd/plague/vigil-plague.js \
             site/daedalus-mothership.js \
             site/vigil-fleet-sensor-network.js \
