@@ -4771,10 +4771,10 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       simBodies=core.initialize(core.cloneBodies());
       orbitPaths=simBodies.map(function(b){return {id:b.id,color:b.color,points:[]};});
       // Trajectories are sampled by the same pairwise N-body solver used in the gravity workspace.
-      var sample=core.initialize(core.cloneBodies()),sampleStep=21600;
-      for(var n=0;n<1460;n++){
+      var sample=core.initialize(core.cloneBodies()),sampleStep=1800;
+      for(var n=0;n<17520;n++){
         core.step(sample,sampleStep);
-        if(n%2===0)sample.forEach(function(b){var path=orbitPaths.find(function(p){return p.id===b.id;});if(path)path.points.push([b.x,b.y,b.z]);});
+        if(n%6===0)sample.forEach(function(b){var path=orbitPaths.find(function(p){return p.id===b.id;});if(path)path.points.push([b.x,b.y,b.z]);});
       }
       simBodies=core.initialize(core.cloneBodies());
       simDay=0;
@@ -4828,7 +4828,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       // Parent links communicate the current model hierarchy without pretending that bodies are at one common scale.
       simBodies.forEach(function(b){if(!b.parent)return;var a=pointsById[b.id],parent=pointsById[b.parent];if(!a||!parent)return;ctx.strokeStyle='rgba(201,220,191,.24)';ctx.setLineDash([2,5]);ctx.beginPath();ctx.moveTo(parent[0],parent[1]);ctx.lineTo(a[0],a[1]);ctx.stroke();ctx.setLineDash([]);});
       ctx.textAlign='left';ctx.font='bold 13px Courier New,monospace';ctx.fillStyle='#a9e9c2';ctx.fillText('NIRN SYSTEM // SHARED NEWTONIAN N-BODY SOLVER',18,28);
-      ctx.font='11px Courier New,monospace';ctx.fillStyle='#a9c3b1';ctx.fillText('LOGARITHMIC DISPLAY SCALE · PHYSICAL POSITIONS / VELOCITIES · TRAJECTORY PREVIEW: 180 DAYS',18,48);
+      ctx.font='11px Courier New,monospace';ctx.fillStyle='#a9c3b1';ctx.fillText('LOGARITHMIC DISPLAY SCALE · PHYSICAL POSITIONS / VELOCITIES · TRAJECTORY PREVIEW: 365 DAYS',18,48);
       ctx.fillStyle='#e7c88e';ctx.fillText('MODEL ASSUMPTIONS — NOT CANONICAL ORBITAL SOLUTIONS',18,h-24);
       // Magnus and Mnemoli remain lore annotations, not fabricated gravitating bodies.
       ctx.textAlign='right';ctx.fillStyle='#ffe3a0';ctx.fillText('MAGNUS · LORE / NON-MASSIVE IN THIS MODEL',w-18,28);ctx.fillStyle='#9cccf1';ctx.fillText('MNEMOLI · BLUE STAR / NO MASS ASSIGNED',w-18,46);
