@@ -58,7 +58,7 @@ function boot(){
     panel.querySelector('#vigil-celestial-mass').textContent=(body.mass/5.9722e24).toExponential(3)+' Earth masses';
     panel.querySelector('#vigil-celestial-spin').textContent=body.spin+' hours';
     var parent=body.parent?byId[body.parent]:null;panel.querySelector('#vigil-celestial-parent').textContent=parent?parent.name:'SYSTEM REFERENCE';
-    panel.querySelector('#vigil-celestial-lore').textContent=body.lore||'No additional lore description in the current model.';
+    panel.querySelector('#vigil-celestial-lore').textContent=(body.lore||'No additional lore description in the current model.')+(body.id==='secunda'?' MODEL HIERARCHY NOTE: the lore text says nested around Masser, but the current Newtonian parent field is Nirn; this discrepancy is intentionally left unresolved.':'');
     status.textContent='WEBGL ONLINE // '+body.kind+' // MODEL ID: '+body.id.toUpperCase();
   }
   function matrix(){
