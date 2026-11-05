@@ -4,7 +4,7 @@ const bodies = core.initialize();
 const byId = Object.fromEntries(bodies.map(body => [body.id, body]));
 assert.equal(bodies.length, 11);
 assert.equal(byId.masser.parent, 'nirn');
-assert.equal(byId.secunda.parent, 'masser');
+assert.equal(byId.secunda.parent, 'nirn');
 assert.equal(byId.stendarr.parent, 'julianos');
 assert.equal(byId.dibella.parent, 'mara');
 assert.deepEqual(core.collisions(bodies), []);
