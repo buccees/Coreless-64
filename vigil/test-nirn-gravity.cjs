@@ -4,10 +4,20 @@ const bodies = core.initialize();
 const byId = Object.fromEntries(bodies.map(body => [body.id, body]));
 assert.equal(bodies.length, 11);
 assert.equal(byId.masser.parent, 'nirn');
-assert.equal(byId.secunda.parent, 'masser');
+assert.equal(byId.secunda.parent, 'nirn');
 assert.equal(byId.stendarr.parent, 'julianos');
 assert.equal(byId.dibella.parent, 'mara');
 assert.deepEqual(core.collisions(bodies), []);
+assert.equal(byId.nirn.spin,24);
+const G=6.67430e-20,DAY=86400;
+for (const [id,period] of [['masser',24],['secunda',30]]) {
+ const moon=byId[id],parent=byId.nirn;
+ const derived=Math.sqrt(Math.pow(moon.x-parent.x,2)+Math.pow(moon.y-parent.y,2)+Math.pow(moon.z-parent.z,2));
+ const actual=2*Math.PI*Math.sqrt(Math.pow(derived,3)/(G*(parent.mass+moon.mass)))/DAY;
+ assert.ok(Math.abs(actual-period)<1e-6, id+' orbital period should match its calendar reconstruction period');
+}
+assert.ok(byId.masser.mass/byId.nirn.mass<0.0001);
+assert.ok(byId.secunda.mass<byId.masser.mass);
 const acc = core.accelerations(bodies);
 const dx = byId.masser.x - byId.nirn.x, dy = byId.masser.y - byId.nirn.y, dz = byId.masser.z - byId.nirn.z;
 assert.ok(acc[0][0]*dx + acc[0][1]*dy + acc[0][2]*dz > 0);
