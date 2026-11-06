@@ -236,6 +236,7 @@ function equipmentControlSpec(id){
  if(id==='HA-PILE')return {kind:'MELEE ACTUATOR',actions:[['LOCK','Lock actuator','LOCKED'],['STRIKE','Drive strike','STRIKE CYCLE']]};
  return {kind:'EQUIPMENT',actions:[['ENABLE','Enable module','ONLINE'],['STANDBY','Standby','STANDBY']]};
 }
+window.vigilCommandMechEquipment=function(request){request=request||{};var b=state.builds.find(function(x){return x.id===request.build_id;});if(!b)return {ok:false,reason:'MECH BUILD NOT FOUND'};var slot=String(request.slot||''),id=String(request.equipment_id||'');if((b.parts[slot]||b.mounts[slot])!==id)return {ok:false,reason:'PART IS NOT INSTALLED IN THAT SLOT'};var spec=equipmentControlSpec(id);if(!spec.actions.some(function(a){return a[0]===request.action;}))return {ok:false,reason:'COMMAND NOT SUPPORTED BY THIS PART'};runEquipmentAction(b,slot,id,request.action,request.mode);return {ok:true,status:(b.equipmentRuntime[slot+'|'+id]||{}).status};};
 function runEquipmentAction(b,slot,id,action,mode){
  b.equipmentRuntime=b.equipmentRuntime||{};var stateKey=slot+'|'+id,record=b.equipmentRuntime[stateKey]||{status:'STANDBY',mode:'DEFAULT',cycles:0};
  record.mode=mode||record.mode;record.cycles=(Number(record.cycles)||0)+1;
