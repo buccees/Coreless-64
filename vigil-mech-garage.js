@@ -6,7 +6,7 @@ if(!host){
  var attempts=0;
  var retry=setInterval(function(){
   host=document.getElementById('vigil-unit-sensor-profile');
-  if(host){clearInterval(retry);var script=document.createElement('script');script.src='vigil-mech-garage.js?v=7';document.body.appendChild(script);}
+  if(host){clearInterval(retry);var script=document.createElement('script');script.src='vigil-mech-garage.js?v=9';document.body.appendChild(script);}
   else if(++attempts>=120)clearInterval(retry);
  },250);
  return;
