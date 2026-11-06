@@ -63,12 +63,13 @@ function unitId(value){
  return aliases[v]||String(value||'').toUpperCase();
 }
 function profileKey(id){
- return {'DDG-51':'ship','DAEDALUS-01':'daedalus','DRONE-01':'drone','UUV-01':'submersible','SSN-774':'submarine','MECH-01':'mech','FAC-01':'facility'}[unitId(id)]||'ship';
+ var resolved=unitId(id);if(/^MECH-/.test(resolved))return 'mech';
+ return {'DDG-51':'ship','DAEDALUS-01':'daedalus','DRONE-01':'drone','UUV-01':'submersible','SSN-774':'submarine','MECH-01':'mech','FAC-01':'facility'}[resolved]||'ship';
 }
 function sensorsForUnit(id){
  var pkg=sensorPackages[profileKey(id)];if(!pkg)return [];
  if(profileKey(id)!=='mech')return pkg.sensors;
- var u=null;try{u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('mech');}catch(e){}
+ var u=null;try{u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(unitId(id));}catch(e){}
  var parts=u&&u.mech_parts||{},mounts=u&&u.mech_mounts||{},out=[];
  if(parts['MOBILITY BASE'])out.push(['JOINT ABSOLUTE ENCODERS','encoders','actuator',1],['FORCE / TORQUE TRANSDUCERS','force_torque','actuator',1]);
  if(parts['SYSTEM COM'])out.push(['INERTIAL MEASUREMENT UNIT','imu','navigation',1]);
@@ -83,8 +84,8 @@ function sensorsForUnit(id){
 }
 function currentContacts(){try{return window.vigilGetRegionalSensorContacts?window.vigilGetRegionalSensorContacts():[];}catch(e){return [];}}
 function getUnit(id){
- var key=profileKey(id);
- try{return window.vigilGetRegionalSimulationUnit?window.vigilGetRegionalSimulationUnit(key):null;}catch(e){return null;}
+ var resolved=unitId(id),key=profileKey(resolved);
+ try{return window.vigilGetRegionalSimulationUnit?window.vigilGetRegionalSimulationUnit(/^MECH-/.test(resolved)?resolved:key):null;}catch(e){return null;}
 }
 function distance(a,b){
  if(!a||!b)return Infinity;
