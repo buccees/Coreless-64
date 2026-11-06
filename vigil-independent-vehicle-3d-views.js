@@ -18,7 +18,8 @@ var grid=el('div',{class:'iv-grid'});var left=el('div',{},grid);Object.keys(spec
 var nav=el('div',{class:'iv-pane'},right);el('strong',{text:'FLIGHT / NAVIGATION CONTROL'},nav);var controls=el('div',{class:'iv-controls'},nav);
 [['−15°','turnL'],['+15°','turnR'],['NORTH','north'],['SPEED −','slower'],['SPEED +','faster'],['STOP','stop']].concat(activeType==='submarine'?[['ASCEND +5m','depthUp'],['DESCEND +5m','depthDown']]:[]).forEach(function(a){var b=el('button',{text:a[0]},controls);b.addEventListener('click',function(){command(a[1]);});});
 var stats=el('div',{class:'iv-pane'},right);el('strong',{text:'LIVE SIMULATION TELEMETRY'},stats);var statGrid=el('div',{class:'iv-stat'},stats);['HEADING','SPEED','DEPLOYMENT','UNIT ID','DEPTH'].forEach(function(k){var d=el('div',{},statGrid);el('small',{text:k},d);el('strong',{id:'iv-'+k.toLowerCase().replace(' ','-'),text:'—'},d);});
-var sensors=el('div',{class:'iv-pane'},right);el('strong',{text:'PLATFORM SENSOR SUITE // UNIT-OWNED CHANNELS'},sensors);el('div',{id:'iv-sensor-list',class:'iv-controls'},sensors);el('div',{id:'iv-sensor-readout',text:'SELECT AN INSTALLED SENSOR TO REQUEST A SIMULATED MEASUREMENT.'},sensors);\nvar status=el('div',{class:'iv-pane',id:'iv-status',text:'SIMULATION LINK STANDBY'},right);
+var sensors=el('div',{class:'iv-pane'},right);el('strong',{text:'PLATFORM SENSOR SUITE // UNIT-OWNED CHANNELS'},sensors);el('div',{id:'iv-sensor-list',class:'iv-controls'},sensors);el('div',{id:'iv-sensor-readout',text:'SELECT AN INSTALLED SENSOR TO REQUEST A SIMULATED MEASUREMENT.'},sensors);
+var status=el('div',{class:'iv-pane',id:'iv-status',text:'SIMULATION LINK STANDBY'},right);
 
 }
 function shader(type,src){var s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s;}
