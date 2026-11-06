@@ -1,7 +1,17 @@
 (function(){
 'use strict';
-if(window.vigilMechGarageLoaded)return;window.vigilMechGarageLoaded=true;
-var host=document.getElementById('vigil-unit-sensor-profile');if(!host)return;
+if(window.vigilMechGarageLoaded)return;
+var host=document.getElementById('vigil-unit-sensor-profile');
+if(!host){
+ var attempts=0;
+ var retry=setInterval(function(){
+  host=document.getElementById('vigil-unit-sensor-profile');
+  if(host){clearInterval(retry);var script=document.createElement('script');script.src='vigil-mech-garage.js?v=7';document.body.appendChild(script);}
+  else if(++attempts>=120)clearInterval(retry);
+ },250);
+ return;
+}
+window.vigilMechGarageLoaded=true;
 var key='vigil-wayland-yutani-mech-garage-v1',medalKey='vigil-wayland-yutani-mech-medals-v1';
 var catalog={
 'MOBILITY BASE':[['BIPED-04','WY Strider Bipedal','Bipedal',68,82,74,76],['REV-02','WY Kestrel Reverse-Joint','Reverse joint',82,70,62,84],['MULTI-06','WY Bastion Multiped','Multiped',42,118,112,48],['TRACK-03','WY Atlas Caterpillar','Tracked',38,142,126,34],['HOVER-02','WY Wraith Hover','Hover',96,58,48,92],['WHEEL-04','WY Courier 4-Wheel','Wheeled',88,74,64,80]],
