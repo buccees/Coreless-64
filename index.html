@@ -3500,7 +3500,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     }).filter(function(s){return Number.isFinite(s.x)&&Number.isFinite(s.y);});
   };
   window.vigilGetRegionalSimulationUnit=function(unitId){
-    var aliases={ship:'DDG-51',daedalus:'DAEDALUS-01',drone:'DRONE-01',submersible:'UUV-01',submarine:'SSN-774',mech:'MECH-01',facility:'FAC-01'};
+    var aliases={ship:'DDG-51',daedalus:'DAEDALUS-01',mothership:'DAEDALUS-01',drone:'DRONE-01',submersible:'UUV-01',submarine:'SSN-774',mech:'MECH-01',facility:'FAC-01'};
     var resolved=aliases[unitId]||unitId;
     var contacts=window.vigilGetRegionalSensorContacts();
     return contacts.find(function(c){return c.id===resolved&&c.side==='friendly';})||null;
@@ -3518,7 +3518,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   };
   // Shared unit-control bridge: update only an explicitly mapped friendly training entity.
   window.vigilSetSimulationUnitState=function(unitProfile,changes){
-    var aliases={ship:'DDG-51',daedalus:'DAEDALUS-01',drone:'DRONE-01',submersible:'UUV-01',submarine:'SSN-774',mech:'MECH-01',facility:'FAC-01'};
+    var aliases={ship:'DDG-51',daedalus:'DAEDALUS-01',mothership:'DAEDALUS-01',drone:'DRONE-01',submersible:'UUV-01',submarine:'SSN-774',mech:'MECH-01',facility:'FAC-01'};
     var resolved=aliases[unitProfile]||unitProfile;
     var unit=regionalTrainingFleet.find(function(s){return s&&s.id===resolved&&s.side==='friendly'&&s.afloat!==false;});
     if(!unit||!changes||typeof changes!=='object')return {ok:false,reason:'No assigned friendly simulation entity.'};
