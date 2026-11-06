@@ -10,7 +10,60 @@ function initMechRenderer(){mechGL=canvas.getContext('webgl',{alpha:false,antial
 function mat(a,b){var o=new Float32Array(16);for(var c=0;c<4;c++)for(var r=0;r<4;r++)o[c*4+r]=a[r]*b[c*4]+a[4+r]*b[c*4+1]+a[8+r]*b[c*4+2]+a[12+r]*b[c*4+3];return o;}
 function perspective(f,a,n,z){var q=1/Math.tan(f/2),v=1/(n-z),m=new Float32Array(16);m[0]=q/a;m[5]=q;m[10]=(z+n)*v;m[11]=-1;m[14]=2*z*n*v;return m;}
 function mechBox(gl,mvp,x,y,z,sx,sy,sz,color){var p=[-.5,-.5,-.5,.5,-.5,-.5,.5,.5,-.5,-.5,.5,-.5,-.5,-.5,.5,.5,-.5,.5,.5,.5,.5,-.5,.5,.5],idx=[0,1,2,0,2,3,4,6,5,4,7,6,0,4,5,0,5,1,3,2,6,3,6,7,1,5,6,1,6,2,0,3,7,0,7,4],v=[];idx.forEach(function(i){v.push(p[i*3],p[i*3+1],p[i*3+2]);});var b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(v),gl.STREAM_DRAW);var model=new Float32Array([sx,0,0,0,0,sy,0,0,0,0,sz,0,x,y,z,1]);gl.uniformMatrix4fv(gl.getUniformLocation(mechProgram,'m'),false,mat(mvp,model));gl.uniform4fv(gl.getUniformLocation(mechProgram,'c'),color);var loc=gl.getAttribLocation(mechProgram,'p');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,3,gl.FLOAT,false,0,0);gl.drawArrays(gl.TRIANGLES,0,36);gl.deleteBuffer(b);}
-function renderMech3D(b){if(!mechGL&&!initMechRenderer()){say('INDEPENDENT MECH WEBGL INITIALIZATION FAILED');return;}var gl=mechGL,w=canvas.clientWidth||720,h=canvas.clientHeight||420,dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,w*dpr);canvas.height=Math.max(1,h*dpr);gl.viewport(0,0,canvas.width,canvas.height);gl.enable(gl.DEPTH_TEST);gl.clearColor(.006,.025,.014,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(mechProgram);var f=perspective(.8,canvas.width/canvas.height,.1,40),view=new Float32Array([Math.cos(mechYaw),Math.sin(mechPitch)*Math.sin(mechYaw),Math.cos(mechPitch)*Math.sin(mechYaw),0,0,Math.cos(mechPitch),-Math.sin(mechPitch),0,-Math.sin(mechYaw),Math.sin(mechPitch)*Math.cos(mechYaw),Math.cos(mechPitch)*Math.cos(mechYaw),0,0,-.1,-7,1]),vp=mat(f,view),paint=(b&&b.paint)||'#8a9b78',n=parseInt(paint.slice(1),16),base=[((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255,1],dark=[.12,.2,.14,1],metal=[.42,.5,.4,1];function box(x,y,z,sx,sy,sz,c){mechBox(gl,vp,x,y,z,sx,sy,sz,c||base);}box(0,.2,0,.9,.45,.55,dark);box(0,.85,0,.78,.85,.48,base);box(0,1.42,.04,.48,.38,.42,metal);[-1,1].forEach(function(s){box(s*.62,.82,0,.36,.38,.38,metal);box(s*.72,.22,0,.25,.85,.28,base);box(s*.72,-.28,.08,.3,.24,.36,dark);box(s*.32,-.65,0,.32,.72,.34,metal);box(s*.32,-1.1,.12,.46,.2,.62,dark);});var parts=b&&b.mounts||{};Object.keys(parts).forEach(function(slot,i){if(!parts[slot])return;var pos={'LEFT ARM':[-1.05,.2,.05],'RIGHT ARM':[1.05,.2,.05],'SHOULDER 1':[-.5,1.35,0],'SHOULDER 2':[.5,1.35,0],'BACK':[0,.85,-.45],'UTILITY':[0,-.05,.55]}[slot]||[0,.4,0];var id=String(parts[slot]);box(pos[0],pos[1],pos[2],id.indexOf('AS-')===0?.34:.48,.28,.7,id.indexOf('AS-')===0?[.12,.65,.48,1]:[.62,.52,.28,1]);if(id.indexOf('LA-')===0||id.indexOf('HA-')===0)box(pos[0],pos[1],pos[2]+.42,.12,.12,.7,[.65,.68,.55,1]);});}
+function renderMech3D(b){
+ if(!mechGL&&!initMechRenderer()){say('INDEPENDENT MECH WEBGL INITIALIZATION FAILED');return;}
+ var gl=mechGL,w=canvas.clientWidth||720,h=canvas.clientHeight||420,dpr=Math.min(devicePixelRatio||1,2);
+ canvas.width=Math.max(1,w*dpr);canvas.height=Math.max(1,h*dpr);gl.viewport(0,0,canvas.width,canvas.height);gl.enable(gl.DEPTH_TEST);gl.clearColor(.006,.025,.014,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(mechProgram);
+ var f=perspective(.8,canvas.width/canvas.height,.1,40),view=new Float32Array([Math.cos(mechYaw),Math.sin(mechPitch)*Math.sin(mechYaw),Math.cos(mechPitch)*Math.sin(mechYaw),0,0,Math.cos(mechPitch),-Math.sin(mechPitch),0,-Math.sin(mechYaw),Math.sin(mechPitch)*Math.cos(mechYaw),Math.cos(mechPitch)*Math.cos(mechYaw),0,0,-.1,-7,1]),vp=mat(f,view);
+ var paint=(b&&b.paint)||'#8a9b78',n=parseInt(paint.slice(1),16),base=[((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255,1],dark=[.12,.2,.14,1],metal=[.42,.5,.4,1],accent=[.66,.72,.55,1];
+ function box(x,y,z,sx,sy,sz,c){mechBox(gl,vp,x,y,z,sx,sy,sz,c||base);}
+ var parts=b&&b.parts||{},mounts=b&&b.mounts||{},mob=String(parts['MOBILITY BASE']||'BIPED-04'),cockpit=String(parts.COCKPIT||'CP-M');
+ /* Shared upper chassis; dimensions and lower running gear follow the installed mobility base. */
+ box(0,.18,0,1.02,.48,.68,dark);
+ var cabScale=cockpit==='CP-XH'?1.28:cockpit==='CP-H'?1.16:cockpit==='CP-L'?.82:1;
+ box(0,.86,0,.78*cabScale,.78*cabScale,.56*cabScale,base);
+ box(0,1.36,.05,.42*cabScale,.34*cabScale,.38*cabScale,metal);
+ box(0,1.38,.26,.25*cabScale,.12*cabScale,.035,accent);
+ if(mob==='TRACK-03'){
+  box(0,-.28,0,1.55,.38,1.22,dark);
+  [-1,1].forEach(function(s){box(s*.78,-.28,0,.28,.68,1.52,metal);for(var i=0;i<5;i++)box(s*.79,-.28,-.56+i*.28,.31,.16,.14,accent);});
+  box(0,.02,0,1.08,.3,.9,base);
+ }else if(mob==='WHEEL-04'){
+  box(0,-.18,0,1.08,.32,1.12,base);
+  [-1,1].forEach(function(s){[-.48,.48].forEach(function(z){box(s*.7,-.32,z,.3,.48,.34,dark);box(s*.7,-.32,z,.32,.16,.36,metal);});});
+ }else if(mob==='HOVER-02'){
+  box(0,-.16,0,1.18,.26,1.12,base);
+  [-1,1].forEach(function(s){box(s*.76,-.22,0,.34,.2,1.5,metal);box(s*.76,-.22,-.62,.3,.12,.22,accent);box(s*.76,-.22,.62,.3,.12,.22,accent);});
+ }else if(mob==='MULTI-06'){
+  box(0,-.12,0,1.12,.32,.9,base);
+  for(var leg=0;leg<6;leg++){var side=leg%2?1:-1,row=Math.floor(leg/2)-.5,z=row*.72;box(side*.78,-.1,z,.3,.22,.3,metal);box(side*1.08,-.42,z*1.35,.18,.72,.18,base);box(side*1.3,-.78,z*1.55,.42,.14,.3,dark);}
+ }else{
+  box(0,-.1,0,.88,.34,.68,base);
+  [-1,1].forEach(function(s){
+   box(s*.62,.78,0,.34,.36,.4,metal);box(s*.72,.22,0,.27,.82,.3,base);
+   if(mob==='REV-02'){box(s*.72,-.25,-.12,.24,.42,.25,metal);box(s*.55,-.55,.12,.3,.45,.34,base);box(s*.38,-.86,.22,.48,.18,.58,dark);}
+   else{box(s*.72,-.28,.08,.3,.24,.36,dark);box(s*.32,-.65,0,.34,.72,.36,metal);box(s*.32,-1.1,.12,.48,.2,.62,dark);}
+  });
+ }
+ /* Power plant and control computer are visible only when installed. */
+ if(parts.GENERATOR){box(0,.72,-.48,.58,.48,.28,[.28,.38,.3,1]);box(0,.72,-.64,.34,.26,.08,accent);}
+ if(parts['SYSTEM COM']){box(0,1.66,-.02,.22,.3,.2,metal);box(0,1.84,-.02,.08,.16,.08,accent);}
+ var positions={'LEFT ARM':[-1.02,.22,.08],'RIGHT ARM':[1.02,.22,.08],'SHOULDER 1':[-.48,1.28,0],'SHOULDER 2':[.48,1.28,0],'BACK':[0,.72,-.68],'UTILITY':[0,-.02,.56]};
+ Object.keys(mounts).forEach(function(slot){
+  var id=String(mounts[slot]||'');if(!id)return;var p=positions[slot]||[0,.35,0],heavy=id.indexOf('HA-')===0,weapon=heavy||id.indexOf('LA-')===0,sensor=id.indexOf('AS-')===0;
+  var color=sensor?[.18,.62,.48,1]:heavy?[.65,.52,.28,1]:[.56,.62,.49,1];
+  box(p[0],p[1],p[2],sensor?.34:heavy?.56:.42,sensor?.3:.38,sensor?.36:.58,color);
+  if(weapon){
+   var barrel=id==='HA-HW'||id==='HA-MT'?1.05:id==='HA-AC'||id==='HA-SC'?.82:.55;
+   box(p[0],p[1],p[2]+barrel*.48,.16,.16,barrel,[.72,.75,.63,1]);
+   if(id==='LA-MG'||id==='LA-MR'||id==='HA-AC'){box(p[0]-.12,p[1]-.05,p[2]+barrel*.48,.07,.07,barrel*.88,metal);box(p[0]+.12,p[1]-.05,p[2]+barrel*.48,.07,.07,barrel*.88,metal);}
+   if(id==='LA-RK'||id==='HA-ML'){for(var tube=0;tube<4;tube++)box(p[0]+(tube%2-.5)*.18,p[1]+(Math.floor(tube/2)-.5)*.18,p[2]+.34,.11,.11,.62,accent);}
+   if(id==='HA-PILE'){box(p[0],p[1],p[2]+.72,.28,.28,.52,[.72,.72,.58,1]);}
+  }else if(sensor){box(p[0],p[1],p[2]+.22,.18,.18,.22,[.2,.86,.68,1]);}
+  else if(id==='AS-JAM'){[-1,1].forEach(function(s){box(p[0]+s*.24,p[1]+.3,p[2],.06,.52,.06,accent);});}
+ });
+}
+
 canvas.addEventListener('pointerdown',function(e){canvas.dataset.drag='1';canvas.dataset.x=e.clientX;canvas.dataset.y=e.clientY;canvas.setPointerCapture(e.pointerId);});canvas.addEventListener('pointermove',function(e){if(canvas.dataset.drag!=='1')return;mechYaw+=(e.clientX-Number(canvas.dataset.x))*.008;mechPitch=Math.max(-.65,Math.min(.65,mechPitch+(e.clientY-Number(canvas.dataset.y))*.006));canvas.dataset.x=e.clientX;canvas.dataset.y=e.clientY;draw();});['pointerup','pointercancel'].forEach(function(k){canvas.addEventListener(k,function(){canvas.dataset.drag='0';});});
 
 function getBuild(){var g=window.vigilGetMechGarageState&&window.vigilGetMechGarageState();return g&&g.builds.find(function(b){return b.id===g.selected;})||null;}
