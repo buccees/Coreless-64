@@ -8,16 +8,23 @@ var canvas=root.querySelector('canvas'),ctx=canvas.getContext('2d'),unitId='',bu
 function getBuild(){var g=window.vigilGetMechGarageState&&window.vigilGetMechGarageState();return g&&g.builds.find(function(b){return b.id===g.selected;})||null;}
 function getUnit(){return unitId&&window.vigilGetMechUnitState?window.vigilGetMechUnitState(unitId):null;}
 function partLabel(id){return id||'NONE';}
-function draw(){if(!active)return;var dpr=Math.min(devicePixelRatio||1,2),w=canvas.clientWidth||600,h=canvas.clientHeight||400;if(canvas.width!==Math.floor(w*dpr)||canvas.height!==Math.floor(h*dpr)){canvas.width=Math.floor(w*dpr);canvas.height=Math.floor(h*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);var b=selectedBuild||{},parts=b.parts||{},mounts=b.mounts||{},cx=w*.5,cy=h*.54,scale=Math.min(w/9,h/5.2);ctx.strokeStyle='#285c3d';ctx.lineWidth=1;for(var y=cy;y<h;y+=24){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}for(var x=cx%48;x<w;x+=48){ctx.beginPath();ctx.moveTo(x,cy);ctx.lineTo(cx+(x-cx)*1.8,h);ctx.stroke();}
-function poly(points,fill,stroke){ctx.beginPath();points.forEach(function(p,i){var X=cx+p[0]*scale,Y=cy+p[1]*scale;if(i)ctx.lineTo(X,Y);else ctx.moveTo(X,Y);});ctx.closePath();ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle=stroke||'#9ad6a8';ctx.lineWidth=2;ctx.stroke();}
-function box(x,y,ww,hh,fill){poly([[x-ww/2,y-hh/2],[x+ww/2,y-hh/2],[x+ww/2,y+hh/2],[x-ww/2,y+hh/2]],fill);}
-var paint=b.paint||'#87977c';box(0,.05,1.1,.85,'#'+paint.replace('#',''));box(0,-.78,.55,.62,'#9bb99b');box(0,-.83,.22,.18,'#152c1d');
-var mobility=parts['MOBILITY BASE']||'BIPED-04';if(mobility.indexOf('TRACK')>=0){box(0,.65,2.15,.45,'#526a53');}else if(mobility.indexOf('HOVER')>=0){box(0,.65,1.8,.28,'#4d7760');}else if(mobility.indexOf('WHEEL')>=0){[-.75,.75].forEach(function(xx){ctx.beginPath();ctx.ellipse(cx+xx*scale,cy+.65*scale,.22*scale,.36*scale,0,0,Math.PI*2);ctx.fillStyle='#344a39';ctx.fill();ctx.stroke();});}else{[-.43,.43].forEach(function(xx){box(xx,.92,.28,.9,'#536c54');box(xx,1.48,.48,.22,'#344b39');});}
-function mount(slot,id){if(!id)return;var left=slot.indexOf('LEFT')>=0||slot==='SHOULDER 1',x=left?-.92:.92,y=slot.indexOf('SHOULDER')===0?-.55:0;var heavy=id.indexOf('HA-')===0,wide=heavy?.42:.27,len=heavy?1.1:.72;box(x,y,wide,.38,'#526f58');poly([[x-wide/2,y-.08],[x+wide/2,y-.08],[x+wide/2,y-len],[x-wide/2,y-len]],'#344e3a');ctx.fillStyle='#c4e6b9';ctx.font='10px monospace';ctx.fillText(id,cx+(x-.45)*scale,cy+(y-len-.12)*scale);}
-Object.keys(mounts).forEach(function(k){mount(k,mounts[k]);});
-if(parts.GENERATOR){box(0,.28,.56,.36,'#314f3a');ctx.fillStyle='#9de7ba';ctx.fillText(parts.GENERATOR,cx-28,cy+.36*scale);}
-if(parts['SYSTEM COM']){ctx.fillStyle='#a9e8bf';ctx.fillText(parts['SYSTEM COM'],cx-34,cy+1.95*scale);}
-ctx.fillStyle='#b8e9c7';ctx.font='11px monospace';ctx.fillText((b.name||'HOUND')+' // '+(b.unitClass||'LAND MECH'),12,18);ctx.fillText('CONFIGURED ASSEMBLY // NOT UUV',12,34);
+function draw(){if(!active)return;var dpr=Math.min(devicePixelRatio||1,2),w=canvas.clientWidth||600,h=canvas.clientHeight||400;if(canvas.width!==Math.floor(w*dpr)||canvas.height!==Math.floor(h*dpr)){canvas.width=Math.floor(w*dpr);canvas.height=Math.floor(h*dpr);}ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);var b=selectedBuild||{},parts=b.parts||{},mounts=b.mounts||{},cx=w*.5,cy=h*.61,scale=Math.min(w/8,h/5.6),u=getUnit(),yaw=(Number(u&&u.heading_deg)||0)*Math.PI/180;
+ctx.strokeStyle='#1b4b31';ctx.lineWidth=1;for(var gy=cy;gy<h;gy+=22){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(w,gy);ctx.stroke();}
+function project(p){var x=p[0]*Math.cos(yaw)-p[2]*Math.sin(yaw),z=p[0]*Math.sin(yaw)+p[2]*Math.cos(yaw);return [cx+x*scale*.92+z*scale*.34,cy-p[1]*scale+z*scale*.22];}
+function cube(x,y,z,ww,hh,dd,color){var pts=[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]].map(function(p){return project([x+p[0]*ww/2,y+p[1]*hh/2,z+p[2]*dd/2]);});var faces=[[0,1,2,3],[4,7,6,5],[0,4,5,1],[3,2,6,7],[1,5,6,2],[0,3,7,4]];var shades=[1.0,.72,.82,1.12,.9,.62];faces.forEach(function(face,i){ctx.beginPath();face.forEach(function(k,j){if(j)ctx.lineTo(pts[k][0],pts[k][1]);else ctx.moveTo(pts[k][0],pts[k][1]);});ctx.closePath();ctx.fillStyle=color;ctx.globalAlpha=shades[i];ctx.fill();ctx.globalAlpha=1;ctx.strokeStyle='#9bd5a5';ctx.lineWidth=1.2;ctx.stroke();});}
+function rod(a,b,r,color){var mid=[(a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2];var len=Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);cube(mid[0],mid[1],mid[2],r,len,r,color);}
+var paint=b.paint||'#87977c',mob=parts['MOBILITY BASE']||'BIPED-04';
+cube(0,1.95,0,1.12,.9,.72,paint);cube(0,2.72,0,.58,.68,.58,'#a8b99a');cube(0,2.78,-.30,.28,.18,.08,'#173e2b');cube(0,1.32,0,.72,.42,.58,'#4c6950');
+if(mob.indexOf('TRACK')>=0){cube(0,.48,0,2.1,.5,1.65,'#526a53');}
+else if(mob.indexOf('HOVER')>=0){cube(0,.55,0,1.9,.24,1.35,'#4d7760');}
+else if(mob.indexOf('WHEEL')>=0){[-.8,.8].forEach(function(x){cube(x,.46,0,.38,.78,.48,'#344a39');});}
+else if(mob.indexOf('MULTI')>=0){for(var leg=0;leg<6;leg++){var ang=leg*Math.PI/3;var x=Math.cos(ang)*.8,z=Math.sin(ang)*.65;rod([x*.45,.85,z*.45],[x, .34,z],.24,'#536c54');cube(x,.2,z,.5,.22,.48,'#344b39');}}
+else{[-.43,.43].forEach(function(x){rod([x,.98,0],[x*1.15,.35,0],.3,'#536c54');cube(x*1.15,.22,0,.48,.24,.48,'#344b39');});}
+function equipment(slot,id){if(!id)return;var left=slot.indexOf('LEFT')>=0||slot==='SHOULDER 1',x=left?-.92:.92,y=slot.indexOf('SHOULDER')===0?2.45:1.8,z=slot==='BACK'?.58:0,heavy=id.indexOf('HA-')===0,w=heavy?.43:.27,len=heavy?1.1:.68;cube(x,y,z,w,.42,.4,'#526f58');cube(x,y+.15,z-len/2,.18,len,.18,'#344e3a');cube(x,y+.15,z-len,z*.01+.12,.14,.14,'#a9d5ac');}
+Object.keys(mounts).forEach(function(k){equipment(k,mounts[k]);});
+if(parts.GENERATOR)cube(0,1.62,.48,.62,.46,.38,'#31533b');
+if(parts.COCKPIT)cube(0,2.78,0,.62,.68,.62,'#91aa8e');
+ctx.fillStyle='#c4f2ce';ctx.font='11px monospace';ctx.fillText((b.name||'HOUND')+' // '+(b.unitClass||'LAND MECH'),12,18);ctx.fillText('LIVE MECH HEADING '+String(Math.round(Number(u&&u.heading_deg)||0)).padStart(3,'0')+'° // EQUIPMENT CONFIGURATION',12,34);ctx.fillStyle='#7fa98a';ctx.fillText('LAND UNIT GEOMETRY // NO SUBMERSIBLE TERRAIN OR SONAR VIEW',12,h-12);
 }
 function say(s){var n=root.querySelector('#m3-status');if(n)n.textContent=s;}
 function send(changes){var result=window.vigilSetSimulationUnitState&&window.vigilSetSimulationUnitState(unitId,changes);if(result&&result.ok){say('MECH COMMAND ACCEPTED // '+Object.keys(changes).join(', ').toUpperCase());refresh();}else say(result&&result.reason||'MECH CONTROL API UNAVAILABLE');}
