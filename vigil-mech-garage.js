@@ -199,6 +199,7 @@ function draw(b){
  // subtle floor grid
  gl.disable(gl.CULL_FACE);for(var i=-4;i<=4;i++){var z=-2.4+i*.6;part(i*.6,-1.48,z,.008,.008,5,[.08,.22,.12,1]);part(0,-1.48,i*.6,5,.008,.008,[.08,.22,.12,1]);}gl.enable(gl.CULL_FACE);
 }
+window.vigilRenderMechGarage3D=function(build){var target=build||current();if(target)draw(target);};
 function updateHeadingCompass(b){
  var rose=panel.querySelector('#heading-compass-rose'),degrees=panel.querySelector('#heading-compass-degrees'),cardinal=panel.querySelector('#heading-compass-cardinal'),ordered=panel.querySelector('#heading-compass-ordered');
  if(!b||!degrees)return;
