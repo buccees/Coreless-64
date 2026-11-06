@@ -3496,7 +3496,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         turn_rate_deg_s:Number(s.maxTurnRateDegPerSec)||0,acceleration_per_s:Number(s.accelerationPerSec)||0,
         position:{x:Number(s.x),y:Number(s.y)},
         side:s.side==='friendly'?'friendly':'contact',
-        source:String(s.source||'regional simulation'),ship_class:String(s.shipClass||s.unitType||'unknown'),length_m:Number(s.lengthM)||0,width_m:Number(s.beamM)||0,height_m:Number(s.heightM)||0,footprint3d:s.footprint3d||null,mech_role:s.mechRole||null,deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),bay_slot:String(s.baySlot||''),hull:s.hull==null?null:Number(s.hull)};
+        source:String(s.source||'regional simulation'),ship_class:String(s.shipClass||s.unitType||'unknown'),length_m:Number(s.lengthM)||0,width_m:Number(s.beamM)||0,height_m:Number(s.heightM)||0,footprint3d:s.footprint3d||null,mech_role:s.mechRole||null,mech_parts:s.mechParts||null,mech_mounts:s.mechMounts||null,deployment_status:String(s.deploymentStatus||'deployed'),bay_status:String(s.bayStatus||''),bay_slot:String(s.baySlot||''),hull:s.hull==null?null:Number(s.hull)};
     }).filter(function(s){return Number.isFinite(s.x)&&Number.isFinite(s.y);});
   };
   window.vigilGetRegionalSimulationUnit=function(unitId){
