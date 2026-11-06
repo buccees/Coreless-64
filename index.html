@@ -3588,7 +3588,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     if(String(u.hangerBuildId||'')!==String(cmd.build_id||''))return {ok:false,reason:'BUILD ID MISMATCH // COMMAND REJECTED.'};
     var fitted=(u.mechParts&&u.mechParts[slot])||(u.mechMounts&&u.mechMounts[slot]);
     if(!fitted||String(fitted)!==part)return {ok:false,reason:'PART / SLOT MISMATCH // ONLY INSTALLED HARDWARE CAN BE COMMANDED.'};
-    var weapon=/^(LA-|HA-)/.test(part),sensor=['AS-THERM','AS-NV','AS-MINE'].indexOf(part)>=0;
+    var weapon=/^(LA-|HA-)/.test(part)&&part!=='HA-PILE',sensor=['AS-THERM','AS-NV','AS-MINE'].indexOf(part)>=0;
     var state=u.mechEquipmentState||(u.mechEquipmentState={}),key=slot+'|'+part,prior=state[key]||(state[key]={mode:'STANDBY',armed:false,powered:false,lastAction:'NONE'});
     var status='',target=null;
     if(weapon){
