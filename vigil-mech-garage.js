@@ -77,7 +77,7 @@ panel.innerHTML='<div class="head"><div><h3>WEYLAND-YUTANI // HOUND HANGER</h3><
 host.insertAdjacentElement('afterend',panel);
 var category=panel.querySelector('#category'),partsEl=panel.querySelector('#parts'),canvas=panel.querySelector('#projection'),yaw=-.45,pitch=.12,drag=null,gl=canvas.getContext('webgl',{alpha:false,antialias:true});
 if(!gl){panel.querySelector('#status').textContent='3D VIEWER UNAVAILABLE: this browser did not provide WebGL.';}
-var program=null,loc={},cubeBuffer=null;
+var program=null,loc={},cubeBuffer=null,sphereBuffer=null,cylinderBuffer=null,sphereCount=0,cylinderCount=0;
 function shader(type,source){var sh=gl.createShader(type);gl.shaderSource(sh,source);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(sh));return sh;}
 if(gl){try{
  var vs=shader(gl.VERTEX_SHADER,'attribute vec3 aPosition;attribute vec3 aNormal;uniform mat4 uMvp;uniform mat4 uModel;varying float vLight;void main(){vec3 n=normalize(mat3(uModel)*aNormal);vLight=.38+.62*max(dot(n,normalize(vec3(-.45,.8,.55))),0.0);gl_Position=uMvp*vec4(aPosition,1.0);}');
@@ -86,7 +86,12 @@ if(gl){try{
  loc={pos:gl.getAttribLocation(program,'aPosition'),normal:gl.getAttribLocation(program,'aNormal'),mvp:gl.getUniformLocation(program,'uMvp'),model:gl.getUniformLocation(program,'uModel'),color:gl.getUniformLocation(program,'uColor')};
  var faces=[[[1,0,0],[1,-1,-1],[1,1,-1],[1,1,1],[1,-1,1]],[[-1,0,0],[-1,-1,1],[-1,1,1],[-1,1,-1],[-1,-1,-1]],[[0,1,0],[-1,1,-1],[-1,1,1],[1,1,1],[1,1,-1]],[[0,-1,0],[-1,-1,1],[-1,-1,-1],[1,-1,-1],[1,-1,1]],[[0,0,1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]],[[0,0,-1],[1,-1,-1],[-1,-1,-1],[-1,1,-1],[1,1,-1]]],verts=[];
  faces.forEach(function(face){var n=face[0],p=face.slice(1),order=[0,1,2,0,2,3];order.forEach(function(i){verts.push(p[i][0]*.5,p[i][1]*.5,p[i][2]*.5,n[0],n[1],n[2]);});});
+ 
  cubeBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,cubeBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verts),gl.STATIC_DRAW);
+ function uploadGeometry(data){var buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(data),gl.STATIC_DRAW);return buffer;}
+ function makeSphere(){var out=[],lat=12,lon=18;for(var y=0;y<lat;y++){var v0=y/lat*Math.PI,v1=(y+1)/lat*Math.PI;for(var x=0;x<lon;x++){var u0=x/lon*Math.PI*2,u1=(x+1)/lon*Math.PI*2;var p=[[Math.sin(v0)*Math.cos(u0),Math.cos(v0),Math.sin(v0)*Math.sin(u0)],[Math.sin(v1)*Math.cos(u0),Math.cos(v1),Math.sin(v1)*Math.sin(u0)],[Math.sin(v1)*Math.cos(u1),Math.cos(v1),Math.sin(v1)*Math.sin(u1)],[Math.sin(v0)*Math.cos(u1),Math.cos(v0),Math.sin(v0)*Math.sin(u1)]];[0,1,2,0,2,3].forEach(function(i){out.push(p[i][0]*.5,p[i][1]*.5,p[i][2]*.5,p[i][0],p[i][1],p[i][2]);});}}sphereCount=out.length/6;return out;}
+ function makeCylinder(){var out=[],segments=20;for(var i=0;i<segments;i++){var a=i/segments*Math.PI*2,b=(i+1)/segments*Math.PI*2,pa=[Math.cos(a)*.5,-.5,Math.sin(a)*.5],pb=[Math.cos(b)*.5,-.5,Math.sin(b)*.5],qa=[pa[0],.5,pa[2]],qb=[pb[0],.5,pb[2]];[[pa,qa,qb],[pa,qb,pb]].forEach(function(t){t.forEach(function(p){var n=[p[0]*2,0,p[2]*2],l=Math.hypot(n[0],n[2])||1;out.push(p[0],p[1],p[2],n[0]/l,n[1],n[2]/l);});});var bottom=[[0,-.5,0],pb,pa],top=[[0,.5,0],qa,qb];[bottom,top].forEach(function(t,j){t.forEach(function(p){out.push(p[0],p[1],p[2],0,j?1:-1,0);});});}cylinderCount=out.length/6;return out;}
+ sphereBuffer=uploadGeometry(makeSphere());cylinderBuffer=uploadGeometry(makeCylinder());
  gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.clearColor(.008,.025,.014,1);
  }catch(viewerError){gl=null;panel.querySelector('#status').textContent='3D RENDERER INITIALIZATION FAILED // '+String(viewerError&&viewerError.message||viewerError)+' // HANGER CONTROLS REMAIN AVAILABLE.';}
 }
@@ -98,7 +103,12 @@ function rotateY(a){var c=Math.cos(a),s=Math.sin(a);return new Float32Array([c,0
 function rotateX(a){var c=Math.cos(a),s=Math.sin(a);return new Float32Array([1,0,0,0,0,c,s,0,0,-s,c,0,0,0,0,1]);}
 function perspective(fov,aspect,near,far){var f=1/Math.tan(fov/2),nf=1/(near-far),m=new Float32Array(16);m[0]=f/aspect;m[5]=f;m[10]=(far+near)*nf;m[11]=-1;m[14]=2*far*near*nf;return m;}
 function lookAt(){return new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,-6.8,1]);}
-function box(parent,x,y,z,sx,sy,sz,color){var model=matMul(parent,matMul(translate(x,y,z),scale(sx,sy,sz))),mvp=matMul(projection,model);gl.uniformMatrix4fv(loc.model,false,model);gl.uniformMatrix4fv(loc.mvp,false,mvp);gl.uniform4fv(loc.color,color);gl.drawArrays(gl.TRIANGLES,0,36);}
+
+function drawGeometry(buffer,count,model,color){gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.vertexAttribPointer(loc.pos,3,gl.FLOAT,false,24,0);gl.vertexAttribPointer(loc.normal,3,gl.FLOAT,false,24,12);gl.uniformMatrix4fv(loc.model,false,model);gl.uniformMatrix4fv(loc.mvp,false,matMul(projection,model));gl.uniform4fv(loc.color,color);gl.drawArrays(gl.TRIANGLES,0,count);}
+function box(parent,x,y,z,sx,sy,sz,color){var model=matMul(parent,matMul(translate(x,y,z),scale(sx,sy,sz)));drawGeometry(cubeBuffer,36,model,color);}
+function ellipsoid(parent,x,y,z,sx,sy,sz,color){var model=matMul(parent,matMul(translate(x,y,z),scale(sx,sy,sz)));drawGeometry(sphereBuffer,sphereCount,model,color);}
+function cylinder(parent,x,y,z,sx,sy,sz,color,axis){var rot=axis==='z'?rotateX(Math.PI/2):identity(),model=matMul(parent,matMul(translate(x,y,z),matMul(rot,scale(sx,sy,sz))));drawGeometry(cylinderBuffer,cylinderCount,model,color);}
+
 var projection=identity();
 function rgb(hex){var n=parseInt((hex||'#87977c').replace('#',''),16);return [((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255,1];}
 Object.keys(catalog).forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;category.appendChild(o);});
@@ -110,11 +120,11 @@ function draw(b){
  gl.enableVertexAttribArray(loc.pos);gl.vertexAttribPointer(loc.pos,3,gl.FLOAT,false,24,0);gl.enableVertexAttribArray(loc.normal);gl.vertexAttribPointer(loc.normal,3,gl.FLOAT,false,24,12);
  projection=matMul(perspective(.72,pw/ph,.1,100),matMul(lookAt(),matMul(rotateX(pitch),rotateY(yaw))));
  var base=rgb(b.paint),dark=[.12,.19,.14,1],joint=[.34,.43,.32,1],accent=[.72,.66,.38,1],m=findPart(b.parts['MOBILITY BASE']),type=m?m[2]:'Bipedal',bw=baseFoot.width_m*.34,bh=baseFoot.height_m*.34,bl=baseFoot.length_m*.34,cabFoot=assembly.parts.COCKPIT||{width_m:.9,height_m:.88,length_m:.82},genFoot=assembly.parts.GENERATOR||{width_m:.7,height_m:.6,length_m:.75},comFoot=assembly.parts['SYSTEM COM']||{width_m:.34,height_m:.38,length_m:.32};
- function part(x,y,z,sx,sy,sz,c){box(identity(),x,y,z,sx,sy,sz,c);}
+ function part(x,y,z,sx,sy,sz,c){box(identity(),x,y,z,sx,sy,sz,c);}function jointBall(x,y,z,r,c){ellipsoid(identity(),x,y,z,r,r,r,c);}function piston(x1,y1,z1,x2,y2,z2,r,c){var dx=x2-x1,dy=y2-y1,dz=z2-z1,len=Math.hypot(dx,dy,dz),mid=[(x1+x2)/2,(y1+y2)/2,(z1+z2)/2],rot= Math.acos(Math.max(-1,Math.min(1,dy/(len||1)))),axis=[dz,0,-dx],axisLen=Math.hypot(axis[0],axis[2]);var model=matMul(translate(mid[0],mid[1],mid[2]),matMul(axisLen>1e-5?new Float32Array([1,0,0,0,0,Math.cos(rot),Math.sin(rot),0,0,-Math.sin(rot),Math.cos(rot),0,0,0,0,1]):identity(),scale(r,len,r)));drawGeometry(cylinderBuffer,cylinderCount,model,c);}
  // Hip chassis, torso, cockpit and sensor crown.
  part(0,-.05,0,bw*.72,.42,bl*.55,dark);part(0,.58,0,bw*.62,bh*.35,bl*.55,base);part(0,.68,bl*.29,bw*.42,bh*.15,.055,[.055,.15,.105,1]);part(0,bh*.35,0,cabFoot.width_m*.34,cabFoot.height_m*.34,cabFoot.length_m*.34,joint);part(0,bh*.47,.03,bw*.48,.22,bl*.46,dark);part(0,-.02,-bl*.43,genFoot.width_m*.34,genFoot.height_m*.34,genFoot.length_m*.34,[.24,.34,.26,1]);part(0,.28,bl*.34,comFoot.width_m*.34,comFoot.height_m*.34,comFoot.length_m*.34,accent);
  // Shoulders and articulated arms; leg architecture varies by selected chassis.
- [-1,1].forEach(function(side){part(side*bw*.66,.78,0,.34,.36,.42,joint);part(side*bw*.9,.35,0,.25,.72,.28,base);part(side*bw*.91,-.08,.02,.3,.24,.32,dark);});
+ [-1,1].forEach(function(side){part(side*bw*.66,.78,0,.34,.36,.42,joint);jointBall(side*bw*.66,.78,0,.19,accent);piston(side*bw*.66,.65,0,side*bw*.9,.12,0,.105,dark);part(side*bw*.9,.35,0,.25,.72,.28,base);jointBall(side*bw*.91,-.08,.02,.17,joint);part(side*bw*.91,-.08,.02,.3,.24,.32,dark);});
  if(type==='Tracked'||type==='Wheeled'||type==='Hover'){
    part(0,-.62,.02,1.55,.42,.82,type==='Hover'?[.28,.39,.31,1]:dark);
    if(type==='Tracked'){[-.68,.68].forEach(function(x){part(x,-.64,.46,.22,.34,.12,accent);part(x,-.64,-.46,.22,.34,.12,accent);});}
@@ -123,11 +133,11 @@ function draw(b){
  }else if(type==='Multiped'){
    for(var leg=0;leg<6;leg++){var a=leg*Math.PI/3,x=Math.cos(a),z=Math.sin(a);part(x*.72,-.52,z*.48,.2,.62,.2,joint);part(x*1.02,-.9,z*.7,.16,.42,.16,base);part(x*1.2,-1.12,z*.82,.38,.12,.28,dark);}
  }else{
-   [-1,1].forEach(function(side){part(side*.3,-.52,0,.27,.62,.3,joint);part(side*.36,-1.0,type==='Reverse joint'?side*.18:0,.32,.56,.34,base);part(side*.36,-1.34,.12,.48,.18,.62,dark);});
+   [-1,1].forEach(function(side){part(side*.3,-.52,0,.27,.62,.3,joint);jointBall(side*.3,-.78,0,.19,accent);piston(side*.3,-.65,0,side*.36,-1.08,.12,.095,dark);part(side*.36,-1.0,type==='Reverse joint'?side*.18:0,.32,.56,.34,base);jointBall(side*.36,-1.27,.12,.15,joint);part(side*.36,-1.34,.12,.48,.18,.62,dark);});
  }
  // Installed weapon/equipment geometry is attached to the selected hardpoint.
  var mountPos={'LEFT ARM':[-.95,.32,.03],'RIGHT ARM':[.95,.32,.03],'SHOULDER 1':[-.42,1.02,0],'SHOULDER 2':[.42,1.02,0],'BACK':[0,.58,-.48],'UTILITY':[0,-.28,.42]};
- Object.keys(b.mounts).forEach(function(k){var p=findPart(b.mounts[k]);if(!p)return;var q=mountPos[k],heavy=p[0].indexOf('HA-')===0,sz=heavy?.32:.2,fp=assembly.parts[k]||partFootprint(p[0],k),fw=fp.width_m*.34,fh=fp.height_m*.34,fl=fp.length_m*.34;part(q[0],q[1],q[2],fw,fh,fl,accent);part(q[0],q[1],q[2]+(k.indexOf('ARM')>=0?fl*.55:-fl*.55),fw*.5,fh*.5,fl*.55,dark);});
+ Object.keys(b.mounts).forEach(function(k){var p=findPart(b.mounts[k]);if(!p)return;var q=mountPos[k],heavy=p[0].indexOf('HA-')===0,fp=assembly.parts[k]||partFootprint(p[0],k),fw=fp.width_m*.34,fh=fp.height_m*.34,fl=fp.length_m*.34;part(q[0],q[1],q[2],fw,fh,fl,accent);part(q[0],q[1],q[2]+(k.indexOf('ARM')>=0?fl*.55:-fl*.55),fw*.5,fh*.5,fl*.55,dark);if(p[0].indexOf('LA-')===0||p[0].indexOf('HA-')===0){cylinder(identity(),q[0],q[1],q[2]+(k.indexOf('ARM')>=0?fl*.7:-fl*.7),heavy?.13:.085,heavy?.13:.085,heavy?.48:.34,dark,'z');ellipsoid(identity(),q[0],q[1],q[2]+(k.indexOf('ARM')>=0?fl*.96:-fl*.96),heavy?.14:.09,heavy?.14:.09,heavy?.12:.12,accent);}});
  // subtle floor grid
  gl.disable(gl.CULL_FACE);for(var i=-4;i<=4;i++){var z=-2.4+i*.6;part(i*.6,-1.48,z,.008,.008,5,[.08,.22,.12,1]);part(0,-1.48,i*.6,5,.008,.008,[.08,.22,.12,1]);}gl.enable(gl.CULL_FACE);
 }
