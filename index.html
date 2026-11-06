@@ -3506,6 +3506,16 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     return contacts.find(function(c){return c.id===resolved&&c.side==='friendly';})||null;
   };
 
+  // Direct per-HOUND state lookup: includes mech units that are still stored in the hanger.
+  window.vigilGetMechUnitState=function(unitId){
+    var key=String(unitId||'').toUpperCase();
+    var unit=regionalTrainingFleet.find(function(s){return s&&s.id===key&&s.shipClass==='mech'&&s.side==='friendly';});
+    if(!unit)return null;
+    var actual=Number(unit.heading),desired=Number(unit.desiredHeading==null?unit.heading:unit.desiredHeading);
+    return {id:unit.id,heading_deg:Number.isFinite(actual)?actual:null,desired_heading_deg:Number.isFinite(desired)?desired:null,
+      speed:Number(unit.speed)||0,target_speed:Number(unit.targetSpeed==null?unit.speed:unit.targetSpeed)||0,
+      deployment_status:String(unit.deploymentStatus||'deployed'),bay_status:String(unit.bayStatus||'')};
+  };
   // Shared unit-control bridge: update only an explicitly mapped friendly training entity.
   window.vigilSetSimulationUnitState=function(unitProfile,changes){
     var aliases={ship:'DDG-51',daedalus:'DAEDALUS-01',drone:'DRONE-01',submersible:'UUV-01',submarine:'SSN-774',mech:'MECH-01',facility:'FAC-01'};
