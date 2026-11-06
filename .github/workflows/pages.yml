@@ -7,6 +7,7 @@ on:
     paths:
       - "index.html"
       - "vigil-mech-garage.js"
+      - "vigil-uuv-missions.js"
       - "daedalus-rd.css"
       - "daedalus-rd.js"
       - "vigil-daedalus-orbital-sensor-suite.js"
@@ -51,6 +52,7 @@ jobs:
           mkdir -p site/rd/plague
           cp index.html site/index.html
           cp vigil-mech-garage.js site/vigil-mech-garage.js
+          cp vigil-uuv-missions.js site/vigil-uuv-missions.js
           cp daedalus-rd.css site/daedalus-rd.css
           cp daedalus-rd.js site/daedalus-rd.js
           cp vigil-daedalus-orbital-sensor-suite.js site/vigil-daedalus-orbital-sensor-suite.js
@@ -68,6 +70,7 @@ jobs:
           if [ -d assets ]; then cp -R assets site/assets; fi
           test -s site/index.html
           test -s site/vigil-mech-garage.js
+          test -s site/vigil-uuv-missions.js
           test -s site/daedalus-rd.css
           test -s site/daedalus-rd.js
           test -s site/vigil-daedalus-orbital-sensor-suite.js
@@ -89,6 +92,7 @@ jobs:
           set -eux
           for script in \
             site/vigil-mech-garage.js \
+            site/vigil-uuv-missions.js \
             site/daedalus-rd.js \
             site/vigil-daedalus-orbital-sensor-suite.js \
             site/vigil-rd-labs.js \
