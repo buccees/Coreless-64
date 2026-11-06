@@ -91,7 +91,31 @@ if(gl){try{
  function uploadGeometry(data){var buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(data),gl.STATIC_DRAW);return buffer;}
  function makeSphere(){var out=[],lat=12,lon=18;for(var y=0;y<lat;y++){var v0=y/lat*Math.PI,v1=(y+1)/lat*Math.PI;for(var x=0;x<lon;x++){var u0=x/lon*Math.PI*2,u1=(x+1)/lon*Math.PI*2;var p=[[Math.sin(v0)*Math.cos(u0),Math.cos(v0),Math.sin(v0)*Math.sin(u0)],[Math.sin(v1)*Math.cos(u0),Math.cos(v1),Math.sin(v1)*Math.sin(u0)],[Math.sin(v1)*Math.cos(u1),Math.cos(v1),Math.sin(v1)*Math.sin(u1)],[Math.sin(v0)*Math.cos(u1),Math.cos(v0),Math.sin(v0)*Math.sin(u1)]];[0,1,2,0,2,3].forEach(function(i){out.push(p[i][0]*.5,p[i][1]*.5,p[i][2]*.5,p[i][0],p[i][1],p[i][2]);});}}sphereCount=out.length/6;return out;}
  function makeCylinder(){var out=[],segments=20;for(var i=0;i<segments;i++){var a=i/segments*Math.PI*2,b=(i+1)/segments*Math.PI*2,pa=[Math.cos(a)*.5,-.5,Math.sin(a)*.5],pb=[Math.cos(b)*.5,-.5,Math.sin(b)*.5],qa=[pa[0],.5,pa[2]],qb=[pb[0],.5,pb[2]];[[pa,qa,qb],[pa,qb,pb]].forEach(function(t){t.forEach(function(p){var n=[p[0]*2,0,p[2]*2],l=Math.hypot(n[0],n[2])||1;out.push(p[0],p[1],p[2],n[0]/l,n[1],n[2]/l);});});var bottom=[[0,-.5,0],pb,pa],top=[[0,.5,0],qa,qb];[bottom,top].forEach(function(t,j){t.forEach(function(p){out.push(p[0],p[1],p[2],0,j?1:-1,0);});});}cylinderCount=out.length/6;return out;}
- sphereBuffer=uploadGeometry(makeSphere());cylinderBuffer=uploadGeometry(makeCylinder());
+  sphereBuffer=uploadGeometry(makeSphere());cylinderBuffer=uploadGeometry(makeCylinder());
+ function emitTriangle(out,a,b,c){
+  var ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2];
+  var nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx,len=Math.hypot(nx,ny,nz)||1;nx/=len;ny/=len;nz/=len;
+  [a,b,c].forEach(function(p){out.push(p[0],p[1],p[2],nx,ny,nz);});
+ }
+ function makeProfileMesh(sections){
+  var outline=[[-.27,-.5],[.27,-.5],[.43,-.43],[.5,-.25],[.5,.25],[.43,.43],[.27,.5],[-.27,.5],[-.43,.43],[-.5,.25],[-.5,-.25],[-.43,-.43]],rings=sections.map(function(section){
+   return outline.map(function(p){return [p[0]*section[1],section[0],p[1]*section[2]+section[3]];});
+  }),out=[];
+  for(var r=0;r<rings.length-1;r++)for(var j=0;j<outline.length;j++){
+   var next=(j+1)%outline.length,a=rings[r][j],b=rings[r+1][j],c=rings[r+1][next],d=rings[r][next];
+   emitTriangle(out,a,b,c);emitTriangle(out,a,c,d);
+  }
+  var bottomCenter=[0,sections[0][0],sections[0][3]],topSection=sections[sections.length-1],topCenter=[0,topSection[0],topSection[3]];
+  for(var k=0;k<outline.length;k++){var n=(k+1)%outline.length;emitTriangle(out,bottomCenter,rings[0][k],rings[0][n]);emitTriangle(out,topCenter,rings[rings.length-1][n],rings[rings.length-1][k]);}
+  return out;
+ }
+ function makeProfileBuffer(sections){var data=makeProfileMesh(sections);return {buffer:uploadGeometry(data),count:data.length/6};}
+ var roundedArmor=makeProfileBuffer([[-.5,.80,.80,0],[-.38,1,1,0],[.38,1,1,0],[.5,.80,.80,0]]);
+ var torsoArmor=makeProfileBuffer([[-.5,.70,.62,0],[-.31,1,.82,0],[.16,.92,.76,-.015],[.39,.70,.64,-.025],[.5,.42,.46,-.04]]);
+ var limbArmor=makeProfileBuffer([[-.5,.66,.72,0],[-.31,.92,.90,0],[.20,.82,.78,.015],[.5,.52,.62,.025]]);
+ var legArmor=makeProfileBuffer([[-.5,.66,.72,0],[-.29,.88,.92,0],[.18,.72,.80,0],[.5,.48,.60,-.015]]);
+ var cockpitArmor=makeProfileBuffer([[-.5,.78,.78,0],[-.30,1,1,0],[-.02,.94,.94,.02],[.22,.72,.78,.06],[.40,.43,.58,.09],[.5,.08,.22,.10]]);
+ var footArmor=makeProfileBuffer([[-.5,.66,.68,-.04],[-.28,1,.90,.02],[.12,.96,1,.10],[.38,.72,.78,.14],[.5,.35,.50,.16]]);
  gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.clearColor(.008,.025,.014,1);
  }catch(viewerError){gl=null;panel.querySelector('#status').textContent='3D RENDERER INITIALIZATION FAILED // '+String(viewerError&&viewerError.message||viewerError)+' // HANGER CONTROLS REMAIN AVAILABLE.';}
 }
@@ -120,11 +144,14 @@ function draw(b){
  gl.enableVertexAttribArray(loc.pos);gl.vertexAttribPointer(loc.pos,3,gl.FLOAT,false,24,0);gl.enableVertexAttribArray(loc.normal);gl.vertexAttribPointer(loc.normal,3,gl.FLOAT,false,24,12);
  projection=matMul(perspective(.72,pw/ph,.1,100),matMul(lookAt(),matMul(rotateX(pitch),rotateY(yaw))));
  var base=rgb(b.paint),dark=[.12,.19,.14,1],joint=[.34,.43,.32,1],accent=[.72,.66,.38,1],m=findPart(b.parts['MOBILITY BASE']),type=m?m[2]:'Bipedal',bw=baseFoot.width_m*.34,bh=baseFoot.height_m*.34,bl=baseFoot.length_m*.34,cabFoot=assembly.parts.COCKPIT||{width_m:.9,height_m:.88,length_m:.82},genFoot=assembly.parts.GENERATOR||{width_m:.7,height_m:.6,length_m:.75},comFoot=assembly.parts['SYSTEM COM']||{width_m:.34,height_m:.38,length_m:.32};
- function part(x,y,z,sx,sy,sz,c){box(identity(),x,y,z,sx,sy,sz,c);}function jointBall(x,y,z,r,c){ellipsoid(identity(),x,y,z,r,r,r,c);}function piston(x1,y1,z1,x2,y2,z2,r,c){var dx=x2-x1,dy=y2-y1,dz=z2-z1,len=Math.hypot(dx,dy,dz),mid=[(x1+x2)/2,(y1+y2)/2,(z1+z2)/2],rot= Math.acos(Math.max(-1,Math.min(1,dy/(len||1)))),axis=[dz,0,-dx],axisLen=Math.hypot(axis[0],axis[2]);var model=matMul(translate(mid[0],mid[1],mid[2]),matMul(axisLen>1e-5?new Float32Array([1,0,0,0,0,Math.cos(rot),Math.sin(rot),0,0,-Math.sin(rot),Math.cos(rot),0,0,0,0,1]):identity(),scale(r,len,r)));drawGeometry(cylinderBuffer,cylinderCount,model,c);}
+ function meshPart(mesh,x,y,z,sx,sy,sz,c){var model=matMul(translate(x,y,z),scale(sx,sy,sz));drawGeometry(mesh.buffer,mesh.count,model,c);}
+ function part(x,y,z,sx,sy,sz,c){meshPart(roundedArmor,x,y,z,sx,sy,sz,c);}
+ function jointBall(x,y,z,r,c){ellipsoid(identity(),x,y,z,r,r,r,c);}
+ function armorLimb(mesh,x,y,z,sx,sy,sz,c){meshPart(mesh,x,y,z,sx,sy,sz,c);}function piston(x1,y1,z1,x2,y2,z2,r,c){var dx=x2-x1,dy=y2-y1,dz=z2-z1,len=Math.hypot(dx,dy,dz),mid=[(x1+x2)/2,(y1+y2)/2,(z1+z2)/2],rot= Math.acos(Math.max(-1,Math.min(1,dy/(len||1)))),axis=[dz,0,-dx],axisLen=Math.hypot(axis[0],axis[2]);var model=matMul(translate(mid[0],mid[1],mid[2]),matMul(axisLen>1e-5?new Float32Array([1,0,0,0,0,Math.cos(rot),Math.sin(rot),0,0,-Math.sin(rot),Math.cos(rot),0,0,0,0,1]):identity(),scale(r,len,r)));drawGeometry(cylinderBuffer,cylinderCount,model,c);}
  // Hip chassis, torso, cockpit and sensor crown.
- part(0,-.05,0,bw*.72,.42,bl*.55,dark);part(0,.58,0,bw*.62,bh*.35,bl*.55,base);part(0,.68,bl*.29,bw*.42,bh*.15,.055,[.055,.15,.105,1]);part(0,bh*.35,0,cabFoot.width_m*.34,cabFoot.height_m*.34,cabFoot.length_m*.34,joint);part(0,bh*.47,.03,bw*.48,.22,bl*.46,dark);part(0,-.02,-bl*.43,genFoot.width_m*.34,genFoot.height_m*.34,genFoot.length_m*.34,[.24,.34,.26,1]);part(0,.28,bl*.34,comFoot.width_m*.34,comFoot.height_m*.34,comFoot.length_m*.34,accent);
+ part(0,-.05,0,bw*.72,.42,bl*.55,dark);meshPart(torsoArmor,0,.58,0,bw*.62,bh*.35,bl*.55,base);part(0,.68,bl*.29,bw*.42,bh*.15,.055,[.055,.15,.105,1]);meshPart(cockpitArmor,0,bh*.35,0,cabFoot.width_m*.34,cabFoot.height_m*.34,cabFoot.length_m*.34,joint);part(0,bh*.47,.03,bw*.48,.22,bl*.46,dark);part(0,-.02,-bl*.43,genFoot.width_m*.34,genFoot.height_m*.34,genFoot.length_m*.34,[.24,.34,.26,1]);part(0,.28,bl*.34,comFoot.width_m*.34,comFoot.height_m*.34,comFoot.length_m*.34,accent);
  // Shoulders and articulated arms; leg architecture varies by selected chassis.
- [-1,1].forEach(function(side){part(side*bw*.66,.78,0,.34,.36,.42,joint);jointBall(side*bw*.66,.78,0,.19,accent);piston(side*bw*.66,.65,0,side*bw*.9,.12,0,.105,dark);part(side*bw*.9,.35,0,.25,.72,.28,base);jointBall(side*bw*.91,-.08,.02,.17,joint);part(side*bw*.91,-.08,.02,.3,.24,.32,dark);});
+ [-1,1].forEach(function(side){part(side*bw*.66,.78,0,.34,.36,.42,joint);jointBall(side*bw*.66,.78,0,.19,accent);piston(side*bw*.66,.65,0,side*bw*.9,.12,0,.105,dark);armorLimb(limbArmor,side*bw*.9,.35,0,.25,.72,.28,base);jointBall(side*bw*.91,-.08,.02,.17,joint);part(side*bw*.91,-.08,.02,.3,.24,.32,dark);});
  if(type==='Tracked'||type==='Wheeled'||type==='Hover'){
    part(0,-.62,.02,1.55,.42,.82,type==='Hover'?[.28,.39,.31,1]:dark);
    if(type==='Tracked'){[-.68,.68].forEach(function(x){part(x,-.64,.46,.22,.34,.12,accent);part(x,-.64,-.46,.22,.34,.12,accent);});}
@@ -133,7 +160,7 @@ function draw(b){
  }else if(type==='Multiped'){
    for(var leg=0;leg<6;leg++){var a=leg*Math.PI/3,x=Math.cos(a),z=Math.sin(a);part(x*.72,-.52,z*.48,.2,.62,.2,joint);part(x*1.02,-.9,z*.7,.16,.42,.16,base);part(x*1.2,-1.12,z*.82,.38,.12,.28,dark);}
  }else{
-   [-1,1].forEach(function(side){part(side*.3,-.52,0,.27,.62,.3,joint);jointBall(side*.3,-.78,0,.19,accent);piston(side*.3,-.65,0,side*.36,-1.08,.12,.095,dark);part(side*.36,-1.0,type==='Reverse joint'?side*.18:0,.32,.56,.34,base);jointBall(side*.36,-1.27,.12,.15,joint);part(side*.36,-1.34,.12,.48,.18,.62,dark);});
+   [-1,1].forEach(function(side){armorLimb(legArmor,side*.3,-.52,0,.27,.62,.3,joint);jointBall(side*.3,-.78,0,.19,accent);piston(side*.3,-.65,0,side*.36,-1.08,.12,.095,dark);armorLimb(legArmor,side*.36,-1.0,type==='Reverse joint'?side*.18:0,.32,.56,.34,base);jointBall(side*.36,-1.27,.12,.15,joint);meshPart(footArmor,side*.36,-1.34,.12,.48,.18,.62,dark);});
  }
  // Installed weapon/equipment geometry is attached to the selected hardpoint.
  var mountPos={'LEFT ARM':[-.95,.32,.03],'RIGHT ARM':[.95,.32,.03],'SHOULDER 1':[-.42,1.02,0],'SHOULDER 2':[.42,1.02,0],'BACK':[0,.58,-.48],'UTILITY':[0,-.28,.42]};
