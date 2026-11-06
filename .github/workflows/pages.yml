@@ -95,6 +95,7 @@ jobs:
           set -eux
           for script in \
             site/vigil-mech-garage.js \
+            site/vigil-mech-3d-view.js \
             site/vigil-uuv-missions.js \
             site/daedalus-rd.js \
             site/vigil-daedalus-orbital-sensor-suite.js \
