@@ -65,6 +65,22 @@ function unitId(value){
 function profileKey(id){
  return {'DDG-51':'ship','DAEDALUS-01':'daedalus','DRONE-01':'drone','UUV-01':'submersible','SSN-774':'submarine','MECH-01':'mech','FAC-01':'facility'}[unitId(id)]||'ship';
 }
+function sensorsForUnit(id){
+ var pkg=sensorPackages[profileKey(id)];if(!pkg)return [];
+ if(profileKey(id)!=='mech')return pkg.sensors;
+ var u=null;try{u=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit('mech');}catch(e){}
+ var parts=u&&u.mech_parts||{},mounts=u&&u.mech_mounts||{},out=[];
+ if(parts['MOBILITY BASE'])out.push(['JOINT ABSOLUTE ENCODERS','encoders','actuator',1],['FORCE / TORQUE TRANSDUCERS','force_torque','actuator',1]);
+ if(parts['SYSTEM COM'])out.push(['INERTIAL MEASUREMENT UNIT','imu','navigation',1]);
+ if(parts.GENERATOR)out.push(['MOTOR / POWER ELECTRONICS MONITOR','power','engineering',1]);
+ Object.keys(mounts).forEach(function(slot){
+  var id=String(mounts[slot]||'');
+  if(id==='AS-THERM')out.push(['THERMAL / IR CAMERA','thermal','surface',.025]);
+  if(id==='AS-NV')out.push(['STEREO EO / HEAD-MOUNTED DISPLAY','optical','surface',.025]);
+  if(id==='AS-MINE')out.push(['MINE DETECTION / PROXIMITY ARRAY','proximity','obstacle',.008]);
+ });
+ return out;
+}
 function currentContacts(){try{return window.vigilGetRegionalSensorContacts?window.vigilGetRegionalSensorContacts():[];}catch(e){return [];}}
 function getUnit(id){
  var key=profileKey(id);
@@ -89,7 +105,7 @@ function stableNoise(id,label){
  var x=2166136261,s=String(id)+'|'+String(label);for(var i=0;i<s.length;i++){x^=s.charCodeAt(i);x=Math.imul(x,16777619);}return (x>>>0)/4294967295;
 }
 function resolveSensor(id,station){
- var pkg=sensorPackages[profileKey(id)]||sensorPackages.ship,raw=String(station||'').toLowerCase();
+ var pkg={sensors:sensorsForUnit(id)},raw=String(station||'').toLowerCase();
  var match=pkg.sensors.find(function(s){return s[0].toLowerCase()===raw||s[0].toLowerCase().indexOf(raw)>=0||raw.indexOf(s[0].toLowerCase())>=0;});
  if(match)return match;
  var aliasMap=[
@@ -256,7 +272,7 @@ function sharedReportsFor(id){
 }
 function makeUnitReport(id){
  id=unitId(id);var pkg=sensorPackages[profileKey(id)],source=localSource(id);if(!pkg)return null;
- var frames=pkg.sensors.map(function(s){return makeFrame(id,s,source);}).filter(Boolean);
+ var frames=sensorsForUnit(id).map(function(s){return makeFrame(id,s,source);}).filter(Boolean);
  return {schema:'vigil.fleet.sensor-report',version:1,unit_id:id,unit_name:pkg.name,
   local_shared_source_id:source?source.id:null,local_shared_source_name:source?source.name:'NO LOCAL SHARED SOURCE',
   link_quality:source?source.linkQuality:0,provenance:'SYNTHETIC ENGINEERING MODEL // UNIT-OWNED CHANNELS',
@@ -279,7 +295,7 @@ function publishUnitReport(id){
 }
 function publicApi(){
  return {schema:'vigil.fleet-sensor-network',version:1,packages:sensorPackages,
-  getLocalSharedSource:localSource,getUnitPackage:function(id){return sensorPackages[profileKey(id)]||null;},
+  getLocalSharedSource:localSource,getUnitPackage:function(id){var p=sensorPackages[profileKey(id)];return p?{name:p.name,sensors:sensorsForUnit(id).slice()}:null;},
   getFrame:function(id,station){return makeFrame(id,resolveSensor(id,station),localSource(id));},
   getUnitReport:makeUnitReport,getSharedReports:sharedReportsFor,publishUnitReport:publishUnitReport,
   getRecords:function(){return reports.slice();}};
@@ -309,7 +325,7 @@ function render(){
  if(!root||!document.body.contains(root))return;
  var id=activeId(),key=profileKey(id),pkg=sensorPackages[key],source=localSource(id),unit=getUnit(id);
  if(!pkg||!unit){root.querySelector('#vfsn-platform').textContent='NO ASSIGNED PLATFORM SENSOR MODEL';return;}
- var selected=activeStation(),currentDef=resolveSensor(id,selected),frames=pkg.sensors.map(function(s){return makeFrame(id,s,source);}).filter(Boolean);
+ var selected=activeStation(),currentDef=resolveSensor(id,selected),frames=sensorsForUnit(id).map(function(s){return makeFrame(id,s,source);}).filter(Boolean);
  root.querySelector('#vfsn-platform').textContent=pkg.name+' // '+id+' // '+frames.length+' INSTALLED CHANNELS';
  root.querySelector('#vfsn-roster').innerHTML=frames.map(function(frame){
   var isActive=!!currentDef&&frame.sensor_name===currentDef[0],rows=frame.measurements.slice(0,isActive?6:3);
