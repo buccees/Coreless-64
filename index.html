@@ -3574,6 +3574,81 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       station_keeping_enabled:unit.stationKeepingEnabled===true,deployment_status:String(unit.deploymentStatus||'deployed'),bay_status:String(unit.bayStatus||'')};
   };
 
+  // Hardware-validated HOUND equipment command bridge. Commands are accepted only
+  // when the exact part is fitted to the addressed deployed mech.
+  window.vigilGetMechEquipmentState=function(unitId){
+    var key=String(unitId||'').toUpperCase(),u=regionalTrainingFleet.find(function(s){return s&&s.id===key&&s.shipClass==='mech'&&s.side==='friendly';});
+    return u?JSON.parse(JSON.stringify(u.mechEquipmentState||{})):null;
+  };
+  window.vigilCommandMechEquipment=function(cmd){
+    cmd=cmd||{};var id=String(cmd.unit_id||'').toUpperCase(),slot=String(cmd.slot||''),part=String(cmd.equipment_id||''),action=String(cmd.action||'').toUpperCase();
+    var u=regionalTrainingFleet.find(function(s){return s&&s.id===id&&s.shipClass==='mech'&&s.side==='friendly';});
+    if(!u)return {ok:false,reason:'MECH UNIT NOT REGISTERED.'};
+    if(u.deploymentStatus==='docked'||u.afloat===false)return {ok:false,reason:'HOUND IS NOT DEPLOYED // EQUIPMENT COMMANDS LOCKED.'};
+    if(String(u.hangerBuildId||'')!==String(cmd.build_id||''))return {ok:false,reason:'BUILD ID MISMATCH // COMMAND REJECTED.'};
+    var fitted=(u.mechParts&&u.mechParts[slot])||(u.mechMounts&&u.mechMounts[slot]);
+    if(!fitted||String(fitted)!==part)return {ok:false,reason:'PART / SLOT MISMATCH // ONLY INSTALLED HARDWARE CAN BE COMMANDED.'};
+    var weapon=/^(LA-|HA-)/.test(part),sensor=['AS-THERM','AS-NV','AS-MINE'].indexOf(part)>=0;
+    var state=u.mechEquipmentState||(u.mechEquipmentState={}),key=slot+'|'+part,prior=state[key]||(state[key]={mode:'STANDBY',armed:false,powered:false,lastAction:'NONE'});
+    var status='',target=null;
+    if(weapon){
+      if(action==='SAFE'){prior.armed=false;prior.mode='SAFE';status='WEAPON SAFE // FIRING CIRCUIT INHIBITED';}
+      else if(action==='ARM'){prior.armed=true;prior.mode='ARMED';status='WEAPON ARMED // '+part;}
+      else if(action==='FIRE'){
+        if(!prior.armed)return {ok:false,reason:'FIRING CIRCUIT SAFE // ARM THIS WEAPON FIRST.'};
+        var now=Date.now(),cooldown=Number(prior.cooldownMs)||((part.indexOf('HA-')===0)?4200:1800);
+        if(now-Number(prior.lastFiredAt||0)<cooldown)return {ok:false,reason:'WEAPON RECHARGING // '+Math.ceil((cooldown-(now-Number(prior.lastFiredAt)))/1000)+' SEC.'};
+        var range=part.indexOf('HA-')===0?.075:.035,arc=part==='HA-HW'||part==='HA-MT'?70:part==='HA-PILE'?12:24;
+        var heading=((Number(u.heading)||0)%360+360)%360;
+        regionalTrainingFleet.forEach(function(t){
+          if(!t||t.side!=='contact'||t.afloat===false||!Number.isFinite(Number(t.x))||!Number.isFinite(Number(t.y)))return;
+          var dx=Number(t.x)-Number(u.x),dy=Number(t.y)-Number(u.y);if(dx>.5)dx-=1;if(dx<-.5)dx+=1;
+          var dist=Math.hypot(dx,dy),bearing=(Math.atan2(dx,-dy)*180/Math.PI+360)%360,delta=Math.abs(((bearing-heading+540)%360)-180);
+          if(dist<=range&&delta<=arc&&(!target||dist<target.distance))target={unit:t,distance:dist,bearing:bearing};
+        });
+        if(!target)return {ok:false,reason:'NO HOSTILE CONTACT IN WEAPON RANGE / FIRING ARC.'};
+        var damage=part==='HA-AC'||part==='HA-SC'?3:part==='HA-ML'||part==='HA-HW'?4:part==='HA-PILE'?5:part==='LA-RK'?3:part==='LA-SG'?2:1;
+        if(part==='HA-PILE'&&target.distance>.003)return {ok:false,reason:'PILE DRIVER REQUIRES PHYSICAL CONTACT RANGE.'};
+        target.unit.hull=Math.max(0,(Number(target.unit.hull)||3)-damage);target.unit.lastDamageSource=id+' / '+part;
+        if(target.unit.hull<=0){target.unit.afloat=false;target.unit.destroyedBy=id;}
+        prior.lastFiredAt=now;prior.lastAction='FIRE';status='SHOT RESOLVED // '+target.unit.id+' // '+damage+' DAMAGE // HULL '+target.unit.hull;
+      }else return {ok:false,reason:'UNSUPPORTED WEAPON COMMAND.'};
+    }else if(sensor){
+      if(action==='POWER'){prior.powered=!prior.powered;prior.mode=prior.powered?'POWERED':'STANDBY';status=part+' // '+prior.mode;}
+      else if(action==='SCAN'){
+        if(!prior.powered)return {ok:false,reason:'SENSOR IS OFFLINE // POWER IT ON BEFORE SCANNING.'};
+        var network=window.vigilFleetSensorNetwork,station=part==='AS-THERM'?'THERMAL / IR CAMERA':part==='AS-NV'?'STEREO EO / HEAD-MOUNTED DISPLAY':'PROXIMITY / ULTRASONIC ARRAY';
+        var frame=network&&network.getFrame?network.getFrame(id,station):null;
+        prior.lastScanAt=new Date().toISOString();prior.lastScan=frame||null;prior.lastAction='SCAN';
+        if(frame&&window.vigilRecordUnitSensorFeed)window.vigilRecordUnitSensorFeed(frame);
+        status='SCAN COMPLETE // '+(frame?frame.sensor_name+' // '+frame.detected_contacts.length+' CONTACT RETURNS':'SENSOR FRAME UNAVAILABLE');
+      }else return {ok:false,reason:'UNSUPPORTED SENSOR COMMAND.'};
+    }else{
+      var permitted={
+        'AS-JAM':['JAM','PULSE'],'AS-MC':['ARM','RELEASE'],'AS-SMOKE':['ARM','DEPLOY'],
+        'AS-ARM':['ENABLE','RESET'],'AS-FUEL':['AUX','ISOLATE'],'NA-1200':['STANDBY','DEPLOY','RECALL'],
+        'NA-2400':['STANDBY','DEPLOY','RECALL'],'HA-PILE':['LOCK','STRIKE']
+      }[part]||['ENABLE','STANDBY'];
+      if(permitted.indexOf(action)<0)return {ok:false,reason:'COMMAND NOT SUPPORTED BY '+part+'.'};
+      prior.lastAction=action;prior.mode=action;
+      if(part==='AS-ARM')u.reactiveArmorEnabled=action==='ENABLE';
+      if(part==='AS-FUEL')u.auxiliaryPowerEnabled=action==='AUX';
+      if(part==='AS-JAM')u.jammerActive=action==='JAM'||action==='PULSE';
+      if(part==='AS-SMOKE'&&action==='DEPLOY')u.smokeCloudUntil=Date.now()+12000;
+      if(part==='AS-MC'&&action==='RELEASE')u.countermeasureLastReleasedAt=Date.now();
+      if(/^NA-/.test(part))u.tacticalBeaconState=action;
+      if(part==='HA-PILE'&&action==='STRIKE'){
+        var near=regionalTrainingFleet.filter(function(t){return t&&t.side==='contact'&&t.afloat!==false&&Math.hypot(Number(t.x)-Number(u.x),Number(t.y)-Number(u.y))<=.003;})[0];
+        if(!near)return {ok:false,reason:'NO CONTACT WITHIN PILE-DRIVER CONTACT ENVELOPE.'};
+        near.hull=Math.max(0,(Number(near.hull)||3)-5);if(near.hull<=0){near.afloat=false;near.destroyedBy=id;}
+        status='MECHANICAL STRIKE RESOLVED // '+near.id+' // TARGET HULL '+near.hull;
+      }else status=part+' // '+action+' // STATE UPDATED';
+    }
+    window.dispatchEvent(new CustomEvent('vigil:mech-equipment-state-changed',{detail:{unit_id:id,slot:slot,equipment_id:part,action:action,status:status,target_id:target&&target.unit.id||null}}));
+    window.dispatchEvent(new CustomEvent('vigil:simulation-unit-state-changed',{detail:{unit_id:id,equipment_id:part,action:action}}));
+    if(typeof publishVigilSharedSimulationState==='function')publishVigilSharedSimulationState(performance.now(),true);
+    return {ok:true,unit_id:id,slot:slot,equipment_id:part,action:action,status:status,target_id:target&&target.unit.id||null};
+  };
   // Daedalus carrier command terminal API: all deployable VIGIL platforms are stored and launched from this command authority.
   window.vigilMothershipCommand={
     carrier_id:'DAEDALUS-01',
