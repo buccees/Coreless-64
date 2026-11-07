@@ -35,6 +35,10 @@ for (const required of [
   "AS-NV",
   "AS-MINE",
   "renderEnvironment(selectedBuild)",
+  "vigilGetSensorInputSnapshot",
+  "o.unit_id!==unitId",
+  "o.feed_stale",
+  "o.normalized_position",
 ]) {
   assert.ok(mechView.includes(required), `missing sensor-fused mech environment renderer marker: ${required}`);
 }
