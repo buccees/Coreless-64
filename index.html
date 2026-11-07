@@ -4228,6 +4228,14 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
       // A zero-speed helm command is an explicit hold-position command. Do not let
       // formation keeping, collision avoidance, or residual deceleration restart motion.
       if(ship.side==='friendly'&&ship.targetSpeed!==undefined&&Number(ship.targetSpeed)<=0){
+        // A stopped UUV can still yaw in place to follow a helm command.
+        // Keep position and speed locked while allowing its actual heading to slew.
+        if(ship.shipClass==='submersible'){
+          var holdDelta=((desired-ship.heading+540)%360)-180;
+          var holdTurn=(Number(ship.maxTurnRateDegPerSec)||0)*dt;
+          if(Math.abs(holdDelta)<=holdTurn)ship.heading=desired;
+          else ship.heading=(ship.heading+Math.sign(holdDelta)*holdTurn+360)%360;
+        }
         ship.speed=0;ship.navigationHeading=desired;ship.navigationTargetSpeed=0;
         ship.stationKeepingEnabled=false;ship.formationActive=false;ship.formationTarget=null;
         ship.formationDistance=null;ship.formationTargetSpeed=null;ship.avoidanceActive=false;
