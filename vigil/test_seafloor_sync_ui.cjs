@@ -4,7 +4,42 @@ const path = require("node:path");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 const submersible = fs.readFileSync(path.join(__dirname, "..", "vigil-submersible-3d-view.js"), "utf8");
+const mechView = fs.readFileSync(path.join(__dirname, "..", "vigil-mech-3d-view.js"), "utf8");
+const otherVehicleViews = fs.readFileSync(path.join(__dirname, "..", "vigil-independent-vehicle-3d-views.js"), "utf8");
 new Function(submersible);
+new Function(mechView);
+new Function(otherVehicleViews);
+
+for (const required of [
+  "function updateLaunchButton()",
+  "window.addEventListener('vigil:active-unit-changed',updateLaunchButton)",
+  "launch.textContent=label?'LAUNCH '+label+' 3D VIEW':'FACILITY // NO PILOT VIEW'",
+  "mech:'MECH'",
+  "submersible:'UUV'",
+  "submarine:'SUBMARINE'",
+  "ship:'SHIP'",
+  "drone:'DRONE'",
+  "mothership:'DAEDALUS'",
+  "if(activeUnit==='mech')",
+  "if(activeUnit!=='submersible')",
+]) {
+  assert.ok(submersible.includes(required), `missing per-vehicle launch routing marker: ${required}`);
+}
+for (const required of [
+  "window.vigilOpenMech3DView=open",
+  "LAUNCH HOUND 3D PILOT VIEW",
+]) {
+  assert.ok(mechView.includes(required), `missing independent mech pilot launch marker: ${required}`);
+}
+for (const required of [
+  "ship:{title:",
+  "drone:{title:",
+  "submarine:{title:",
+  "mothership:{title:",
+  "window.vigilOpenOtherVehicle3DView=open",
+]) {
+  assert.ok(otherVehicleViews.includes(required), `missing independent vehicle pilot view marker: ${required}`);
+}
 const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
 let parsed = 0;
 
