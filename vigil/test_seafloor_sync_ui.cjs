@@ -78,6 +78,23 @@ for (const required of [
   "Math.min(Number(current&&current.max_speed)||.03,v+Number(item[2]))",
 
 
+  "m3-flightline",
+  "m3-speed",
+  "m3-target-speed",
+  "m3-max-speed",
+  "m3-tactical-map-canvas",
+  "m3-map-local",
+  "m3-map-regional",
+  "m3-drive-pad",
+  "data-drive=\"forward\"",
+  "m3-compass-track",
+  "function drawTacticalMap(force)",
+  "function bindMechScreenControls()",
+  "function handleMechPilotKey(e)",
+  "SIM UNITS / S · ACTUAL",
+  "height:100dvh!important",
+  "document.body.style.overflow='hidden'",
+  "overflow:hidden!important",
   "window.vigilGetMechFusedSpatialModel=function()",
   "m3-spatial-fusion-pane",
   "m3-fusion-track-list",
@@ -133,7 +150,7 @@ for (const required of [
 ]) {
   assert.ok(mechView.includes(required), `missing sensor-fused mech environment renderer marker: ${required}`);
 }
-assert.ok(/vigil-mech-3d-view\.js\?v=(7|8|9|10|11)/.test(html), "expected cache-busted mech environment renderer script");
+assert.ok(/vigil-mech-3d-view\.js\?v=(7|8|9|10|11|12)/.test(html), "expected cache-busted mech environment renderer script");
 assert.ok(/vigil-mech-garage\.js\?v=13/.test(html), "expected cache-busted mech garage and role metadata script");
 assert.ok(/vigil-fleet-sensor-network\.js\?v=(daedalus-orbital-7|daedalus-orbital-8)/.test(html), "expected cache-busted fleet sensor network script");
 for (const required of [
