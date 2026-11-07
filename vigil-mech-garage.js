@@ -275,7 +275,21 @@ window.addEventListener('vigil:simulation-unit-state-changed',function(e){
 });
 // Refresh the selected HOUND's own heading as its simulated turn progresses.
 window.setInterval(function(){if(panel.style.display!=='none'){var b=current();if(b)updateHeadingCompass(b);}},120);
-window.vigilGetMechGarageState=function(){return {builds:JSON.parse(JSON.stringify(state.builds)),selected:state.selected,medals:Object.assign({},state.medals)};};
+window.vigilSetMechWeaponGroup=function(buildId,slot,part,group){
+ var b=state.builds.find(function(item){return item&&item.id===buildId;});
+ if(!b)return {ok:false,reason:'UNKNOWN HOUND BUILD.'};
+ var fitted=(b.parts&&b.parts[slot])||(b.mounts&&b.mounts[slot]);
+ if(!fitted||fitted!==part||!(/^(LA-|HA-)/.test(part)))return {ok:false,reason:'WEAPON / HARDPOINT MISMATCH.'};
+ var value=Number(group);if(!Number.isInteger(value)||value<0||value>4)return {ok:false,reason:'WEAPON GROUP MUST BE 1–4 OR 0 FOR UNASSIGNED.'};
+ b.weaponGroups=b.weaponGroups||{};var key=slot+'|'+part;
+ if(value===0)delete b.weaponGroups[key];else b.weaponGroups[key]=value;
+ save();return {ok:true,build_id:b.id,slot:slot,equipment_id:part,group:value};
+};
+window.vigilGetMechGarageState=function(){
+ var builds=JSON.parse(JSON.stringify(state.builds));
+ builds.forEach(function(b){b.role=role(b);b.cockpitTier=String((b.parts&&b.parts.COCKPIT)||'CP-M');b.weaponGroups=b.weaponGroups||{};});
+ return {builds:builds,selected:state.selected,medals:Object.assign({},state.medals)};
+};
 window.vigilRecordMechMissionResult=function(r){r=r||{};if(r.corporation!=='WYCF')return {ok:false,reason:'WAYLAND-YUTANI MEDALS ONLY.'};['deployments','eliminations','objectives','sRanks','soldier','defender','scout','sniper','heavyGunner','commander'].forEach(function(k){var n=Number(r[k]||0);if(Number.isFinite(n)&&n>0)state.medals[k]=Number(state.medals[k]||0)+n;});save();render();return {ok:true,medals:Object.assign({},state.medals)};};
 function visible(e){var active=window.vigilActiveSimulationUnit&&window.vigilActiveSimulationUnit.id;var detail=e&&e.detail&&e.detail.unit&&e.detail.unit.id;var contextActive=host.dataset&&host.dataset.activeUnit;var on=(active==='mech'||detail==='mech'||contextActive==='mech');panel.style.display=on?'block':'none';if(on){if(!state.builds.length)build();render();panel.scrollIntoView({behavior:'smooth',block:'nearest'});}}
 window.addEventListener('vigil:active-unit-changed',visible);window.addEventListener('vigil:open-mech-hanger',function(){visible({detail:{unit:{id:'mech'}}});});visible();
