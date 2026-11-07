@@ -31,6 +31,11 @@ assert.ok(!html.includes("launchButton.textContent='LAUNCH '+unitId.toUpperCase(
 for (const required of [
   "function publishMechSimulationSensors()",
   "function fuseSpatialObservations(snapshot)",
+  "height:100dvh",
+  "var compassPane=root.querySelector('#m3-compass-pane');if(compassPane)root.appendChild(compassPane)",
+  "if(controls.dataset.signature===signature&&controls.children.length===6)return;",
+  "controls.replaceChildren();controls.dataset.signature=signature;",
+
   "window.vigilGetMechFusedSpatialModel=function()",
   "m3-spatial-fusion-pane",
   "m3-fusion-track-list",
