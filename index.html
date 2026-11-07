@@ -3670,13 +3670,11 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         if(!target)return {ok:false,reason:'NO HOSTILE CONTACT IN WEAPON RANGE / FIRING ARC.'};
         var damage=part==='HA-AC'||part==='HA-SC'?3:part==='HA-ML'||part==='HA-HW'?4:part==='HA-PILE'?5:part==='LA-RK'?3:part==='LA-SG'?2:1;
         if(part==='HA-PILE'&&target.distance>.003)return {ok:false,reason:'PILE DRIVER REQUIRES PHYSICAL CONTACT RANGE.'};
+        var nextHeat=weaponProfile?Number(prior.heat||0)+weaponProfile.heat:0;
+        if(weaponProfile&&nextHeat>=100){prior.heat=100;prior.heatUpdatedAt=now;prior.overheated=true;return {ok:false,reason:'OVERHEAT LOCKOUT // WEAPON CYCLE INHIBITED AT 100% HEAT.'};}
         target.unit.hull=Math.max(0,(Number(target.unit.hull)||3)-damage);target.unit.lastDamageSource=id+' / '+part;
         if(target.unit.hull<=0){target.unit.afloat=false;target.unit.destroyedBy=id;}
-        if(weaponProfile){
-          var nextHeat=Number(prior.heat||0)+weaponProfile.heat;
-          if(nextHeat>=100){prior.heat=100;prior.heatUpdatedAt=now;prior.overheated=true;return {ok:false,reason:'OVERHEAT LOCKOUT // WEAPON CYCLE INHIBITED AT 100% HEAT.'};}
-          prior.magazineRemaining-=weaponProfile.rounds;prior.heat=nextHeat;prior.heatUpdatedAt=now;
-        }
+        if(weaponProfile){prior.magazineRemaining-=weaponProfile.rounds;prior.heat=nextHeat;prior.heatUpdatedAt=now;}
         prior.lastFiredAt=now;prior.lastAction='FIRE';status='SHOT RESOLVED // '+target.unit.id+' // '+damage+' DAMAGE // HULL '+target.unit.hull;
       }else return {ok:false,reason:'UNSUPPORTED WEAPON COMMAND.'};
     }else if(sensor){
