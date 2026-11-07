@@ -246,26 +246,33 @@ environmentCanvas.addEventListener('pointerdown',function(e){environmentCanvas.d
 function draw(){if(!active)return;renderMech3D(selectedBuild);renderEnvironment(selectedBuild);}
 function renderNavigation(b){
  var controls=root.querySelector('#m3-navigation-controls'),note=root.querySelector('#m3-navigation-note');if(!controls||!note)return;
- var parts=b&&b.parts||{},mob=parts['MOBILITY BASE'],com=parts['SYSTEM COM'];
- var state=!mob?'NO MOBILITY BASE INSTALLED // MOVEMENT CONTROLS DISABLED':(!com||com!=='COM-M'?'MOBILITY BASE '+mob+' // VECTOR CONTROL COM NOT INSTALLED; manual heading/speed commands unavailable':'ACTIVE HARDWARE: '+mob+' + '+com+' // movement controls enabled');
+ var parts=b&&b.parts||{},mob=parts['MOBILITY BASE'],com=parts['SYSTEM COM'],u=getUnit();
+ var stowed=!!(u&&['hanger','docked'].indexOf(String(u.deployment_status||'').toLowerCase())>=0);
+ var comLabel=com==='COM-M'?'VECTOR CONTROL / MOBILITY ASSIST':com==='COM-W'?'GYRO STABILIZATION / WEAPON ASSIST':com==='COM-S'?'BALANCE MATRIX / STABILITY ASSIST':'BASELINE MOBILITY LINK';
+ var state=!mob?'NO MOBILITY BASE INSTALLED // MOVEMENT CONTROLS DISABLED':stowed?'HOUND STOWED // DEPLOY THIS BUILD FROM THE HANGER BEFORE ISSUING NAVIGATION COMMANDS.':'MOBILITY BASE '+mob+' // '+comLabel+' // NAVIGATION LINK READY';
  var signature=[mob||'',com||''].join('|');
  note.textContent=state;
- if(!mob||!com||com!=='COM-M'){if(controls.dataset.signature!==signature){controls.replaceChildren();controls.dataset.signature=signature;}return;}
- // Do not rebuild the controls during the 150 ms telemetry refresh: doing so
- // detaches the button under the pointer before its click can be dispatched.
- if(controls.dataset.signature===signature&&controls.children.length===6)return;
- controls.replaceChildren();controls.dataset.signature=signature;
- [['TURN −15°','turn','-15'],['TURN +15°','turn','15'],['NORTH','north',''],['SPEED −','speed','-.002'],['SPEED +','speed','.002'],['STOP','stop','']].forEach(function(item){
-  var btn=document.createElement('button');btn.type='button';btn.textContent=item[0];
-  if(item[1]==='turn')btn.dataset.turn=item[2];if(item[1]==='speed')btn.dataset.speed=item[2];
-  if(item[1]==='north')btn.id='m3-north';if(item[1]==='stop')btn.id='m3-stop';
-  btn.addEventListener('click',function(){
-   if(item[1]==='turn'){var u=getUnit(),h=Number(u&&u.desired_heading_deg);if(!Number.isFinite(h))h=0;send({heading:(h+Number(item[2])+360)%360});}
-   else if(item[1]==='speed'){var u=getUnit(),v=Number(u&&u.target_speed)||0;send({speed:Math.max(0,Math.min(Number(u&&u.max_speed)||.03,v+Number(item[2])))});}
-   else if(item[1]==='north')send({heading:0});else send({speed:0});
+ if(!mob){
+  if(controls.dataset.signature!==signature){controls.replaceChildren();controls.dataset.signature=signature;}
+  return;
+ }
+ // A non-mobility COM changes stabilization, not whether an installed chassis
+ // can steer. Keep the six controls mounted so telemetry refresh cannot eat clicks.
+ if(controls.dataset.signature!==signature||controls.children.length!==6){
+  controls.replaceChildren();controls.dataset.signature=signature;
+  [['TURN −15°','turn','-15'],['TURN +15°','turn','15'],['NORTH','north',''],['SPEED −','speed','-.002'],['SPEED +','speed','.002'],['STOP','stop','']].forEach(function(item){
+   var btn=document.createElement('button');btn.type='button';btn.textContent=item[0];btn.dataset.navControl=item[1];
+   if(item[1]==='turn')btn.dataset.turn=item[2];if(item[1]==='speed')btn.dataset.speed=item[2];
+   btn.addEventListener('click',function(){
+    if(btn.disabled)return;
+    if(item[1]==='turn'){var current=getUnit(),h=Number(current&&current.desired_heading_deg);if(!Number.isFinite(h))h=0;send({heading:(h+Number(item[2])+360)%360});}
+    else if(item[1]==='speed'){var current=getUnit(),v=Number(current&&current.target_speed)||0;send({speed:Math.max(0,Math.min(.03,v+Number(item[2])))});}
+    else if(item[1]==='north')send({heading:0});else send({speed:0});
+   });
+   controls.appendChild(btn);
   });
-  controls.appendChild(btn);
- });
+ }
+ Array.prototype.forEach.call(controls.children,function(btn){btn.disabled=stowed;btn.title=stowed?'Deploy this HOUND to enable movement controls':'';});
 }
 function say(s){var n=root.querySelector('#m3-status');if(n)n.textContent=s;}
 function send(changes){var result=window.vigilSetSimulationUnitState&&window.vigilSetSimulationUnitState(unitId,changes);if(result&&result.ok){say('MECH COMMAND ACCEPTED // '+Object.keys(changes).join(', ').toUpperCase());refresh();}else say(result&&result.reason||'MECH CONTROL API UNAVAILABLE');}
@@ -424,7 +431,7 @@ function commandWeaponGroup(action){
  var accepted=0,refused=0,last='';
  entries.forEach(function(e){
   var command=action;
-  if(e.id==='HA-PILE'){command=action==='ARM'||action==='FIRE'?'STRIKE':action==='SAFE'?'LOCK':'LOCK';if(action==='RELOAD')return;}
+  if(e.id==='HA-PILE'){if(action==='RELOAD')return;command=action==='FIRE'?'STRIKE':'LOCK';}
   var result=window.vigilCommandMechEquipment&&window.vigilCommandMechEquipment({unit_id:unitId,build_id:buildId,slot:e.slot,equipment_id:e.id,kind:e.id==='HA-PILE'?'MELEE ACTUATOR':'WEAPON',action:command,mode:equipmentState[e.key+'|mode']||'DEFAULT'});
   if(result&&result.ok){accepted++;last=result.status||result.action;}else{refused++;last=result&&result.reason||'COMMAND API UNAVAILABLE';}
  });
