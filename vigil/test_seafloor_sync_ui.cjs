@@ -25,6 +25,7 @@ for (const required of [
 ]) {
   assert.ok(submersible.includes(required), `missing per-vehicle launch routing marker: ${required}`);
 }
+assert.ok(!html.includes("launchButton.textContent='LAUNCH '+unitId.toUpperCase()"), "sensor workspace must not overwrite the per-vehicle launch router");
 for (const required of [
   "m3-environment-webgl",
   "function initEnvironmentRenderer()",
