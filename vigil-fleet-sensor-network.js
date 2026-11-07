@@ -114,7 +114,8 @@ function resolveSensor(id,station){
   [/seafloor|bathymetry|mapping/,['multibeam','side_scan']],
   [/eo camera|camera|optical|periscope/,['optical','fixed_camera','underwater_camera']],
   [/thermal|infrared|ir/,['thermal']],
-  [/wifi|wi-fi|802\\.11|channel.state.information|csi/,['wifi_csi']],\n  [/radar/,['radar']],
+  [/wifi|wi-fi|802\.11|channel.state.information|csi/,['wifi_csi']],
+  [/radar/,['radar']],
   [/esm|rf/,['esm']],
   [/navigation|inertial|imu|dvl/,['imu','dvl']],
   [/rangefinder|range|lidar/,['rangefinder','lidar']],
@@ -191,7 +192,13 @@ function measurementRows(id,sensor,unit,source,hits){
    add('SCENE TEMPERATURE',(18+noise*9-depth/5000).toFixed(1),'°C');add('THERMAL CONTRAST',(4+noise*11).toFixed(1),'K');
    add('NETD',.04,'K');add('HEAT RETURNS',hits.length,'tracks');
   }
- }else if(modality==='wifi_csi'){\n  var motionContacts=hits.filter(function(hit){var contact=currentContacts().find(function(c){return c&&String(c.id)===String(hit.contact_id);});return contact&&Math.abs(Number(contact.speed||0)-speed)>.00002;});\n  var motionEnergy=Math.min(1,motionContacts.reduce(function(total,hit){return total+Math.max(.05,Number(hit.confidence)||.2);},0)/Math.max(1,hits.length));\n  add('RF CENTER FREQUENCY',2.4,'GHz');add('CSI SUBCARRIERS',64,'tones');add('ANTENNA ARRAY','2 × 2 MIMO','');\n  add('CHANNEL PHASE VARIANCE',(0.015+motionEnergy*.82).toFixed(4),'rad²');add('DOPPLER MOTION ENERGY',motionEnergy.toFixed(3),'normalized');\n  add('MOTION CANDIDATES',motionContacts.length,'unresolved');add('POSITION AUTHORITY','CONTEXT ONLY // NOT A RANGE FIX','');\n }else if(modality==='esm'){
+ }else if(modality==='wifi_csi'){
+  var motionContacts=hits.filter(function(hit){var contact=currentContacts().find(function(c){return c&&String(c.id)===String(hit.contact_id);});return contact&&Math.abs(Number(contact.speed||0)-speed)>.00002;});
+  var motionEnergy=Math.min(1,motionContacts.reduce(function(total,hit){return total+Math.max(.05,Number(hit.confidence)||.2);},0)/Math.max(1,hits.length));
+  add('RF CENTER FREQUENCY',2.4,'GHz');add('CSI SUBCARRIERS',64,'tones');add('ANTENNA ARRAY','2 × 2 MIMO','');
+  add('CHANNEL PHASE VARIANCE',(0.015+motionEnergy*.82).toFixed(4),'rad²');add('DOPPLER MOTION ENERGY',motionEnergy.toFixed(3),'normalized');
+  add('MOTION CANDIDATES',motionContacts.length,'unresolved');add('POSITION AUTHORITY','CONTEXT ONLY // NOT A RANGE FIX','');
+ }else if(modality==='esm'){
   add('FREQUENCY COVERAGE','0.5–18','GHz');add('EMITTERS DETECTED',hits.length,'signals');add('BEARING CONFIDENCE',(72+noise*22).toFixed(1),'%');add('RECEIVER STATE','PASSIVE / WIDEBAND','');
  }else if(modality==='star_tracker'){
   add('STAR FIXES',5+Math.floor(noise*4),'stars');add('ATTITUDE RESIDUAL',(0.8+noise*1.2).toFixed(2),'arcsec');add('UPDATE RATE',10,'Hz');add('REFERENCE FRAME','INERTIAL / J2000','');
@@ -253,7 +260,8 @@ function measurementRows(id,sensor,unit,source,hits){
 function makeFrame(id,sensor,source){
  id=unitId(id);var unit=getUnit(id),pkg=sensorPackages[profileKey(id)];if(!unit||!pkg)return null;
  var def=typeof sensor==='string'?resolveSensor(id,sensor):sensor;if(!def||!sensorsForUnit(id).some(function(s){return s&&s[0]===def[0]&&s[1]===def[1];}))return null;
- var hits=detections(id,def),rows=measurementRows(id,def,unit,source,hits),installedSensors=sensorsForUnit(id),sensorIndex=installedSensors.findIndex(function(s){return s&&s[0]===def[0]&&s[1]===def[1];});\n if(sensorIndex<0)return null;
+ var hits=detections(id,def),rows=measurementRows(id,def,unit,source,hits),installedSensors=sensorsForUnit(id),sensorIndex=installedSensors.findIndex(function(s){return s&&s[0]===def[0]&&s[1]===def[1];});
+ if(sensorIndex<0)return null;
  return {schema:'vigil.fleet.sensor-frame',version:1,unit_id:id,unit_name:pkg.name,unit_profile:profileKey(id),
   sensor_id:id+'-'+def[1].toUpperCase().replace(/[^A-Z0-9]+/g,'-')+'-'+String(sensorIndex+1).padStart(2,'0'),
   sensor_name:def[0],modality:def[1],provenance:'SIMULATED UNIT-OWNED SENSOR // SYNTHETIC ENGINEERING MODEL',
