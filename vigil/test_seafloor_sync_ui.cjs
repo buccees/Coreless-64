@@ -5,10 +5,12 @@ const path = require("node:path");
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 const submersible = fs.readFileSync(path.join(__dirname, "..", "vigil-submersible-3d-view.js"), "utf8");
 const mechView = fs.readFileSync(path.join(__dirname, "..", "vigil-mech-3d-view.js"), "utf8");
+const mechGarage = fs.readFileSync(path.join(__dirname, "..", "vigil-mech-garage.js"), "utf8");
 const otherVehicleViews = fs.readFileSync(path.join(__dirname, "..", "vigil-independent-vehicle-3d-views.js"), "utf8");
 const fleetSensorNetwork = fs.readFileSync(path.join(__dirname, "..", "vigil-fleet-sensor-network.js"), "utf8");
 new Function(submersible);
 new Function(mechView);
+new Function(mechGarage);
 new Function(otherVehicleViews);
 new Function(fleetSensorNetwork);
 
@@ -35,6 +37,22 @@ for (const required of [
   "var compassPane=root.querySelector('#m3-compass-pane');if(compassPane)root.appendChild(compassPane)",
   "if(controls.dataset.signature===signature&&controls.children.length===6)return;",
   "controls.replaceChildren();controls.dataset.signature=signature;",
+  "COM-W':'GYRO STABILIZATION / WEAPON ASSIST'",
+  "function commandWeaponGroup(action)",
+  "function buildWeaponHud(b)",
+  "function updateWeaponHud()",
+  "function updateWeaponReticle()",
+  "function renderWeaponOpticPip()",
+  "m3-weapon-groups",
+  "m3-role-display",
+  "m3-weapon-pip",
+  "vigilSetMechWeaponGroup",
+  "HIGH-ANGLE / BALLISTIC SCOPE",
+  "MISSILE TRACKING BOX",
+  "SNIPER OPTIC / RANGEFINDER",
+  "TRACKING CIRCLE / SPREAD BLOOM",
+  "Math.min(Number(current&&current.max_speed)||.03,v+Number(item[2]))",
+
 
   "window.vigilGetMechFusedSpatialModel=function()",
   "m3-spatial-fusion-pane",
@@ -46,6 +64,14 @@ for (const required of [
   assert.ok(mechView.includes(required), `missing simulation-fed mech fusion cockpit marker: ${required}`);
 }
 for (const required of [
+  "window.vigilSetMechWeaponGroup=function",
+  "window.vigilGetMechGarageState=function",
+  "builds.forEach(function(b){b.role=role(b)",
+  "b.weaponGroups=b.weaponGroups||{}",
+]) {
+  assert.ok(mechGarage.includes(required), `missing per-build HOUND role / weapon-group persistence marker: ${required}`);
+}
+for (const required of [
   "HOUND 2.4 GHz WI-FI CSI / RF MOTION RADAR",
   "'wifi_csi'",
   "RF CENTER FREQUENCY",
@@ -55,6 +81,16 @@ for (const required of [
   "installedSensors.findIndex",
 ]) {
   assert.ok(fleetSensorNetwork.includes(required), `missing simulated 2.4 GHz CSI sensor contract: ${required}`);
+}
+for (const required of [
+  "var vigilMechWeaponProfiles=",
+  "magazineRemaining",
+  "vigilDamageMechComponent=function",
+  "OVERHEAT LOCKOUT",
+  "RELOAD COMPLETE",
+  "max_speed:Number(unit.maxSpeed)||0",
+]) {
+  assert.ok(html.includes(required), `missing HOUND simulated weapon telemetry / damage contract: ${required}`);
 }
 for (const required of [
   "m3-environment-webgl",
@@ -73,7 +109,8 @@ for (const required of [
 ]) {
   assert.ok(mechView.includes(required), `missing sensor-fused mech environment renderer marker: ${required}`);
 }
-assert.ok(/vigil-mech-3d-view\.js\?v=(7|8|9)/.test(html), "expected cache-busted mech environment renderer script");
+assert.ok(/vigil-mech-3d-view\.js\?v=(7|8|9|10)/.test(html), "expected cache-busted mech environment renderer script");
+assert.ok(/vigil-mech-garage\.js\?v=13/.test(html), "expected cache-busted mech garage and role metadata script");
 assert.ok(/vigil-fleet-sensor-network\.js\?v=(daedalus-orbital-7|daedalus-orbital-8)/.test(html), "expected cache-busted fleet sensor network script");
 for (const required of [
   "window.vigilOpenMech3DView=open",
