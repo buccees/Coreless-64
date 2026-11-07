@@ -266,7 +266,7 @@ function renderNavigation(b){
    btn.addEventListener('click',function(){
     if(btn.disabled)return;
     if(item[1]==='turn'){var current=getUnit(),h=Number(current&&current.desired_heading_deg);if(!Number.isFinite(h))h=0;send({heading:(h+Number(item[2])+360)%360});}
-    else if(item[1]==='speed'){var current=getUnit(),v=Number(current&&current.target_speed)||0;send({speed:Math.max(0,Math.min(.03,v+Number(item[2])))});}
+    else if(item[1]==='speed'){var current=getUnit(),v=Number(current&&current.target_speed)||0;send({speed:Math.max(0,Math.min(Number(current&&current.max_speed)||.03,v+Number(item[2])))});}
     else if(item[1]==='north')send({heading:0});else send({speed:0});
    });
    controls.appendChild(btn);
