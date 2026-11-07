@@ -42,6 +42,30 @@ for (const required of [
   "function buildWeaponHud(b)",
   "function updateWeaponHud()",
   "function updateWeaponReticle()",
+  "function roleReadoutValues(b)",
+  "function renderRoleReadouts(b)",
+  "m3-role-readouts",
+  "SCOUT // PANORAMIC RECON DISPLAY",
+  "SOLDIER // FRONT-LINE COMBAT DISPLAY",
+  "DEFENDER // PROTECTED COMBAT DISPLAY",
+  "SNIPER // PRECISION FIRE CONTROL",
+  "HEAVY GUNNER // INDIRECT-FIRE CONTROL",
+  "TACTICS COMMANDER // NETWORK COMMAND DISPLAY",
+  "Twin Rotary Machine Gun",
+  "Breach Shotgun",
+  "Programmable Grenade Launcher",
+  "Anti-Armor Rocket Pod",
+  "Long-Range Precision Rifle",
+  "Automatic Mobile Rifle",
+  "Scatter Mine Dispenser",
+  "Timed Bomb Rack",
+  "Heavy Anti-Armor Cannon",
+  "Heavy Missile Launcher",
+  "Long-Range Howitzer",
+  "Indirect-Fire Mortar",
+  "Heavy Sniper Cannon",
+  "Close-Quarters Pile Driver",
+
   "function renderWeaponOpticPip()",
   "m3-weapon-groups",
   "m3-role-display",
@@ -109,7 +133,7 @@ for (const required of [
 ]) {
   assert.ok(mechView.includes(required), `missing sensor-fused mech environment renderer marker: ${required}`);
 }
-assert.ok(/vigil-mech-3d-view\.js\?v=(7|8|9|10)/.test(html), "expected cache-busted mech environment renderer script");
+assert.ok(/vigil-mech-3d-view\.js\?v=(7|8|9|10|11)/.test(html), "expected cache-busted mech environment renderer script");
 assert.ok(/vigil-mech-garage\.js\?v=13/.test(html), "expected cache-busted mech garage and role metadata script");
 assert.ok(/vigil-fleet-sensor-network\.js\?v=(daedalus-orbital-7|daedalus-orbital-8)/.test(html), "expected cache-busted fleet sensor network script");
 for (const required of [
