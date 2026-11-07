@@ -57,6 +57,7 @@ for (const [, attributes, source] of scripts) {
 }
 
 assert.ok(parsed > 0, "expected at least one inline JavaScript block");
+assert.ok(html.includes('vigil-submersible-3d-view.js?v=4'), "expected cache-busted vehicle launch router script");
 for (const required of [
   "vigil-survey-ack-records-v1-",
   "UPLOAD ACCEPTED / VERIFY PENDING",
