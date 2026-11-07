@@ -87,6 +87,7 @@ function partLabel(id){return id||'NONE';}
 function initEnvironmentRenderer(){if(environmentGL)return true;environmentGL=environmentCanvas&&environmentCanvas.getContext('webgl',{alpha:false,antialias:true});if(!environmentGL)return false;var gl=environmentGL,vs=gl.createShader(gl.VERTEX_SHADER),fs=gl.createShader(gl.FRAGMENT_SHADER);gl.shaderSource(vs,'attribute vec3 p;uniform mat4 m;void main(){gl_Position=m*vec4(p,1.0);}');gl.shaderSource(fs,'precision mediump float;uniform vec4 c;void main(){gl_FragColor=c;}');gl.compileShader(vs);gl.compileShader(fs);environmentProgram=gl.createProgram();gl.attachShader(environmentProgram,vs);gl.attachShader(environmentProgram,fs);gl.linkProgram(environmentProgram);return gl.getProgramParameter(environmentProgram,gl.LINK_STATUS);}
 function publishMechSimulationSensors(){
  if(!active||!window.vigilFleetSensorNetwork||typeof window.vigilFleetSensorNetwork.getUnitPackage!=='function'||typeof window.vigilRecordUnitSensorFeed!=='function')return;
+ var own=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(unitId);if(!own||own.deployment_status==='hanger'||own.deployment_status==='docked')return;
  var now=Date.now();if(now-lastMechSensorPublishAt<1200)return;lastMechSensorPublishAt=now;
  var network=window.vigilFleetSensorNetwork,pkg=network.getUnitPackage(unitId),sensors=pkg&&Array.isArray(pkg.sensors)?pkg.sensors:[];
  sensors.forEach(function(sensor){
@@ -94,38 +95,7 @@ function publishMechSimulationSensors(){
   var frame=network.getFrame&&network.getFrame(unitId,sensor[0]);
   if(frame)window.vigilRecordUnitSensorFeed(frame);
  });
- // HOUND-integrated 2.4 GHz Wi-Fi CSI array. This is a synthetic RF motion-context
- // channel: it contributes Doppler/phase evidence, never a fabricated range or position fix.
- var own=window.vigilGetRegionalSimulationUnit&&window.vigilGetRegionalSimulationUnit(unitId);
- var contacts=window.vigilGetRegionalSensorContacts&&window.vigilGetRegionalSensorContacts()||[];
- var nearby=contacts.filter(function(c){
-  if(!own||!c||c.id===unitId||c.deployment_status==='docked'||!Number.isFinite(Number(c.x))||!Number.isFinite(Number(c.y)))return false;
-  var d=window.vigilGetPlanetRangeBearing?window.vigilGetPlanetRangeBearing(Number(own.x),Number(own.y),Number(c.x),Number(c.y)):null;
-  var range=d&&Number.isFinite(Number(d.distance))?Number(d.distance):Math.hypot(Number(c.x)-Number(own.x),Number(c.y)-Number(own.y));
-  return range<=.045;
- });
- var motionEnergy=0,doppler=0;
- nearby.forEach(function(c){
-  var relative=Math.abs(Number(c.speed||0)-Number(own&&own.speed||0));
-  var contribution=Math.min(1,relative*55+.025)/(1+Math.max(0,relative)*12);
-  motionEnergy+=contribution;doppler=Math.max(doppler,relative);
- });
- motionEnergy=Math.max(0,Math.min(1,motionEnergy/Math.max(1,nearby.length)));
- var phaseVariance=Number((.015+motionEnergy*.82).toFixed(4));
- window.vigilRecordUnitSensorFeed({
-  unit_id:unitId,sensor_id:unitId+'-WIFI-CSI-24GHZ',sensor_name:'HOUND 2.4 GHz WI-FI CSI / RF MOTION RADAR',
-  modality:'wifi_csi',detected_contacts:[],
-  measurements:[
-   {label:'RF CENTER FREQUENCY',value:2.4,units:'GHz'},
-   {label:'CSI SUBCARRIERS',value:64,units:'tones'},
-   {label:'ANTENNA ARRAY',value:'2 × 2 MIMO',units:''},
-   {label:'CHANNEL PHASE VARIANCE',value:phaseVariance,units:'rad²'},
-   {label:'DOPPLER MOTION ENERGY',value:Number(motionEnergy.toFixed(3)),units:'normalized'},
-   {label:'MAX RELATIVE MOTION',value:Number(doppler.toFixed(5)),units:'map units/s'},
-   {label:'MOTION CANDIDATES',value:nearby.length,units:'unresolved'},
-   {label:'POSITION AUTHORITY',value:'CONTEXT ONLY // NOT A RANGE FIX',units:''}
-  ]
- });
+
 }
 function fuseSpatialObservations(snapshot){
  var observations=snapshot&&Array.isArray(snapshot.observations)?snapshot.observations:[],groups=Object.create(null),feeds=snapshot&&Array.isArray(snapshot.feeds)?snapshot.feeds:[];
