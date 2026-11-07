@@ -6,9 +6,11 @@ const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 const submersible = fs.readFileSync(path.join(__dirname, "..", "vigil-submersible-3d-view.js"), "utf8");
 const mechView = fs.readFileSync(path.join(__dirname, "..", "vigil-mech-3d-view.js"), "utf8");
 const otherVehicleViews = fs.readFileSync(path.join(__dirname, "..", "vigil-independent-vehicle-3d-views.js"), "utf8");
+const fleetSensorNetwork = fs.readFileSync(path.join(__dirname, "..", "vigil-fleet-sensor-network.js"), "utf8");
 new Function(submersible);
 new Function(mechView);
 new Function(otherVehicleViews);
+new Function(fleetSensorNetwork);
 
 for (const required of [
   "function updateLaunchButton()",
@@ -26,6 +28,29 @@ for (const required of [
   assert.ok(submersible.includes(required), `missing per-vehicle launch routing marker: ${required}`);
 }
 assert.ok(!html.includes("launchButton.textContent='LAUNCH '+unitId.toUpperCase()"), "sensor workspace must not overwrite the per-vehicle launch router");
+for (const required of [
+  "function publishMechSimulationSensors()",
+  "function fuseSpatialObservations(snapshot)",
+  "window.vigilGetMechFusedSpatialModel=function()",
+  "m3-spatial-fusion-pane",
+  "m3-fusion-track-list",
+  "ACTIVE SENSOR CAPABILITIES",
+  "vigilFleetSensorNetwork.getUnitPackage",
+  "vigilRecordUnitSensorFeed(frame)",
+]) {
+  assert.ok(mechView.includes(required), `missing simulation-fed mech fusion cockpit marker: ${required}`);
+}
+for (const required of [
+  "HOUND 2.4 GHz WI-FI CSI / RF MOTION RADAR",
+  "'wifi_csi'",
+  "RF CENTER FREQUENCY",
+  "DOPPLER MOTION ENERGY",
+  "POSITION AUTHORITY",
+  "detected_contacts:def[1]==='wifi_csi'?[]:hits",
+  "installedSensors.findIndex",
+]) {
+  assert.ok(fleetSensorNetwork.includes(required), `missing simulated 2.4 GHz CSI sensor contract: ${required}`);
+}
 for (const required of [
   "m3-environment-webgl",
   "function initEnvironmentRenderer()",
