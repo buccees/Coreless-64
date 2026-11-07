@@ -6549,7 +6549,7 @@ function updateUnit(unit){
  buttons.textContent='';
  sensors.forEach(function(sensor){var b=document.createElement('button');b.type='button';b.textContent=sensor;b.setAttribute('aria-pressed','false');b.addEventListener('click',function(){choose(sensor);});buttons.appendChild(b);});
  setWorkspace(unitId==='submersible'?'seafloor':'sensors');
- var launchButton=document.getElementById('vigil-3d-seafloor-launch');if(launchButton){launchButton.textContent='LAUNCH '+unitId.toUpperCase()+' 3D VIEW';launchButton.title='Open the active '+unitId.toUpperCase()+' vehicle 3D display with available sensor overlays and shared survey data.';}
+ // The per-vehicle launch router in vigil-submersible-3d-view.js exclusively owns this button label and destination.
 }
 window.addEventListener('vigil:active-unit-changed',function(e){updateUnit(e.detail&&e.detail.unit);});
 updateUnit(window.vigilGetActiveSimulationUnit&&window.vigilGetActiveSimulationUnit());
