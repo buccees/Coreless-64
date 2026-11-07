@@ -26,6 +26,20 @@ for (const required of [
   assert.ok(submersible.includes(required), `missing per-vehicle launch routing marker: ${required}`);
 }
 for (const required of [
+  "m3-environment-webgl",
+  "function initEnvironmentRenderer()",
+  "function renderEnvironment(b)",
+  "NO ENVIRONMENT SENSOR FITTED",
+  "ACTIVE SENSOR CAPABILITIES",
+  "AS-THERM",
+  "AS-NV",
+  "AS-MINE",
+  "renderEnvironment(selectedBuild)",
+]) {
+  assert.ok(mechView.includes(required), `missing sensor-fused mech environment renderer marker: ${required}`);
+}
+assert.ok(html.includes('vigil-mech-3d-view.js?v=7'), "expected cache-busted mech environment renderer script");
+for (const required of [
   "window.vigilOpenMech3DView=open",
   "LAUNCH HOUND 3D PILOT VIEW",
 ]) {
