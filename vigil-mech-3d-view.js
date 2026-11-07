@@ -197,7 +197,7 @@ function renderEnvironment(b){
   capabilityNames=activeFeeds.map(function(f){return f.sensor_id+' / '+String(f.modality||'').toUpperCase();});
  if(capabilityNames.indexOf('HOUND 2.4 GHz WI-FI CSI / RF MOTION RADAR')<0)capabilityNames.push('HOUND 2.4 GHz WI-FI CSI / RF MOTION RADAR');
  var status=root.querySelector('#m3-environment-status');
- if(status)status.textContent='ACTIVE SENSOR CAPABILITIES // '+capabilityNames.join(' · ')+' // SENSOR-FUSED MODEL '+model.tracks.length+' TRACK(S) // CSI '+Number(model.rf_context.motion_energy||0).toFixed(2)+' MOTION ENERGY';
+ if(status)status.textContent='ACTIVE SENSOR CAPABILITIES // '+capabilityNames.join(' · ')+' // SENSOR-FUSED MODEL '+model.tracks.length+' TRACK(S) // CSI '+Number(model.rf_context.motion_energy||0).toFixed(2)+' MOTION ENERGY';if(!activeFeeds.length&&status)status.textContent='NO ENVIRONMENT SENSOR FITTED // SENSOR FEED BUS UNAVAILABLE // MECH PILOT VIEW RETAINED';
  if(!initEnvironmentRenderer()){if(status)status.textContent='ENVIRONMENT WEBGL UNAVAILABLE // MECH PILOT VIEW RETAINED';return;}
  var gl=environmentGL,w=environmentCanvas.clientWidth||640,h=environmentCanvas.clientHeight||260,dpr=Math.min(devicePixelRatio||1,2);
  environmentCanvas.width=Math.max(1,Math.floor(w*dpr));environmentCanvas.height=Math.max(1,Math.floor(h*dpr));gl.viewport(0,0,environmentCanvas.width,environmentCanvas.height);
