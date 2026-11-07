@@ -20,6 +20,7 @@ on:
       - "nirn-coupled-world.js"
       - "vigil-celestial-world-view.js"
       - "vigil/test-nirn-coupled-world.cjs"
+      - "vigil/test_seafloor_sync_ui.cjs"
       - "vigil/test-nirn-gravity.cjs"
       - "rd/plague/**"
       - "daedalus-mothership.js"
@@ -118,6 +119,9 @@ jobs:
             site/daedalus-rd-integration.js; do
             node --check "$script"
           done
+
+      - name: Test per-vehicle 3D pilot launch routing and sensor-view contracts
+        run: node vigil/test_seafloor_sync_ui.cjs
 
       - name: Test Nirn gravitational mechanics
         run: node vigil/test-nirn-gravity.cjs
