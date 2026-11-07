@@ -3513,7 +3513,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     if(!unit)return null;
     var actual=Number(unit.heading),desired=Number(unit.desiredHeading==null?unit.heading:unit.desiredHeading);
     return {id:unit.id,heading_deg:Number.isFinite(actual)?actual:null,desired_heading_deg:Number.isFinite(desired)?desired:null,
-      speed:Number(unit.speed)||0,target_speed:Number(unit.targetSpeed==null?unit.speed:unit.targetSpeed)||0,
+      speed:Number(unit.speed)||0,target_speed:Number(unit.targetSpeed==null?unit.speed:unit.targetSpeed)||0,max_speed:Number(unit.maxSpeed)||0,
       deployment_status:String(unit.deploymentStatus||'deployed'),bay_status:String(unit.bayStatus||'')};
   };
   // Shared unit-control bridge: update only an explicitly mapped friendly training entity.
@@ -6624,8 +6624,8 @@ window.setInterval(draw,180);
 
 
 
-<script src="vigil-mech-garage.js?v=12"></script>
-<script src="vigil-mech-3d-view.js?v=9"></script>
+<script src="vigil-mech-garage.js?v=13"></script>
+<script src="vigil-mech-3d-view.js?v=10"></script>
 <script src="vigil-submersible-3d-view.js?v=4"></script>
 <script src="vigil-independent-vehicle-3d-views.js?v=8"></script>
 <script src="vigil-uuv-missions.js?v=1"></script>
