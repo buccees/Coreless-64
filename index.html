@@ -3576,9 +3576,60 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
 
   // Hardware-validated HOUND equipment command bridge. Commands are accepted only
   // when the exact part is fitted to the addressed deployed mech.
+  // Simulation-balance profiles for each fitted HOUND weapon. Values are in-game
+  // magazine / reserve / per-cycle units, not claims about real-world ordnance.
+  var vigilMechWeaponProfiles={
+    'LA-MG':{magazine:120,reserve:480,rounds:6,heat:7,cooling:22,reloadMs:1150},
+    'LA-SG':{magazine:8,reserve:40,rounds:1,heat:9,cooling:16,reloadMs:1450},
+    'LA-GL':{magazine:6,reserve:30,rounds:1,heat:12,cooling:14,reloadMs:1800},
+    'LA-RK':{magazine:4,reserve:20,rounds:1,heat:14,cooling:12,reloadMs:2200},
+    'LA-SR':{magazine:10,reserve:50,rounds:1,heat:8,cooling:18,reloadMs:1600},
+    'LA-MR':{magazine:30,reserve:180,rounds:3,heat:7,cooling:20,reloadMs:1350},
+    'LA-MN':{magazine:8,reserve:24,rounds:1,heat:10,cooling:14,reloadMs:1900},
+    'LA-BM':{magazine:4,reserve:12,rounds:1,heat:12,cooling:12,reloadMs:2100},
+    'HA-AC':{magazine:18,reserve:72,rounds:1,heat:15,cooling:13,reloadMs:2600},
+    'HA-ML':{magazine:6,reserve:24,rounds:1,heat:18,cooling:11,reloadMs:2900},
+    'HA-HW':{magazine:4,reserve:16,rounds:1,heat:22,cooling:9,reloadMs:3400},
+    'HA-MT':{magazine:8,reserve:32,rounds:1,heat:16,cooling:11,reloadMs:2800},
+    'HA-SC':{magazine:10,reserve:40,rounds:1,heat:19,cooling:10,reloadMs:3100}
+  };
+  function vigilMechPrepareWeaponMetrics(prior,part,now){
+    var profile=vigilMechWeaponProfiles[part];if(!profile)return null;
+    if(prior.magazineCapacity==null){prior.magazineCapacity=profile.magazine;prior.magazineRemaining=profile.magazine;prior.reserveRemaining=profile.reserve;}
+    if(prior.heat==null)prior.heat=0;
+    if(prior.integrity==null)prior.integrity=100;
+    if(prior.heatUpdatedAt==null)prior.heatUpdatedAt=now;
+    else{var elapsed=Math.max(0,(now-Number(prior.heatUpdatedAt))/1000);prior.heat=Math.max(0,Number(prior.heat)-profile.cooling*elapsed);prior.heatUpdatedAt=now;}
+    if(prior.overheated&&prior.heat<=35)prior.overheated=false;
+    if(prior.heat>=100)prior.overheated=true;
+    return profile;
+  }
   window.vigilGetMechEquipmentState=function(unitId){
-    var key=String(unitId||'').toUpperCase(),u=regionalTrainingFleet.find(function(s){return s&&s.id===key&&s.shipClass==='mech'&&s.side==='friendly';});
-    return u?JSON.parse(JSON.stringify(u.mechEquipmentState||{})):null;
+    var id=String(unitId||'').toUpperCase(),u=regionalTrainingFleet.find(function(s){return s&&s.id===id&&s.shipClass==='mech'&&s.side==='friendly';});
+    if(!u)return null;
+    var now=Date.now(),state=u.mechEquipmentState||(u.mechEquipmentState={});
+    Object.keys(u.mechParts||{}).concat(Object.keys(u.mechMounts||{})).forEach(function(slot){
+      var part=(u.mechParts&&u.mechParts[slot])||(u.mechMounts&&u.mechMounts[slot]);
+      if(!part||!vigilMechWeaponProfiles[part])return;
+      var key=slot+'|'+part,prior=state[key]||(state[key]={mode:'STANDBY',armed:false,powered:false,lastAction:'NONE'});
+      vigilMechPrepareWeaponMetrics(prior,part,now);
+    });
+    return JSON.parse(JSON.stringify(state));
+  };
+  // Damage systems can call this with a confirmed hit on a named installed part.
+  // No damage is fabricated: integrity changes only when a damage event is supplied.
+  window.vigilDamageMechComponent=function(unitId,slot,damage){
+    var id=String(unitId||'').toUpperCase(),u=regionalTrainingFleet.find(function(s){return s&&s.id===id&&s.shipClass==='mech'&&s.side==='friendly';});
+    if(!u)return {ok:false,reason:'MECH UNIT NOT REGISTERED.'};
+    var part=(u.mechParts&&u.mechParts[slot])||(u.mechMounts&&u.mechMounts[slot]);
+    if(!part)return {ok:false,reason:'NO COMPONENT FITTED IN THAT SLOT.'};
+    var amount=Number(damage);if(!Number.isFinite(amount)||amount<=0)return {ok:false,reason:'DAMAGE MUST BE A POSITIVE NUMBER.'};
+    var state=u.mechEquipmentState||(u.mechEquipmentState={}),key=slot+'|'+part,prior=state[key]||(state[key]={mode:'STANDBY',armed:false,powered:false,lastAction:'NONE',integrity:100});
+    prior.integrity=Math.max(0,Number(prior.integrity==null?100:prior.integrity)-amount);
+    if(prior.integrity<=0){prior.disabled=true;prior.armed=false;prior.powered=false;prior.mode='DESTROYED';}
+    prior.lastDamageAt=new Date().toISOString();prior.lastAction='DAMAGE';
+    window.dispatchEvent(new CustomEvent('vigil:mech-equipment-state-changed',{detail:{unit_id:id,slot:slot,equipment_id:part,action:'DAMAGE',integrity:prior.integrity}}));
+    return {ok:true,unit_id:id,slot:slot,equipment_id:part,integrity:prior.integrity,disabled:!!prior.disabled};
   };
   window.vigilCommandMechEquipment=function(cmd){
     cmd=cmd||{};var id=String(cmd.unit_id||'').toUpperCase(),slot=String(cmd.slot||''),part=String(cmd.equipment_id||''),action=String(cmd.action||'').toUpperCase();
@@ -3592,10 +3643,20 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
     var state=u.mechEquipmentState||(u.mechEquipmentState={}),key=slot+'|'+part,prior=state[key]||(state[key]={mode:'STANDBY',armed:false,powered:false,lastAction:'NONE'});
     var status='',target=null;
     if(weapon){
+      var weaponProfile=vigilMechPrepareWeaponMetrics(prior,part,Date.now());
+      if(prior.disabled||Number(prior.integrity)<=0)return {ok:false,reason:'COMPONENT DESTROYED // WEAPON CONTROL DISABLED.'};
       if(action==='SAFE'){prior.armed=false;prior.mode='SAFE';status='WEAPON SAFE // FIRING CIRCUIT INHIBITED';}
       else if(action==='ARM'){prior.armed=true;prior.mode='ARMED';status='WEAPON ARMED // '+part;}
+      else if(action==='RELOAD'){
+        if(!weaponProfile)return {ok:false,reason:'NO RELOAD PROFILE FOR THIS COMPONENT.'};
+        var missing=Math.max(0,Number(prior.magazineCapacity)-Number(prior.magazineRemaining)),transfer=Math.min(missing,Number(prior.reserveRemaining)||0);
+        if(transfer<=0)return {ok:false,reason:missing<=0?'MAGAZINE ALREADY FULL.':'NO RESERVE AMMUNITION REMAINING.'};
+        prior.magazineRemaining+=transfer;prior.reserveRemaining-=transfer;prior.lastReloadAt=Date.now();prior.lastAction='RELOAD';status='RELOAD COMPLETE // '+prior.magazineRemaining+' / '+prior.magazineCapacity+' // RESERVE '+prior.reserveRemaining;
+      }
       else if(action==='FIRE'){
         if(!prior.armed)return {ok:false,reason:'FIRING CIRCUIT SAFE // ARM THIS WEAPON FIRST.'};
+        if(prior.overheated)return {ok:false,reason:'OVERHEAT LOCKOUT // WAIT FOR BARREL / CORE COOL-DOWN.'};
+        if(weaponProfile&&Number(prior.magazineRemaining)<weaponProfile.rounds)return {ok:false,reason:'MAGAZINE EMPTY / TOO LOW FOR A FULL FIRING CYCLE // RELOAD.'};
         var now=Date.now(),cooldown=Number(prior.cooldownMs)||((part.indexOf('HA-')===0)?4200:1800);
         if(now-Number(prior.lastFiredAt||0)<cooldown)return {ok:false,reason:'WEAPON RECHARGING // '+Math.ceil((cooldown-(now-Number(prior.lastFiredAt)))/1000)+' SEC.'};
         var range=part.indexOf('HA-')===0?.075:.035,arc=part==='HA-HW'||part==='HA-MT'?70:part==='HA-PILE'?12:24;
@@ -3611,6 +3672,11 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
         if(part==='HA-PILE'&&target.distance>.003)return {ok:false,reason:'PILE DRIVER REQUIRES PHYSICAL CONTACT RANGE.'};
         target.unit.hull=Math.max(0,(Number(target.unit.hull)||3)-damage);target.unit.lastDamageSource=id+' / '+part;
         if(target.unit.hull<=0){target.unit.afloat=false;target.unit.destroyedBy=id;}
+        if(weaponProfile){
+          var nextHeat=Number(prior.heat||0)+weaponProfile.heat;
+          if(nextHeat>=100){prior.heat=100;prior.heatUpdatedAt=now;prior.overheated=true;return {ok:false,reason:'OVERHEAT LOCKOUT // WEAPON CYCLE INHIBITED AT 100% HEAT.'};}
+          prior.magazineRemaining-=weaponProfile.rounds;prior.heat=nextHeat;prior.heatUpdatedAt=now;
+        }
         prior.lastFiredAt=now;prior.lastAction='FIRE';status='SHOT RESOLVED // '+target.unit.id+' // '+damage+' DAMAGE // HULL '+target.unit.hull;
       }else return {ok:false,reason:'UNSUPPORTED WEAPON COMMAND.'};
     }else if(sensor){
