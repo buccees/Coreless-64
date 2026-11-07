@@ -3,6 +3,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+const submersible = fs.readFileSync(path.join(__dirname, "..", "vigil-submersible-3d-view.js"), "utf8");
+new Function(submersible);
 const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
 let parsed = 0;
 
@@ -193,7 +195,7 @@ for (const required of [
   'window.vigilGetWorldTerrainAt(sample.x,sample.y)',
   'SPHERICAL STITCHED ATLAS // WRAPPED LONGITUDE AND CONNECTED POLES',
 ]) {
-  assert.ok(html.includes(required), `missing first-person bathymetry contract: ${required}`);
+  assert.ok(html.includes(required) || submersible.includes(required), `missing first-person bathymetry contract in index.html or vigil-submersible-3d-view.js: ${required}`);
 }
 assert.ok(!html.includes("if(ship.x<.04||ship.x>.96)"), "regional fleet must not bounce off horizontal world boundaries");
 assert.ok(!html.includes("if(ship.y<.05||ship.y>.95)"), "regional fleet must not bounce off vertical world boundaries");
