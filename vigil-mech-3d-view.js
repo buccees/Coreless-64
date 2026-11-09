@@ -196,7 +196,7 @@ function renderEnvironment(b){
   capabilityNames=activeFeeds.map(function(f){return f.sensor_id+' / '+String(f.modality||'').toUpperCase();});
  renderFusionCockpit(model);
  var status=root.querySelector('#m3-environment-status');
- if(status)status.textContent=activeFeeds.length?'ACTIVE SENSOR INPUTS // '+capabilityNames.join(' · ')+' // '+model.tracks.length+' POSITIONED TRACK(S)':'NO ENVIRONMENT SENSOR FITTED // SIMULATION WORLD VIEW ONLY // NO SENSOR OVERLAYS';
+ if(status)status.textContent=activeFeeds.length?'ACTIVE SENSOR CAPABILITIES // '+capabilityNames.join(' · ')+' // '+model.tracks.length+' POSITIONED TRACK(S)':'NO ENVIRONMENT SENSOR FITTED // SIMULATION WORLD VIEW ONLY // NO SENSOR OVERLAYS';
  if(!initEnvironmentRenderer()){if(status)status.textContent='ENVIRONMENT WEBGL UNAVAILABLE // PILOT VIEW UNAVAILABLE';return;}
  var gl=environmentGL,w=environmentCanvas.clientWidth||640,h=environmentCanvas.clientHeight||320,dpr=Math.min(devicePixelRatio||1,2);
  environmentCanvas.width=Math.max(1,Math.floor(w*dpr));environmentCanvas.height=Math.max(1,Math.floor(h*dpr));gl.viewport(0,0,environmentCanvas.width,environmentCanvas.height);
