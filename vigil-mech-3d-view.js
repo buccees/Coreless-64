@@ -208,7 +208,7 @@ function renderEnvironment(b){
  if(!Number.isFinite(rawHeading))rawHeading=0;
  var heading=(rawHeading+360)%360,viewHeading=(heading+environmentYaw*180/Math.PI+360)%360;
  var f=perspective(.92,environmentCanvas.width/environmentCanvas.height,.1,90),
-  view=new Float32Array([Math.cos(environmentYaw),Math.sin(environmentPitch)*Math.sin(environmentYaw),Math.cos(environmentPitch)*Math.sin(environmentYaw),0,0,Math.cos(environmentPitch),-Math.sin(environmentPitch),0,-Math.sin(environmentYaw),Math.sin(environmentPitch)*Math.cos(environmentYaw),Math.cos(environmentPitch)*Math.cos(environmentYaw),0,0,-1.05,-8.5,1]),
+  view=new Float32Array([1,0,0,0,0,Math.cos(environmentPitch),-Math.sin(environmentPitch),0,0,Math.sin(environmentPitch),Math.cos(environmentPitch),0,0,-1.05,-8.5,1]),
   vp=mat(f,view),saved=mechProgram;
  gl.useProgram(environmentProgram);mechProgram=environmentProgram;
  function block(x,y,z,sx,sy,sz,c){mechBox(gl,vp,x,y,z,sx,sy,sz,c);}
