@@ -150,7 +150,7 @@ for (const required of [
 ]) {
   assert.ok(mechView.includes(required), `missing sensor-fused mech environment renderer marker: ${required}`);
 }
-assert.ok(/vigil-mech-3d-view\.js\?v=(7|8|9|10|11|12)/.test(html), "expected cache-busted mech environment renderer script");
+assert.ok(/vigil-mech-3d-view\\.js\\?v=13/.test(html), "expected cache-busted first-person mech pilot renderer script");
 assert.ok(/vigil-mech-garage\.js\?v=13/.test(html), "expected cache-busted mech garage and role metadata script");
 assert.ok(/vigil-fleet-sensor-network\.js\?v=(daedalus-orbital-7|daedalus-orbital-8)/.test(html), "expected cache-busted fleet sensor network script");
 for (const required of [
@@ -168,6 +168,21 @@ for (const required of [
 ]) {
   assert.ok(otherVehicleViews.includes(required), `missing independent vehicle pilot view marker: ${required}`);
 }
+for (const required of [
+  'm3-first-person-stage',
+  'FIRST-PERSON PILOT VIEW // SIMULATION TERRAIN + UNIT SENSOR OVERLAYS',
+  'window.vigilGetWorldTerrainAt',
+  'window.vigilAdvancePlanetPoint',
+  'function renderEnvironment(b)',
+  'function draw(){if(!active)return;renderEnvironment(selectedBuild);updateMechCompass(getUnit());}',
+  'FIRST-PERSON PILOT',
+  'NO ENVIRONMENT SENSOR FITTED',
+  'NO RF/CSI SENSOR FEED',
+]) {
+  assert.ok(mechView.includes(required), `missing first-person mech pilot contract: ${required}`);
+}
+assert.ok(!mechView.includes("capabilityNames.push('HOUND 2.4 GHz WI-FI CSI / RF MOTION RADAR')"),
+  "mech cockpit must not invent an installed HOUND sensor feed");
 const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
 let parsed = 0;
 
