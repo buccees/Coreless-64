@@ -135,8 +135,12 @@
         var motionRms = actor.deltaHistory.length ? Math.sqrt(actor.deltaHistory.reduce(function (sum, value) { return sum + value * value; }, 0) / actor.deltaHistory.length) : 0;
         var isPresent = presence >= 0.28;
         if (isPresent) {
-          var breath = estimateFrequency(actor.phaseHistory, SAMPLE_RATE_HZ, 0.1, 0.5);
-          var pulse = estimateFrequency(actor.phaseHistory, SAMPLE_RATE_HZ, 0.8, 2.0);
+          if (sampleIndex % SAMPLE_RATE_HZ === 0 && actor.phaseHistory.length >= 64) {
+            actor.breathEstimate = estimateFrequency(actor.phaseHistory, SAMPLE_RATE_HZ, 0.1, 0.5);
+            actor.pulseEstimate = estimateFrequency(actor.phaseHistory, SAMPLE_RATE_HZ, 0.8, 2.0);
+          }
+          var breath = actor.breathEstimate || { hz: null, confidence: 0 };
+          var pulse = actor.pulseEstimate || { hz: null, confidence: 0 };
           tracks.push({
             id: actor.id,
             classification: 'SYNTHETIC HUMAN-PRESENCE CHANNEL',
@@ -242,6 +246,7 @@
   var movingStat = panel.querySelector('#wy-rf-moving');
   var qualityStat = panel.querySelector('#wy-rf-quality');
   var samplesStat = panel.querySelector('#wy-rf-samples');
+  var expandButton = panel.querySelector('#wy-rf-expand');
   var phaseCanvas = panel.querySelector('#wy-rf-phase');
   var phaseContext = phaseCanvas && phaseCanvas.getContext ? phaseCanvas.getContext('2d') : null;
   var engine = createEngine({ mode: scenarioSelect ? scenarioSelect.value : 'multi' });
@@ -331,6 +336,11 @@
     render(engine.snapshot());
     if (status) status.textContent = 'RESET COMPLETE // ' + String(engine.mode).toUpperCase() + ' SCENARIO READY';
   }
+  if (expandButton) expandButton.addEventListener('click', function () {
+    var expanded = panel.classList.toggle('wy-rf-expanded');
+    expandButton.setAttribute('aria-pressed', String(expanded));
+    expandButton.textContent = expanded ? 'CLOSE COCKPIT DISPLAY' : 'OPEN COCKPIT DISPLAY';
+  });
   if (startButton) startButton.addEventListener('click', start);
   if (pauseButton) pauseButton.addEventListener('click', stop);
   if (resetButton) resetButton.addEventListener('click', reset);
