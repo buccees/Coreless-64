@@ -1463,6 +1463,7 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   <div class="wy-rf-head">
     <div><h3 id="wy-rf-title">WEYLAND-YUTANI // SOFTWARE-DEFINED RF SENSING</h3><p>CSI signal analysis • presence and movement • multi-person channel separation • experimental respiration / pulse bands</p></div>
     <span class="wy-rf-mode">SOFTWARE ONLY // NO HARDWARE / NO RADIO</span>
+    <button type="button" class="wy-rf-expand" id="wy-rf-expand" aria-pressed="false">OPEN COCKPIT DISPLAY</button>
   </div>
   <div class="wy-rf-controls">
     <label for="wy-rf-scenario">SYNTHETIC TEST SCENARIO
@@ -6876,6 +6877,10 @@ read();drawRoster();
 
 /* Weyland-Yutani software-defined RF sensing station — SCYLLA Security Cockpit only. */
 .wy-rf-shell{margin:12px 0;background:linear-gradient(155deg,#061a12,#020806);border-color:#397a54}
+.wy-rf-shell.wy-rf-expanded{position:fixed;inset:10px;z-index:2147482500;margin:0;overflow:auto;padding:14px;box-shadow:0 0 0 100vmax #000d,0 18px 70px #000;background:#020806}
+.wy-rf-expand{min-height:34px;padding:7px 12px;border:1px solid #79c993;background:#0b2b19;color:#c9f0d2;font:10px "Courier New",monospace;font-weight:bold;cursor:pointer}
+.wy-rf-shell.wy-rf-expanded .wy-rf-grid{grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr)}
+@media(max-width:700px){.wy-rf-shell.wy-rf-expanded{inset:4px;padding:9px}.wy-rf-shell.wy-rf-expanded .wy-rf-grid{grid-template-columns:1fr}}
 .wy-rf-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #285c3d;padding-bottom:9px;margin-bottom:10px}
 .wy-rf-head h3{margin:0;color:#a9f0bf;font-size:12px;letter-spacing:1.2px}
 .wy-rf-head p{margin:6px 0 0;color:#91b49b;font-size:10px;line-height:1.5}
