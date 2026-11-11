@@ -406,3 +406,9 @@ console.log(`Validated syntax for ${parsed} inline JavaScript block(s), seafloor
 
 assert.ok(scyllaHelicopter.includes("scylla-heli-touch-force"), "missing SCYLLA immersive touch controller");
 assert.ok(scyllaHelicopter.includes("screen.requestFullscreen().then"), "missing automatic fullscreen launch");
+
+assert.ok(scyllaHelicopter.includes("deviceorientation"), "missing SCYLLA phone gyroscope input");
+assert.ok(scyllaHelicopter.includes("requestPermission"), "missing phone motion permission flow");
+assert.ok(scyllaHelicopter.includes("heli-round-weapons"), "missing round weapon selectors");
+assert.ok(scyllaHelicopter.includes("heli-touch-fire"), "missing round fire control");
+assert.ok(!scyllaHelicopter.includes('id="heli-stick"'), "phone mode must not expose a directional joystick");
