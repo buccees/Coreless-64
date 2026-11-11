@@ -6,6 +6,7 @@ on:
       - vigil-spatial-awareness
     paths:
       - "index.html"
+      - "vigil-scylla-helicopter.js"
       - "vigil-mech-garage.js"
       - "vigil-mech-3d-view.js"
       - "vigil-submersible-3d-view.js"
