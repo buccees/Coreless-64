@@ -25,6 +25,10 @@ for (const required of [
   "AIR SUPERIORITY",
 ]) assert.ok(scyllaHelicopter.includes(required), "missing SCYLLA helicopter mode contract: " + required);
 assert.ok(html.includes("vigil-scylla-helicopter.js?v=1"), "expected SCYLLA-only helicopter mode script");
+assert.ok(scyllaHelicopter.includes("heli-touch-controller"), "missing SCYLLA mobile on-screen flight controller");
+assert.ok(scyllaHelicopter.includes("heli-stick"), "missing SCYLLA virtual flight stick");
+assert.ok(scyllaHelicopter.includes("requestFullscreen"), "missing SCYLLA full-screen control");
+assert.ok(scyllaHelicopter.includes("data-touch-hold"), "missing SCYLLA touch action controls");
 
 for (const required of [
   "function updateLaunchButton()",
