@@ -24,11 +24,11 @@ for (const required of [
   "GUIDED MISSILE",
   "AIR SUPERIORITY",
 ]) assert.ok(scyllaHelicopter.includes(required), "missing SCYLLA helicopter mode contract: " + required);
-assert.ok(html.includes("vigil-scylla-helicopter.js?v=3"), "expected SCYLLA-only helicopter mode script");
+assert.ok(html.includes("vigil-scylla-helicopter.js?v=5"), "expected SCYLLA-only helicopter mode script");
 assert.ok(scyllaHelicopter.includes("heli-touch-controller"), "missing SCYLLA mobile on-screen flight controller");
-assert.ok(scyllaHelicopter.includes("heli-stick"), "missing SCYLLA virtual flight stick");
+assert.ok(scyllaHelicopter.includes("heli-gyro-panel"), "missing SCYLLA phone gyroscope flight controls");
 assert.ok(scyllaHelicopter.includes("requestFullscreen"), "missing SCYLLA full-screen control");
-assert.ok(scyllaHelicopter.includes("data-touch-hold"), "missing SCYLLA touch action controls");
+assert.ok(scyllaHelicopter.includes("data-hold"), "missing SCYLLA on-screen control actions");
 
 for (const required of [
   "function updateLaunchButton()",
