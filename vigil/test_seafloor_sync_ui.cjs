@@ -24,7 +24,7 @@ for (const required of [
   "GUIDED MISSILE",
   "AIR SUPERIORITY",
 ]) assert.ok(scyllaHelicopter.includes(required), "missing SCYLLA helicopter mode contract: " + required);
-assert.ok(html.includes("vigil-scylla-helicopter.js?v=5"), "expected SCYLLA-only helicopter mode script");
+assert.ok(html.includes("vigil-scylla-helicopter.js?v=6"), "expected SCYLLA-only helicopter mode script");
 assert.ok(scyllaHelicopter.includes("heli-touch-controller"), "missing SCYLLA mobile on-screen flight controller");
 assert.ok(scyllaHelicopter.includes("heli-gyro-panel"), "missing SCYLLA phone gyroscope flight controls");
 assert.ok(scyllaHelicopter.includes("requestFullscreen"), "missing SCYLLA full-screen control");
@@ -411,6 +411,11 @@ assert.ok(scyllaHelicopter.includes("deviceorientation"), "missing SCYLLA phone 
 assert.ok(scyllaHelicopter.includes("requestPermission"), "missing phone motion permission flow");
 assert.ok(scyllaHelicopter.includes("heli-round-weapons"), "missing round weapon selectors");
 assert.ok(scyllaHelicopter.includes("heli-touch-fire"), "missing round fire control");
+assert.ok(scyllaHelicopter.includes("COLLECTIVE / LIFT"), "collective slider must explain its lift function");
+assert.ok(scyllaHelicopter.includes("heli-flight-strip"), "collective control must stay out of the bottom touch-control cluster");
+assert.ok(scyllaHelicopter.includes("GYRO LIVE // PITCH"), "phone gyro must provide live flight feedback");
+assert.ok(scyllaHelicopter.includes("rawPitch=dg;rawRoll=-db"), "phone gyro axes must remap for landscape orientation");
+assert.ok(scyllaHelicopter.includes("var targetPitch=inputPitch*.34"), "cyclic input must be proportional rather than binary");
 assert.ok(!scyllaHelicopter.includes('id="heli-stick"'), "phone mode must not expose a directional joystick");
 assert.ok(mechView.includes("m3-chopper-mode"), "missing SCYLLA mech-to-chopper mode switch");
 assert.ok(scyllaHelicopter.includes("window.vigilOpenScyllaChopperMode"), "missing SCYLLA chopper mode entry point");
