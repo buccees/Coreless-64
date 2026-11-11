@@ -403,3 +403,6 @@ for (const required of [
 assert.ok(!html.includes("if(ship.x<.04||ship.x>.96)"), "regional fleet must not bounce off horizontal world boundaries");
 assert.ok(!html.includes("if(ship.y<.05||ship.y>.95)"), "regional fleet must not bounce off vertical world boundaries");
 console.log(`Validated syntax for ${parsed} inline JavaScript block(s), seafloor sync, navigation helm, rotating sonar, mobile controls, and stitched-planet contracts.`);
+
+assert.ok(scyllaHelicopter.includes("scylla-heli-touch-force"), "missing SCYLLA immersive touch controller");
+assert.ok(scyllaHelicopter.includes("screen.requestFullscreen().then"), "missing automatic fullscreen launch");
