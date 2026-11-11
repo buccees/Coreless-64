@@ -57,6 +57,7 @@ jobs:
           cp index.html site/index.html
           cp vigil-mech-garage.js site/vigil-mech-garage.js
           cp vigil-mech-3d-view.js site/vigil-mech-3d-view.js
+          cp vigil-scylla-helicopter.js site/vigil-scylla-helicopter.js
           cp vigil-submersible-3d-view.js site/vigil-submersible-3d-view.js
           cp vigil-independent-vehicle-3d-views.js site/vigil-independent-vehicle-3d-views.js
           cp vigil-uuv-missions.js site/vigil-uuv-missions.js
@@ -78,6 +79,7 @@ jobs:
           test -s site/index.html
           test -s site/vigil-mech-garage.js
           test -s site/vigil-mech-3d-view.js
+          test -s site/vigil-scylla-helicopter.js
           test -s site/vigil-submersible-3d-view.js
           test -s site/vigil-independent-vehicle-3d-views.js
           test -s site/vigil-uuv-missions.js
@@ -103,6 +105,7 @@ jobs:
           for script in \
             site/vigil-mech-garage.js \
             site/vigil-mech-3d-view.js \
+            site/vigil-scylla-helicopter.js \
             site/vigil-submersible-3d-view.js \
             site/vigil-independent-vehicle-3d-views.js \
             site/vigil-uuv-missions.js \
