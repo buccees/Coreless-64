@@ -155,9 +155,17 @@ assert.ok(/vigil-mech-garage\.js\?v=13/.test(html), "expected cache-busted mech 
 assert.ok(/vigil-fleet-sensor-network\.js\?v=(daedalus-orbital-7|daedalus-orbital-8)/.test(html), "expected cache-busted fleet sensor network script");
 for (const required of [
   "window.vigilOpenMech3DView=open",
-  "LAUNCH HOUND 3D PILOT VIEW",
+  "SCYLLA // MECH CONTROL STATION",
+  "var scyllaHost=document.getElementById('scylla-security-panel')||document.body;scyllaHost.appendChild(root);",
 ]) {
-  assert.ok(mechView.includes(required), `missing independent mech pilot launch marker: ${required}`);
+  assert.ok(mechView.includes(required), `missing SCYLLA-hosted mech control screen marker: ${required}`);
+}
+for (const required of [
+  'id="scylla-open-mech-controls"',
+  "window.vigilOpenMech3DView('MECH-01')",
+  'id="scylla-mech-control-launch"',
+]) {
+  assert.ok(html.includes(required), `missing SCYLLA mech control entrypoint: ${required}`);
 }
 for (const required of [
   "ship:{title:",
