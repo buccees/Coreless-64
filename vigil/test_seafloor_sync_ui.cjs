@@ -166,7 +166,7 @@ for (const required of [
 ]) {
   assert.ok(mechView.includes(required), `missing sensor-fused mech environment renderer marker: ${required}`);
 }
-assert.ok(html.includes('vigil-mech-3d-view.js?v=13'), "expected cache-busted first-person mech pilot renderer script");
+assert.ok(html.includes('vigil-mech-3d-view.js?v=14'), "expected cache-busted first-person mech pilot renderer script");
 assert.ok(/vigil-mech-garage\.js\?v=13/.test(html), "expected cache-busted mech garage and role metadata script");
 assert.ok(/vigil-fleet-sensor-network\.js\?v=(daedalus-orbital-7|daedalus-orbital-8)/.test(html), "expected cache-busted fleet sensor network script");
 for (const required of [
