@@ -1487,6 +1487,15 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   <p class="wy-rf-caveat">ENGINEERING TEST MODE: all CSI samples and person channels are software-generated. Breathing and heart-rate figures are algorithm test estimates, not measurements of real people. CSI-only observations are published as context to VIGIL's shared sensor feed; no coordinates, identity, or range are inferred. Real-world accuracy remains unvalidated without representative measured datasets.</p>
 </section>
 
+<section class="scylla-box" id="scylla-mech-control-launch" aria-labelledby="scylla-mech-control-title">
+  <div class="wy-rf-head">
+    <div><h3 id="scylla-mech-control-title">SCYLLA // MECH CONTROL STATION</h3><p>Remote cockpit interface for the mech assigned to the Simulation Bay. The mech chassis, loadout and deployment inventory remain managed in the bay.</p></div>
+    <span class="wy-rf-mode">SIMULATION LINK // MECH-01</span>
+    <button type="button" id="scylla-open-mech-controls" class="wy-rf-expand">OPEN MECH CONTROL SCREEN</button>
+  </div>
+  <div id="scylla-mech-control-status" class="wy-rf-status" role="status" aria-live="polite">CONTROL LINK READY // MECH-01 REMAINS STORED IN THE SIMULATION BAY</div>
+</section>
+
 <section id="vigil-cb-instructor" aria-labelledby="vigil-cb-title">
     <div class="vigil-cb-heading"><div><div class="vigil-cb-kicker">COMMUNICATIONS TRAINER // AUTO-INSTRUCTION</div><h3 id="vigil-cb-title">CB / RADIOTELEPHONE ETIQUETTE STATION</h3></div><span class="vigil-cb-mode">SIMULATION ONLY · NO RF TRANSMISSION</span></div>
     <p class="vigil-cb-intro">Choose an approved communication action. VIGIL builds and “transmits” the correctly structured practice message automatically, then explains the procedure. No free-typing or manual message sending.</p>
@@ -1637,6 +1646,16 @@ TEMPORAL STABILITY // NEW MILESTONE</strong><br>Median-based robust aggregation 
   if(!issued){status.textContent='DEPLOYMENT BLOCKED // QUEUE A KRAKEN MISSION INSTRUCTION FIRST';return;}
   deployed=true;render();
   status.textContent='LOCAL DEPLOYMENT DISPLAY // '+activeCount()+' SCYLLA UNIT(S) MARKED DEPLOYED // LIVE SIMULATION COMMAND LINK NOT CONNECTED';
+ });
+ var mechControlButton=document.getElementById('scylla-open-mech-controls');
+ var mechControlStatus=document.getElementById('scylla-mech-control-status');
+ if(mechControlButton)mechControlButton.addEventListener('click',function(){
+  if(typeof window.vigilOpenMech3DView!=='function'){
+   if(mechControlStatus)mechControlStatus.textContent='CONTROL LINK OFFLINE // MECH PILOT INTERFACE HAS NOT INITIALIZED';
+   return;
+  }
+  if(mechControlStatus)mechControlStatus.textContent='SCYLLA CONTROL LINK // OPENING MECH-01 COCKPIT';
+  window.vigilOpenMech3DView('MECH-01');
  });
  document.getElementById('scylla-reset-team').addEventListener('click',function(){
   issued=false;deployed=false;instruction.value='';render();status.textContent='DISPLAY MODEL RESET // NO MISSION INSTRUCTION ISSUED';
