@@ -7,12 +7,24 @@ const submersible = fs.readFileSync(path.join(__dirname, "..", "vigil-submersibl
 const mechView = fs.readFileSync(path.join(__dirname, "..", "vigil-mech-3d-view.js"), "utf8");
 const mechGarage = fs.readFileSync(path.join(__dirname, "..", "vigil-mech-garage.js"), "utf8");
 const otherVehicleViews = fs.readFileSync(path.join(__dirname, "..", "vigil-independent-vehicle-3d-views.js"), "utf8");
+const scyllaHelicopter = fs.readFileSync(path.join(__dirname, "..", "vigil-scylla-helicopter.js"), "utf8");
 const fleetSensorNetwork = fs.readFileSync(path.join(__dirname, "..", "vigil-fleet-sensor-network.js"), "utf8");
 new Function(submersible);
 new Function(mechView);
 new Function(mechGarage);
 new Function(otherVehicleViews);
 new Function(fleetSensorNetwork);
+new Function(scyllaHelicopter);
+for (const required of [
+  "SCYLLA // ROTORCRAFT COMBAT SIMULATOR",
+  "scylla-heli-open",
+  "SCYLLA AIRFRAME ACTIVE",
+  "TACTICAL RADAR // 360",
+  "COLLECTIVE +",
+  "GUIDED MISSILE",
+  "AIR SUPERIORITY",
+]) assert.ok(scyllaHelicopter.includes(required), "missing SCYLLA helicopter mode contract: " + required);
+assert.ok(html.includes("vigil-scylla-helicopter.js?v=1"), "expected SCYLLA-only helicopter mode script");
 
 for (const required of [
   "function updateLaunchButton()",
