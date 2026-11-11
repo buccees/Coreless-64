@@ -412,3 +412,7 @@ assert.ok(scyllaHelicopter.includes("requestPermission"), "missing phone motion 
 assert.ok(scyllaHelicopter.includes("heli-round-weapons"), "missing round weapon selectors");
 assert.ok(scyllaHelicopter.includes("heli-touch-fire"), "missing round fire control");
 assert.ok(!scyllaHelicopter.includes('id="heli-stick"'), "phone mode must not expose a directional joystick");
+assert.ok(mechView.includes("m3-chopper-mode"), "missing SCYLLA mech-to-chopper mode switch");
+assert.ok(scyllaHelicopter.includes("window.vigilOpenScyllaChopperMode"), "missing SCYLLA chopper mode entry point");
+assert.ok(scyllaHelicopter.includes("MECH-01"), "missing single assigned SCYLLA airframe guard");
+assert.ok(scyllaHelicopter.includes("MECH COCKPIT RESTORED"), "missing return-to-mech cockpit transition");
