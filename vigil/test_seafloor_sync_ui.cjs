@@ -24,8 +24,14 @@ for (const required of [
   "GUIDED MISSILE",
   "AIR SUPERIORITY",
 ]) assert.ok(scyllaHelicopter.includes(required), "missing SCYLLA helicopter mode contract: " + required);
-assert.ok(html.includes("vigil-scylla-helicopter.js?v=6"), "expected SCYLLA-only helicopter mode script");
+assert.ok(html.includes("vigil-scylla-helicopter.js?v=7"), "expected SCYLLA-only helicopter mode script");
 assert.ok(scyllaHelicopter.includes("heli-touch-controller"), "missing SCYLLA mobile on-screen flight controller");
+assert.ok(scyllaHelicopter.includes("function initTerrain3D()"), "missing live WebGL terrain renderer");
+assert.ok(scyllaHelicopter.includes("function renderTerrain3D()"), "missing continuously updated 3D flight terrain");
+assert.ok(scyllaHelicopter.includes("scylla-heli-terrain-3d"), "missing separate WebGL scene layer beneath the live cockpit HUD");
+assert.ok(scyllaHelicopter.includes("function terrainElevation(wx,wz)"), "missing simulation-generated terrain elevation model");
+assert.ok(scyllaHelicopter.includes("gl.drawElements(gl.TRIANGLES"), "terrain must be rendered as 3D geometry, not a static background");
+
 assert.ok(scyllaHelicopter.includes("heli-gyro-panel"), "missing SCYLLA phone gyroscope flight controls");
 assert.ok(scyllaHelicopter.includes("requestFullscreen"), "missing SCYLLA full-screen control");
 assert.ok(scyllaHelicopter.includes("data-hold"), "missing SCYLLA on-screen control actions");
