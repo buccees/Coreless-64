@@ -24,10 +24,16 @@ for (const required of [
   "GUIDED MISSILE",
   "AIR SUPERIORITY",
 ]) assert.ok(scyllaHelicopter.includes(required), "missing SCYLLA helicopter mode contract: " + required);
-assert.ok(html.includes("vigil-scylla-helicopter.js?v=7"), "expected SCYLLA-only helicopter mode script");
+assert.ok(html.includes("vigil-scylla-helicopter.js?v=8"), "expected SCYLLA-only helicopter mode script");
 assert.ok(scyllaHelicopter.includes("heli-touch-controller"), "missing SCYLLA mobile on-screen flight controller");
 assert.ok(scyllaHelicopter.includes("function initTerrain3D()"), "missing live WebGL terrain renderer");
 assert.ok(scyllaHelicopter.includes("function renderTerrain3D()"), "missing continuously updated 3D flight terrain");
+assert.ok(scyllaHelicopter.includes("heli-instrument-deck"), "cockpit readouts must live in a dedicated lower instrument deck");
+assert.ok(scyllaHelicopter.includes("heliDeck.appendChild(heliHud)"), "flight metrics must be below the 3D view");
+assert.ok(scyllaHelicopter.includes("heliDeck.appendChild(heliSide)"), "tactical/system readouts must be below the 3D view");
+assert.ok(scyllaHelicopter.includes("heliFlightPane.hidden=true"), "duplicate directional control panel must not cover the phone cockpit");
+assert.ok(scyllaHelicopter.includes("flex:0 0 164px"), "lower cockpit deck must reserve compact readout space");
+
 assert.ok(scyllaHelicopter.includes("scylla-heli-terrain-3d"), "missing separate WebGL scene layer beneath the live cockpit HUD");
 assert.ok(scyllaHelicopter.includes("function terrainElevation(wx,wz)"), "missing simulation-generated terrain elevation model");
 assert.ok(scyllaHelicopter.includes("gl.drawElements(gl.TRIANGLES"), "terrain must be rendered as 3D geometry, not a static background");
