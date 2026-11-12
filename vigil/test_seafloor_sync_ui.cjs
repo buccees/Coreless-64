@@ -43,7 +43,7 @@ for (const required of [
 ]) assert.ok(scyllaHelicopter.includes(required), `missing SCYLLA desktop mouse control marker: ${required}`);
 for (const required of [
   "heli-pc-controls",
-  "PC PILOT // KEYBOARD INPUT",
+  "PC PILOT // FLIGHT INPUT",
   "data-key=\"w\"",
   "data-key=\"a\"",
   "data-key=\"s\"",
