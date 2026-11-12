@@ -24,7 +24,7 @@ for (const required of [
   "GUIDED MISSILE",
   "AIR SUPERIORITY",
 ]) assert.ok(scyllaHelicopter.includes(required), "missing SCYLLA helicopter mode contract: " + required);
-assert.ok(html.includes("vigil-scylla-helicopter.js?v=11"), "expected SCYLLA-only helicopter mode script");
+assert.ok(html.includes("vigil-scylla-helicopter.js?v=12"), "expected SCYLLA-only helicopter mode script");
 for (const required of [
   "heli-pc-capture",
   "CAPTURE MOUSE",
@@ -57,6 +57,13 @@ for (const required of [
 assert.ok(scyllaHelicopter.includes("heli-touch-controller"), "missing SCYLLA mobile on-screen flight controller");
 assert.ok(scyllaHelicopter.includes("function initTerrain3D()"), "missing live WebGL terrain renderer");
 assert.ok(scyllaHelicopter.includes("function drawTerrainFallback(w,h)"), "missing 2D terrain fallback when WebGL is unavailable");
+assert.ok(scyllaHelicopter.includes("function sampleAtmosphere()"), "missing SCYLLA atmosphere contract: function sampleAtmosphere()");
+assert.ok(scyllaHelicopter.includes("heli-weather-strip"), "missing SCYLLA atmosphere contract: heli-weather-strip");
+assert.ok(scyllaHelicopter.includes("var skyFs="), "missing SCYLLA atmosphere contract: var skyFs=");
+assert.ok(scyllaHelicopter.includes("gl.drawArrays(gl.TRIANGLE_STRIP,0,4)"), "missing SCYLLA atmosphere contract: gl.drawArrays(gl.TRIANGLE_STRIP,0,4)");
+assert.ok(scyllaHelicopter.includes("function drawAtmosphereFallback"), "missing SCYLLA atmosphere contract: function drawAtmosphereFallback");
+assert.ok(scyllaHelicopter.includes("heli-oat"), "missing SCYLLA atmosphere contract: heli-oat");
+assert.ok(scyllaHelicopter.includes("u_cloud"), "missing SCYLLA atmosphere contract: u_cloud");
 assert.ok(scyllaHelicopter.includes("if(!terrainReady)drawTerrainFallback(w,h)"), "flight scene must remain visible when WebGL initialization fails");
 assert.ok(scyllaHelicopter.includes("holds.fire=true;fire();"), "fire controls must respond to a quick tap, not only a sustained hold");
 assert.ok(scyllaHelicopter.includes("NO TARGET IN FORWARD ACQUISITION CONE"), "target-lock control must report unsuccessful acquisition");
