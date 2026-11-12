@@ -24,7 +24,19 @@ for (const required of [
   "GUIDED MISSILE",
   "AIR SUPERIORITY",
 ]) assert.ok(scyllaHelicopter.includes(required), "missing SCYLLA helicopter mode contract: " + required);
-assert.ok(html.includes("vigil-scylla-helicopter.js?v=9"), "expected SCYLLA-only helicopter mode script");
+assert.ok(html.includes("vigil-scylla-helicopter.js?v=10"), "expected SCYLLA-only helicopter mode script");
+for (const required of [
+  "heli-pc-capture",
+  "CAPTURE MOUSE",
+  "requestPointerLock",
+  "pointerlockchange",
+  "e.movementX",
+  "e.movementY",
+  "mouseFlight.locked?mouseFlight.x",
+  "mouseFlight.locked?-mouseFlight.y",
+  "DESKTOP KEYBOARD + MOUSE",
+  "MOBILE TOUCH / GYRO",
+]) assert.ok(scyllaHelicopter.includes(required), `missing SCYLLA desktop mouse control marker: ${required}`);
 for (const required of [
   "heli-pc-controls",
   "PC PILOT // KEYBOARD INPUT",
