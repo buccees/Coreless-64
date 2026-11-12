@@ -24,7 +24,7 @@ for (const required of [
   "GUIDED MISSILE",
   "AIR SUPERIORITY",
 ]) assert.ok(scyllaHelicopter.includes(required), "missing SCYLLA helicopter mode contract: " + required);
-assert.ok(html.includes("vigil-scylla-helicopter.js?v=10"), "expected SCYLLA-only helicopter mode script");
+assert.ok(html.includes("vigil-scylla-helicopter.js?v=11"), "expected SCYLLA-only helicopter mode script");
 for (const required of [
   "heli-pc-capture",
   "CAPTURE MOUSE",
@@ -56,6 +56,11 @@ for (const required of [
 ]) assert.ok(scyllaHelicopter.includes(required), `missing desktop-only SCYLLA keyboard control marker: ${required}`);
 assert.ok(scyllaHelicopter.includes("heli-touch-controller"), "missing SCYLLA mobile on-screen flight controller");
 assert.ok(scyllaHelicopter.includes("function initTerrain3D()"), "missing live WebGL terrain renderer");
+assert.ok(scyllaHelicopter.includes("function drawTerrainFallback(w,h)"), "missing 2D terrain fallback when WebGL is unavailable");
+assert.ok(scyllaHelicopter.includes("if(!terrainReady)drawTerrainFallback(w,h)"), "flight scene must remain visible when WebGL initialization fails");
+assert.ok(scyllaHelicopter.includes("holds.fire=true;fire();"), "fire controls must respond to a quick tap, not only a sustained hold");
+assert.ok(scyllaHelicopter.includes("NO TARGET IN FORWARD ACQUISITION CONE"), "target-lock control must report unsuccessful acquisition");
+assert.ok(scyllaHelicopter.includes("function releaseStick(){"), "missing safe stick-release handler used during focus loss");
 assert.ok(scyllaHelicopter.includes("function renderTerrain3D()"), "missing continuously updated 3D flight terrain");
 assert.ok(scyllaHelicopter.includes("heli-instrument-deck"), "cockpit readouts must live in a dedicated lower instrument deck");
 assert.ok(scyllaHelicopter.includes("heliDeck.appendChild(heliHud)"), "flight metrics must be below the 3D view");
