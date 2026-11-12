@@ -36,6 +36,10 @@ for (const required of [
   "mouseFlight.locked?-mouseFlight.y",
   "DESKTOP KEYBOARD + MOUSE",
   "MOBILE TOUCH / GYRO",
+  "pointerlockerror",
+  "exitPointerLock",
+  "mouseFlight.sensitivity",
+  "performance.now()",
 ]) assert.ok(scyllaHelicopter.includes(required), `missing SCYLLA desktop mouse control marker: ${required}`);
 for (const required of [
   "heli-pc-controls",
