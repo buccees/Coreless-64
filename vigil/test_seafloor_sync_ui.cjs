@@ -24,7 +24,7 @@ for (const required of [
   "GUIDED MISSILE",
   "AIR SUPERIORITY",
 ]) assert.ok(scyllaHelicopter.includes(required), "missing SCYLLA helicopter mode contract: " + required);
-assert.ok(html.includes("vigil-scylla-helicopter.js?v=12"), "expected SCYLLA-only helicopter mode script");
+assert.ok(html.includes("vigil-scylla-helicopter.js?v=13"), "expected SCYLLA-only helicopter mode script");
 for (const required of [
   "heli-pc-capture",
   "CAPTURE MOUSE",
