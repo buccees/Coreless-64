@@ -64,7 +64,7 @@ assert.ok(scyllaHelicopter.includes("gl.drawArrays(gl.TRIANGLE_STRIP,0,4)"), "mi
 assert.ok(scyllaHelicopter.includes("function drawAtmosphereFallback"), "missing SCYLLA atmosphere contract: function drawAtmosphereFallback");
 assert.ok(scyllaHelicopter.includes("heli-oat"), "missing SCYLLA atmosphere contract: heli-oat");
 assert.ok(scyllaHelicopter.includes("u_cloud"), "missing SCYLLA atmosphere contract: u_cloud");
-assert.ok(scyllaHelicopter.includes("if(!terrainReady)drawTerrainFallback(w,h)"), "flight scene must remain visible when WebGL initialization fails");
+assert.ok(scyllaHelicopter.includes("if(!terrainReady){drawAtmosphereFallback(w,h,sampleAtmosphere());drawTerrainFallback(w,h);}"), "flight scene must retain atmospheric sky and terrain when WebGL initialization fails");
 assert.ok(scyllaHelicopter.includes("holds.fire=true;fire();"), "fire controls must respond to a quick tap, not only a sustained hold");
 assert.ok(scyllaHelicopter.includes("NO TARGET IN FORWARD ACQUISITION CONE"), "target-lock control must report unsuccessful acquisition");
 assert.ok(scyllaHelicopter.includes("function releaseStick(){"), "missing safe stick-release handler used during focus loss");
