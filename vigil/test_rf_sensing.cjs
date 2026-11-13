@@ -53,5 +53,5 @@ assert.ok(Math.abs(frequency.hz - 1.25) <= 20 / 256, 'frequency estimator error 
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 assert.ok(html.includes('id="wy-rf-sensing"'), 'RF sensing display must be mounted in the existing Security Cockpit');
-assert.ok(html.includes('vigil-rf-sensing.js?v=1'), 'Security Cockpit must load the RF sensing engine');
+assert.ok(/vigil-rf-sensing\.js\?v=\d+&build=/.test(html), 'Security Cockpit must load the RF sensing engine with cache busting');
 console.log('VIGIL software RF sensing: synthetic multi-person separation, presence, motion, respiration/heart-rate estimation, interference degradation, empty-room rejection, shared sensor frame contract and Security Cockpit integration passed.');
