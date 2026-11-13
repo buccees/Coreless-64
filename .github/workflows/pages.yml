@@ -26,6 +26,7 @@ on:
       - "rd/plague/**"
       - "daedalus-mothership.js"
       - "vigil-fleet-sensor-network.js"
+      - "vigil-rf-sensing.js"
       - "vigil-mothership-command.js"
       - "daedalus-rd-integration.js"
       - "assets/wallpapers/**"
@@ -73,6 +74,7 @@ jobs:
           cp rd/plague/vigil-plague.js site/rd/plague/vigil-plague.js
           cp daedalus-mothership.js site/daedalus-mothership.js
           cp vigil-fleet-sensor-network.js site/vigil-fleet-sensor-network.js
+          cp vigil-rf-sensing.js site/vigil-rf-sensing.js
           cp vigil-mothership-command.js site/vigil-mothership-command.js
           cp daedalus-rd-integration.js site/daedalus-rd-integration.js
           cp operator-display.html site/operator-display.html
@@ -95,6 +97,7 @@ jobs:
           test -s site/rd/plague/vigil-plague.js
           test -s site/daedalus-mothership.js
           test -s site/vigil-fleet-sensor-network.js
+          test -s site/vigil-rf-sensing.js
           test -s site/vigil-mothership-command.js
           test -s site/daedalus-rd-integration.js
           test -s site/assets/wallpapers/vigil-deepwater-command.svg
@@ -119,6 +122,7 @@ jobs:
             site/rd/plague/vigil-plague.js \
             site/daedalus-mothership.js \
             site/vigil-fleet-sensor-network.js \
+            site/vigil-rf-sensing.js \
             site/vigil-mothership-command.js \
             site/daedalus-rd-integration.js; do
             node --check "$script"
