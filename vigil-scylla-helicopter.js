@@ -111,6 +111,7 @@ screen.classList.add('open');
 screen.style.cssText+=';display:flex!important;position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;height:100dvh!important;z-index:2147483000!important;flex-direction:column!important;background:#061018!important;overflow:hidden!important;';
 document.body.style.overflow='hidden';
 var touch=screen.querySelector('#heli-touch-controller'),main=screen.querySelector('.heli-main'),grid=screen.querySelector('.heli-grid'),flightStrip=screen.querySelector('.heli-flight-strip');
+// Legacy MOBILE TOUCH / GYRO input remains in the module for compatibility, but is intentionally disabled in this desktop-only cockpit.
 screen.dataset.inputMode='DESKTOP KEYBOARD + MOUSE';
 heliPcDock.hidden=false;heliPcDock.style.cssText='display:flex!important;flex:0 0 30px!important;min-height:30px!important;';
 if(touch){touch.hidden=true;touch.style.cssText='display:none!important;';}
