@@ -112,8 +112,8 @@ screen.style.cssText+=';display:flex!important;position:fixed!important;inset:0!
 document.body.style.overflow='hidden';
 var touch=screen.querySelector('#heli-touch-controller'),main=screen.querySelector('.heli-main'),grid=screen.querySelector('.heli-grid'),flightStrip=screen.querySelector('.heli-flight-strip');
 screen.dataset.inputMode='DESKTOP KEYBOARD + MOUSE';
-heliPcDock.hidden=false;
-if(touch)touch.hidden=true;
+heliPcDock.hidden=false;heliPcDock.style.cssText='display:flex!important;flex:0 0 30px!important;min-height:30px!important;';
+if(touch){touch.hidden=true;touch.style.cssText='display:none!important;';}
 if(flightStrip)flightStrip.style.cssText='display:flex!important;position:relative!important;z-index:60!important;flex:0 0 42px!important;min-height:42px!important;align-items:center!important;gap:8px!important;padding:3px 10px!important;background:#091b26!important;';
 if(main)main.style.cssText+=';position:relative!important;width:100%!important;height:100%!important;min-height:0!important;flex:1 1 auto!important;overflow:hidden!important;';
 if(grid)grid.style.cssText+=';display:flex!important;flex:1 1 0!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important;padding:0!important;';
