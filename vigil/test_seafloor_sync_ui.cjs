@@ -451,7 +451,8 @@ assert.ok(!html.includes("if(ship.y<.05||ship.y>.95)"), "regional fleet must not
 console.log(`Validated syntax for ${parsed} inline JavaScript block(s), seafloor sync, navigation helm, rotating sonar, mobile controls, and stitched-planet contracts.`);
 
 assert.ok(scyllaHelicopter.includes("scylla-heli-touch-force"), "missing SCYLLA immersive touch controller");
-assert.ok(scyllaHelicopter.includes("screen.requestFullscreen().then"), "missing automatic fullscreen launch");
+assert.ok(scyllaHelicopter.includes("requestAnimationFrame(beginRenderLoop);\\nif(screen.requestFullscreen&&!document.fullscreenElement)"), "terrain render loop must start before and independently of fullscreen permission");
+assert.ok(scyllaHelicopter.includes("fullscreenRequest=screen.requestFullscreen()"), "missing optional fullscreen request after renderer startup");
 
 assert.ok(scyllaHelicopter.includes("deviceorientation"), "missing SCYLLA phone gyroscope input");
 assert.ok(scyllaHelicopter.includes("requestPermission"), "missing phone motion permission flow");
