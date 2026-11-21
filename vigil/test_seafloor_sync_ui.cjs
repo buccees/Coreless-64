@@ -56,6 +56,10 @@ for (const required of [
 ]) assert.ok(scyllaHelicopter.includes(required), `missing desktop-only SCYLLA keyboard control marker: ${required}`);
 assert.ok(scyllaHelicopter.includes("heli-touch-controller"), "missing SCYLLA mobile on-screen flight controller");
 assert.ok(scyllaHelicopter.includes("function initTerrain3D()"), "missing live WebGL terrain renderer");
+assert.ok(scyllaHelicopter.includes("window.vigilGetWorldTerrainAt"), "helicopter terrain must sample the authoritative simulation world");
+assert.ok(scyllaHelicopter.includes("sample.surfaceElevationMeters"), "helicopter terrain mesh must consume simulation-provided 3D surface elevation");
+assert.ok(scyllaHelicopter.includes("function syncSimulationTargets()"), "helicopter scene must ingest live simulation entities");
+assert.ok(scyllaHelicopter.includes("window.vigilGetRegionalSensorContacts()"), "helicopter scene must use the shared regional simulation contact feed");
 assert.ok(scyllaHelicopter.includes("fallbackCanvas.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;z-index:1"), "fallback layer must sit behind WebGL");
 assert.ok(scyllaHelicopter.includes("terrainCanvas.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;z-index:2"), "WebGL terrain must sit above fallback layer");
 assert.ok(scyllaHelicopter.includes("canvas.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;z-index:3"), "flight HUD overlay must sit above both terrain layers");
