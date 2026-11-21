@@ -70,7 +70,7 @@ assert.ok(scyllaHelicopter.includes("var fallbackCanvas=document.createElement('
 assert.ok(scyllaHelicopter.includes("holds.fire=true;fire();"), "fire controls must respond to a quick tap, not only a sustained hold");
 assert.ok(scyllaHelicopter.includes("NO TARGET IN FORWARD ACQUISITION CONE"), "target-lock control must report unsuccessful acquisition");
 assert.ok(scyllaHelicopter.includes("function releaseStick(){"), "missing safe stick-release handler used during focus loss");
-assert.ok(scyllaHelicopter.includes("function renderTerrain3D()"), "missing continuously updated 3D flight terrain");
+assert.ok(scyllaHelicopter.includes("function renderTerrain3D(w,h)"), "missing continuously updated 3D flight terrain");
 assert.ok(scyllaHelicopter.includes("heli-instrument-deck"), "cockpit readouts must live in a dedicated lower instrument deck");
 assert.ok(scyllaHelicopter.includes("heliDeck.appendChild(heliHud)"), "flight metrics must be below the 3D view");
 assert.ok(scyllaHelicopter.includes("heliDeck.appendChild(heliSide)"), "tactical/system readouts must be below the 3D view");
