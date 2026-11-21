@@ -464,7 +464,7 @@ const renderStartAt = scyllaHelicopter.indexOf("requestAnimationFrame(beginRende
 const fullscreenRequestAt = scyllaHelicopter.indexOf("if(screen.requestFullscreen&&!document.fullscreenElement)");
 assert.ok(renderStartAt >= 0 && fullscreenRequestAt > renderStartAt, "terrain render loop must start before and independently of fullscreen permission");
 assert.ok(scyllaHelicopter.includes("fullscreenRequest=screen.requestFullscreen()"), "missing optional fullscreen request after renderer startup");
-assert.ok(scyllaHelicopter.includes("ctx=fallbackCtx;ctx.save();ctx.globalAlpha=1;drawTerrainFallback(w,h);ctx.restore();ctx=overlayCtx;renderTerrain3D();"), "fallback terrain must render behind WebGL every frame so an empty WebGL canvas cannot leave the flight view blank");
+assert.ok(scyllaHelicopter.includes("ctx=fallbackCtx;ctx.save();ctx.globalAlpha=1;drawTerrainFallback(w,h);ctx.restore();ctx=overlayCtx;var terrainVisible=renderTerrain3D(w,h);ctx.clearRect(0,0,w,h);if(!terrainVisible)ctx.drawImage(fallbackCanvas,0,0,w,h);"), "fallback terrain must render behind WebGL every frame so an empty WebGL canvas cannot leave the flight view blank");
 assert.ok(scyllaHelicopter.includes("pitch*.65-.22"), "terrain camera must pitch down toward the ground plane");
 assert.ok(scyllaHelicopter.includes("terrainViewportHeight=Math.max(240,window.innerHeight-306)"), "helicopter terrain viewport must receive a nonzero desktop height");
 
