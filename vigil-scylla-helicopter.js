@@ -133,15 +133,26 @@ function beginRenderLoop(){
 }
 status.textContent='SCYLLA AIRFRAME ACTIVE // '+mission.toUpperCase()+' SORTIE';
 if(renderStatus)renderStatus.textContent='WEBGL TERRAIN STARTING';
+// Start drawing independently of the browser's fullscreen UI promise. Fullscreen
+// permission can be delayed or denied; it must never gate terrain initialization.
+requestAnimationFrame(beginRenderLoop);
 if(screen.requestFullscreen&&!document.fullscreenElement){
- screen.requestFullscreen().then(function(){
-  if(screen.ownerDocument.defaultView.screen.orientation&&screen.ownerDocument.defaultView.screen.orientation.lock)screen.ownerDocument.defaultView.screen.orientation.lock('landscape').catch(function(){});
-  requestAnimationFrame(beginRenderLoop);
- }).catch(function(){
-  status.textContent='FULL VIEW ACTIVE // BROWSER FULLSCREEN PERMISSION UNAVAILABLE';
-  requestAnimationFrame(beginRenderLoop);
- });
-}else requestAnimationFrame(beginRenderLoop);
+ try{
+  var fullscreenRequest=screen.requestFullscreen();
+  if(fullscreenRequest&&typeof fullscreenRequest.then==='function'){
+   fullscreenRequest.then(function(){
+    if(screen.ownerDocument.defaultView.screen.orientation&&screen.ownerDocument.defaultView.screen.orientation.lock)screen.ownerDocument.defaultView.screen.orientation.lock('landscape').catch(function(){});
+    var fullButton=screen.querySelector('#heli-fullscreen');if(fullButton)fullButton.textContent='EXIT FULL SCREEN';
+   }).catch(function(){
+    if(renderStatus)renderStatus.textContent=terrainReady?'WEBGL TERRAIN LIVE // WINDOWED':'TERRAIN RENDERING // WINDOWED';
+    status.textContent='FLIGHT SIMULATOR ACTIVE // WINDOWED MODE';
+   });
+  }
+ }catch(fullscreenError){
+  if(renderStatus)renderStatus.textContent=terrainReady?'WEBGL TERRAIN LIVE // WINDOWED':'TERRAIN RENDERING // WINDOWED';
+  status.textContent='FLIGHT SIMULATOR ACTIVE // WINDOWED MODE';
+ }
+}
 }
 function stop(){active=false;if(document.pointerLockElement===stage)document.exitPointerLock();if(document.fullscreenElement===screen&&document.exitFullscreen){try{var exitRequest=document.exitFullscreen();if(exitRequest&&typeof exitRequest.catch==='function')exitRequest.catch(function(){});}catch(fullscreenError){}}setMouseLock(false);keys=Object.create(null);holds=Object.create(null);heliPcDock.querySelectorAll('.heli-pc-key.active').forEach(function(n){n.classList.remove('active');});gyro.enabled=false;window.removeEventListener('deviceorientation',onDeviceOrientation,true);cancelAnimationFrame(raf);screen.classList.remove('open');screen.style.removeProperty('display');if(screen.dataset.returnToMech==='1'){var mr=document.getElementById('vigil-mech-3d');if(mr)mr.appendChild(screen);else if(screen.parentNode!==screenHome)screenHome.appendChild(screen);screen.dataset.returnToMech='0';status.textContent='MECH COCKPIT RESTORED // CHOPPER MODE STANDBY';}else{if(screen.parentNode!==screenHome)screenHome.appendChild(screen);status.textContent='AIRFRAME SECURED // SIMULATOR STANDBY';}document.body.style.overflow=previousOverflow;}
 window.vigilOpenScyllaChopperMode=function(unit){if(String(unit||'').toUpperCase()!=='MECH-01'){status.textContent='CHOPPER CONFIGURATION ASSIGNED TO MECH-01 ONLY';return;}start();};openBtn.addEventListener('click',start);screen.querySelector('#heli-exit').addEventListener('click',stop);screen.querySelector('#heli-fullscreen').addEventListener('click',function(){var el=screen;if(!document.fullscreenElement&&el.requestFullscreen){var full=el.requestFullscreen();if(full&&typeof full.then==='function')full.then(function(){if(screen.querySelector('#heli-fullscreen'))screen.querySelector('#heli-fullscreen').textContent='EXIT FULL SCREEN';if(screen.requestFullscreen&&screen.style.display!=='none'&&screen.ownerDocument.defaultView.screen.orientation&&screen.ownerDocument.defaultView.screen.orientation.lock){screen.ownerDocument.defaultView.screen.orientation.lock('landscape').catch(function(){});}}).catch(function(){status.textContent='FULL SCREEN NOT AVAILABLE // USE DEVICE ROTATION';});else status.textContent='FULL VIEW ACTIVE';}else if(document.exitFullscreen){document.exitFullscreen();}});document.addEventListener('fullscreenchange',function(){var b=screen.querySelector('#heli-fullscreen');if(b)b.textContent=document.fullscreenElement?'EXIT FULL SCREEN':'FULL SCREEN';});screen.querySelector('#heli-pause').addEventListener('click',function(){paused=!paused;this.textContent=paused?'RESUME':'PAUSE';});
