@@ -56,9 +56,9 @@ for (const required of [
 ]) assert.ok(scyllaHelicopter.includes(required), `missing desktop-only SCYLLA keyboard control marker: ${required}`);
 assert.ok(scyllaHelicopter.includes("heli-touch-controller"), "missing SCYLLA mobile on-screen flight controller");
 assert.ok(scyllaHelicopter.includes("function initTerrain3D()"), "missing live WebGL terrain renderer");
-assert.ok(scyllaHelicopter.includes("fallbackCanvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:1"), "fallback layer must sit behind WebGL");
-assert.ok(scyllaHelicopter.includes("terrainCanvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:2"), "WebGL terrain must sit above fallback layer");
-assert.ok(scyllaHelicopter.includes("canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:3"), "flight HUD overlay must sit above both terrain layers");
+assert.ok(scyllaHelicopter.includes("fallbackCanvas.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;z-index:1"), "fallback layer must sit behind WebGL");
+assert.ok(scyllaHelicopter.includes("terrainCanvas.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;z-index:2"), "WebGL terrain must sit above fallback layer");
+assert.ok(scyllaHelicopter.includes("canvas.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;z-index:3"), "flight HUD overlay must sit above both terrain layers");
 assert.ok(scyllaHelicopter.includes("if(drawError!==gl.NO_ERROR)throw new Error('WebGL draw error '+drawError)"), "WebGL draw errors must be detected rather than reported as live");
 assert.ok(scyllaHelicopter.includes("WEBGL TERRAIN FRAME // "), "terrain live status must follow a successful visible draw call");
 assert.ok(scyllaHelicopter.includes("Math.floor(rect.width||window.innerWidth)"), "WebGL viewport width must come from the actual stage rather than the canvas minimum");
