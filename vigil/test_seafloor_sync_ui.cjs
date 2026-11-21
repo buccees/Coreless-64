@@ -57,7 +57,7 @@ for (const required of [
 assert.ok(scyllaHelicopter.includes("heli-touch-controller"), "missing SCYLLA mobile on-screen flight controller");
 assert.ok(scyllaHelicopter.includes("function initTerrain3D()"), "missing live WebGL terrain renderer");
 assert.ok(scyllaHelicopter.includes("function drawTerrainFallback(w,h)"), "missing 2D terrain fallback when WebGL is unavailable");
-assert.ok(scyllaHelicopter.includes("drawTerrainFallback(w,h);ctx.restore();"), "flight scene must remain visible even when WebGL initializes without visible pixels");
+assert.ok(scyllaHelicopter.includes("if(!terrainReady){ctx.save();ctx.globalAlpha=1;drawTerrainFallback(w,h);ctx.restore();}"), "2D terrain fallback must render only when WebGL terrain is unavailable or fails, so it cannot cover the live 3D scene");
 assert.ok(scyllaHelicopter.includes("holds.fire=true;fire();"), "fire controls must respond to a quick tap, not only a sustained hold");
 assert.ok(scyllaHelicopter.includes("NO TARGET IN FORWARD ACQUISITION CONE"), "target-lock control must report unsuccessful acquisition");
 assert.ok(scyllaHelicopter.includes("function releaseStick(){"), "missing safe stick-release handler used during focus loss");
@@ -455,7 +455,7 @@ const renderStartAt = scyllaHelicopter.indexOf("requestAnimationFrame(beginRende
 const fullscreenRequestAt = scyllaHelicopter.indexOf("if(screen.requestFullscreen&&!document.fullscreenElement)");
 assert.ok(renderStartAt >= 0 && fullscreenRequestAt > renderStartAt, "terrain render loop must start before and independently of fullscreen permission");
 assert.ok(scyllaHelicopter.includes("fullscreenRequest=screen.requestFullscreen()"), "missing optional fullscreen request after renderer startup");
-assert.ok(scyllaHelicopter.includes("drawTerrainFallback(w,h);ctx.restore();"), "terrain mesh fallback must draw even when WebGL initializes without visible pixels");
+assert.ok(scyllaHelicopter.includes("if(!terrainReady){ctx.save();ctx.globalAlpha=1;drawTerrainFallback(w,h);ctx.restore();}"), "WebGL terrain must remain unobscured while the 2D fallback remains available on failure");
 assert.ok(scyllaHelicopter.includes("pitch*.65-.22"), "terrain camera must pitch down toward the ground plane");
 assert.ok(scyllaHelicopter.includes("terrainViewportHeight=Math.max(240,window.innerHeight-306)"), "helicopter terrain viewport must receive a nonzero desktop height");
 
