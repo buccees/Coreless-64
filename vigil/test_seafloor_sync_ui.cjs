@@ -455,6 +455,9 @@ const renderStartAt = scyllaHelicopter.indexOf("requestAnimationFrame(beginRende
 const fullscreenRequestAt = scyllaHelicopter.indexOf("if(screen.requestFullscreen&&!document.fullscreenElement)");
 assert.ok(renderStartAt >= 0 && fullscreenRequestAt > renderStartAt, "terrain render loop must start before and independently of fullscreen permission");
 assert.ok(scyllaHelicopter.includes("fullscreenRequest=screen.requestFullscreen()"), "missing optional fullscreen request after renderer startup");
+assert.ok(scyllaHelicopter.includes("drawTerrainFallback(w,h);ctx.restore();"), "terrain mesh fallback must draw even when WebGL initializes without visible pixels");
+assert.ok(scyllaHelicopter.includes("pitch*.65-.22"), "terrain camera must pitch down toward the ground plane");
+assert.ok(scyllaHelicopter.includes("terrainViewportHeight=Math.max(240,window.innerHeight-306)"), "helicopter terrain viewport must receive a nonzero desktop height");
 
 assert.ok(scyllaHelicopter.includes("deviceorientation"), "missing SCYLLA phone gyroscope input");
 assert.ok(scyllaHelicopter.includes("requestPermission"), "missing phone motion permission flow");
