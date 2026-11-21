@@ -60,11 +60,11 @@ assert.ok(scyllaHelicopter.includes("fallbackCanvas.style.cssText='position:abso
 assert.ok(scyllaHelicopter.includes("terrainCanvas.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;z-index:2"), "WebGL terrain must sit above fallback layer");
 assert.ok(scyllaHelicopter.includes("canvas.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;z-index:3"), "flight HUD overlay must sit above both terrain layers");
 assert.ok(scyllaHelicopter.includes("if(drawError!==gl.NO_ERROR)throw new Error('WebGL draw error '+drawError)"), "WebGL draw errors must be detected rather than reported as live");
-assert.ok(scyllaHelicopter.includes("WEBGL '+(visible?'PIXELS VISIBLE':'NO TERRAIN PIXELS')+' // "), "terrain status must report actual framebuffer pixel visibility and real viewport dimensions");
+assert.ok(scyllaHelicopter.includes("WEBGL '+(visible?'TERRAIN PIXELS '+visiblePixels+'/25':'NO TERRAIN PIXELS')+' // "), "terrain status must report actual framebuffer pixel visibility and real viewport dimensions");
 assert.ok(scyllaHelicopter.includes("Math.floor(rect.width||window.innerWidth)"), "WebGL viewport width must come from the actual stage rather than the canvas minimum");
 assert.ok(scyllaHelicopter.includes("Math.floor(rect.height||window.innerHeight-306)"), "WebGL viewport height must come from the actual stage rather than a small backing-buffer fallback");
-assert.ok(scyllaHelicopter.includes("gl.readPixels(Math.floor(bw*.5),Math.floor(bh*.5),1,1,gl.RGBA,gl.UNSIGNED_BYTE,sample)"), "terrain renderer must verify actual framebuffer pixels");
-assert.ok(scyllaHelicopter.includes("if(!terrainVisible)ctx.drawImage(fallbackCanvas,0,0,w,h)"), "when WebGL produces no visible center pixel, render the terrain scene on the visible cockpit canvas");
+assert.ok(scyllaHelicopter.includes("for(var sy=1;sy<=5;sy++){for(var sx=1;sx<=5;sx++){gl.readPixels(Math.floor(bw*sx/6),Math.floor(bh*sy/6),1,1,gl.RGBA,gl.UNSIGNED_BYTE,sample)"), "terrain renderer must verify actual framebuffer pixels");
+assert.ok(scyllaHelicopter.includes("if(!terrainVisible)ctx.drawImage(fallbackCanvas,0,0)"), "when WebGL produces no visible center pixel, render the terrain scene on the visible cockpit canvas");
 assert.ok(scyllaHelicopter.includes("function drawTerrainFallback(w,h)"), "missing 2D terrain fallback when WebGL is unavailable");
 assert.ok(scyllaHelicopter.includes("var fallbackCanvas=document.createElement('canvas');fallbackCanvas.id='scylla-heli-terrain-fallback'"), "must provide an independent visible terrain fallback layer beneath WebGL");
 assert.ok(scyllaHelicopter.includes("holds.fire=true;fire();"), "fire controls must respond to a quick tap, not only a sustained hold");
