@@ -12,6 +12,12 @@
 
 If the embedded view is not displayed by your Markdown renderer, use the [live website link](https://buccees.github.io/Coreless-64/) directly. GitHub's README renderer may sanitize iframe elements; the website itself is published separately through the repository's GitHub Pages workflow.
 
+## Mobile Creator Studio
+
+The phone-first Creator Studio workspace is available at `creator-studio-mobile.html` when the VIGIL Pages branch is deployed. It is linked from the Coreless-64 navigation as **AI CREATOR**.
+
+The current mobile phase provides an install-free browser interface for drafting image prompts, creating adult character profiles, and saving or exporting a local library on the device. It does not yet run image/video models or the 3D character renderer; those are intentionally deferred. Saved content stays in the browser's local storage unless the user exports a backup.
+
 ## Current verified checkpoint — 2026-10-24
 
 The latest carrier workflow has passed its QEMU/UEFI boot and simulated power-cycle recovery checks. The recovery fixture verified all three exact values after the second boot:

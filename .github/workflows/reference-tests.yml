@@ -50,3 +50,5 @@ jobs:
         run: node vigil/test_seafloor_sync_ui.cjs
       - name: Validate VIGIL spherical water-world topology
         run: node vigil/test_planetary_topology.cjs
+      - name: Validate mobile Creator Studio interface and local library
+        run: node vigil/test_creator_studio_mobile.cjs

@@ -6,6 +6,7 @@ on:
       - vigil-spatial-awareness
     paths:
       - "index.html"
+      - "creator-studio-mobile.html"
       - "vigil-scylla-helicopter.js"
       - "vigil-mech-garage.js"
       - "vigil-mech-3d-view.js"
@@ -22,6 +23,7 @@ on:
       - "vigil-celestial-world-view.js"
       - "vigil/test-nirn-coupled-world.cjs"
       - "vigil/test_seafloor_sync_ui.cjs"
+      - "vigil/test_creator_studio_mobile.cjs"
       - "vigil/test-nirn-gravity.cjs"
       - "rd/plague/**"
       - "daedalus-mothership.js"
@@ -57,6 +59,7 @@ jobs:
           set -eux
           mkdir -p site/rd/plague
           cp index.html site/index.html
+          cp creator-studio-mobile.html site/creator-studio-mobile.html
           cp vigil-mech-garage.js site/vigil-mech-garage.js
           cp vigil-mech-3d-view.js site/vigil-mech-3d-view.js
           cp vigil-scylla-helicopter.js site/vigil-scylla-helicopter.js
@@ -80,6 +83,7 @@ jobs:
           cp operator-display.html site/operator-display.html
           if [ -d assets ]; then cp -R assets site/assets; fi
           test -s site/index.html
+          test -s site/creator-studio-mobile.html
           test -s site/vigil-mech-garage.js
           test -s site/vigil-mech-3d-view.js
           test -s site/vigil-scylla-helicopter.js
@@ -127,6 +131,9 @@ jobs:
             site/daedalus-rd-integration.js; do
             node --check "$script"
           done
+
+      - name: Test mobile Creator Studio interface and local character library
+        run: node vigil/test_creator_studio_mobile.cjs
 
       - name: Test per-vehicle 3D pilot launch routing and sensor-view contracts
         run: node vigil/test_seafloor_sync_ui.cjs
