@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07110e">
+<meta name="description" content="Coreless-64 mobile creator workspace for adult fictional characters and consenting adult character concepts.">
+<title>CORELESS-64 // MOBILE CREATOR STUDIO</title>
+<style>
+:root{color-scheme:dark;--bg:#07110e;--panel:#0d1b16;--panel2:#10231b;--line:#285b43;--green:#52d99b;--mint:#a4f4ce;--gold:#eac77b;--text:#e3f4eb;--muted:#91b5a1;--red:#ff8d86}
+*{box-sizing:border-box}
+html{min-height:100%;background:var(--bg);scroll-behavior:smooth}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -20%,#173e2c 0,transparent 55%),var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:0 0 calc(86px + env(safe-area-inset-bottom))}
+button,input,textarea,select{font:inherit}
+button{touch-action:manipulation}
+.app-header{position:sticky;top:0;z-index:10;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;background:#07110eeF;border-bottom:1px solid var(--line);backdrop-filter:blur(14px)}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:760px;margin:auto}
+.brand-name{font-weight:850;letter-spacing:.12em;font-size:14px;color:var(--mint)}
+.brand-sub{font-size:10px;letter-spacing:.16em;color:var(--muted);margin-top:2px}
+.exit-link{color:var(--gold);text-decoration:none;border:1px solid var(--line);padding:7px 10px;border-radius:9px;font-size:12px;white-space:nowrap}
+main{width:min(100%,760px);margin:0 auto;padding:18px 14px 26px}
+.hero{padding:7px 2px 14px}
+.eyebrow{font-size:10px;letter-spacing:.2em;color:var(--green);font-weight:800}
+h1{font-size:clamp(25px,7vw,37px);line-height:1.08;margin:8px 0;color:#f1fff7;letter-spacing:-.035em}
+.hero p{color:var(--muted);margin:8px 0 0;font-size:13px;max-width:54ch}
+.status{display:flex;align-items:center;gap:8px;background:#211d12;border:1px solid #745d2d;color:#f2d898;padding:10px 12px;border-radius:11px;font-size:11px;margin:12px 0 17px}
+.led{width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 9px #eac77b80;flex:0 0 auto}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:0 0 14px}
+.tab{border:1px solid var(--line);border-radius:10px;background:#0a1711;color:var(--muted);padding:12px 5px;font-size:12px;font-weight:750;letter-spacing:.04em}
+.tab[aria-selected=true]{background:#163525;color:var(--mint);border-color:var(--green);box-shadow:inset 0 -2px var(--green)}
+.view[hidden]{display:none}
+.card{background:linear-gradient(150deg,#10231b,#0a1711);border:1px solid var(--line);border-radius:15px;padding:15px;margin:0 0 12px;box-shadow:0 10px 28px #0003}
+.card h2{font-size:16px;margin:0 0 4px;color:#effff5}
+.card .help{font-size:12px;color:var(--muted);margin:0 0 14px}
+.field{margin:13px 0}
+label{display:block;color:var(--mint);font-size:11px;font-weight:750;letter-spacing:.08em;margin:0 0 6px}
+input[type=text],input[type=number],textarea,select{width:100%;color:var(--text);background:#07110e;border:1px solid #315f49;border-radius:9px;padding:12px 11px;outline:none;min-height:46px}
+textarea{resize:vertical;min-height:112px}
+input:focus,textarea:focus,select:focus{border-color:var(--green);box-shadow:0 0 0 3px #52d99b20}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.choice-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.choice{position:relative}
+.choice input{position:absolute;opacity:0;pointer-events:none}
+.choice span{display:flex;justify-content:center;align-items:center;text-align:center;min-height:45px;padding:8px;border:1px solid #315f49;border-radius:9px;background:#07110e;color:var(--muted);font-size:12px}
+.choice input:checked+span{border-color:var(--green);color:var(--mint);background:#123020}
+.checkline{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid #5b4928;border-radius:10px;background:#201c12;color:#e6d5aa;font-size:12px}
+.checkline input{margin-top:3px;accent-color:var(--green);width:17px;height:17px;flex:0 0 auto}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:15px}
+.btn{border:1px solid var(--green);border-radius:10px;background:#163d29;color:#eafff2;padding:12px 10px;min-height:47px;font-weight:800;font-size:12px;letter-spacing:.045em}
+.btn.secondary{background:#0a1711;border-color:#42664e;color:var(--mint)}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.notice{border-left:3px solid var(--gold);padding:9px 11px;background:#19180f;border-radius:0 8px 8px 0;color:#ddcfa7;font-size:11px;margin-top:12px}
+.metric-row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #1c3b2b;font-size:12px}
+.metric-row:last-child{border-bottom:0}
+.metric-row span{color:var(--muted)}
+.metric-row strong{color:var(--mint);text-align:right}
+.item{border:1px solid #315f49;background:#07110e;border-radius:11px;padding:12px;margin:9px 0}
+.item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.item h3{font-size:13px;margin:0;color:var(--mint)}
+.item p{font-size:12px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}
+.item-actions{display:flex;gap:7px;flex-wrap:wrap}
+.small-btn{border:1px solid #42664e;background:#0d1b16;color:var(--mint);border-radius:7px;padding:7px 9px;font-size:11px}
+.empty{color:var(--muted);font-size:13px;text-align:center;padding:25px 10px;border:1px dashed #315f49;border-radius:11px}
+footer{max-width:760px;margin:18px auto 0;padding:0 14px;color:#779b87;font-size:10px;text-align:center}
+.bottom-nav{position:fixed;z-index:20;left:0;right:0;bottom:0;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:#07110ef2;border-top:1px solid var(--line);backdrop-filter:blur(14px);display:flex;justify-content:center}
+.bottom-nav a{color:var(--muted);font-size:11px;text-decoration:none;padding:7px 10px}
+.toast{position:fixed;z-index:50;left:50%;bottom:calc(83px + env(safe-area-inset-bottom));transform:translate(-50%,12px);opacity:0;pointer-events:none;background:#dfffee;color:#092015;padding:10px 14px;border-radius:10px;font-size:12px;font-weight:750;transition:.18s;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(min-width:620px){main{padding-top:26px}.card{padding:19px}.tabs{gap:10px}.tab{font-size:13px}}
+@media(max-width:360px){.two{grid-template-columns:1fr}.actions{grid-template-columns:1fr}.brand-name{font-size:12px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="app-header">
+ <div class="brand">
+  <div><div class="brand-name">CORELESS-64 // CREATOR</div><div class="brand-sub">MOBILE WORKSPACE · VIGIL INTERFACE</div></div>
+  <a class="exit-link" href="./index.html">CORELESS HOME</a>
+ </div>
+</header>
+<main>
+ <section class="hero">
+  <div class="eyebrow">PERSONAL CREATIVE WORKSPACE</div>
+  <h1>Creator Studio<br>Mobile</h1>
+  <p>Build adult character concepts and save image-generation briefs from your phone. Your saved work stays in this browser on this device.</p>
+ </section>
+ <div class="status" role="status"><span class="led"></span><span><strong>MOBILE WORKSPACE READY</strong> · AI GENERATION ENGINE NOT CONNECTED</span></div>
+ <div class="tabs" role="tablist" aria-label="Creator Studio sections">
+  <button class="tab" type="button" role="tab" id="tab-create" aria-controls="view-create" aria-selected="true">CREATE</button>
+  <button class="tab" type="button" role="tab" id="tab-character" aria-controls="view-character" aria-selected="false">CHARACTER</button>
+  <button class="tab" type="button" role="tab" id="tab-library" aria-controls="view-library" aria-selected="false">LIBRARY</button>
+ </div>
+
+ <section class="view" id="view-create" role="tabpanel" aria-labelledby="tab-create">
+  <div class="card">
+   <h2>New image brief</h2>
+   <p class="help">Prepare and save a detailed prompt. Image generation will be connected in a later phase.</p>
+   <div class="field"><label for="brief-title">PROJECT TITLE</label><input id="brief-title" type="text" maxlength="70" placeholder="e.g. Character portrait 01"></div>
+   <div class="field"><label>OUTPUT TYPE</label><div class="choice-row">
+    <label class="choice"><input type="radio" name="output" value="Portrait image" checked><span>IMAGE · PORTRAIT</span></label>
+    <label class="choice"><input type="radio" name="output" value="Full-body image"><span>IMAGE · FULL BODY</span></label>
+   </div></div>
+   <div class="field"><label for="brief-prompt">CHARACTER / SCENE DESCRIPTION</label><textarea id="brief-prompt" maxlength="5000" placeholder="Describe the fictional adult character, setting, lighting, pose, camera angle, and visual style."></textarea></div>
+   <div class="two">
+    <div class="field"><label for="brief-style">VISUAL STYLE</label><select id="brief-style"><option>Photorealistic</option><option>Cinematic realism</option><option>3D character render</option><option>Stylized illustration</option><option>Fantasy concept art</option></select></div>
+    <div class="field"><label for="brief-framing">FRAMING</label><select id="brief-framing"><option>Head and shoulders</option><option>Waist-up</option><option>Full length</option><option>Character close-up</option></select></div>
+   </div>
+   <label class="checkline"><input type="checkbox" id="adult-confirm"><span>I confirm that every depicted character is an adult. Any real person's likeness or reference will be used only with their explicit permission.</span></label>
+   <div class="actions">
+    <button class="btn" type="button" id="save-brief">SAVE IMAGE BRIEF</button>
+    <button class="btn secondary" type="button" id="copy-brief">COPY PROMPT</button>
+   </div>
+   <div class="notice">This is the mobile interface only. It does not generate or upload images yet. The generation engine, 3D renderer, and video tools are deferred for the later build.</div>
+  </div>
+ </section>
+
+ <section class="view" id="view-character" role="tabpanel" aria-labelledby="tab-character" hidden>
+  <div class="card">
+   <h2>Character profile</h2>
+   <p class="help">Save reusable fictional adult character descriptions for future image and 3D workflows.</p>
+   <div class="field"><label for="char-name">CHARACTER NAME</label><input id="char-name" type="text" maxlength="60" placeholder="Character name"></div>
+   <div class="two">
+    <div class="field"><label for="char-age">AGE · ADULT ONLY</label><input id="char-age" type="number" min="18" max="99" value="25"></div>
+    <div class="field"><label for="char-build">BUILD</label><select id="char-build"><option>Average</option><option>Lean</option><option>Athletic</option><option>Curvy</option><option>Muscular</option></select></div>
+   </div>
+   <div class="two">
+    <div class="field"><label for="char-hair">HAIR</label><input id="char-hair" type="text" maxlength="70" placeholder="Color and style"></div>
+    <div class="field"><label for="char-eyes">EYES</label><input id="char-eyes" type="text" maxlength="50" placeholder="Color"></div>
+   </div>
+   <div class="field"><label for="char-description">DISTINGUISHING DETAILS</label><textarea id="char-description" maxlength="3000" placeholder="Describe facial features, proportions, clothing, accessories, and other design details."></textarea></div>
+   <div class="actions">
+    <button class="btn" type="button" id="save-character">SAVE CHARACTER</button>
+    <button class="btn secondary" type="button" id="character-to-brief">USE IN IMAGE BRIEF</button>
+   </div>
+   <div class="notice">3D body customization, rigging, facial animation, and motion controls are planned for a later phase.</div>
+  </div>
+ </section>
+
+ <section class="view" id="view-library" role="tabpanel" aria-labelledby="tab-library" hidden>
+  <div class="card">
+   <h2>On-device library</h2>
+   <p class="help">Saved character profiles and image briefs are stored in this browser's local storage. They are not uploaded to GitHub or a server.</p>
+   <div class="metric-row"><span>Saved characters</span><strong id="character-count">0</strong></div>
+   <div class="metric-row"><span>Saved image briefs</span><strong id="brief-count">0</strong></div>
+   <div id="library-content"><div class="empty">Nothing saved yet. Create a character or image brief to begin.</div></div>
+   <div class="actions"><button class="btn secondary" type="button" id="export-library">EXPORT BACKUP</button><button class="btn secondary" type="button" id="clear-library">CLEAR LOCAL LIBRARY</button></div>
+  </div>
+ </section>
+ <footer>CORELESS-64 · MOBILE CREATOR WORKSPACE · LOCAL BROWSER STORAGE</footer>
+</main>
+<nav class="bottom-nav" aria-label="Creator Studio navigation"><a href="./index.html">← CORELESS-64 CONTROL ROOM</a></nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+(function(){
+ 'use strict';
+ var STORAGE_KEY='coreless64.creator.mobile.v1';
+ var state=readState();
+ var toastTimer;
+ function readState(){try{var v=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');return{briefs:Array.isArray(v.briefs)?v.briefs:[],characters:Array.isArray(v.characters)?v.characters:[]};}catch(e){return{briefs:[],characters:[]};}}
+ function persist(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));return true;}catch(e){notify('Browser storage is full or unavailable. Export or remove saved items.');return false;}}
+ function notify(message){var t=document.getElementById('toast');t.textContent=message;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show');},2300);}
+ function esc(value){return String(value==null?'':value).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+ function showTab(name){['create','character','library'].forEach(function(key){var active=key===name;document.getElementById('view-'+key).hidden=!active;document.getElementById('tab-'+key).setAttribute('aria-selected',String(active));});if(name==='library')renderLibrary();}
+ ['create','character','library'].forEach(function(key){document.getElementById('tab-'+key).addEventListener('click',function(){showTab(key);});});
+ function currentPrompt(){var output=document.querySelector('input[name="output"]:checked');var parts=['Project: '+(document.getElementById('brief-title').value.trim()||'Untitled'), 'Format: '+(output?output.value:'Portrait image'),'Style: '+document.getElementById('brief-style').value,'Framing: '+document.getElementById('brief-framing').value,'Description: '+document.getElementById('brief-prompt').value.trim()];return parts.join('\n');}
+ function authorized(){if(!document.getElementById('adult-confirm').checked){notify('Confirm adult characters and permission for any real-person likeness first.');return false;}if(!document.getElementById('brief-prompt').value.trim()){notify('Add a character or scene description first.');return false;}return true;}
+ document.getElementById('save-brief').addEventListener('click',function(){if(!authorized())return;state.briefs.unshift({id:Date.now(),title:document.getElementById('brief-title').value.trim()||'Untitled image brief',prompt:currentPrompt(),created:new Date().toISOString()});if(persist()){notify('Image brief saved on this device.');document.getElementById('brief-title').value='';}});
+ document.getElementById('copy-brief').addEventListener('click',async function(){if(!authorized())return;try{await navigator.clipboard.writeText(currentPrompt());notify('Prompt copied.');}catch(e){notify('Clipboard access is unavailable in this browser.');}});
+ document.getElementById('save-character').addEventListener('click',function(){var age=Number(document.getElementById('char-age').value);var name=document.getElementById('char-name').value.trim();if(!name){notify('Enter a character name.');return;}if(!Number.isInteger(age)||age<18||age>99){notify('Character age must be 18 or older.');return;}var c={id:Date.now(),name:name,age:age,build:document.getElementById('char-build').value,hair:document.getElementById('char-hair').value.trim(),eyes:document.getElementById('char-eyes').value.trim(),description:document.getElementById('char-description').value.trim(),created:new Date().toISOString()};state.characters.unshift(c);if(persist()){notify('Adult character profile saved.');}});
+ document.getElementById('character-to-brief').addEventListener('click',function(){var name=document.getElementById('char-name').value.trim();if(!name){notify('Add a character name first.');return;}var details=[name+', age '+document.getElementById('char-age').value,document.getElementById('char-build').value+' build',document.getElementById('char-hair').value,document.getElementById('char-eyes').value,document.getElementById('char-description').value].filter(Boolean).join(', ');document.getElementById('brief-prompt').value=details;showTab('create');notify('Character details added to the image brief.');});
+ function renderLibrary(){document.getElementById('character-count').textContent=state.characters.length;document.getElementById('brief-count').textContent=state.briefs.length;var host=document.getElementById('library-content');if(!state.characters.length&&!state.briefs.length){host.innerHTML='<div class="empty">Nothing saved yet. Create a character or image brief to begin.</div>';return;}var html='';state.characters.forEach(function(c){html+='<article class="item"><div class="item-head"><h3>CHARACTER · '+esc(c.name)+' · AGE '+esc(c.age)+'</h3></div><p>'+esc([c.build,c.hair,c.eyes,c.description].filter(Boolean).join(' · '))+'</p><div class="item-actions"><button class="small-btn" data-copy-character="'+c.id+'">COPY PROFILE</button><button class="small-btn" data-delete-character="'+c.id+'">DELETE</button></div></article>';});state.briefs.forEach(function(b){html+='<article class="item"><div class="item-head"><h3>IMAGE BRIEF · '+esc(b.title)+'</h3></div><p>'+esc(b.prompt)+'</p><div class="item-actions"><button class="small-btn" data-copy-brief="'+b.id+'">COPY PROMPT</button><button class="small-btn" data-delete-brief="'+b.id+'">DELETE</button></div></article>';});host.innerHTML=html;}
+ document.getElementById('library-content').addEventListener('click',async function(e){var t=e.target;if(!(t instanceof HTMLElement))return;var id;if((id=t.getAttribute('data-delete-character'))){state.characters=state.characters.filter(function(x){return String(x.id)!==id;});persist();renderLibrary();notify('Character deleted.');return;}if((id=t.getAttribute('data-delete-brief'))){state.briefs=state.briefs.filter(function(x){return String(x.id)!==id;});persist();renderLibrary();notify('Image brief deleted.');return;}if((id=t.getAttribute('data-copy-character'))){var c=state.characters.find(function(x){return String(x.id)===id;});if(c){try{await navigator.clipboard.writeText([c.name+', age '+c.age,c.build,c.hair,c.eyes,c.description].filter(Boolean).join(', '));notify('Character profile copied.');}catch(err){notify('Clipboard access is unavailable.');}}return;}if((id=t.getAttribute('data-copy-brief'))){var b=state.briefs.find(function(x){return String(x.id)===id;});if(b){try{await navigator.clipboard.writeText(b.prompt);notify('Prompt copied.');}catch(err){notify('Clipboard access is unavailable.');}}}});
+ document.getElementById('export-library').addEventListener('click',function(){var blob=new Blob([JSON.stringify({format:'coreless64-creator-mobile-v1',exported:new Date().toISOString(),data:state},null,2)],{type:'application/json'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='coreless-creator-library.json';a.click();URL.revokeObjectURL(url);notify('Library backup exported.');});
+ document.getElementById('clear-library').addEventListener('click',function(){if(!window.confirm('Delete all locally saved characters and briefs from this browser? This cannot be undone.'))return;state={briefs:[],characters:[]};persist();renderLibrary();notify('Local library cleared.');});
+ renderLibrary();
+})();
+</script>
+</body>
+</html>
