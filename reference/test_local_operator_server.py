@@ -636,3 +636,64 @@ def test_operator_crew_identity_has_safe_single_operator_default(monkeypatch):
     monkeypatch.delenv("CORELESS_OPERATOR_CREW_ID", raising=False)
     _, context = LocalSessions().create()
     assert context.crew_id == "local-operator-crew"
+
+
+def test_creator_studio_media_api_authenticates_and_serves_generated_assets(tmp_path):
+    class FakeMedia:
+        def status(self):
+            return {"connected": True, "image_ready": True, "video_ready": False}
+
+        def submit_image(self, **kwargs):
+            self.kwargs = kwargs
+            return {"job_id": "a" * 32, "status": "queued"}
+
+        def get_job(self, job_id):
+            return {"job_id": job_id, "status": "completed", "asset_id": "b" * 32} if job_id == "a" * 32 else None
+
+        def list_assets(self):
+            return [{"asset_id": "b" * 32, "title": "Generated image"}]
+
+        def read_asset(self, asset_id):
+            return (b"image-bytes", "image/png", "generated.png") if asset_id == "b" * 32 else None
+
+    page = tmp_path / "operator-display.html"
+    page.write_text("operator", encoding="utf-8")
+    creator = tmp_path / "creator-studio-mobile.html"
+    creator.write_text("creator studio", encoding="utf-8")
+    media = FakeMedia()
+    app = create_lan_app(
+        password="a-strong-test-password-123", page_path=page,
+        creator_page_path=creator, creator_media_runtime=media,
+        system=CorelessSystem(storage_path=tmp_path / "owned-machine.img"),
+    )
+
+    response, body = _request(app, "/creator-studio")
+    assert response["status"] == "200 OK" and body == b"creator studio"
+    response, body = _request(app, "/api/creator/status")
+    assert response["status"] == "401 Unauthorized"
+
+    response, _ = _request(
+        app, "/api/operator/login", method="POST",
+        body=json.dumps({"password": "a-strong-test-password-123"}).encode(),
+        origin="https://127.0.0.1:8443",
+    )
+    token = response["headers"]["Set-Cookie"].split(";", 1)[0]
+    response, body = _request(app, "/api/creator/status", cookie=token)
+    assert response["status"] == "200 OK" and json.loads(body)["image_ready"] is True
+
+    payload = json.dumps({"prompt": "A cinematic village", "model": "photo.safetensors"}).encode()
+    response, _ = _request(app, "/api/creator/images", method="POST", cookie=token,
+                           origin="https://attacker.invalid", body=payload)
+    assert response["status"] == "403 Forbidden"
+    response, body = _request(app, "/api/creator/images", method="POST", cookie=token,
+                              origin="https://127.0.0.1:8443", body=payload)
+    assert response["status"] == "202 Accepted"
+    assert json.loads(body)["job_id"] == "a" * 32
+
+    response, body = _request(app, "/api/creator/jobs/" + "a" * 32, cookie=token)
+    assert response["status"] == "200 OK" and json.loads(body)["status"] == "completed"
+    response, body = _request(app, "/api/creator/assets", cookie=token)
+    assert response["status"] == "200 OK" and json.loads(body)["assets"][0]["asset_id"] == "b" * 32
+    response, body = _request(app, "/api/creator/assets/" + "b" * 32, cookie=token)
+    assert response["status"] == "200 OK" and body == b"image-bytes"
+    assert response["headers"]["Content-Type"] == "image/png"

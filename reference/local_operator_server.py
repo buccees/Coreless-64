@@ -135,12 +135,21 @@ def create_lan_app(
     artifact_verified_survey_registry=None,
     artifact_sinking_validator=None,
     artifact_sinking_registry=None,
+    creator_page_path: Path | None = None,
+    creator_media_runtime=None,
 ):
     if not isinstance(password, str) or len(password) < 16:
         raise ValueError("CORELESS_OPERATOR_PASSWORD must contain at least 16 characters")
     page = page_path or ROOT / "operator-display.html"
     if not page.is_file():
         raise FileNotFoundError(page)
+
+    creator_page = creator_page_path or ROOT / "creator-studio-mobile.html"
+    if not creator_page.is_file():
+        raise FileNotFoundError(creator_page)
+    if creator_media_runtime is None:
+        from ai.media_runtime import CreatorMediaRuntime
+        creator_media_runtime = CreatorMediaRuntime.from_environment()
 
     if not isinstance(system, CorelessSystem):
         raise TypeError("system must be the active CorelessSystem instance")
@@ -219,6 +228,18 @@ def create_lan_app(
             ])
             return [body]
 
+        if path in ("/creator-studio", "/creator-studio/", "/creator-studio-mobile.html") and method == "GET":
+            body = creator_page.read_bytes()
+            start_response("200 OK", [
+                ("Content-Type", "text/html; charset=utf-8"),
+                ("Content-Length", str(len(body))),
+                ("Cache-Control", "no-store"),
+                ("X-Content-Type-Options", "nosniff"),
+                ("Referrer-Policy", "no-referrer"),
+                ("Content-Security-Policy", "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"),
+            ])
+            return [body]
+
         if path == "/api/operator/login":
             if method != "POST":
                 return _json(start_response, "405 Method Not Allowed", {"error": "method_not_allowed"}, [("Allow", "POST")])
@@ -264,6 +285,95 @@ def create_lan_app(
                 "authenticated": context is not None,
                 "expires_in": SESSION_TTL_SECONDS if context is not None else 0,
             })
+
+        if path == "/api/creator/status":
+            if method != "GET":
+                return _json(start_response, "405 Method Not Allowed", {"error": "method_not_allowed"}, [("Allow", "GET")])
+            if context is None:
+                return _json(start_response, "401 Unauthorized", {"error": "unauthorized"})
+            try:
+                return _json(start_response, "200 OK", creator_media_runtime.status())
+            except Exception:
+                return _json(start_response, "503 Service Unavailable", {"error": "creator_media_status_unavailable"})
+
+        if path == "/api/creator/images":
+            if method != "POST":
+                return _json(start_response, "405 Method Not Allowed", {"error": "method_not_allowed"}, [("Allow", "POST")])
+            if context is None:
+                return _json(start_response, "401 Unauthorized", {"error": "unauthorized"})
+            origin = environ.get("HTTP_ORIGIN")
+            expected_origin = "https://" + environ.get("HTTP_HOST", "")
+            if not origin or origin != expected_origin:
+                return _json(start_response, "403 Forbidden", {"error": "origin_not_allowed"})
+            try:
+                length = int(environ.get("CONTENT_LENGTH") or "0")
+                if length < 1 or length > 12000:
+                    raise ValueError("invalid body size")
+                payload = json.loads(environ["wsgi.input"].read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("request body must be a JSON object")
+                result = creator_media_runtime.submit_image(
+                    prompt=payload.get("prompt"), model=payload.get("model", ""),
+                    negative_prompt=payload.get("negative_prompt", "blurry, low detail, distorted anatomy, artifacts, text, watermark"),
+                    width=payload.get("width", 1024), height=payload.get("height", 1024),
+                    steps=payload.get("steps", 30), cfg=payload.get("cfg", 6.5),
+                )
+            except (ValueError, TypeError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+                return _json(start_response, "400 Bad Request", {"error": "invalid_payload", "detail": str(exc)})
+            except RuntimeError as exc:
+                return _json(start_response, "503 Service Unavailable", {"error": "creator_media_unavailable", "detail": str(exc)})
+            except Exception:
+                return _json(start_response, "503 Service Unavailable", {"error": "creator_media_submission_failed"})
+            return _json(start_response, "202 Accepted", result)
+
+        if path.startswith("/api/creator/jobs/"):
+            if method != "GET":
+                return _json(start_response, "405 Method Not Allowed", {"error": "method_not_allowed"}, [("Allow", "GET")])
+            if context is None:
+                return _json(start_response, "401 Unauthorized", {"error": "unauthorized"})
+            job_id = path[len("/api/creator/jobs/"):]
+            if not job_id or "/" in job_id:
+                return _json(start_response, "404 Not Found", {"error": "not_found"})
+            try:
+                job = creator_media_runtime.get_job(job_id)
+            except Exception:
+                return _json(start_response, "503 Service Unavailable", {"error": "creator_job_status_unavailable"})
+            if job is None:
+                return _json(start_response, "404 Not Found", {"error": "not_found"})
+            return _json(start_response, "200 OK", job)
+
+        if path == "/api/creator/assets":
+            if method != "GET":
+                return _json(start_response, "405 Method Not Allowed", {"error": "method_not_allowed"}, [("Allow", "GET")])
+            if context is None:
+                return _json(start_response, "401 Unauthorized", {"error": "unauthorized"})
+            try:
+                return _json(start_response, "200 OK", {"assets": creator_media_runtime.list_assets()})
+            except Exception:
+                return _json(start_response, "503 Service Unavailable", {"error": "creator_asset_library_unavailable"})
+
+        if path.startswith("/api/creator/assets/"):
+            if method != "GET":
+                return _json(start_response, "405 Method Not Allowed", {"error": "method_not_allowed"}, [("Allow", "GET")])
+            if context is None:
+                return _json(start_response, "401 Unauthorized", {"error": "unauthorized"})
+            asset_id = path[len("/api/creator/assets/"):]
+            if not asset_id or "/" in asset_id:
+                return _json(start_response, "404 Not Found", {"error": "not_found"})
+            try:
+                asset = creator_media_runtime.read_asset(asset_id)
+            except Exception:
+                return _json(start_response, "503 Service Unavailable", {"error": "creator_asset_unavailable"})
+            if asset is None:
+                return _json(start_response, "404 Not Found", {"error": "not_found"})
+            raw, content_type, filename = asset
+            start_response("200 OK", [
+                ("Content-Type", content_type), ("Content-Length", str(len(raw))),
+                ("Content-Disposition", f'inline; filename="{filename}"'),
+                ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"),
+                ("Referrer-Policy", "no-referrer"),
+            ])
+            return [raw]
 
         if path == "/api/vigil/alerts/acknowledge":
             if method != "POST":
@@ -501,6 +611,8 @@ def serve_lan(
     artifact_verified_survey_registry=None,
     artifact_sinking_validator=None,
     artifact_sinking_registry=None,
+    creator_page_path: Path | None = None,
+    creator_media_runtime=None,
 ) -> None:
     """Serve the operator display against the caller's already-running machine.
 
@@ -523,6 +635,8 @@ def serve_lan(
             artifact_verified_survey_registry=artifact_verified_survey_registry,
             artifact_sinking_validator=artifact_sinking_validator,
             artifact_sinking_registry=artifact_sinking_registry,
+            creator_page_path=creator_page_path,
+            creator_media_runtime=creator_media_runtime,
         ),
         server_class=WSGIServer,
         handler_class=QuietHandler,

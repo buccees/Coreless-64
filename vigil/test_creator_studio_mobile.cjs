@@ -8,8 +8,11 @@ const html = fs.readFileSync('creator-studio-mobile.html', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 
 assert.match(html, /<meta name="viewport" content="width=device-width,initial-scale=1/);
-assert.match(html, /MOBILE WORKSPACE READY/);
-assert.match(html, /AI GENERATION ENGINE NOT CONNECTED/);
+assert.match(html, /id="media-status"/);
+assert.match(html, /id="generate-image"/);
+assert.match(html, /id="operator-login-form"/);
+assert.match(html, /api\\/creator\\/status/);
+assert.doesNotMatch(html, /Image generation will be connected in a later phase/);
 assert.match(html, /localStorage/);
 assert.match(html, /min="18"/);
 assert.match(html, /id="char-consent"/);
