@@ -11,7 +11,7 @@ assert.match(html, /<meta name="viewport" content="width=device-width,initial-sc
 assert.match(html, /id="media-status"/);
 assert.match(html, /id="generate-image"/);
 assert.match(html, /id="operator-login-form"/);
-assert.match(html, /api\\/creator\\/status/);
+assert.ok(html.includes('/api/creator/status'));
 assert.doesNotMatch(html, /Image generation will be connected in a later phase/);
 assert.match(html, /localStorage/);
 assert.match(html, /min="18"/);
