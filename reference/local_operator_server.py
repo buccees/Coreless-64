@@ -326,6 +326,37 @@ def create_lan_app(
                 return _json(start_response, "503 Service Unavailable", {"error": "creator_media_submission_failed"})
             return _json(start_response, "202 Accepted", result)
 
+        if path == "/api/creator/videos":
+            if method != "POST":
+                return _json(start_response, "405 Method Not Allowed", {"error": "method_not_allowed"}, [("Allow", "POST")])
+            if context is None:
+                return _json(start_response, "401 Unauthorized", {"error": "unauthorized"})
+            origin = environ.get("HTTP_ORIGIN")
+            expected_origin = "https://" + environ.get("HTTP_HOST", "")
+            if not origin or origin != expected_origin:
+                return _json(start_response, "403 Forbidden", {"error": "origin_not_allowed"})
+            try:
+                length = int(environ.get("CONTENT_LENGTH") or "0")
+                if length < 1 or length > 12000:
+                    raise ValueError("invalid body size")
+                payload = json.loads(environ["wsgi.input"].read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("request body must be a JSON object")
+                result = creator_media_runtime.submit_video(
+                    prompt=payload.get("prompt"),
+                    negative_prompt=payload.get("negative_prompt", "flicker, jitter, warped motion, distorted anatomy, artifacts, text, watermark"),
+                    width=payload.get("width", 640), height=payload.get("height", 360),
+                    frames=payload.get("frames", 81), fps=payload.get("fps", 16),
+                    steps=payload.get("steps", 30), cfg=payload.get("cfg", 5.0),
+                )
+            except (ValueError, TypeError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+                return _json(start_response, "400 Bad Request", {"error": "invalid_payload", "detail": str(exc)})
+            except RuntimeError as exc:
+                return _json(start_response, "503 Service Unavailable", {"error": "creator_video_unavailable", "detail": str(exc)})
+            except Exception:
+                return _json(start_response, "503 Service Unavailable", {"error": "creator_video_submission_failed"})
+            return _json(start_response, "202 Accepted", result)
+
         if path.startswith("/api/creator/jobs/"):
             if method != "GET":
                 return _json(start_response, "405 Method Not Allowed", {"error": "method_not_allowed"}, [("Allow", "GET")])

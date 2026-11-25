@@ -647,8 +647,16 @@ def test_creator_studio_media_api_authenticates_and_serves_generated_assets(tmp_
             self.kwargs = kwargs
             return {"job_id": "a" * 32, "status": "queued"}
 
+        def submit_video(self, **kwargs):
+            self.video_kwargs = kwargs
+            return {"job_id": "c" * 32, "status": "queued", "media_type": "video"}
+
         def get_job(self, job_id):
-            return {"job_id": job_id, "status": "completed", "asset_id": "b" * 32} if job_id == "a" * 32 else None
+            if job_id == "a" * 32:
+                return {"job_id": job_id, "status": "completed", "asset_id": "b" * 32}
+            if job_id == "c" * 32:
+                return {"job_id": job_id, "status": "completed", "asset_id": "d" * 32, "media_type": "video"}
+            return None
 
         def list_assets(self):
             return [{"asset_id": "b" * 32, "title": "Generated image"}]
@@ -692,6 +700,22 @@ def test_creator_studio_media_api_authenticates_and_serves_generated_assets(tmp_
 
     response, body = _request(app, "/api/creator/jobs/" + "a" * 32, cookie=token)
     assert response["status"] == "200 OK" and json.loads(body)["status"] == "completed"
+
+    response, _ = _request(app, "/api/creator/videos", method="POST", body=payload)
+    assert response["status"] == "401 Unauthorized"
+    response, _ = _request(app, "/api/creator/videos", method="POST", cookie=token,
+                           origin="https://attacker.invalid", body=payload)
+    assert response["status"] == "403 Forbidden"
+    video_payload = json.dumps({"prompt": "A cinematic drone shot", "width": 640,
+                                 "height": 360, "frames": 81, "fps": 16}).encode()
+    response, body = _request(app, "/api/creator/videos", method="POST", cookie=token,
+                              origin="https://127.0.0.1:8443", body=video_payload)
+    assert response["status"] == "202 Accepted"
+    assert json.loads(body)["media_type"] == "video"
+    assert media.video_kwargs["frames"] == 81
+    response, body = _request(app, "/api/creator/jobs/" + "c" * 32, cookie=token)
+    assert response["status"] == "200 OK" and json.loads(body)["media_type"] == "video"
+
     response, body = _request(app, "/api/creator/assets", cookie=token)
     assert response["status"] == "200 OK" and json.loads(body)["assets"][0]["asset_id"] == "b" * 32
     response, body = _request(app, "/api/creator/assets/" + "b" * 32, cookie=token)
