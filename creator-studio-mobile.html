@@ -118,6 +118,10 @@ footer{max-width:760px;margin:18px auto 0;padding:0 14px;color:#779b87;font-size
    </div>
    <label class="checkline"><input type="checkbox" id="adult-confirm"><span>I confirm that every depicted character is an adult. Any real person's likeness or reference will be used only with their explicit permission.</span></label>
    <div class="field"><label for="image-size">IMAGE RESOLUTION</label><select id="image-size"><option value="1024x1024">1024 × 1024 · SQUARE</option><option value="1024x1536">1024 × 1536 · PORTRAIT</option><option value="1536x1024">1536 × 1024 · LANDSCAPE</option></select></div>
+   <div class="field"><label for="video-size">VIDEO RESOLUTION</label><select id="video-size"><option value="640x360">640 × 360 · HD PREVIEW</option><option value="768x432">768 × 432 · WIDE</option><option value="1024x576">1024 × 576 · HIGH DETAIL</option></select></div>
+   <div class="field"><label for="video-frames">VIDEO LENGTH · 16 FPS</label><select id="video-frames"><option value="81">5 SECONDS</option><option value="121">7.5 SECONDS</option><option value="161">10 SECONDS</option></select></div>
+   <div class="actions"><button class="btn" type="button" id="generate-video" disabled>GENERATE REAL VIDEO</button></div>
+   <p class="help">Video becomes available only after a valid local ComfyUI video workflow is configured and verified. Generated output must be a playable MP4 or WebM.</p>
    <div class="actions">
     <button class="btn" type="button" id="generate-image" disabled>GENERATE REAL IMAGE</button>
     <button class="btn secondary" type="button" id="save-brief">SAVE IMAGE BRIEF</button>
@@ -185,7 +189,7 @@ footer{max-width:760px;margin:18px auto 0;padding:0 14px;color:#779b87;font-size
  function currentPrompt(){var output=document.querySelector('input[name="output"]:checked');var parts=['Project: '+(document.getElementById('brief-title').value.trim()||'Untitled'), 'Format: '+(output?output.value:'Portrait image'),'Style: '+document.getElementById('brief-style').value,'Framing: '+document.getElementById('brief-framing').value,'Description: '+document.getElementById('brief-prompt').value.trim()];return parts.join('\n');}
  function authorized(){if(!document.getElementById('adult-confirm').checked){notify('Confirm adult characters and permission for any real-person likeness first.');return false;}if(!document.getElementById('brief-prompt').value.trim()){notify('Add a character or scene description first.');return false;}return true;}
 
- var corelessMediaAuthenticated=false, corelessImageReady=false;
+ var corelessMediaAuthenticated=false, corelessImageReady=false, corelessVideoReady=false;
  function mediaMessage(message){document.getElementById('engine-detail').textContent=message;}
  async function creatorApi(path,options){
   var response=await fetch(path,Object.assign({credentials:'same-origin',headers:{'Accept':'application/json'}},options||{}));
@@ -193,7 +197,7 @@ footer{max-width:760px;margin:18px auto 0;padding:0 14px;color:#779b87;font-size
   if(!response.ok)throw new Error(data.detail||data.error||('HTTP '+response.status));
   return data;
  }
- function updateImageButton(){document.getElementById('generate-image').disabled=!(corelessMediaAuthenticated&&corelessImageReady);}
+ function updateImageButton(){document.getElementById('generate-image').disabled=!(corelessMediaAuthenticated&&corelessImageReady);document.getElementById('generate-video').disabled=!(corelessMediaAuthenticated&&corelessVideoReady);}
  async function checkCorelessMedia(){
   try{
    var session=await creatorApi('/api/operator/session');
@@ -202,7 +206,7 @@ footer{max-width:760px;margin:18px auto 0;padding:0 14px;color:#779b87;font-size
    document.getElementById('operator-logout').disabled=!corelessMediaAuthenticated;
    document.getElementById('operator-password').disabled=corelessMediaAuthenticated;
    if(!corelessMediaAuthenticated){
-    corelessImageReady=false;updateImageButton();
+    corelessImageReady=false;corelessVideoReady=false;updateImageButton();
     document.getElementById('media-status-text').textContent='CORELESS SERVER FOUND · SIGN IN';
     mediaMessage('Sign in with the Coreless local operator password to check its image worker.');
     document.getElementById('image-model').disabled=true;return;
@@ -214,12 +218,13 @@ footer{max-width:760px;margin:18px auto 0;padding:0 14px;color:#779b87;font-size
    if(!choices.length){var none=document.createElement('option');none.value='';none.textContent='No installed image model/workflow';select.appendChild(none);}
    if(status.selected_image_model)select.value=status.selected_image_model;
    corelessImageReady=status.connected===true&&status.image_ready===true;
+   corelessVideoReady=status.connected===true&&status.video_ready===true;
    select.disabled=!corelessImageReady;updateImageButton();
-   document.getElementById('media-status-text').textContent=corelessImageReady?'CORELESS CONNECTED · IMAGE MODEL READY · VIDEO NOT CONNECTED':(status.connected?'WORKER ONLINE · IMAGE MODEL NOT READY':'CORELESS MEDIA ENGINE NOT CONNECTED');
-   mediaMessage(status.detail||'Media engine status received.');
+   document.getElementById('media-status-text').textContent=corelessImageReady&&corelessVideoReady?'CORELESS CONNECTED · IMAGE + VIDEO READY':(corelessImageReady?'CORELESS CONNECTED · IMAGE READY · VIDEO WORKFLOW NOT CONFIGURED':(status.connected?'WORKER ONLINE · IMAGE MODEL NOT READY':'CORELESS MEDIA ENGINE NOT CONNECTED'));
+   mediaMessage([status.detail,status.video_detail].filter(Boolean).join(' ')||'Media engine status received.');
    if(corelessMediaAuthenticated)await loadCorelessAssets();
   }catch(error){
-   corelessMediaAuthenticated=false;corelessImageReady=false;updateImageButton();
+   corelessMediaAuthenticated=false;corelessImageReady=false;corelessVideoReady=false;updateImageButton();
    document.getElementById('media-status-text').textContent='CORELESS LOCAL SERVER NOT REACHABLE';
    document.getElementById('operator-login').disabled=false;document.getElementById('operator-logout').disabled=true;
    document.getElementById('operator-password').disabled=false;document.getElementById('image-model').disabled=true;
@@ -228,16 +233,19 @@ footer{max-width:760px;margin:18px auto 0;padding:0 14px;color:#779b87;font-size
  }
  async function loadCorelessAssets(){
   var host=document.getElementById('media-library-content');
-  if(!corelessMediaAuthenticated){host.textContent='Sign in to load generated images.';return;}
+  if(!corelessMediaAuthenticated){host.textContent='Sign in to load generated media.';return;}
   try{
    var data=await creatorApi('/api/creator/assets');host.textContent='';
-   if(!Array.isArray(data.assets)||!data.assets.length){var empty=document.createElement('div');empty.className='empty';empty.textContent='No generated images saved yet.';host.appendChild(empty);return;}
+   if(!Array.isArray(data.assets)||!data.assets.length){var empty=document.createElement('div');empty.className='empty';empty.textContent='No generated media saved yet.';host.appendChild(empty);return;}
    data.assets.forEach(function(asset){
     var item=document.createElement('article');item.className='item';
-    var image=document.createElement('img');image.src='/api/creator/assets/'+encodeURIComponent(asset.asset_id);image.alt=asset.title||'Generated image';image.style.width='100%';image.style.maxHeight='360px';image.style.objectFit='contain';
-    var title=document.createElement('p');title.textContent=(asset.title||'Generated image')+' · '+(asset.model||'Local model');
-    var link=document.createElement('a');link.href=image.src;link.download=asset.filename||'coreless-generated-image';link.textContent='OPEN / SAVE IMAGE';
-    item.appendChild(image);item.appendChild(title);item.appendChild(link);host.appendChild(item);
+    var url='/api/creator/assets/'+encodeURIComponent(asset.asset_id);
+    var isVideo=asset.media_type==='video'||String(asset.content_type||'').indexOf('video/')===0;
+    var media=document.createElement(isVideo?'video':'img');media.src=url;media.alt=asset.title||'Generated '+(isVideo?'video':'image');media.style.width='100%';media.style.maxHeight='360px';media.style.objectFit='contain';
+    if(isVideo){media.controls=true;media.playsInline=true;media.preload='metadata';}
+    var title=document.createElement('p');title.textContent=(asset.title||'Generated media')+' · '+(asset.model||'Local model');
+    var link=document.createElement('a');link.href=url;link.download=asset.filename||'coreless-generated-media';link.textContent=isVideo?'OPEN / SAVE VIDEO':'OPEN / SAVE IMAGE';
+    item.appendChild(media);item.appendChild(title);item.appendChild(link);host.appendChild(item);
    });
   }catch(error){host.textContent='Unable to load generated media: '+error.message;}
  }
@@ -247,16 +255,19 @@ footer{max-width:760px;margin:18px auto 0;padding:0 14px;color:#779b87;font-size
    if(job.status==='completed'&&job.asset_id){
     var host=document.getElementById('generated-preview');host.textContent='';
     var url='/api/creator/assets/'+encodeURIComponent(job.asset_id);
-    var image=document.createElement('img');image.src=url;image.alt='Generated image';image.style.width='100%';image.style.height='auto';host.appendChild(image);
-    var link=document.createElement('a');link.href=url;link.download='coreless-generated-image';link.textContent='OPEN / SAVE GENERATED IMAGE';host.appendChild(link);
-    document.getElementById('generation-progress').textContent='IMAGE GENERATED AND SAVED TO CORELESS ASSET LIBRARY.';
-    await loadCorelessAssets();notify('Real image generated by Coreless.');return;
+    var isVideo=job.media_type==='video';
+    var media=document.createElement(isVideo?'video':'img');media.src=url;media.alt='Generated '+(isVideo?'video':'image');media.style.width='100%';media.style.height='auto';
+    if(isVideo){media.controls=true;media.playsInline=true;media.preload='metadata';}
+    host.appendChild(media);
+    var link=document.createElement('a');link.href=url;link.download=isVideo?'coreless-generated-video':'coreless-generated-image';link.textContent=isVideo?'OPEN / SAVE GENERATED VIDEO':'OPEN / SAVE GENERATED IMAGE';host.appendChild(link);
+    document.getElementById('generation-progress').textContent=(isVideo?'VIDEO':'IMAGE')+' GENERATED AND SAVED TO CORELESS ASSET LIBRARY.';
+    await loadCorelessAssets();notify('Real '+(isVideo?'video':'image')+' generated by Coreless.');return;
    }
-   if(job.status==='failed'){document.getElementById('generation-progress').textContent=job.error||'Image generation failed.';return;}
+   if(job.status==='failed'){document.getElementById('generation-progress').textContent=job.error||'Media generation failed.';return;}
    if(attempt>=300){document.getElementById('generation-progress').textContent='Worker has not completed within 10 minutes. Check the local worker.';return;}
-   document.getElementById('generation-progress').textContent='IMAGE JOB '+String(job.status||'queued').toUpperCase()+' · WAITING FOR CORELESS WORKER';
+   document.getElementById('generation-progress').textContent=String(job.media_type||'IMAGE').toUpperCase()+' JOB '+String(job.status||'queued').toUpperCase()+' · WAITING FOR CORELESS WORKER';
    window.setTimeout(function(){checkImageJob(jobId,attempt+1);},2000);
-  }catch(error){document.getElementById('generation-progress').textContent='Could not retrieve image job: '+error.message;}
+  }catch(error){document.getElementById('generation-progress').textContent='Could not retrieve media job: '+error.message;}
  }
  document.getElementById('operator-login-form').addEventListener('submit',async function(event){
   event.preventDefault();
@@ -269,7 +280,7 @@ footer{max-width:760px;margin:18px auto 0;padding:0 14px;color:#779b87;font-size
  });
  document.getElementById('operator-logout').addEventListener('click',async function(){
   try{await creatorApi('/api/operator/logout',{method:'POST'});}catch(error){}
-  corelessMediaAuthenticated=false;corelessImageReady=false;updateImageButton();
+  corelessMediaAuthenticated=false;corelessImageReady=false;corelessVideoReady=false;updateImageButton();
   document.getElementById('operator-login').disabled=false;document.getElementById('operator-logout').disabled=true;
   document.getElementById('operator-password').disabled=false;document.getElementById('image-model').disabled=true;
   document.getElementById('media-status-text').textContent='SIGNED OUT · MEDIA ENGINE LOCKED';
@@ -287,6 +298,20 @@ footer{max-width:760px;margin:18px auto 0;padding:0 14px;color:#779b87;font-size
    })});
    checkImageJob(job.job_id,0);
   }catch(error){document.getElementById('generation-progress').textContent='IMAGE REQUEST FAILED · '+error.message;}
+  finally{updateImageButton();}
+ });
+ document.getElementById('generate-video').addEventListener('click',async function(){
+  if(!authorized())return;
+  if(!corelessMediaAuthenticated||!corelessVideoReady){notify('Connect Coreless and configure a video workflow first.');return;}
+  var size=document.getElementById('video-size').value.split('x').map(Number);
+  var button=document.getElementById('generate-video');button.disabled=true;
+  document.getElementById('generation-progress').textContent='SUBMITTING VIDEO JOB TO CORELESS…';
+  try{
+   var job=await creatorApi('/api/creator/videos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    prompt:currentPrompt(),width:size[0],height:size[1],frames:Number(document.getElementById('video-frames').value),fps:16,steps:30,cfg:5.0
+   })});
+   checkImageJob(job.job_id,0);
+  }catch(error){document.getElementById('generation-progress').textContent='VIDEO REQUEST FAILED · '+error.message;}
   finally{updateImageButton();}
  });
  document.getElementById('refresh-media-library').addEventListener('click',loadCorelessAssets);

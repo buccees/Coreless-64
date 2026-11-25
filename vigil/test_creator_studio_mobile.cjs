@@ -10,6 +10,8 @@ const index = fs.readFileSync('index.html', 'utf8');
 assert.match(html, /<meta name="viewport" content="width=device-width,initial-scale=1/);
 assert.match(html, /id="media-status"/);
 assert.match(html, /id="generate-image"/);
+assert.match(html, /id="generate-video"/);
+assert.ok(html.includes('/api/creator/videos'));
 assert.match(html, /id="operator-login-form"/);
 assert.ok(html.includes('/api/creator/status'));
 assert.doesNotMatch(html, /Image generation will be connected in a later phase/);

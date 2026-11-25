@@ -161,10 +161,21 @@ def test_worker_generates_and_persists_video_asset(tmp_path, monkeypatch):
 def test_video_workflow_requires_supported_output_node(tmp_path, monkeypatch):
     workflow_path = tmp_path / "video-workflow.json"
     workflow_path.write_text(json.dumps({"1": {"class_type": "KSampler", "inputs": {}}}), encoding="utf-8")
+
+    def fake_urlopen(request, timeout=0):
+        parsed = urlsplit(request.full_url)
+        if parsed.path == "/system_stats":
+            return FakeResponse(json.dumps({"system": {"os": "test"}}).encode())
+        if parsed.path == "/models/checkpoints":
+            return FakeResponse(json.dumps(["photo-checkpoint.safetensors"]).encode())
+        raise AssertionError("video workflow should be rejected before submission")
+
+    monkeypatch.setattr("ai.media_runtime.urlopen", fake_urlopen)
     runtime = CreatorMediaRuntime(
         endpoint="http://127.0.0.1:8188", library_dir=tmp_path,
         video_workflow_path=workflow_path,
     )
+    assert runtime.status()["connected"] is True
     assert runtime.status()["video_ready"] is False
     with pytest.raises(RuntimeError, match="video workflow"):
         runtime.submit_video(prompt="test")
