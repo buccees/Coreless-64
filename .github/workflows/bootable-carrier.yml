@@ -91,7 +91,7 @@ jobs:
             done
           fi
           if [[ ! -s "$OVMF_VARS" ]]; then
-            OVMF_VARS="$(find /usr/share /usr/lib -type f \\( -iname 'OVMF_VARS_4M*.fd' -o -iname 'OVMF_VARS.fd' \\) -print -quit 2>/dev/null || true)"
+            OVMF_VARS="$(find /usr/share /usr/lib -type f -iname 'OVMF_VARS*.fd' -print -quit 2>/dev/null || true)"
           fi
           if [[ -z "$OVMF_VARS" || ! -s "$OVMF_VARS" ]]; then
             echo "Compatible OVMF variable-store image not found for $OVMF_CODE" >&2
