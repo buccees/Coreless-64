@@ -176,6 +176,106 @@ class CreatorMediaRuntime:
             raise RuntimeError("video workflow must include a SaveVideo or VHS_VideoCombine output node")
         return workflow
 
+    def _workflow_preflight(self, workflow: dict) -> tuple[bool, str]:
+        """Validate local node availability and installed combo/model choices."""
+        if not isinstance(workflow, dict) or not workflow:
+            return False, "The configured workflow is empty."
+        missing_nodes = []
+        missing_inputs = []
+        unavailable_choices = []
+        hosted_nodes = []
+        checked = 0
+        for node_id, node in workflow.items():
+            if not isinstance(node, dict) or not isinstance(node.get("class_type"), str):
+                missing_nodes.append(str(node_id) + " (invalid node definition)")
+                continue
+            class_type = node["class_type"]
+            try:
+                response = self._json_request("GET", "/object_info/" + quote(class_type, safe=""))
+            except RuntimeError:
+                return False, "Could not inspect local worker node definitions."
+            info = response.get(class_type) if isinstance(response, dict) else None
+            if not isinstance(info, dict):
+                missing_nodes.append(class_type)
+                continue
+            checked += 1
+            if info.get("api_node") is True:
+                hosted_nodes.append(class_type)
+                continue
+            schema = info.get("input", {})
+            if not isinstance(schema, dict):
+                schema = {}
+            required = schema.get("required", {})
+            optional = schema.get("optional", {})
+            hidden = schema.get("hidden", {})
+            if not isinstance(required, dict):
+                required = {}
+            if not isinstance(optional, dict):
+                optional = {}
+            if not isinstance(hidden, dict):
+                hidden = {}
+            provided = node.get("inputs", {})
+            if not isinstance(provided, dict):
+                missing_inputs.append(class_type + " (inputs must be an object)")
+                continue
+            for input_name in required:
+                if input_name not in provided:
+                    missing_inputs.append(class_type + "." + input_name)
+            allowed_inputs = set(required) | set(optional) | set(hidden)
+            for input_name, value in provided.items():
+                if input_name not in allowed_inputs:
+                    missing_inputs.append(class_type + "." + input_name + " (unknown input)")
+                    continue
+                if isinstance(value, (list, dict)):
+                    continue
+                specification = required.get(input_name, optional.get(input_name, []))
+                choices = specification[0] if (
+                    isinstance(specification, list) and specification
+                    and isinstance(specification[0], list)
+                ) else None
+                if choices and value not in choices:
+                    unavailable_choices.append(str(value))
+        if missing_nodes:
+            return False, "Worker is missing required nodes: " + ", ".join(sorted(set(missing_nodes))[:8])
+        if hosted_nodes:
+            return False, "Local workflow cannot use hosted API nodes: " + ", ".join(sorted(set(hosted_nodes))[:6])
+        if missing_inputs:
+            return False, "Workflow inputs do not match the installed node versions: " + ", ".join(sorted(set(missing_inputs))[:8])
+        if unavailable_choices:
+            return False, "Install the model or node choice required by this workflow: " + ", ".join(sorted(set(unavailable_choices))[:8])
+        return True, "Local workflow preflight passed for " + str(checked) + " nodes."
+
+    @staticmethod
+    def _hardware_summary(stats: dict) -> dict:
+        devices = stats.get("devices", []) if isinstance(stats, dict) else []
+        hardware = []
+        if isinstance(devices, list):
+            for device in devices:
+                if not isinstance(device, dict):
+                    continue
+                total = device.get("vram_total")
+                free = device.get("vram_free")
+                entry = {
+                    "name": str(device.get("name") or device.get("type") or "Unknown device"),
+                    "type": str(device.get("type") or "unknown"),
+                }
+                if isinstance(total, (int, float)) and total > 0:
+                    entry["vram_total_gb"] = round(total / (1024 ** 3), 1)
+                if isinstance(free, (int, float)) and free >= 0:
+                    entry["vram_free_gb"] = round(free / (1024 ** 3), 1)
+                hardware.append(entry)
+        system = stats.get("system", {}) if isinstance(stats, dict) else {}
+        if not isinstance(system, dict):
+            system = {}
+        ram_total = system.get("ram_total")
+        return {
+            "comfyui_version": str(system.get("comfyui_version") or ""),
+            "pytorch_version": str(system.get("pytorch_version") or ""),
+            "ram_total_gb": round(ram_total / (1024 ** 3), 1)
+            if isinstance(ram_total, (int, float)) and ram_total > 0 else None,
+            "devices": hardware,
+        }
+
     def status(self) -> dict:
         try:
             stats = self._json_request("GET", "/system_stats")
@@ -190,31 +290,37 @@ class CreatorMediaRuntime:
             })
             custom = self._custom_workflow()
             selected = self.checkpoint or (names[0] if names else "")
-            ready = bool(selected and selected in names) or custom is not None
+            image_ready = bool(selected and selected in names)
+            image_detail = "Image checkpoint is installed." if image_ready else "No configured image checkpoint is installed."
+            if custom is not None:
+                image_ready, image_detail = self._workflow_preflight(custom)
             choices = [{"value": name, "label": name} for name in names]
             if custom is not None:
                 choices.insert(0, {"value": "__custom_workflow__", "label": "Configured custom workflow"})
             video_detail = "No configured ComfyUI video workflow is available."
             try:
-                video_ready = self._video_workflow() is not None
-                if video_ready:
-                    video_detail = "Video workflow is configured and ready."
+                video_workflow = self._video_workflow()
+                video_ready = False
+                if video_workflow is not None:
+                    video_ready, video_detail = self._workflow_preflight(video_workflow)
             except (RuntimeError, ValueError, OSError, json.JSONDecodeError):
                 video_ready = False
                 video_detail = "Configured video workflow is invalid or unreadable."
+            hardware = self._hardware_summary(stats)
             return {
                 "connected": True, "provider": "Coreless local media worker",
-                "worker": "ComfyUI", "image_ready": ready, "image_models": names,
+                "worker": "ComfyUI", "image_ready": image_ready, "image_models": names,
                 "image_choices": choices,
                 "selected_image_model": selected if selected in names else (
                     "__custom_workflow__" if custom is not None else ""
                 ),
                 "custom_workflow": custom is not None,
                 "video_ready": video_ready, "video_detail": video_detail,
+                "hardware": hardware,
                 "detail": (
-                    "Image and video generation are ready." if ready and video_ready else
-                    "Image generation is ready; video workflow is not configured." if ready else
-                    "Worker is online, but no configured image checkpoint or custom workflow is available."
+                    "Image and video generation are ready." if image_ready and video_ready else
+                    image_detail if not image_ready else
+                    "Image generation is ready; video workflow needs setup."
                 ),
                 "asset_count": len(self._assets),
             }
@@ -224,6 +330,7 @@ class CreatorMediaRuntime:
                 "worker": "ComfyUI", "image_ready": False, "image_models": [],
                 "image_choices": [], "selected_image_model": "", "custom_workflow": False,
                 "video_ready": False, "video_detail": "The local media worker is unavailable.",
+                "hardware": {"comfyui_version": "", "pytorch_version": "", "ram_total_gb": None, "devices": []},
                 "detail": "Start the configured local image/video worker to connect Creator Studio.",
                 "asset_count": len(self._assets),
             }
