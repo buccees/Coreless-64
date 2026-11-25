@@ -24,6 +24,7 @@ class CreatorMediaRuntime:
     def __init__(
         self, *, endpoint: str | None = None, library_dir: str | Path | None = None,
         checkpoint: str | None = None, workflow_path: str | Path | None = None,
+        video_workflow_path: str | Path | None = None, video_model: str | None = None,
         token: str | None = None, timeout: float = 12.0,
     ) -> None:
         self.endpoint = (endpoint or os.getenv(
@@ -44,6 +45,9 @@ class CreatorMediaRuntime:
         self.checkpoint = checkpoint or os.getenv("CORELESS_MEDIA_IMAGE_CHECKPOINT", "")
         configured_workflow = workflow_path or os.getenv("CORELESS_MEDIA_IMAGE_WORKFLOW", "")
         self.workflow_path = Path(configured_workflow).expanduser() if configured_workflow else None
+        configured_video_workflow = video_workflow_path or os.getenv("CORELESS_MEDIA_VIDEO_WORKFLOW", "")
+        self.video_workflow_path = Path(configured_video_workflow).expanduser() if configured_video_workflow else None
+        self.video_model = video_model or os.getenv("CORELESS_MEDIA_VIDEO_MODEL", "")
         self.token = token or os.getenv("CORELESS_MEDIA_ENGINE_TOKEN")
         self.timeout = max(1.0, float(timeout))
         self._lock = threading.RLock()
@@ -83,26 +87,28 @@ class CreatorMediaRuntime:
             raise RuntimeError("local image worker returned invalid JSON") from exc
 
     def _binary_request(self, path: str) -> tuple[bytes, str]:
-        headers = {"Accept": "image/png,image/jpeg,image/webp"}
+        headers = {"Accept": "image/png,image/jpeg,image/webp,video/mp4,video/webm"}
         if self.token:
             headers["Authorization"] = "Bearer " + self.token
         try:
-            with urlopen(Request(self.endpoint + path, headers=headers), timeout=max(self.timeout, 60.0)) as response:
+            with urlopen(Request(self.endpoint + path, headers=headers), timeout=max(self.timeout, 120.0)) as response:
                 content_type = response.headers.get_content_type()
-                data = response.read(100 * 1024 * 1024 + 1)
+                data = response.read(512 * 1024 * 1024 + 1)
         except HTTPError as exc:
-            raise RuntimeError("local worker could not return the generated image (HTTP " + str(exc.code) + ")") from exc
+            raise RuntimeError("local worker could not return generated media (HTTP " + str(exc.code) + ")") from exc
         except (URLError, TimeoutError, OSError) as exc:
-            raise RuntimeError("generated image could not be retrieved") from exc
-        if len(data) > 100 * 1024 * 1024:
-            raise RuntimeError("generated image exceeds the 100 MB limit")
+            raise RuntimeError("generated media could not be retrieved") from exc
+        if len(data) > 512 * 1024 * 1024:
+            raise RuntimeError("generated media exceeds the 512 MB limit")
         valid = (
             (content_type == "image/png" and data.startswith(b"\x89PNG\r\n\x1a\n"))
             or (content_type == "image/jpeg" and data.startswith(b"\xff\xd8\xff"))
             or (content_type == "image/webp" and data.startswith(b"RIFF") and data[8:12] == b"WEBP")
+            or (content_type == "video/mp4" and data[4:8] == b"ftyp")
+            or (content_type == "video/webm" and data.startswith(b"\x1a\x45\xdf\xa3"))
         )
         if not valid:
-            raise RuntimeError("local worker did not return a valid PNG, JPEG, or WebP image")
+            raise RuntimeError("local worker did not return a valid PNG, JPEG, WebP, MP4, or WebM file")
         return data, content_type
 
     def _load_index(self) -> None:
@@ -154,12 +160,28 @@ class CreatorMediaRuntime:
             return replacements[value]
         return value
 
+    def _video_workflow(self) -> dict | None:
+        if self.video_workflow_path is None or not self.video_workflow_path.is_file():
+            return None
+        workflow = json.loads(self.video_workflow_path.read_text(encoding="utf-8"))
+        if isinstance(workflow, dict) and isinstance(workflow.get("prompt"), dict):
+            workflow = workflow["prompt"]
+        if not isinstance(workflow, dict) or not workflow:
+            raise RuntimeError("configured video workflow must be a ComfyUI API prompt object")
+        output_types = {"SaveVideo", "VHS_VideoCombine"}
+        if not any(
+            isinstance(node, dict) and node.get("class_type") in output_types
+            for node in workflow.values()
+        ):
+            raise RuntimeError("video workflow must include a SaveVideo or VHS_VideoCombine output node")
+        return workflow
+
     def status(self) -> dict:
         try:
             stats = self._json_request("GET", "/system_stats")
             models = self._json_request("GET", "/models/checkpoints")
             if not isinstance(stats, dict) or not isinstance(models, list):
-                raise RuntimeError("local image worker returned an invalid status")
+                raise RuntimeError("local media worker returned an invalid status")
             names = sorted({
                 name if isinstance(name, str) else name.get("name")
                 for name in models
@@ -172,6 +194,14 @@ class CreatorMediaRuntime:
             choices = [{"value": name, "label": name} for name in names]
             if custom is not None:
                 choices.insert(0, {"value": "__custom_workflow__", "label": "Configured custom workflow"})
+            video_detail = "No configured ComfyUI video workflow is available."
+            try:
+                video_ready = self._video_workflow() is not None
+                if video_ready:
+                    video_detail = "Video workflow is configured and ready."
+            except (RuntimeError, ValueError, OSError, json.JSONDecodeError):
+                video_ready = False
+                video_detail = "Configured video workflow is invalid or unreadable."
             return {
                 "connected": True, "provider": "Coreless local media worker",
                 "worker": "ComfyUI", "image_ready": ready, "image_models": names,
@@ -180,10 +210,11 @@ class CreatorMediaRuntime:
                     "__custom_workflow__" if custom is not None else ""
                 ),
                 "custom_workflow": custom is not None,
-                "video_ready": False,
+                "video_ready": video_ready, "video_detail": video_detail,
                 "detail": (
-                    "Image worker and model workflow are ready."
-                    if ready else "Worker is online, but no configured image checkpoint or custom workflow is available."
+                    "Image and video generation are ready." if ready and video_ready else
+                    "Image generation is ready; video workflow is not configured." if ready else
+                    "Worker is online, but no configured image checkpoint or custom workflow is available."
                 ),
                 "asset_count": len(self._assets),
             }
@@ -192,8 +223,8 @@ class CreatorMediaRuntime:
                 "connected": False, "provider": "Coreless local media worker",
                 "worker": "ComfyUI", "image_ready": False, "image_models": [],
                 "image_choices": [], "selected_image_model": "", "custom_workflow": False,
-                "video_ready": False,
-                "detail": "Start the configured local image worker to connect Creator Studio.",
+                "video_ready": False, "video_detail": "The local media worker is unavailable.",
+                "detail": "Start the configured local image/video worker to connect Creator Studio.",
                 "asset_count": len(self._assets),
             }
 
@@ -270,6 +301,61 @@ class CreatorMediaRuntime:
             self._jobs[job_id] = job
         return {"job_id": job_id, "status": "queued", "seed": seed}
 
+    def submit_video(
+        self, *, prompt: str, negative_prompt: str = "flicker, jitter, warped motion, distorted anatomy, artifacts, text, watermark",
+        width: int = 640, height: int = 360, frames: int = 81, fps: int = 16,
+        steps: int = 30, cfg: float = 5.0,
+    ) -> dict:
+        if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 5000:
+            raise ValueError("prompt must contain 1 to 5000 characters")
+        if not isinstance(negative_prompt, str) or len(negative_prompt) > 2000:
+            raise ValueError("negative prompt must be 2000 characters or fewer")
+        if any(not isinstance(v, int) or v < 256 or v > 1536 or v % 16 for v in (width, height)):
+            raise ValueError("video dimensions must be multiples of 16 from 256 to 1536")
+        if not isinstance(frames, int) or not 9 <= frames <= 241:
+            raise ValueError("video frame count must be from 9 to 241")
+        if not isinstance(fps, int) or not 1 <= fps <= 60:
+            raise ValueError("video frame rate must be from 1 to 60")
+        if not isinstance(steps, int) or not 1 <= steps <= 100:
+            raise ValueError("video sampling steps must be from 1 to 100")
+        if not isinstance(cfg, (int, float)) or not 1 <= float(cfg) <= 20:
+            raise ValueError("video CFG must be from 1 to 20")
+        status = self.status()
+        if not status["connected"]:
+            raise RuntimeError(status["detail"])
+        if not status["video_ready"]:
+            raise RuntimeError(status["video_detail"])
+        base = self._video_workflow()
+        if base is None:
+            raise RuntimeError("configured video workflow is unavailable")
+        seed = secrets.randbelow(2**63 - 1)
+        workflow = self._replace_tokens(base, {
+            "__PROMPT__": prompt.strip(), "__NEGATIVE_PROMPT__": negative_prompt,
+            "__MODEL__": self.video_model, "__WIDTH__": width, "__HEIGHT__": height,
+            "__FRAMES__": frames, "__FPS__": fps, "__STEPS__": steps,
+            "__CFG__": float(cfg), "__SEED__": seed,
+            "__DURATION_SECONDS__": round((frames - 1) / fps, 3),
+        })
+        response = self._json_request("POST", "/prompt", {
+            "prompt": workflow, "client_id": "coreless-creator-studio",
+        })
+        prompt_id = response.get("prompt_id") if isinstance(response, dict) else None
+        if not isinstance(prompt_id, str) or not prompt_id:
+            details = response.get("node_errors") if isinstance(response, dict) else None
+            raise RuntimeError("local video worker rejected the workflow: " + (str(details)[:400] if details else "no prompt ID returned"))
+        job_id = uuid.uuid4().hex
+        job = {
+            "job_id": job_id, "prompt_id": prompt_id, "status": "queued",
+            "media_type": "video", "created": datetime.now(timezone.utc).isoformat(),
+            "prompt": prompt.strip(), "model": self.video_model or "Configured video workflow",
+            "width": width, "height": height, "frames": frames, "fps": fps,
+            "duration_seconds": round((frames - 1) / fps, 3), "steps": steps,
+            "cfg": float(cfg), "seed": seed, "asset_id": None,
+        }
+        with self._lock:
+            self._jobs[job_id] = job
+        return {"job_id": job_id, "status": "queued", "seed": seed}
+
     def get_job(self, job_id: str) -> dict | None:
         if not isinstance(job_id, str) or len(job_id) != 32 or any(c not in "0123456789abcdef" for c in job_id):
             return None
@@ -279,27 +365,49 @@ class CreatorMediaRuntime:
                 return None
             if job["status"] in ("completed", "failed"):
                 return dict(job)
+        media_type = job.get("media_type", "image")
         try:
             history = self._json_request("GET", "/history/" + quote(job["prompt_id"], safe=""))
             record = history.get(job["prompt_id"]) if isinstance(history, dict) else None
             if not isinstance(record, dict):
                 return dict(job)
             outputs = record.get("outputs")
-            image_info = None
+            media_info = None
+            allowed_extensions = {".mp4", ".webm"} if media_type == "video" else {".png", ".jpg", ".jpeg", ".webp"}
             if isinstance(outputs, dict):
                 for node in outputs.values():
-                    images = node.get("images") if isinstance(node, dict) else None
-                    if isinstance(images, list) and images and isinstance(images[0], dict):
-                        image_info = images[0]
+                    if not isinstance(node, dict):
+                        continue
+                    for output_key in ("images", "gifs", "videos", "files"):
+                        candidates = node.get(output_key)
+                        if not isinstance(candidates, list):
+                            continue
+                        for candidate in candidates:
+                            if not isinstance(candidate, dict):
+                                continue
+                            filename_value = candidate.get("filename")
+                            if isinstance(filename_value, str) and Path(filename_value).suffix.lower() in allowed_extensions:
+                                media_info = candidate
+                                break
+                        if media_info:
+                            break
+                    if media_info:
                         break
-            if image_info:
+            if media_info:
                 query = urlencode({
-                    "filename": str(image_info.get("filename", "")),
-                    "subfolder": str(image_info.get("subfolder", "")),
-                    "type": str(image_info.get("type", "output")),
+                    "filename": str(media_info.get("filename", "")),
+                    "subfolder": str(media_info.get("subfolder", "")),
+                    "type": str(media_info.get("type", "output")),
                 })
                 raw, content_type = self._binary_request("/view?" + query)
-                extension = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}[content_type]
+                extension = {
+                    "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp",
+                    "video/mp4": ".mp4", "video/webm": ".webm",
+                }[content_type]
+                if media_type == "video" and not content_type.startswith("video/"):
+                    raise RuntimeError("video workflow returned a non-video asset")
+                if media_type == "image" and not content_type.startswith("image/"):
+                    raise RuntimeError("image workflow returned a non-image asset")
                 asset_id = uuid.uuid4().hex
                 filename = asset_id + extension
                 self.library_dir.mkdir(parents=True, exist_ok=True)
@@ -307,9 +415,13 @@ class CreatorMediaRuntime:
                 now = datetime.now(timezone.utc).isoformat()
                 asset = {
                     "asset_id": asset_id, "filename": filename, "content_type": content_type,
-                    "title": "Generated image", "model": job["model"], "prompt": job["prompt"],
+                    "media_type": media_type, "title": "Generated " + media_type,
+                    "model": job["model"], "prompt": job["prompt"],
                     "width": job["width"], "height": job["height"], "seed": job["seed"], "created": now,
                 }
+                for key in ("frames", "fps", "duration_seconds"):
+                    if key in job:
+                        asset[key] = job[key]
                 with self._lock:
                     self._assets[asset_id] = asset
                     self._save_index()
@@ -317,11 +429,22 @@ class CreatorMediaRuntime:
                     job["asset_id"] = asset_id
                     job["completed"] = now
                     return dict(job)
-            status = record.get("status", {})
-            if isinstance(status, dict) and status.get("status_str") == "error":
+            worker_status = record.get("status", {})
+            status_name = worker_status.get("status_str") if isinstance(worker_status, dict) else None
+            completed = isinstance(worker_status, dict) and worker_status.get("completed") is True
+            if status_name == "error":
                 with self._lock:
                     job["status"] = "failed"
-                    job["error"] = "The image worker reported a generation error."
+                    job["error"] = "The local media worker reported a generation error."
+                    return dict(job)
+            if completed or status_name in ("success", "completed"):
+                with self._lock:
+                    job["status"] = "failed"
+                    job["error"] = (
+                        "The video workflow finished without a supported MP4 or WebM output."
+                        if media_type == "video" else
+                        "The image workflow finished without a supported image output."
+                    )
                     return dict(job)
             with self._lock:
                 job["status"] = "running"
@@ -329,7 +452,7 @@ class CreatorMediaRuntime:
         except (RuntimeError, OSError, ValueError):
             with self._lock:
                 job["status"] = "failed"
-                job["error"] = "Image generation failed while retrieving the worker result."
+                job["error"] = "Media generation failed while retrieving the worker result."
                 return dict(job)
 
     def list_assets(self) -> list[dict]:
