@@ -75,8 +75,8 @@ Every event contains:
 - ABI version;
 - event type;
 - device identifier;
-- monotonic timestamp;
-- sequence number;
+- monotonic timestamp (non-decreasing per device);
+- sequence number (strictly increasing per device);
 - coordinate frame;
 - optional x/y position;
 - optional contact identifier;

@@ -110,24 +110,70 @@ class CorelessComponent:
         return self._fault
 
     def isolate(self, reason: str) -> None:
-        """Place this component in a fault-isolated state without losing identity."""
+        """Fault-isolate the component and best-effort stop every execution boundary."""
         if not reason:
             raise ValueError("fault reason must not be empty")
         self._healthy = False
         self._fault = reason
-        if self.vm is not None:
-            try:
-                self.stop_vm()
-            except (RuntimeError, TypeError):
-                pass
+
+        # Isolation must continue even if one runtime refuses to stop; otherwise
+        # a broken VM/AI stop can prevent the remaining execution boundary closing.
+        cleanup = []
         if self.ai_runtime is not None:
+            cleanup.append(self.stop_ai)
+        if self.vm is not None:
+            cleanup.append(self.stop_vm)
+        if self.system is not None:
+            cleanup.append(self.system.shutdown)
+        for stop in cleanup:
             try:
-                self.stop_ai()
-            except (RuntimeError, TypeError):
+                stop()
+            except Exception:
                 pass
 
     def recover(self) -> None:
-        """Clear fault isolation while preserving component identity and bindings."""
+        """Recover only after every known execution boundary is stopped.
+
+        Isolation is best-effort because cleanup can fail. A later rejoin must
+        retry cleanup and must not make a component schedulable while a known
+        VM, AI runtime, or Coreless system is still running.
+        """
+        if self._healthy and self._fault is None:
+            return
+
+        failures: list[str] = []
+        cleanup: list[tuple[str, Callable[[], object]]] = []
+        if self.ai_runtime is not None:
+            cleanup.append(("AI runtime", self.stop_ai))
+        if self.vm is not None:
+            cleanup.append(("VM", self.stop_vm))
+        if self.system is not None:
+            cleanup.append(("Coreless system", self.system.shutdown))
+
+        for boundary, stop in cleanup:
+            try:
+                stop()
+            except Exception as exc:
+                failures.append(f"{boundary} stop raised {type(exc).__name__}")
+
+        # Do not rely only on return values: a buggy stop() can return while
+        # leaving its execution boundary active.
+        if self.ai_runtime is not None and bool(
+            getattr(self.ai_runtime, "running", False)
+        ):
+            failures.append("AI runtime remains running")
+        if self.vm is not None and bool(getattr(self.vm, "running", False)):
+            failures.append("VM remains running")
+        machine = getattr(self.system, "machine", None)
+        if machine is not None and bool(getattr(machine, "booted", False)):
+            failures.append("Coreless system remains booted")
+
+        if failures:
+            raise RuntimeError(
+                "cannot recover component until execution is stopped: "
+                + "; ".join(failures)
+            )
+
         self._healthy = True
         self._fault = None
 
@@ -169,29 +215,84 @@ class CorelessComponent:
         )
 
     def restore_identity(self) -> ComponentDescriptor:
-        """Restore and validate this component's persisted identity."""
+        """Validate and reapply this component's persisted identity."""
         if self.system is None:
             raise RuntimeError("component has no CorelessSystem")
-        raw = self.system.machine.storage.objects.get(self.persistence_key)
+        storage = getattr(self.system.machine, "storage", None)
+        objects = getattr(storage, "objects", None)
+        if not isinstance(objects, Mapping):
+            raise RuntimeError("component storage does not expose persisted objects")
+        raw = objects.get(self.persistence_key)
         if raw is None:
             raise KeyError(f"no persisted identity: {self.component_id}")
-        payload = json.loads(raw.decode("utf-8"))
+        try:
+            raw_text = raw if isinstance(raw, str) else bytes(raw).decode("utf-8")
+            payload = json.loads(raw_text)
+        except (TypeError, ValueError, UnicodeDecodeError) as exc:
+            raise ValueError("invalid Coreless component manifest JSON") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("invalid Coreless component manifest")
         if payload.get("version") != self.VERSION:
             raise ValueError("unsupported Coreless component manifest version")
-        descriptor = payload.get("descriptor")
-        if not isinstance(descriptor, dict):
+
+        persisted = payload.get("descriptor")
+        if not isinstance(persisted, dict):
             raise ValueError("invalid Coreless component descriptor")
-        if descriptor.get("component_id") != self.component_id:
+        component_id = persisted.get("component_id")
+        role = persisted.get("role")
+        capabilities = persisted.get("capabilities")
+        ai_model_id = persisted.get("ai_model_id")
+        vm_id = persisted.get("vm_id")
+        version = persisted.get("version")
+        capacity = persisted.get("capacity", 1)
+
+        if component_id != self.component_id:
             raise ValueError("persisted component identity mismatch")
-        return ComponentDescriptor(
-            component_id=descriptor["component_id"],
-            role=descriptor["role"],
-            capabilities=frozenset(descriptor["capabilities"]),
-            ai_model_id=descriptor.get("ai_model_id"),
-            vm_id=descriptor.get("vm_id"),
-            version=descriptor["version"],
-            capacity=descriptor.get("capacity", 1),
+        if not isinstance(role, str) or not role.strip():
+            raise ValueError("invalid persisted component role")
+        if (
+            not isinstance(capabilities, list)
+            or not all(isinstance(item, str) and item.strip() for item in capabilities)
+            or len(set(capabilities)) != len(capabilities)
+        ):
+            raise ValueError("invalid persisted component capabilities")
+        for name, value in (("ai_model_id", ai_model_id), ("vm_id", vm_id)):
+            if value is not None and (
+                not isinstance(value, str) or not value.strip()
+            ):
+                raise ValueError(f"invalid persisted component {name}")
+        if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+            raise ValueError("invalid persisted component descriptor version")
+        if isinstance(capacity, bool) or not isinstance(capacity, int) or capacity < 1:
+            raise ValueError("invalid persisted component capacity")
+
+        runtime_model_id = (
+            getattr(self.ai_runtime, "model_id", None)
+            if self.ai_runtime is not None else None
         )
+        if (
+            ai_model_id is not None
+            and runtime_model_id is not None
+            and runtime_model_id != ai_model_id
+        ):
+            raise ValueError(
+                "persisted AI model identity does not match bound runtime"
+            )
+
+        restored = ComponentDescriptor(
+            component_id=component_id,
+            role=role,
+            capabilities=frozenset(capabilities),
+            ai_model_id=ai_model_id,
+            vm_id=vm_id,
+            version=version,
+            capacity=capacity,
+        )
+        # Mutate the live descriptor only after the entire persisted record has
+        # validated. This keeps Hub discovery and dispatch capabilities in sync
+        # with the restored identity, without applying a partial/invalid record.
+        self.descriptor = restored
+        return restored
 
     def boot(self, init_path: str = "/init"):
         if self.system is None:
@@ -217,26 +318,46 @@ class CorelessComponent:
         return self
 
     def start_services(self) -> None:
-        """Start the component-local VM and AI services when they are bound."""
-        if self.vm is not None:
-            self.start_vm()
-        if self.ai_runtime is not None:
-            try:
+        """Start bound services, rolling back partial startup on failure.
+
+        Missing optional services are allowed; a bound service that cannot start
+        is an error so the Hub can report and roll back the failed lifecycle.
+        """
+        vm_started = False
+        try:
+            if self.vm is not None:
+                self.start_vm()
+                vm_started = True
+            if self.ai_runtime is not None:
                 self.start_ai()
-            except (RuntimeError, TypeError):
-                pass
+        except Exception:
+            # A runtime may partially start before raising, so attempt to stop it
+            # as well as any VM that was started earlier in this transaction.
+            if self.ai_runtime is not None:
+                try:
+                    self.stop_ai()
+                except Exception:
+                    pass
+            if vm_started:
+                try:
+                    self.stop_vm()
+                except Exception:
+                    pass
+            raise
 
     def stop_services(self) -> None:
         """Stop component-local AI and VM services without destroying identity."""
+        # Always attempt both boundaries; a failure stopping one service must
+        # not prevent cleanup of the other.
         if self.ai_runtime is not None:
             try:
                 self.stop_ai()
-            except (RuntimeError, TypeError):
+            except Exception:
                 pass
         if self.vm is not None:
             try:
                 self.stop_vm()
-            except (RuntimeError, TypeError):
+            except Exception:
                 pass
 
     def shutdown(self):
@@ -302,10 +423,32 @@ class CorelessComponent:
         }
 
 
+    def _reported_ai_model_id(self) -> object | None:
+        """Return a runtime-reported identity when the adapter exposes one."""
+        if self.ai_runtime is None:
+            return None
+        return getattr(self.ai_runtime, "model_id", None)
+
+    def _validate_ai_identity(self) -> None:
+        """Reject a bound runtime that contradicts the component's declared model."""
+        expected = self.descriptor.ai_model_id
+        reported = self._reported_ai_model_id()
+        # Some low-level adapters deliberately do not own model identity. Keep
+        # those compatible, but never ignore a conflicting identity when both
+        # sides provide one.
+        if expected is not None and reported is not None:
+            if not isinstance(reported, str) or not reported.strip():
+                raise ValueError("bound AI runtime reports an invalid model identity")
+            if reported != expected:
+                raise ValueError(
+                    "bound AI runtime model identity does not match component descriptor"
+                )
+
     def start_ai(self):
-        """Start this component's local AI runtime."""
+        """Start this component's local AI runtime after checking its identity."""
         if self.ai_runtime is None:
             raise RuntimeError("component has no Coreless AI runtime")
+        self._validate_ai_identity()
         starter = getattr(self.ai_runtime, "start", None)
         if callable(starter):
             starter()
@@ -337,10 +480,21 @@ class CorelessComponent:
                 "model_id": self.descriptor.ai_model_id,
                 "role": self.descriptor.role,
             }
+        runtime_model_id = self._reported_ai_model_id()
+        identity_match = None
+        if self.descriptor.ai_model_id is not None and runtime_model_id is not None:
+            identity_match = runtime_model_id == self.descriptor.ai_model_id
+        advertised_model_id = (
+            runtime_model_id
+            if isinstance(runtime_model_id, str) and runtime_model_id.strip()
+            else self.descriptor.ai_model_id
+        )
         return {
             "bound": True,
             "running": bool(getattr(self.ai_runtime, "running", False)),
-            "model_id": self.descriptor.ai_model_id,
+            "model_id": advertised_model_id,
+            "runtime_model_id": runtime_model_id,
+            "identity_match": identity_match,
             "role": self.descriptor.role,
         }
 
@@ -425,6 +579,10 @@ class CorelessHub:
         self.hypervisor = hypervisor
         self._components: dict[str, CorelessComponent] = {}
         self._ipc_channels: dict[tuple[str, str], int] = {}
+        # Track which VM incarnation each hub channel was granted to. Hypervisor
+        # VM destruction revokes native capabilities independently, so reusing
+        # the cached token after a component rebind would leave a dead channel.
+        self._ipc_bindings: dict[tuple[str, str], tuple[int, int]] = {}
         self._dispatch_load: dict[str, int] = {}
         self._dispatch_condition = threading.Condition()
 
@@ -510,6 +668,10 @@ class CorelessHub:
     def open_ipc(self, source_id: str, target_id: str, required: frozenset[str] | set[str] = frozenset()) -> int:
         """Authorize a VM-to-VM IPC channel after capability negotiation."""
         self.negotiate(source_id, target_id, required)
+        channel_key = (source_id, target_id)
+        # Reopening an existing channel is idempotent. Granting a second
+        # hypervisor capability and overwriting the first would orphan the
+        # original grant so close_ipc could no longer revoke it.
         if self.hypervisor is None:
             raise RuntimeError("hub has no Coreless Hypervisor")
         source = self.component(source_id)
@@ -518,74 +680,137 @@ class CorelessHub:
             raise RuntimeError("both components require bound VMs for IPC")
         source_vmid = int(source.vm.vmid)
         target_vmid = int(target.vm.vmid)
+        channel_key = (source_id, target_id)
+        binding = (source_vmid, target_vmid)
+
+        # Destroying a VM revokes capabilities inside the hypervisor, while the
+        # Hub's local cache is not notified. Preserve idempotence for the same
+        # VM pair, but revoke the cached entry and grant anew after rebind.
+        existing = self._ipc_channels.get(channel_key)
+        if existing is not None:
+            if self._ipc_bindings.get(channel_key) == binding:
+                vm_registry = getattr(self.hypervisor, "vms", None)
+                if (
+                    not isinstance(vm_registry, Mapping)
+                    or (
+                        source_vmid in vm_registry
+                        and target_vmid in vm_registry
+                        and vm_registry[source_vmid] is source.vm
+                        and vm_registry[target_vmid] is target.vm
+                    )
+                ):
+                    return existing
+            self.close_ipc(source_id, target_id)
+
+        vm_registry = getattr(self.hypervisor, "vms", None)
+        if isinstance(vm_registry, Mapping) and (
+            source_vmid not in vm_registry
+            or target_vmid not in vm_registry
+            or vm_registry[source_vmid] is not source.vm
+            or vm_registry[target_vmid] is not target.vm
+        ):
+            raise RuntimeError("both component VMs must be registered with the Hub hypervisor")
+
         capability = self.hypervisor.grant_ipc(source_vmid, target_vmid)
-        self._ipc_channels[(source_id, target_id)] = capability
+        self._ipc_channels[channel_key] = capability
+        self._ipc_bindings[channel_key] = binding
         return capability
 
     def close_ipc(self, source_id: str, target_id: str) -> None:
         """Revoke a previously negotiated VM-to-VM IPC channel."""
-        capability = self._ipc_channels.pop((source_id, target_id), None)
+        channel_key = (source_id, target_id)
+        capability = self._ipc_channels.pop(channel_key, None)
+        self._ipc_bindings.pop(channel_key, None)
         if capability is not None and self.hypervisor is not None:
             self.hypervisor.revoke_ipc(capability)
 
     def send_ipc(self, source_id: str, target_id: str, payload: bytes, *, source_vcpu: int = 0, target_vcpu: int = 0) -> None:
-        """Send data through an authorized hub IPC channel."""
+        """Send data only while the cached IPC grant matches current VM bindings."""
         if self.hypervisor is None:
             raise RuntimeError("hub has no Coreless Hypervisor")
-        capability = self._ipc_channels.get((source_id, target_id))
+        channel_key = (source_id, target_id)
+        capability = self._ipc_channels.get(channel_key)
         if capability is None:
             raise PermissionError("IPC channel has not been negotiated")
         source = self.component(source_id)
         target = self.component(target_id)
+        if source.vm is None or target.vm is None:
+            raise PermissionError("IPC channel requires both current component VMs")
+        binding = (int(source.vm.vmid), int(target.vm.vmid))
+        if self._ipc_bindings.get(channel_key) != binding:
+            raise PermissionError("IPC channel binding is stale; reopen the channel")
+
+        vm_registry = getattr(self.hypervisor, "vms", None)
+        if isinstance(vm_registry, Mapping) and (
+            binding[0] not in vm_registry
+            or binding[1] not in vm_registry
+            or vm_registry[binding[0]] is not source.vm
+            or vm_registry[binding[1]] is not target.vm
+        ):
+            raise PermissionError("IPC channel VMs are no longer registered")
+
         self.hypervisor.send_message(
-            int(source.vm.vmid), source_vcpu, int(target.vm.vmid), target_vcpu,
+            binding[0], source_vcpu, binding[1], target_vcpu,
             payload, capability=capability,
         )
 
 
     def boot(self, init_path: str = "/init") -> tuple[str, ...]:
-        """Boot all connected systems as one composed Coreless computer.
+        """Boot connected systems transactionally.
 
-        Components without a bound CorelessSystem remain autonomous and are
-        simply left untouched.
+        Components without a bound CorelessSystem remain autonomous. Every
+        component whose startup is attempted participates in rollback, including
+        the component whose system or service startup raises.
         """
-        started: list[CorelessComponent] = []
+        attempted: list[CorelessComponent] = []
+        booted: list[CorelessComponent] = []
         try:
             for component in self.components():
                 if not component.healthy:
                     continue
+                attempted.append(component)
                 if component.system is not None:
                     component.boot(init_path)
+                    booted.append(component)
                 component.start_services()
-                if component.system is not None:
-                    started.append(component)
         except Exception:
-            for component in reversed(started):
+            for component in reversed(attempted):
                 try:
-                    component.shutdown()
-                except (RuntimeError, TypeError):
+                    component.stop_services()
+                except Exception:
                     pass
+                if component.system is not None:
+                    try:
+                        component.system.shutdown()
+                    except Exception:
+                        pass
             raise
-        return tuple(component.component_id for component in started)
+        return tuple(component.component_id for component in booted)
 
     def resume(self) -> tuple[str, ...]:
-        """Resume all connected persistent Coreless systems."""
+        """Resume connected systems transactionally."""
+        attempted: list[CorelessComponent] = []
         resumed: list[CorelessComponent] = []
         try:
             for component in self.components():
                 if not component.healthy:
                     continue
+                attempted.append(component)
                 if component.system is not None:
                     component.resume()
-                component.start_services()
-                if component.system is not None:
                     resumed.append(component)
+                component.start_services()
         except Exception:
-            for component in reversed(resumed):
+            for component in reversed(attempted):
                 try:
-                    component.shutdown()
-                except (RuntimeError, TypeError):
+                    component.stop_services()
+                except Exception:
                     pass
+                if component.system is not None:
+                    try:
+                        component.system.shutdown()
+                    except Exception:
+                        pass
             raise
         return tuple(component.component_id for component in resumed)
 
@@ -593,12 +818,17 @@ class CorelessHub:
         """Shut down all connected systems while preserving the composition."""
         stopped: list[str] = []
         for component in reversed(self.components()):
-            if component.system is not None:
-                component.shutdown()
-            elif component.vm is not None or component.ai_runtime is not None:
-                component.stop_services()
-                continue
-            else:
+            try:
+                if component.system is not None:
+                    component.shutdown()
+                elif component.vm is not None or component.ai_runtime is not None:
+                    component.stop_services()
+                    continue
+                else:
+                    continue
+            except Exception:
+                # Shutdown is best-effort across the whole virtual motherboard:
+                # one broken component must not strand every later component.
                 continue
             stopped.append(component.component_id)
         return tuple(stopped)

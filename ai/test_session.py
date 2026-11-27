@@ -53,3 +53,34 @@ def test_session_state_rejects_bad_version_and_authority():
         AISession.from_state({"version": 99})
     with __import__("pytest").raises(ValueError):
         AISession.from_state({"version": 1, "session_id": "s", "authority": "bad", "counter": 0, "active": True, "events": []})
+
+
+def test_session_restore_rejects_duplicate_event_ids_and_inconsistent_counter():
+    import pytest
+
+    duplicate_events = {
+        "version": 1,
+        "session_id": "s",
+        "authority": "recommend",
+        "counter": 2,
+        "active": True,
+        "events": [
+            {"event_id": "s:event:1", "kind": "request", "payload": {}},
+            {"event_id": "s:event:1", "kind": "result", "payload": {}},
+        ],
+    }
+    with pytest.raises(ValueError, match="malformed or duplicate"):
+        AISession.from_state(duplicate_events)
+
+    inconsistent_counter = {
+        "version": 1,
+        "session_id": "s",
+        "authority": "recommend",
+        "counter": 3,
+        "active": True,
+        "events": [
+            {"event_id": "s:event:1", "kind": "request", "payload": {}},
+        ],
+    }
+    with pytest.raises(ValueError, match="counter does not match"):
+        AISession.from_state(inconsistent_counter)

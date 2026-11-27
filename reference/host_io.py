@@ -10,9 +10,9 @@ from __future__ import annotations
 import json
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
+from typing import Mapping, Protocol, runtime_checkable
 
-from input import CoordinateFrame, InputEvent, InputEventType
+from input import CoordinateFrame, InputEvent, InputEventType, _thaw_metadata_value
 
 
 @runtime_checkable
@@ -69,7 +69,7 @@ def encode_input_event(event: InputEvent) -> bytes:
         "contact_id": event.contact_id,
         "pressure": event.pressure,
         "button": event.button,
-        "metadata": dict(event.metadata),
+        "metadata": _thaw_metadata_value(event.metadata),
     }
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
 

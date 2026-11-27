@@ -75,3 +75,28 @@ def test_registry_restore_rejects_unregistered_core():
     registry.register(FakeCore("qwen3"))
     with __import__("pytest").raises(KeyError):
         registry.restore_state({"version": 1, "cores": [{"model_id": "missing", "provider": "local", "local": True, "enabled": True}]})
+
+
+
+def test_registry_restore_is_atomic_when_later_entry_is_invalid():
+    registry = AICoreRegistry()
+    registry.register(FakeCore("qwen3"), enabled=True)
+    registry.register(FakeCore("deepseek"), enabled=False)
+
+    state = {
+        "version": 1,
+        "cores": [
+            {"model_id": "qwen3", "enabled": False},
+            {"model_id": "deepseek", "local": "not-a-boolean"},
+        ],
+    }
+
+    try:
+        registry.restore_state(state)
+    except ValueError as exc:
+        assert "invalid descriptor fields" in str(exc)
+    else:
+        raise AssertionError("invalid registry state was accepted")
+
+    assert registry.descriptor("qwen3").enabled is True
+    assert registry.descriptor("deepseek").enabled is False
